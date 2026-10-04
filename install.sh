@@ -435,6 +435,70 @@ if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]] && comma
     warn "tailscaled could not be started automatically. Tailscale can be started manually later."
 fi
 
+# ---------- Tailscale authentication and Serve ----------
+
+TAILSCALE_READY=false
+TAILSCALE_URL=""
+
+configure_tailscale() {
+  # Docker/CI test environments are non-interactive and cannot complete a
+  # browser-based Tailscale login. Do not block the installer there.
+  if [[ ! -t 0 || ! -t 1 ]]; then
+    warn "Skipping interactive Tailscale setup because this installer is running non-interactively."
+    warn "Run ./install.sh again from a normal terminal to finish Tailscale setup."
+    return 0
+  fi
+
+  ensure_sudo
+
+  # Allow the installing user to manage Tailscale without sudo afterwards.
+  sudo tailscale set --operator="$CURRENT_USER" >/dev/null 2>&1 || \
+    warn "Could not set '$CURRENT_USER' as the Tailscale operator. The installer will use sudo for Tailscale commands."
+
+  if ! tailscale status >/dev/null 2>&1; then
+    info "This machine is not authenticated with Tailscale yet."
+    printf '%bTailscale will provide a login URL. Complete the login in your browser, then return here.%b\n' \
+      "$C_YELLOW" "$C_RESET"
+    sudo tailscale up || {
+      warn "Tailscale authentication did not complete. Airdrop is installed, but remote access is not configured yet."
+      return 0
+    }
+  fi
+
+  if ! tailscale status >/dev/null 2>&1; then
+    warn "Tailscale is installed but this machine is not authenticated. Remote access setup was skipped."
+    return 0
+  fi
+
+  TAILSCALE_READY=true
+  ok "This machine is connected to Tailscale."
+
+  # These mounts are intentionally idempotent. Re-running install.sh updates
+  # the Airdrop routes instead of creating another copy of the configuration.
+  if ! sudo tailscale serve --bg --set-path / http://127.0.0.1:5000; then
+    warn "Could not configure Tailscale Serve for the Airdrop file server."
+    warn "Make sure HTTPS certificates are enabled for this tailnet, then re-run ./install.sh."
+    TAILSCALE_READY=false
+    return 0
+  fi
+
+  if ! sudo tailscale serve --bg --set-path /push http://127.0.0.1:6001; then
+    warn "Could not configure Tailscale Serve for the Airdrop push server."
+    warn "Make sure HTTPS certificates are enabled for this tailnet, then re-run ./install.sh."
+    TAILSCALE_READY=false
+    return 0
+  fi
+
+  local serve_status
+  serve_status="$(sudo tailscale serve status 2>/dev/null || true)"
+  TAILSCALE_URL="$(printf '%s\n' "$serve_status" | sed -n 's#^\(https://[^[:space:]]*\).*#\1#p' | head -n1 | sed 's#/$##')"
+  if [[ -n "$TAILSCALE_URL" ]]; then
+    ok "Tailscale Serve is configured: $TAILSCALE_URL"
+  else
+    warn "Tailscale Serve is running, but its HTTPS hostname could not be detected automatically."
+  fi
+}
+
 # ---------- Install application files ----------
 
 info "Installing Airdrop files..."
@@ -574,6 +638,8 @@ else
   warn "systemd is not available in this environment; services were not created."
   warn "The application files are installed, but you must run dufs and the Node.js server using your platform's service manager."
 fi
+
+configure_tailscale
 
 # ---------- CLI helper commands ----------
 
@@ -717,13 +783,21 @@ if [[ "$SYSTEMD_AVAILABLE" == true ]]; then
 fi
 
 printf '\n%bAirdrop installation completed successfully.%b\n' "$C_GREEN$C_BOLD" "$C_RESET"
-printf '\n%bNext steps:%b\n' "$C_BOLD" "$C_RESET"
-printf '1. Authenticate this machine with Tailscale if needed: sudo tailscale up\n'
-printf '2. Enable HTTPS certificates for your tailnet if Tailscale asks for it.\n'
-printf '3. Expose the local services through Tailscale Serve:\n'
-printf '   sudo tailscale serve --bg --set-path / http://127.0.0.1:5000\n'
-printf '   sudo tailscale serve --bg --set-path /push http://127.0.0.1:6001\n'
-printf '4. Open the generated Tailscale HTTPS hostname and install the PWA on your devices.\n'
+printf '\n%bDevice setup:%b\n' "$C_BOLD" "$C_RESET"
+if [[ "$TAILSCALE_READY" == true ]]; then
+  if [[ -n "$TAILSCALE_URL" ]]; then
+    printf '1. Open this Airdrop URL on your other devices:\n'
+    printf '   %s/ui/\n' "$TAILSCALE_URL"
+  else
+    printf '1. Open the Tailscale Serve HTTPS hostname and add /ui/ to the URL.\n'
+  fi
+  printf '2. Install Tailscale on each device and sign in to the same tailnet.\n'
+  printf '3. Open the Airdrop URL in Safari/Chrome and install the PWA.\n'
+  printf '4. Allow notifications when prompted.\n'
+else
+  printf '1. Authenticate this machine with Tailscale, then run ./install.sh again.\n'
+  printf '2. The installer will configure Tailscale Serve automatically.\n'
+fi
 printf '\n%bInstalled paths:%b\n' "$C_BOLD" "$C_RESET"
 printf '  Share: %s\n' "$SHARE_DIR"
 printf '  Push server: %s\n' "$PUSH_DIR"

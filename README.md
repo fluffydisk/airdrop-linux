@@ -12,8 +12,8 @@ A self-hosted file and clipboard sharing system that runs over Tailscale. It is 
 ## Quick start
 
 ```bash
-git clone https://github.com/fluffydisk/airdrop-linux.git
-cd airdrop-linux
+git clone <this-repo-url> airdrop
+cd airdrop
 ./install.sh
 ```
 
@@ -24,15 +24,20 @@ The installer automatically:
 - Installs the npm dependencies
 - **Generates a fresh VAPID key pair for your installation** so users never inherit someone else's credentials
 - Installs and starts the systemd services using your current user account when systemd is available
+- Sets the installing user as the Tailscale Linux operator
+- Authenticates the machine with Tailscale when needed (the installer pauses for the normal browser login)
+- Configures Tailscale Serve automatically for the Airdrop file server (`/`) and push server (`/push`)
+- Prints the exact Airdrop HTTPS URL to open on the user's other devices
 - Installs terminal helpers (`airdrop`, `copy-clipboard`, `paste-clipboard`) in `~/.local/bin` and automatically detects Wayland vs. X11 for clipboard access
 
-After the installer finishes, it prints a few commands that must be completed manually for Tailscale and the hostname. Those steps are intentionally not automated because they require `sudo` privileges and authentication with your own Tailscale account.
+The only external step that may be required is enabling HTTPS certificates for your tailnet in the Tailscale admin console. Tailscale Serve requires HTTPS certificates; once they are enabled, re-running `./install.sh` completes the Serve configuration automatically.
 
 ### Requirements
 
 - A Linux distribution with systemd for automatic service management
 - A [Tailscale](https://tailscale.com/) account
 - `curl` and `sudo` access
+- Tailscale HTTPS certificates enabled for the tailnet when using automatic Serve setup
 
 The included Docker test suite covers Ubuntu, Debian, Fedora, Rocky Linux, openSUSE Tumbleweed, Arch Linux, Alpine Linux, and Void Linux. Docker containers do not provide a normal desktop session or a full systemd environment, so clipboard integration and real service startup are not completely exercised by the container tests.
 
