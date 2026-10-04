@@ -1,0 +1,21 @@
+# /etc/systemd/system/airdrop-push.service
+# Installation: copy this file to /etc/systemd/system/, replace <USER>
+# with your username, then run:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now airdrop-push.service
+
+[Unit]
+Description=Airdrop push notification server
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<USER>
+WorkingDirectory=/home/<USER>/airdrop-push
+ExecStart=/usr/bin/node /home/<USER>/airdrop-push/push-server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+# /etc/systemd/system/airdropshare.service
+# Installation: copy this file to /etc/systemd/system/, replace <USER>
+# with your username, then run:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now airdropshare.service
+
+[Unit]
+Description=Airdrop dufs file server
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<USER>
+ExecStart=/usr/local/bin/dufs /home/<USER>/AirdropShare --bind 0.0.0.0 --port 5000 --allow-all --render-try-index
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

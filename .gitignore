@@ -1,0 +1,15 @@
+# Secrets
+.env
+
+# Runtime state — regenerated automatically, never commit
+airdrop-push/subscriptions.json
+airdrop-push/seen-files.json
+subscriptions.json
+seen-files.json
+
+# Dependencies
+node_modules/
+
+# Shared files themselves (not part of the app)
+AirdropShare/*
+!AirdropShare/ui/

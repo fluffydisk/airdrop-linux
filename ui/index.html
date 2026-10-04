@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Airdrop</title>
+<link rel="manifest" href="/ui/manifest.json">
+<meta name="theme-color" content="#F2F2F7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Airdrop">
+<link rel="apple-touch-icon" href="/ui/icon-192.png">
+<style>
+  :root {
+    --bg: #F2F2F7;
+    --grouped-bg: #F2F2F7;
+    --card: #FFFFFF;
+    --card-pressed: #E5E5EA;
+    --label: #000000;
+    --secondary-label: #3C3C43;
+    --tertiary-label: #8E8E93;
+    --separator: rgba(60,60,67,0.29);
+    --blue: #007AFF;
+    --green: #34C759;
+    --red: #FF3B30;
+    --nav-bg: rgba(242,242,247,0.94);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --grouped-bg: #000000;
+      --card: #1C1C1E;
+      --card-pressed: #2C2C2E;
+      --label: #FFFFFF;
+      --secondary-label: #EBEBF5;
+      --tertiary-label: #8E8E93;
+      --separator: rgba(84,84,88,0.65);
+      --nav-bg: rgba(0,0,0,0.85);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    min-height: 100%;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: var(--label);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Nav bar */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 0.5px solid var(--separator);
+  }
+  .navbar-inner {
+    padding: 6px 16px 12px;
+  }
+  .navbar-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-align: center;
+    height: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .navbar.scrolled .navbar-title { opacity: 1; height: auto; margin-bottom: 2px; }
+
+  .large-title {
+    padding: 4px 16px 8px;
+  }
+  .large-title h1 {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  .large-title p {
+    margin: 2px 0 0;
+    font-size: 15px;
+    color: var(--tertiary-label);
+  }
+
+  .content { padding: 0 16px; max-width: 640px; margin: 0 auto; }
+
+  /* Grouped section */
+  .section { margin-top: 24px; }
+  .section-header {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--tertiary-label);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    padding: 0 16px 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .refresh-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: var(--blue);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .refresh-btn svg {
+    width: 16px; height: 16px;
+    transition: transform 0.4s ease;
+  }
+  .refresh-btn.spinning svg {
+    animation: spin 0.6s linear;
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .section-footer {
+    font-size: 13px;
+    color: var(--tertiary-label);
+    padding: 6px 16px 0;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  /* Rows */
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    min-height: 44px;
+    position: relative;
+    text-decoration: none;
+    color: var(--label);
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .row:active { background: var(--card-pressed); }
+  .row + .row::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 16px; right: 0;
+    height: 0.5px;
+    background: var(--separator);
+  }
+  .row-icon {
+    width: 29px; height: 29px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+  }
+  .row-icon.blue { background: var(--blue); }
+  .row-icon.green { background: var(--green); }
+  .row-icon svg { width: 17px; height: 17px; }
+  .row-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 17px;
+  }
+  .row-value {
+    font-size: 17px;
+    color: var(--tertiary-label);
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chevron {
+    width: 8px; height: 14px;
+    flex-shrink: 0;
+    color: #C7C7CC;
+  }
+  .row-title-icon {
+    width: 22px; height: 22px;
+    color: var(--tertiary-label);
+    flex-shrink: 0;
+  }
+
+  /* Destructive / accent text rows */
+  .row.accent .row-label { color: var(--blue); }
+  .row.destructive .row-label { color: var(--red); }
+
+  /* Toggle */
+  .switch {
+    position: relative;
+    width: 51px; height: 31px;
+    flex-shrink: 0;
+    border-radius: 16px;
+    background: #E9E9EB;
+    transition: background 0.2s ease;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+  .switch.on { background: var(--green); }
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 27px; height: 27px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+  }
+  .switch.on::after { transform: translateX(20px); }
+
+  /* Status text under groups */
+  .status {
+    text-align: center;
+    font-size: 13px;
+    color: var(--tertiary-label);
+    margin: 10px 0 0;
+    min-height: 16px;
+  }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+
+  #fileInput { display: none; }
+
+  .empty-row {
+    padding: 20px 16px;
+    text-align: center;
+    color: var(--tertiary-label);
+    font-size: 15px;
+  }
+
+  /* Incoming file sheet (native alert-like) */
+  .sheet-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .sheet-backdrop.show { display: flex; }
+  .sheet-backdrop {
+    padding: 0 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  }
+  .sheet {
+    width: 100%;
+    max-width: 640px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
+    text-align: center;
+    animation: sheet-up 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @keyframes sheet-up {
+    from { transform: translateY(30%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .sheet-icon {
+    width: 52px; height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 12px;
+    background: var(--blue);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sheet-message {
+    background: var(--card);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-radius: 14px;
+    padding: 20px 20px 16px;
+    margin-bottom: 8px;
+  }
+  .sheet-message h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--tertiary-label);
+  }
+  .sheet-message p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--tertiary-label);
+  }
+  .sheet-actions {
+    background: var(--card);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .sheet-btn {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--blue);
+    font-size: 20px;
+    font-weight: 600;
+    padding: 16px;
+    cursor: pointer;
+    position: relative;
+  }
+  .sheet-btn:active { background: var(--card-pressed); }
+  .sheet-btn + .sheet-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 0.5px;
+    background: var(--separator);
+  }
+  .sheet-btn.primary { font-weight: 700; }
+  .sheet-cancel {
+    display: block;
+    width: 100%;
+    border: none;
+    background: var(--card);
+    color: var(--blue);
+    font-size: 20px;
+    font-weight: 700;
+    padding: 16px;
+    border-radius: 14px;
+    cursor: pointer;
+  }
+  .sheet-cancel:active { background: var(--card-pressed); }
+
+  /* Buttons row (segmented style at top for quick actions) */
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .quick-btn {
+    flex: 1;
+    border: none;
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: var(--blue);
+    cursor: pointer;
+  }
+  .quick-btn:active { background: var(--card-pressed); }
+  .quick-btn svg { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+  <div class="navbar" id="navbar">
+    <div class="navbar-inner">
+      <div class="navbar-title">Airdrop</div>
+    </div>
+  </div>
+
+  <div class="large-title">
+    <h1>Airdrop</h1>
+  </div>
+
+  <div class="content" id="scrollArea">
+
+    <div class="section">
+      <div class="card">
+        <div class="quick-actions" style="padding:12px;">
+          <button class="quick-btn" id="uploadBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6M5 12l7-7 7 7"/><path d="M5 21h14"/></svg>
+            Upload
+          </button>
+          <button class="quick-btn" id="browseBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l2 3h8v11H4z"/></svg>
+            Files
+          </button>
+          <button class="quick-btn" id="clipPaste">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+            Paste
+          </button>
+          <button class="quick-btn" id="clipCopy">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+      </div>
+      <div class="status" id="status"></div>
+      <div class="status" id="clipSub"></div>
+    </div>
+
+    <input type="file" id="fileInput" multiple>
+
+    <div class="section" id="notifySection" style="display:none;">
+      <div class="section-header">Notifications</div>
+      <div class="card">
+        <div class="row">
+          <div class="row-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </div>
+          <div class="row-label">New File Notifications</div>
+          <button class="switch" id="notifySwitch"></button>
+        </div>
+      </div>
+      <div class="section-footer">You will receive a notification when a new file is added.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <span>Recently Added</span>
+        <button class="refresh-btn" id="refreshBtn" aria-label="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        </button>
+      </div>
+      <div class="card" id="fileListCard">
+        <div class="empty-row">No files yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sheet-backdrop" id="incomingBackdrop">
+    <div class="sheet">
+      <div class="sheet-message">
+        <div class="sheet-icon">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        </div>
+        <h3 id="incomingName">file.pdf</h3>
+        <p>A new file was added</p>
+      </div>
+      <div class="sheet-actions">
+        <button class="sheet-btn primary" id="incomingAccept">Accept</button>
+      </div>
+      <button class="sheet-cancel" id="incomingReject">Reject</button>
+    </div>
+  </div>
+
+<script>
+const statusEl = document.getElementById('status');
+const fileInput = document.getElementById('fileInput');
+const fileListCard = document.getElementById('fileListCard');
+const navbar = document.getElementById('navbar');
+const scrollArea = document.getElementById('scrollArea');
+
+window.addEventListener('scroll', () => {
+  navbar.classList.toggle('scrolled', window.scrollY > 28);
+});
+
+document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
+document.getElementById('browseBtn').addEventListener('click', () => {
+  window.location.href = '/?browse';
+});
+
+fileInput.addEventListener('change', async () => {
+  const files = Array.from(fileInput.files);
+  if (!files.length) return;
+  for (const file of files) {
+    await uploadFile(file);
+  }
+  fileInput.value = '';
+  loadRecent();
+});
+
+async function uploadFile(file) {
+  setStatus(`Uploading: ${file.name}`, '');
+  try {
+    const res = await fetch('/' + encodeURIComponent(file.name), {
+      method: 'PUT',
+      body: file
+    });
+    if (res.ok) {
+      setStatus(`${file.name} uploaded`, 'ok');
+    } else {
+      setStatus(`Error: ${file.name} could not be uploaded (${res.status})`, 'err');
+    }
+  } catch (e) {
+    setStatus(`Connection error: ${file.name}`, 'err');
+  }
+}
+
+function setStatus(msg, cls) {
+  statusEl.textContent = msg;
+  statusEl.className = 'status' + (cls ? ' ' + cls : '');
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+const docIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+
+async function loadRecent() {
+  try {
+    const res = await fetch('/?json');
+    const data = await res.json();
+    const files = (data.paths || [])
+      .filter(p => p.path_type === 'File')
+      .sort((a, b) => (b.mtime || 0) - (a.mtime || 0))
+      .slice(0, 6);
+
+    if (!files.length) {
+      fileListCard.innerHTML = '<div class="empty-row">No files yet.</div>';
+      return;
+    }
+
+    fileListCard.innerHTML = files.map(f => `
+      <a class="row" href="/${encodeURIComponent(f.name)}" download>
+        <div class="row-icon blue">${docIcon}</div>
+        <div class="row-label">${f.name}</div>
+        <div class="row-value">${formatSize(f.size || 0)}</div>
+      </a>
+    `).join('');
+  } catch (e) {
+    fileListCard.innerHTML = '<div class="empty-row">Could not load the file list.</div>';
+  }
+}
+
+loadRecent();
+
+const refreshBtn = document.getElementById('refreshBtn');
+refreshBtn.addEventListener('click', async () => {
+  refreshBtn.classList.add('spinning');
+  await loadRecent();
+  setTimeout(() => refreshBtn.classList.remove('spinning'), 400);
+});
+
+// Refresh the list automatically whenever the page becomes visible again
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    loadRecent();
+  }
+});
+
+// --- Shared clipboard ---
+const clipSub = document.getElementById('clipSub');
+const CLIP_FILE = '/.clipboard.txt';
+
+document.getElementById('clipPaste').addEventListener('click', async () => {
+  clipSub.textContent = 'Sending...';
+  try {
+    const text = await navigator.clipboard.readText();
+    const res = await fetch(CLIP_FILE, { method: 'PUT', body: text });
+    clipSub.textContent = res.ok ? 'Clipboard sent' : 'Send failed (' + res.status + ')';
+    clipSub.className = 'status ' + (res.ok ? 'ok' : 'err');
+  } catch (e) {
+    clipSub.textContent = 'Could not read the clipboard. Try again.';
+    clipSub.className = 'status err';
+  }
+});
+
+document.getElementById('clipCopy').addEventListener('click', async () => {
+  clipSub.textContent = 'Fetching...';
+  try {
+    const res = await fetch(CLIP_FILE + '?t=' + Date.now());
+    if (!res.ok) { clipSub.textContent = 'Clipboard is still empty'; clipSub.className = 'status'; return; }
+    const text = await res.text();
+    await navigator.clipboard.writeText(text);
+    clipSub.textContent = 'Copied to clipboard';
+    clipSub.className = 'status ok';
+  } catch (e) {
+    clipSub.textContent = 'Copy failed';
+    clipSub.className = 'status err';
+  }
+});
+
+// --- Push notifications ---
+const PUSH_BASE = '/push';
+const notifySection = document.getElementById('notifySection');
+const notifySwitch = document.getElementById('notifySwitch');
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function initPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return;
+  }
+  notifySection.style.display = 'block';
+  const reg = await navigator.serviceWorker.register('/ui/sw.js');
+  await navigator.serviceWorker.ready;
+
+  if (Notification.permission === 'granted') {
+    notifySwitch.classList.add('on');
+    await ensureSubscribed(reg);
+  } else {
+    notifySwitch.classList.remove('on');
+  }
+}
+
+async function ensureSubscribed(reg) {
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const keyRes = await fetch(PUSH_BASE + '/vapid-public-key');
+    const publicKey = await keyRes.text();
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey)
+    });
+  }
+  await fetch(PUSH_BASE + '/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sub)
+  });
+}
+
+notifySwitch.addEventListener('click', async () => {
+  if (Notification.permission === 'granted') {
+    // On iOS, notification permission cannot be revoked here; direct the user to Settings
+    setStatus('To disable notifications, use Settings > Notifications', '');
+    return;
+  }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    notifySwitch.classList.add('on');
+    const reg = await navigator.serviceWorker.ready;
+    await ensureSubscribed(reg);
+  }
+});
+
+initPush();
+
+const params = new URLSearchParams(window.location.search);
+
+// --- Handle files shared from other apps via the system share sheet (Android) ---
+const sharedFiles = params.get('shared');
+const sharedError = params.get('shared_error');
+if (sharedFiles) {
+  const names = sharedFiles.split(',').filter(Boolean);
+  setStatus(names.length === 1 ? `${names[0]} shared and uploaded` : `${names.length} files uploaded`, 'ok');
+  loadRecent();
+  window.history.replaceState({}, '', '/ui/');
+} else if (sharedError) {
+  setStatus('Could not upload the shared file', 'err');
+  window.history.replaceState({}, '', '/ui/');
+}
+
+// --- Incoming file sheet (triggered by ?accept=filename from notification click) ---
+const acceptFile = params.get('accept');
+const incomingBackdrop = document.getElementById('incomingBackdrop');
+const incomingName = document.getElementById('incomingName');
+
+function showIncomingSheet(fileName) {
+  incomingName.textContent = fileName;
+  incomingBackdrop.classList.add('show');
+}
+
+function hideIncomingSheet() {
+  incomingBackdrop.classList.remove('show');
+  window.history.replaceState({}, '', '/ui/');
+}
+
+document.getElementById('incomingAccept').addEventListener('click', () => {
+  const fileName = incomingName.textContent;
+  window.location.href = '/' + encodeURIComponent(fileName);
+  hideIncomingSheet();
+});
+
+document.getElementById('incomingReject').addEventListener('click', () => {
+  hideIncomingSheet();
+});
+
+if (acceptFile) {
+  showIncomingSheet(acceptFile);
+}
+
+// Reused-window case: page was already open, service worker sends the file name directly
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'incoming-file' && event.data.fileName) {
+      showIncomingSheet(event.data.fileName);
+      loadRecent();
+    }
+  });
+}
+</script>
+</body>
+</html>

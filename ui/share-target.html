@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airdrop</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: #F2F2F7;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #000;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #000; color: #fff; }
+  }
+  p { font-size: 15px; color: #8E8E93; }
+</style>
+</head>
+<body>
+  <p>Uploading…</p>
+  <script>
+    // If the service worker hasn't intercepted this POST (e.g. first load
+    // before activation), redirect back to the app after a moment.
+    setTimeout(() => { window.location.href = '/ui/'; }, 3000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "airdrop-push",
+  "version": "1.0.0",
+  "description": "Push notification server for Airdrop (self-hosted file/clipboard transfer over Tailscale)",
+  "main": "push-server.js",
+  "scripts": {
+    "start": "node push-server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "web-push": "^3.6.7"
+  }
+}
