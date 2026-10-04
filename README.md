@@ -1,6 +1,8 @@
-# Airdrop
+# Airdrop Linux
 
 A self-hosted file and clipboard sharing system that runs over Tailscale. It is designed as a private alternative to AirDrop for sharing files and clipboard content between iPad, iPhone, Android, and Linux/desktop devices. It includes an iOS-inspired PWA interface, real Web Push notifications, and bidirectional clipboard synchronization.
+
+![Airdrop Linux overview](assets/airdrop-linux-overview.png)
 
 ## Architecture
 
@@ -12,8 +14,8 @@ A self-hosted file and clipboard sharing system that runs over Tailscale. It is 
 ## Quick start
 
 ```bash
-git clone <this-repo-url> airdrop
-cd airdrop
+git clone https://github.com/fluffydisk/airdrop-linux.git
+cd airdrop-linux
 ./install.sh
 ```
 
