@@ -12,8 +12,8 @@ A self-hosted file and clipboard sharing system that runs over Tailscale. It is 
 ## Quick start
 
 ```bash
-git clone <this-repo-url> airdrop
-cd airdrop
+git clone https://github.com/fluffydisk/airdrop-linux.git
+cd airdrop-linux
 ./install.sh
 ```
 
