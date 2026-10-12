@@ -24,6 +24,23 @@ source_dir="$repo_dir/desktop/out/Airdrop-linux-$arch"
 target_dir="$airdrop_root/app/desktop"
 mkdir -p "$target_dir" "$HOME/.local/bin" "$HOME/.local/share/applications"
 cp -a "$source_dir/." "$target_dir/"
+# Ubuntu 24.04+ restricts Chromium's unprivileged user-namespace sandbox.
+# Grant access to this executable only; keep Electron's sandbox enabled.
+if [[ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" == 1 ]]; then
+  parser="$(command -v apparmor_parser || true)"
+  [[ -n "$parser" ]] || parser=/usr/sbin/apparmor_parser
+  [[ -x "$parser" ]] || { printf 'AppArmor restricts user namespaces but apparmor_parser is missing. Install the apparmor package and retry.\n' >&2; exit 1; }
+  profile_tmp="$(mktemp)"
+  trap 'rm -f "$profile_tmp"' EXIT
+  node "$repo_dir/scripts/desktop-apparmor.js" "$target_dir/Airdrop" > "$profile_tmp"
+  # Validate before installing policy. No elevated command runs the GUI itself.
+  "$parser" --skip-kernel-load --skip-cache "$profile_tmp"
+  printf 'Configuring AppArmor sandbox access for Airdrop (requires sudo).\n'
+  sudo install -o root -g root -m 0644 "$profile_tmp" "/etc/apparmor.d/airdrop-desktop-$(id -u)"
+  sudo "$parser" --replace "/etc/apparmor.d/airdrop-desktop-$(id -u)"
+  rm -f "$profile_tmp"
+  trap - EXIT
+fi
 # Shell quote absolute paths, including homes containing spaces or apostrophes.
 printf '#!/usr/bin/env bash\nexport AIRDROP_HOME=%q\nexec %q "$@"\n' "$airdrop_root" "$target_dir/Airdrop" > "$HOME/.local/bin/airdrop-desktop"
 chmod 0755 "$HOME/.local/bin/airdrop-desktop"
