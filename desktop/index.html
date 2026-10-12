@@ -25,6 +25,7 @@
   <div class="nav-label">WORKSPACE</div>
   <nav aria-label="Main navigation">
     <button class="nav-item selected" data-view="transfer" aria-current="page"><svg><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
+    <button class="nav-item" data-view="clipboard"><svg><use href="#i-file"/></svg>Clipboard</button>
     <button class="nav-item" data-view="activity"><svg><use href="#i-clock"/></svg>Activity</button>
     <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg>Settings</button>
   </nav>
@@ -53,6 +54,21 @@
       </section>
       <div class="result" id="result" role="status" aria-live="polite" hidden></div>
       <div class="privacy-note"><svg><use href="#i-lock"/></svg><span>Your files stay in your workspace. Shared through your private Tailscale network.</span></div>
+    </section>
+    <section id="view-clipboard" class="view" hidden>
+      <div class="page-heading"><div class="eyebrow">TEXT BETWEEN DEVICES</div><h1>Your shared clipboard.</h1><p>Paste text from this computer, or pick up text shared by another device.</p></div>
+      <section class="settings-card">
+        <label class="field-label" for="clipboardText">Clipboard text</label>
+        <textarea id="clipboardText" rows="10" placeholder="Paste or type text to share…" spellcheck="false"></textarea>
+        <div class="clipboard-actions">
+          <button class="button" id="pasteClipboard">Paste from computer</button>
+          <button class="button" id="loadClipboard">Load shared text</button>
+          <button class="button" id="copyClipboard" disabled>Copy to computer</button>
+          <button class="button button-primary" id="shareClipboard" disabled>Share text</button>
+        </div>
+        <p class="field-help">Share text replaces the shared clipboard on your devices. Load shared text replaces the text in this editor. Text only, up to 1 MiB.</p>
+        <div id="clipboardResult" class="result" role="status" aria-live="polite" hidden></div>
+      </section>
     </section>
     <section id="view-activity" class="view" hidden>
       <div class="page-heading"><div class="eyebrow">ALL IN ONE PLACE</div><h1>A little history.</h1><p>The latest files in your shared workspace.</p></div>

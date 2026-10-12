@@ -1056,3 +1056,6 @@ h1{font-weight:650;letter-spacing:-1.25px}
 .result{border-radius:13px}
 :root[data-theme=light] .drop-zone{border-color:#c7c7cc}
 :root[data-theme=light] .nav-item.selected{background:#007aff10}
+
+#clipboardText { width:100%; box-sizing:border-box; resize:vertical; min-height:160px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); padding:12px; font:inherit; font-size:13px; line-height:1.6; }
+.clipboard-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }

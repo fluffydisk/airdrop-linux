@@ -1,6 +1,10 @@
 'use strict';
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('airdrop', {
+  readClipboard: () => ipcRenderer.invoke('airdrop:clipboard-read'),
+  copyClipboard: text => ipcRenderer.invoke('airdrop:clipboard-copy', text),
+  loadClipboard: () => ipcRenderer.invoke('airdrop:clipboard-load'),
+  shareClipboard: text => ipcRenderer.invoke('airdrop:clipboard-share', text),
   choose: () => ipcRenderer.invoke('airdrop:choose'),
   drop: files => ipcRenderer.invoke('airdrop:drop', Array.from(files).map(file => webUtils.getPathForFile(file))),
   describe: files => ipcRenderer.invoke('airdrop:describe', files),

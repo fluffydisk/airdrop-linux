@@ -1,11 +1,12 @@
 'use strict';
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { validName, rootDirectory } = require('./core/lib/files');
 const { sendFiles } = require('./core/lib/transfer');
 const { getPaths } = require('./core/lib/paths');
+const { readSharedClipboard, writeSharedClipboard, validateText } = require('./clipboard');
 const paths = getPaths();
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
@@ -56,6 +57,10 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.handle('airdrop:clipboard-read', event => { ownWindow(event); return clipboard.readText(); });
+  ipcMain.handle('airdrop:clipboard-copy', (event, text) => { ownWindow(event); validateText(text); clipboard.writeText(text); });
+  ipcMain.handle('airdrop:clipboard-load', event => { ownWindow(event); return readSharedClipboard(shareDir); });
+  ipcMain.handle('airdrop:clipboard-share', (event, text) => { ownWindow(event); return writeSharedClipboard(shareDir, text); });
   ipcMain.handle('airdrop:choose', async event => {
     ownWindow(event);
     const result = await dialog.showOpenDialog(window, { properties: ['openFile', 'multiSelections'] });

@@ -36,7 +36,7 @@ function theme(value) {
 try { theme(localStorage.getItem('airdrop-theme') === 'dark' ? 'dark' : 'light'); } catch { theme('light'); }
 function navigate(view) {
   activeView = view;
-  for (const name of ['transfer', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
+  for (const name of ['transfer', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();
@@ -135,3 +135,37 @@ document.getElementById('saveUrl').onclick = async () => {
   finally { button.disabled = false; }
 };
 renderQueue();
+
+const clipboardText = document.getElementById('clipboardText');
+const clipboardResult = document.getElementById('clipboardResult');
+let clipboardBusy = false;
+function updateClipboardControls() {
+  for (const id of ['pasteClipboard', 'loadClipboard', 'copyClipboard', 'shareClipboard']) {
+    document.getElementById(id).disabled = clipboardBusy || (['copyClipboard', 'shareClipboard'].includes(id) && !clipboardText.value.length);
+  }
+  clipboardText.disabled = clipboardBusy;
+}
+clipboardText.addEventListener('input', updateClipboardControls);
+for (const [id, action, success] of [
+  ['pasteClipboard', async () => {
+    const text = await window.airdrop.readClipboard();
+    if (!text) throw new Error('Your computer clipboard has no text.');
+    clipboardText.value = text;
+  }, 'Pasted from this computer. Edit the text or select Share text.'],
+  ['loadClipboard', async () => {
+    const text = await window.airdrop.loadClipboard();
+    if (text === null) throw new Error('No shared text yet. Share text from another device first.');
+    clipboardText.value = text;
+  }, 'Shared text loaded. Select Copy to computer to use it here.'],
+  ['copyClipboard', () => window.airdrop.copyClipboard(clipboardText.value), 'Copied to this computer’s clipboard.'],
+  ['shareClipboard', () => window.airdrop.shareClipboard(clipboardText.value), 'Text shared with your devices.']
+]) {
+  document.getElementById(id).onclick = async () => {
+    if (clipboardBusy) return;
+    clipboardBusy = true; updateClipboardControls();
+    message('Working…', 'pending', clipboardResult);
+    try { await action(); message(success, 'success', clipboardResult); }
+    catch (error) { message((error.message || String(error)).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, ''), 'error', clipboardResult); }
+    finally { clipboardBusy = false; updateClipboardControls(); }
+  };
+}

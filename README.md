@@ -198,7 +198,7 @@ On Android, share files to the installed Airdrop PWA using the system **Share** 
 
 ### Optional Linux desktop app
 
-The desktop companion has dedicated Transfer, Activity, and Settings views, persistent light/dark themes, a file queue with sizes and removal controls, and a responsive layout. Activity reads recent files from your real shared folder. The workspace address is restored on restart.
+The desktop companion has dedicated Transfer, Clipboard, Activity, and Settings views, persistent light/dark themes, a file queue with sizes and removal controls, and a responsive layout. Activity reads recent files from your real shared folder. The workspace address is restored on restart.
 
 ![Airdrop desktop application](assets/airdrop-desktop.png)
 
@@ -215,6 +215,8 @@ The installer builds a native-architecture Linux Electron directory and installs
 On Ubuntu systems with AppArmor user-namespace restrictions (including Ubuntu 24.04+), the installer uses `sudo` to install and load an executable-specific profile at `/etc/apparmor.d/airdrop-desktop-<uid>`. This permits Airdrop to create its sandbox without disabling the system-wide restriction. Rerun `./install-desktop.sh` from an updated checkout if an older installation aborts with `The SUID sandbox helper binary was found, but is not configured correctly`. Do not launch the GUI with `sudo` or add `--no-sandbox` to the launcher. Other policies that disable user namespaces entirely still require administrator configuration. To remove the profile after uninstalling, run `sudo apparmor_parser -R /etc/apparmor.d/airdrop-desktop-$(id -u)` followed by `sudo rm /etc/apparmor.d/airdrop-desktop-$(id -u)`.
 
 Drag files into the window, or use **Choose files**, then send separately or as a ZIP. The app uses this machine's `~/.local/share/airdrop/files` folder; it is not a remote Linux client. The status indicator checks dufs and the API every five seconds. Closing the window keeps it running when a StatusNotifier tray host is detected; without a tray host it behaves as a normal window app. Some GNOME sessions need a tray extension. Use the tray's **Quit** action to exit.
+
+**Clipboard** lets you paste text from your computer, edit it, and use **Share text** to replace the shared clipboard. Use **Load shared text** followed by **Copy to computer** to receive text from another device. It uses the same `.clipboard.txt` as the terminal helpers and web app, supports text up to 1 MiB, and only reads or changes your computer clipboard when you press a button.
 
 In **Settings**, enter the server's Tailscale HTTPS address to open the PWA. The initial fallback opens the local PWA; clipboard and mobile use should use HTTPS. Environment overrides `AIRDROP_SHARE_DIR`, `AIRDROP_DESKTOP_USER_DATA`, `AIRDROP_FILE_PORT`, `AIRDROP_API_PORT` and `AIRDROP_DISABLE_TRAY=1` support isolated local testing.
 
