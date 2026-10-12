@@ -23,14 +23,24 @@ set -Eeuo pipefail
 readonly MIN_NODE_MAJOR=18
 readonly DUFS_VERSION="${DUFS_VERSION:-0.46.0}"
 readonly NODE_VERSION="${NODE_VERSION:-24.21.0}"
-readonly SHARE_DIR="$HOME/AirdropShare"
-readonly PUSH_DIR="$HOME/airdrop-push"
+readonly AIRDROP_ROOT="${AIRDROP_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/airdrop}"
+[[ "$AIRDROP_ROOT" == /* ]] || { printf 'AIRDROP_HOME must be absolute.\n' >&2; exit 1; }
+export AIRDROP_HOME="$AIRDROP_ROOT"
+readonly SHARE_DIR="$AIRDROP_ROOT/files"
+readonly PUSH_DIR="$AIRDROP_ROOT/app/server"
+readonly UI_DIR="$AIRDROP_ROOT/app/ui"
+readonly CONFIG_DIR="$AIRDROP_ROOT/config"
+readonly STATE_DIR="$AIRDROP_ROOT/state/push"
 readonly LOCAL_BIN_DIR="$HOME/.local/bin"
 readonly NODE_FALLBACK_DIR="$HOME/.local/opt"
 readonly REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CURRENT_USER="$(id -un)"
 readonly HOME_DIR="$HOME"
 
+ROLLBACK_SERVICES=false
+OLD_SHARE_ACTIVE=false
+OLD_PUSH_ACTIVE=false
+SERVICE_BACKUP=""
 TMP_NODE_DIR=""
 TMP_DUFS_DIR=""
 TMP_TS_SCRIPT=""
@@ -38,6 +48,21 @@ TMP_SHARE_SERVICE=""
 TMP_PUSH_SERVICE=""
 
 cleanup() {
+  local result=$?
+  if [[ "$result" -ne 0 && "$ROLLBACK_SERVICES" == true ]]; then
+    printf 'Restoring previous service configuration; source data is preserved.\n' >&2
+    for service in airdropshare airdrop-push; do
+      if [[ -f "$SERVICE_BACKUP/$service.service" ]]; then
+        sudo install -m 0644 "$SERVICE_BACKUP/$service.service" "/etc/systemd/system/$service.service" || true
+      else
+        sudo systemctl stop "$service.service" || true
+        sudo rm -f "/etc/systemd/system/$service.service" || true
+      fi
+    done
+    sudo systemctl daemon-reload || true
+    [[ "$OLD_SHARE_ACTIVE" == false ]] || sudo systemctl restart airdropshare.service || true
+    [[ "$OLD_PUSH_ACTIVE" == false ]] || sudo systemctl restart airdrop-push.service || true
+  fi
   [[ -z "$TMP_NODE_DIR" ]] || rm -rf "$TMP_NODE_DIR"
   [[ -z "$TMP_DUFS_DIR" ]] || rm -rf "$TMP_DUFS_DIR"
   [[ -z "$TMP_TS_SCRIPT" ]] || rm -f "$TMP_TS_SCRIPT"
@@ -475,14 +500,14 @@ configure_tailscale() {
 
   # These mounts are intentionally idempotent. Re-running install.sh updates
   # the Airdrop routes instead of creating another copy of the configuration.
-  if ! sudo tailscale serve --bg --set-path / http://127.0.0.1:5000; then
+  if ! sudo tailscale serve --bg --set-path / http://127.0.0.1:6001; then
     warn "Could not configure Tailscale Serve for the Airdrop file server."
     warn "Make sure HTTPS certificates are enabled for this tailnet, then re-run ./install.sh."
     TAILSCALE_READY=false
     return 0
   fi
 
-  if ! sudo tailscale serve --bg --set-path /push http://127.0.0.1:6001; then
+  if ! sudo tailscale serve --bg --set-path /push http://127.0.0.1:6001/push; then
     warn "Could not configure Tailscale Serve for the Airdrop push server."
     warn "Make sure HTTPS certificates are enabled for this tailnet, then re-run ./install.sh."
     TAILSCALE_READY=false
@@ -501,11 +526,18 @@ configure_tailscale() {
 
 # ---------- Install application files ----------
 
+"$NODE_BIN" -e 'require(process.argv[1]).getPaths()' "$REPO_DIR/lib/paths.js"
 info "Installing Airdrop files..."
-mkdir -p "$SHARE_DIR/ui" "$PUSH_DIR" "$LOCAL_BIN_DIR"
+mkdir -p "$SHARE_DIR" "$UI_DIR" "$PUSH_DIR" "$LOCAL_BIN_DIR" "$CONFIG_DIR" "$STATE_DIR"
+chmod 700 "$AIRDROP_ROOT" "$CONFIG_DIR" "$STATE_DIR"
 
-cp -a "$REPO_DIR/ui/." "$SHARE_DIR/ui/"
+cp -a "$REPO_DIR/ui/." "$UI_DIR/"
 cp -a "$REPO_DIR/push-server.js" "$REPO_DIR/package.json" "$PUSH_DIR/"
+mkdir -p "$PUSH_DIR/lib" "$PUSH_DIR/bin" "$PUSH_DIR/ui" "$PUSH_DIR/scripts"
+cp -a "$REPO_DIR/scripts/migrate-layout.js" "$PUSH_DIR/scripts/"
+cp -a "$REPO_DIR/lib/." "$PUSH_DIR/lib/"
+cp -a "$REPO_DIR/bin/." "$PUSH_DIR/bin/"
+cp -a "$REPO_DIR/ui/zip.js" "$PUSH_DIR/ui/"
 [[ -f "$REPO_DIR/package-lock.json" ]] && cp -a "$REPO_DIR/package-lock.json" "$PUSH_DIR/"
 
 ok "Application files installed."
@@ -515,14 +547,38 @@ ok "Application files installed."
 info "Installing npm dependencies..."
 (
   cd "$PUSH_DIR"
-  "$NPM_BIN" install --omit=dev --no-audit --no-fund
+  if [[ -f package-lock.json ]]; then
+    "$NPM_BIN" ci --omit=dev --no-audit --no-fund
+  else
+    "$NPM_BIN" install --omit=dev --no-audit --no-fund
+  fi
 )
 [[ -x "$PUSH_DIR/node_modules/.bin/web-push" ]] || fail "npm dependencies were installed, but web-push is missing."
 ok "npm dependencies installed."
 
+# ---------- Prepare migration ----------
+# Stop legacy writers before copying. Keep the original units for rollback.
+SYSTEMD_AVAILABLE=false
+if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+  SYSTEMD_AVAILABLE=true
+  ensure_sudo
+  SERVICE_BACKUP="$(mktemp -d "$AIRDROP_ROOT/service-rollback-XXXXXX")"
+  for service in airdropshare airdrop-push; do
+    [[ ! -f "/etc/systemd/system/$service.service" ]] || sudo cp "/etc/systemd/system/$service.service" "$SERVICE_BACKUP/"
+  done
+  sudo systemctl is-active --quiet airdropshare.service && OLD_SHARE_ACTIVE=true || true
+  sudo systemctl is-active --quiet airdrop-push.service && OLD_PUSH_ACTIVE=true || true
+  ROLLBACK_SERVICES=true
+  sudo systemctl stop airdropshare.service airdrop-push.service || true
+  if sudo systemctl is-active --quiet airdropshare.service || sudo systemctl is-active --quiet airdrop-push.service; then
+    fail "Stop existing Airdrop services before migrating data."
+  fi
+fi
+"$NODE_BIN" "$PUSH_DIR/scripts/migrate-layout.js" prepare
+
 # ---------- VAPID keys ----------
 
-ENV_FILE="$PUSH_DIR/.env"
+ENV_FILE="$CONFIG_DIR/server.env"
 if [[ -f "$ENV_FILE" ]]; then
   if grep -q '^VAPID_PUBLIC_KEY=[^[:space:]]' "$ENV_FILE" && grep -q '^VAPID_PRIVATE_KEY=[^[:space:]]' "$ENV_FILE"; then
     chmod 600 "$ENV_FILE"
@@ -545,7 +601,10 @@ else
 VAPID_PUBLIC_KEY=$VAPID_PUBLIC
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE
 VAPID_CONTACT_EMAIL=$VAPID_CONTACT_EMAIL
-WATCH_DIR=$SHARE_DIR
+AIRDROP_HOME="$AIRDROP_ROOT"
+WATCH_DIR="$SHARE_DIR"
+AIRDROP_STATE_DIR="$STATE_DIR"
+AIRDROP_UI_DIR="$UI_DIR"
 PORT=6001
 ENV
   chmod 600 "$ENV_FILE"
@@ -554,11 +613,6 @@ fi
 
 # ---------- Systemd services ----------
 
-SYSTEMD_AVAILABLE=false
-if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
-  SYSTEMD_AVAILABLE=true
-fi
-
 if [[ "$SYSTEMD_AVAILABLE" == true ]]; then
   info "Installing systemd services..."
   ensure_sudo
@@ -566,8 +620,8 @@ if [[ "$SYSTEMD_AVAILABLE" == true ]]; then
   push_node_bin="$NODE_BIN"
   push_dufs_bin="$DUFS_BIN"
 
-  TMP_SHARE_SERVICE="$(mktemp)"
-  TMP_PUSH_SERVICE="$(mktemp)"
+  TMP_SHARE_SERVICE="$(mktemp --suffix=.service)"
+  TMP_PUSH_SERVICE="$(mktemp --suffix=.service)"
 
   cat > "$TMP_SHARE_SERVICE" <<SERVICE
 [Unit]
@@ -578,8 +632,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$CURRENT_USER
-WorkingDirectory=$SHARE_DIR
-ExecStart=$push_dufs_bin $SHARE_DIR --bind 127.0.0.1 --port 5000 --allow-all --render-try-index
+WorkingDirectory=$AIRDROP_ROOT
+ExecStart="$push_dufs_bin" "$SHARE_DIR" --bind 127.0.0.1 --port 5000 --allow-upload --allow-delete --allow-search --allow-archive --render-try-index --hidden ".airdrop-*"
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true
@@ -601,18 +655,23 @@ Type=simple
 User=$CURRENT_USER
 WorkingDirectory=$PUSH_DIR
 Environment=NODE_ENV=production
-EnvironmentFile=$ENV_FILE
-ExecStart=$push_node_bin $PUSH_DIR/push-server.js
+EnvironmentFile="$ENV_FILE"
+ExecStart="$push_node_bin" "$PUSH_DIR/push-server.js"
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-ReadWritePaths=$PUSH_DIR $SHARE_DIR
+ReadWritePaths="$AIRDROP_ROOT"
 
 [Install]
 WantedBy=multi-user.target
 SERVICE
+
+  # Validate generated units before replacing the installed configuration.
+  if command -v systemd-analyze >/dev/null 2>&1; then
+    systemd-analyze verify "$TMP_SHARE_SERVICE" "$TMP_PUSH_SERVICE" || fail "Generated systemd services are invalid. Previous services will be restored."
+  fi
 
   sudo install -m 0644 "$TMP_SHARE_SERVICE" /etc/systemd/system/airdropshare.service
   sudo install -m 0644 "$TMP_PUSH_SERVICE" /etc/systemd/system/airdrop-push.service
@@ -645,46 +704,14 @@ configure_tailscale
 
 info "Installing terminal helper commands..."
 
-cat > "$LOCAL_BIN_DIR/airdrop" <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-
-SHARE_DIR="${HOME}/AirdropShare"
-
-if [[ $# -ne 1 ]]; then
-  printf 'Usage: airdrop <file>\n' >&2
-  exit 2
-fi
-
-src="$1"
-[[ -f "$src" ]] || { printf 'Error: file not found: %s\n' "$src" >&2; exit 1; }
-[[ -d "$SHARE_DIR" ]] || { printf 'Error: AirdropShare does not exist: %s\n' "$SHARE_DIR" >&2; exit 1; }
-
-base="$(basename -- "$src")"
-if [[ "$base" == *.* && "$base" != .* ]]; then
-  stem="${base%.*}"
-  ext=".${base##*.}"
-else
-  stem="$base"
-  ext=""
-fi
-
-dest="$SHARE_DIR/$base"
-counter=1
-while [[ -e "$dest" ]]; do
-  dest="$SHARE_DIR/${stem} (${counter})${ext}"
-  counter=$((counter + 1))
-done
-
-cp -- "$src" "$dest"
-printf 'Copied to AirdropShare: %s\n' "$(basename -- "$dest")"
-SCRIPT
+# Use the detected Node executable, including the installer-managed fallback.
+printf '#!/usr/bin/env bash\nexport AIRDROP_HOME=%q\nexec %q %q "$@"\n' "$AIRDROP_ROOT" "$NODE_BIN" "$PUSH_DIR/bin/airdrop.js" > "$LOCAL_BIN_DIR/airdrop"
 
 cat > "$LOCAL_BIN_DIR/copy-clipboard" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLIP_FILE="${HOME}/AirdropShare/.clipboard.txt"
+CLIP_FILE="${AIRDROP_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/airdrop}/files/.clipboard.txt"
 
 [[ -f "$CLIP_FILE" ]] || { printf 'Error: the shared clipboard is empty or has not been created yet.\n' >&2; exit 1; }
 
@@ -712,7 +739,7 @@ cat > "$LOCAL_BIN_DIR/paste-clipboard" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLIP_FILE="${HOME}/AirdropShare/.clipboard.txt"
+CLIP_FILE="${AIRDROP_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/airdrop}/files/.clipboard.txt"
 mkdir -p "$(dirname "$CLIP_FILE")"
 
 tmp_file="$(mktemp)"
@@ -737,9 +764,15 @@ else
 fi
 
 mv -- "$tmp_file" "$CLIP_FILE"
-printf 'Local clipboard sent to AirdropShare.\n'
+printf 'Local clipboard sent to Airdrop.\n'
 SCRIPT
 
+for helper in copy-clipboard paste-clipboard; do
+  temp_helper="$(mktemp)"
+  { head -n 1 "$LOCAL_BIN_DIR/$helper"; printf 'export AIRDROP_HOME=%q\n' "$AIRDROP_ROOT"; tail -n +2 "$LOCAL_BIN_DIR/$helper"; } > "$temp_helper"
+  cp "$temp_helper" "$LOCAL_BIN_DIR/$helper"
+  rm -f "$temp_helper"
+done
 chmod 0755 "$LOCAL_BIN_DIR/airdrop" "$LOCAL_BIN_DIR/copy-clipboard" "$LOCAL_BIN_DIR/paste-clipboard"
 
 # Make the local command directory available in new shells without touching
@@ -773,14 +806,30 @@ ok "Terminal helpers installed in $LOCAL_BIN_DIR."
 info "Running local health checks..."
 "$NODE_BIN" --check "$PUSH_DIR/push-server.js"
 "$DUFS_BIN" --version >/dev/null 2>&1 || fail "dufs health check failed."
-[[ -f "$SHARE_DIR/ui/index.html" ]] || fail "UI files are missing."
-[[ -f "$SHARE_DIR/ui/sw.js" ]] || fail "Service worker is missing."
-[[ -f "$PUSH_DIR/.env" ]] || fail ".env file is missing."
+[[ -f "$UI_DIR/index.html" ]] || fail "UI files are missing."
+[[ -f "$UI_DIR/sw.js" ]] || fail "Service worker is missing."
+[[ -f "$ENV_FILE" ]] || fail ".env file is missing."
 
 if [[ "$SYSTEMD_AVAILABLE" == true ]]; then
   sudo systemctl is-active --quiet airdropshare.service || fail "airdropshare.service is not active."
   sudo systemctl is-active --quiet airdrop-push.service || fail "airdrop-push.service is not active."
 fi
+
+if [[ "$SYSTEMD_AVAILABLE" == true ]]; then
+  for attempt in {1..20}; do
+    if curl -fsS http://127.0.0.1:6001/push/health >/dev/null && curl -fsS http://127.0.0.1:6001/ui/ >/dev/null && curl -fsS 'http://127.0.0.1:6001/?json' >/dev/null; then break; fi
+    sleep 1
+  done
+  curl -fsS http://127.0.0.1:6001/push/health >/dev/null || fail "Gateway health check failed."
+  curl -fsS http://127.0.0.1:6001/ui/ >/dev/null || fail "UI health check failed."
+  curl -fsS 'http://127.0.0.1:6001/?json' >/dev/null || fail "Share health check failed."
+  # Runtime has switched successfully. Legacy sources now become recoverable backups.
+  ROLLBACK_SERVICES=false
+  "$NODE_BIN" "$PUSH_DIR/scripts/migrate-layout.js" commit || warn "Migration copies are active; legacy backup relocation is pending. Original directories were preserved."
+else
+  warn "Legacy directories remain in place. Stop manual services, verify the new layout, then run migrate-layout.js commit."
+fi
+[[ -z "$SERVICE_BACKUP" ]] || rm -rf "$SERVICE_BACKUP"
 
 printf '\n%bAirdrop installation completed successfully.%b\n' "$C_GREEN$C_BOLD" "$C_RESET"
 printf '\n%bDevice setup:%b\n' "$C_BOLD" "$C_RESET"

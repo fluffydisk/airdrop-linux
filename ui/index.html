@@ -11,6 +11,19 @@
 <meta name="apple-mobile-web-app-title" content="Airdrop">
 <link rel="apple-touch-icon" href="/ui/icon-192.png">
 <style>
+  [hidden] { display: none !important; }
+  button { cursor: pointer; }
+  #sendPanel button, #downloadZip { padding: 10px 14px; margin: 8px 4px; border: 0; border-radius: 10px; background: var(--blue); color: white; font: inherit; font-size: 14px; }
+  #sendPanel button:disabled, #downloadZip:disabled { opacity: .45; cursor: default; }
+  #sendPanel #sendCancel { background: var(--card-pressed); color: var(--label); }
+  #fileListCard a { text-decoration: none; color: var(--label); }
+  #fileListCard a:hover { color: var(--blue); }
+  input[type=checkbox] { accent-color: var(--blue); }
+  #sendHint { color: var(--tertiary-label); font-size: 14px; }
+  #sendNames { overflow-wrap: anywhere; }
+  .row-label { overflow-wrap: anywhere; min-width: 0; }
+  .file-selection { margin-right: 12px; }
+
   :root {
     --bg: #F2F2F7;
     --grouped-bg: #F2F2F7;
@@ -406,6 +419,16 @@
     </div>
 
     <input type="file" id="fileInput" multiple>
+    <div class="section" id="sendPanel" hidden>
+      <div class="section-header">Send files</div>
+      <div class="card" style="padding:16px">
+        <ul id="sendNames"></ul>
+        <label><input type="checkbox" id="sendZip"> Send as one ZIP (up to 100 MiB)</label>
+        <p id="sendHint" role="status"></p>
+        <button id="sendConfirm">Send</button>
+        <button id="sendCancel">Cancel</button>
+      </div>
+    </div>
 
     <div class="section" id="notifySection" style="display:none;">
       <div class="section-header">Notifications</div>
@@ -423,11 +446,12 @@
 
     <div class="section">
       <div class="section-header">
-        <span>Recently Added</span>
+        <span>Shared files</span>
         <button class="refresh-btn" id="refreshBtn" aria-label="Refresh">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
       </div>
+      <button id="downloadZip" disabled>Download selected as ZIP</button>
       <div class="card" id="fileListCard">
         <div class="empty-row">No files yet.</div>
       </div>
@@ -451,250 +475,9 @@
     </div>
   </div>
 
-<script>
-const statusEl = document.getElementById('status');
-const fileInput = document.getElementById('fileInput');
-const fileListCard = document.getElementById('fileListCard');
-const navbar = document.getElementById('navbar');
-const scrollArea = document.getElementById('scrollArea');
-
-window.addEventListener('scroll', () => {
-  navbar.classList.toggle('scrolled', window.scrollY > 28);
-});
-
-document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
-document.getElementById('browseBtn').addEventListener('click', () => {
-  window.location.href = '/?browse';
-});
-
-fileInput.addEventListener('change', async () => {
-  const files = Array.from(fileInput.files);
-  if (!files.length) return;
-  for (const file of files) {
-    await uploadFile(file);
-  }
-  fileInput.value = '';
-  loadRecent();
-});
-
-async function uploadFile(file) {
-  setStatus(`Uploading: ${file.name}`, '');
-  try {
-    const res = await fetch('/' + encodeURIComponent(file.name), {
-      method: 'PUT',
-      body: file
-    });
-    if (res.ok) {
-      setStatus(`${file.name} uploaded`, 'ok');
-    } else {
-      setStatus(`Error: ${file.name} could not be uploaded (${res.status})`, 'err');
-    }
-  } catch (e) {
-    setStatus(`Connection error: ${file.name}`, 'err');
-  }
-}
-
-function setStatus(msg, cls) {
-  statusEl.textContent = msg;
-  statusEl.className = 'status' + (cls ? ' ' + cls : '');
-}
-
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-const docIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
-
-async function loadRecent() {
-  try {
-    const res = await fetch('/?json');
-    const data = await res.json();
-    const files = (data.paths || [])
-      .filter(p => p.path_type === 'File')
-      .sort((a, b) => (b.mtime || 0) - (a.mtime || 0))
-      .slice(0, 6);
-
-    if (!files.length) {
-      fileListCard.innerHTML = '<div class="empty-row">No files yet.</div>';
-      return;
-    }
-
-    fileListCard.innerHTML = files.map(f => `
-      <a class="row" href="/${encodeURIComponent(f.name)}" download>
-        <div class="row-icon blue">${docIcon}</div>
-        <div class="row-label">${f.name}</div>
-        <div class="row-value">${formatSize(f.size || 0)}</div>
-      </a>
-    `).join('');
-  } catch (e) {
-    fileListCard.innerHTML = '<div class="empty-row">Could not load the file list.</div>';
-  }
-}
-
-loadRecent();
-
-const refreshBtn = document.getElementById('refreshBtn');
-refreshBtn.addEventListener('click', async () => {
-  refreshBtn.classList.add('spinning');
-  await loadRecent();
-  setTimeout(() => refreshBtn.classList.remove('spinning'), 400);
-});
-
-// Refresh the list automatically whenever the page becomes visible again
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    loadRecent();
-  }
-});
-
-// --- Shared clipboard ---
-const clipSub = document.getElementById('clipSub');
-const CLIP_FILE = '/.clipboard.txt';
-
-document.getElementById('clipPaste').addEventListener('click', async () => {
-  clipSub.textContent = 'Sending...';
-  try {
-    const text = await navigator.clipboard.readText();
-    const res = await fetch(CLIP_FILE, { method: 'PUT', body: text });
-    clipSub.textContent = res.ok ? 'Clipboard sent' : 'Send failed (' + res.status + ')';
-    clipSub.className = 'status ' + (res.ok ? 'ok' : 'err');
-  } catch (e) {
-    clipSub.textContent = 'Could not read the clipboard. Try again.';
-    clipSub.className = 'status err';
-  }
-});
-
-document.getElementById('clipCopy').addEventListener('click', async () => {
-  clipSub.textContent = 'Fetching...';
-  try {
-    const res = await fetch(CLIP_FILE + '?t=' + Date.now());
-    if (!res.ok) { clipSub.textContent = 'Clipboard is still empty'; clipSub.className = 'status'; return; }
-    const text = await res.text();
-    await navigator.clipboard.writeText(text);
-    clipSub.textContent = 'Copied to clipboard';
-    clipSub.className = 'status ok';
-  } catch (e) {
-    clipSub.textContent = 'Copy failed';
-    clipSub.className = 'status err';
-  }
-});
-
-// --- Push notifications ---
-const PUSH_BASE = '/push';
-const notifySection = document.getElementById('notifySection');
-const notifySwitch = document.getElementById('notifySwitch');
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-}
-
-async function initPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return;
-  }
-  notifySection.style.display = 'block';
-  const reg = await navigator.serviceWorker.register('/ui/sw.js');
-  await navigator.serviceWorker.ready;
-
-  if (Notification.permission === 'granted') {
-    notifySwitch.classList.add('on');
-    await ensureSubscribed(reg);
-  } else {
-    notifySwitch.classList.remove('on');
-  }
-}
-
-async function ensureSubscribed(reg) {
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    const keyRes = await fetch(PUSH_BASE + '/vapid-public-key');
-    const publicKey = await keyRes.text();
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey)
-    });
-  }
-  await fetch(PUSH_BASE + '/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(sub)
-  });
-}
-
-notifySwitch.addEventListener('click', async () => {
-  if (Notification.permission === 'granted') {
-    // On iOS, notification permission cannot be revoked here; direct the user to Settings
-    setStatus('To disable notifications, use Settings > Notifications', '');
-    return;
-  }
-  const perm = await Notification.requestPermission();
-  if (perm === 'granted') {
-    notifySwitch.classList.add('on');
-    const reg = await navigator.serviceWorker.ready;
-    await ensureSubscribed(reg);
-  }
-});
-
-initPush();
-
-const params = new URLSearchParams(window.location.search);
-
-// --- Handle files shared from other apps via the system share sheet (Android) ---
-const sharedFiles = params.get('shared');
-const sharedError = params.get('shared_error');
-if (sharedFiles) {
-  const names = sharedFiles.split(',').filter(Boolean);
-  setStatus(names.length === 1 ? `${names[0]} shared and uploaded` : `${names.length} files uploaded`, 'ok');
-  loadRecent();
-  window.history.replaceState({}, '', '/ui/');
-} else if (sharedError) {
-  setStatus('Could not upload the shared file', 'err');
-  window.history.replaceState({}, '', '/ui/');
-}
-
-// --- Incoming file sheet (triggered by ?accept=filename from notification click) ---
-const acceptFile = params.get('accept');
-const incomingBackdrop = document.getElementById('incomingBackdrop');
-const incomingName = document.getElementById('incomingName');
-
-function showIncomingSheet(fileName) {
-  incomingName.textContent = fileName;
-  incomingBackdrop.classList.add('show');
-}
-
-function hideIncomingSheet() {
-  incomingBackdrop.classList.remove('show');
-  window.history.replaceState({}, '', '/ui/');
-}
-
-document.getElementById('incomingAccept').addEventListener('click', () => {
-  const fileName = incomingName.textContent;
-  window.location.href = '/' + encodeURIComponent(fileName);
-  hideIncomingSheet();
-});
-
-document.getElementById('incomingReject').addEventListener('click', () => {
-  hideIncomingSheet();
-});
-
-if (acceptFile) {
-  showIncomingSheet(acceptFile);
-}
-
-// Reused-window case: page was already open, service worker sends the file name directly
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'incoming-file' && event.data.fileName) {
-      showIncomingSheet(event.data.fileName);
-      loadRecent();
-    }
-  });
-}
-</script>
+<script src="vendor/jszip.min.js"></script>
+<script src="zip.js"></script>
+<script src="pending-share.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

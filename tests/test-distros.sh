@@ -168,14 +168,18 @@ postcheck_container() {
       [[ -n "$node" ]] || { echo "POSTCHECK: Node.js executable not found" >&2; exit 1; }
     }
 
-    [[ -d "$HOME/AirdropShare/ui" ]] || { echo "POSTCHECK: AirdropShare/ui missing" >&2; exit 1; }
-    [[ -f "$HOME/airdrop-push/push-server.js" ]] || { echo "POSTCHECK: push-server.js missing" >&2; exit 1; }
-    [[ -f "$HOME/airdrop-push/package.json" ]] || { echo "POSTCHECK: package.json missing" >&2; exit 1; }
-    [[ -x "$HOME/airdrop-push/node_modules/.bin/web-push" ]] || { echo "POSTCHECK: web-push missing" >&2; exit 1; }
-    [[ -f "$HOME/airdrop-push/.env" ]] || { echo "POSTCHECK: .env missing" >&2; exit 1; }
-    grep -q "^VAPID_PUBLIC_KEY=[^[:space:]]" "$HOME/airdrop-push/.env" || { echo "POSTCHECK: VAPID_PUBLIC_KEY missing" >&2; exit 1; }
-    grep -q "^VAPID_PRIVATE_KEY=[^[:space:]]" "$HOME/airdrop-push/.env" || { echo "POSTCHECK: VAPID_PRIVATE_KEY missing" >&2; exit 1; }
-    [[ "$(stat -c %a "$HOME/airdrop-push/.env" 2>/dev/null || stat -f %Lp "$HOME/airdrop-push/.env")" == "600" ]] || { echo "POSTCHECK: .env permissions are not 600" >&2; exit 1; }
+    [[ -d "$HOME/.local/share/airdrop/app/ui" ]] || { echo "POSTCHECK: AirdropShare/ui missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/app/server/push-server.js" ]] || { echo "POSTCHECK: push-server.js missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/app/server/lib/files.js" ]] || { echo "POSTCHECK: file API module missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/app/server/bin/airdrop.js" ]] || { echo "POSTCHECK: CLI module missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/app/ui/vendor/jszip.min.js" ]] || { echo "POSTCHECK: bundled ZIP library missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/app/ui/app.js" && -f "$HOME/.local/share/airdrop/app/ui/pending-share.js" ]] || { echo "POSTCHECK: PWA modules missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/app/server/package.json" ]] || { echo "POSTCHECK: package.json missing" >&2; exit 1; }
+    [[ -x "$HOME/.local/share/airdrop/app/server/node_modules/.bin/web-push" ]] || { echo "POSTCHECK: web-push missing" >&2; exit 1; }
+    [[ -f "$HOME/.local/share/airdrop/config/server.env" ]] || { echo "POSTCHECK: .env missing" >&2; exit 1; }
+    grep -q "^VAPID_PUBLIC_KEY=[^[:space:]]" "$HOME/.local/share/airdrop/config/server.env" || { echo "POSTCHECK: VAPID_PUBLIC_KEY missing" >&2; exit 1; }
+    grep -q "^VAPID_PRIVATE_KEY=[^[:space:]]" "$HOME/.local/share/airdrop/config/server.env" || { echo "POSTCHECK: VAPID_PRIVATE_KEY missing" >&2; exit 1; }
+    [[ "$(stat -c %a "$HOME/.local/share/airdrop/config/server.env" 2>/dev/null || stat -f %Lp "$HOME/.local/share/airdrop/config/server.env")" == "600" ]] || { echo "POSTCHECK: .env permissions are not 600" >&2; exit 1; }
 
     [[ -x "$HOME/.local/bin/airdrop" ]] || { echo "POSTCHECK: airdrop helper missing" >&2; exit 1; }
     [[ -x "$HOME/.local/bin/copy-clipboard" ]] || { echo "POSTCHECK: copy-clipboard helper missing" >&2; exit 1; }
@@ -190,7 +194,15 @@ postcheck_container() {
     node_major="$($node_cmd --version | sed -n "s/^v\\([0-9][0-9]*\\)\\..*/\\1/p")"
     [[ -n "$node_major" && "$node_major" -ge 18 ]] || { echo "POSTCHECK: Node.js < 18" >&2; exit 1; }
 
-    "$node_cmd" --check "$HOME/airdrop-push/push-server.js"
+    "$node_cmd" --check "$HOME/.local/share/airdrop/app/server/push-server.js"
+    printf "cli smoke" > "$HOME/cli-sample.txt"
+    "$HOME/.local/bin/airdrop" "$HOME/cli-sample.txt"
+    "$HOME/.local/bin/airdrop" "$HOME/cli-sample.txt"
+    [[ -f "$HOME/.local/share/airdrop/files/cli-sample.txt" && -f "$HOME/.local/share/airdrop/files/cli-sample (1).txt" ]] || { echo "POSTCHECK: CLI collision handling failed" >&2; exit 1; }
+    "$HOME/.local/bin/airdrop" --zip "$HOME/cli-sample.txt"
+    "$node_cmd" /airdrop/tests/installed-smoke.cjs
+    rm -f "$HOME/.local/share/airdrop/files/cli-sample.txt" "$HOME/.local/share/airdrop/files/cli-sample (1).txt" "$HOME/.local/share/airdrop/files/"airdrop-*.zip
+    ./install-desktop.sh --help >/dev/null
     echo "POSTCHECK: PASS"
   '
 }
@@ -241,7 +253,11 @@ run_one() {
   fi
 
   log "Copying project into the container..."
-  if ! docker exec "$cid" mkdir -p /airdrop >>"$log_file" 2>&1 || ! docker cp "$PROJECT_DIR/." "$cid:/airdrop/" >>"$log_file" 2>&1; then
+  if ! docker exec "$cid" mkdir -p /airdrop >>"$log_file" 2>&1 || ! {
+    tar --exclude='./.git' --exclude='./.env' --exclude='./.agents' --exclude='./.aws' --exclude='./.codex' \
+      --exclude='./node_modules' --exclude='./desktop/node_modules' --exclude='./desktop/out' \
+      --exclude='./.test-artifacts' -C "$PROJECT_DIR" -cf - . | docker exec -i "$cid" tar -xf - -C /airdrop
+  } >>"$log_file" 2>&1; then
     record_result "$name" "COPY_FAIL" "$log_file"
     fail_note "$name: project copy failed. See $log_file"
     cleanup_container failed
@@ -272,7 +288,7 @@ run_one() {
     return
   fi
 
-  env_hash_before="$(docker exec -u "$TEST_USER" -e HOME="$TEST_HOME" "$cid" sha256sum "$TEST_HOME/airdrop-push/.env" | awk '{print $1}')"
+  env_hash_before="$(docker exec -u "$TEST_USER" -e HOME="$TEST_HOME" "$cid" sha256sum "$TEST_HOME/.local/share/airdrop/config/server.env" | awk '{print $1}')"
   printf 'ENV HASH BEFORE: %s\n' "$env_hash_before" >>"$log_file"
 
   log "Running install.sh (pass 2 / idempotence)..."
@@ -299,7 +315,7 @@ run_one() {
     return
   fi
 
-  env_hash_after="$(docker exec -u "$TEST_USER" -e HOME="$TEST_HOME" "$cid" sha256sum "$TEST_HOME/airdrop-push/.env" | awk '{print $1}')"
+  env_hash_after="$(docker exec -u "$TEST_USER" -e HOME="$TEST_HOME" "$cid" sha256sum "$TEST_HOME/.local/share/airdrop/config/server.env" | awk '{print $1}')"
   printf 'ENV HASH AFTER:  %s\n' "$env_hash_after" >>"$log_file"
 
   if [[ "$env_hash_before" != "$env_hash_after" ]]; then

@@ -1,5 +1,6 @@
 # Secrets
 .env
+server.env
 
 # Runtime state — regenerated automatically, never commit
 airdrop-push/subscriptions.json
@@ -13,3 +14,9 @@ node_modules/
 # Shared files themselves (not part of the app)
 AirdropShare/*
 !AirdropShare/ui/
+
+# Generated desktop build files
+desktop/core/
+desktop/out/
+
+.test-artifacts/

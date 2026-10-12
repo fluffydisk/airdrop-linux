@@ -4,11 +4,26 @@
   "description": "Push notification server for Airdrop (self-hosted file/clipboard transfer over Tailscale)",
   "main": "push-server.js",
   "scripts": {
-    "start": "node push-server.js"
+    "start": "node push-server.js",
+    "bundle-ui": "node scripts/bundle-ui.js",
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node --test tests/browser.cjs",
+    "prepare-desktop": "node scripts/prepare-desktop.js",
+    "test:desktop": "node --test tests/desktop.cjs"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "jszip": "^3.10.1",
     "web-push": "^3.6.7"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.2",
+    "playwright-core": "^1.64.0"
   }
 }

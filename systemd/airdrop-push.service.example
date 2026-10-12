@@ -12,8 +12,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=<USER>
-WorkingDirectory=/home/<USER>/airdrop-push
-ExecStart=/usr/bin/node /home/<USER>/airdrop-push/push-server.js
+WorkingDirectory=/home/<USER>/.local/share/airdrop/app/server
+EnvironmentFile=/home/<USER>/.local/share/airdrop/config/server.env
+ExecStart=/usr/bin/node /home/<USER>/.local/share/airdrop/app/server/push-server.js
 Restart=on-failure
 RestartSec=5
 

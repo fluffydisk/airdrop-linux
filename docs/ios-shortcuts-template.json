@@ -1,0 +1,22 @@
+{
+  "format": "airdrop-shortcuts-action-recipe",
+  "version": 1,
+  "importableIntoShortcuts": false,
+  "physicalDeviceValidation": "pending",
+  "setup": { "serverOrigin": "https://<hostname>.<tailnet>.ts.net", "question": "What is your Airdrop HTTPS server address?", "trailingSlash": false },
+  "recipes": [
+    {
+      "name": "Send files to Airdrop",
+      "showInShareSheet": true,
+      "acceptedTypes": ["Files", "Images"],
+      "actions": ["Read server origin", "Use Shortcut Input or Select File (multiple)", "Repeat each file", "Preserve file name; convert photos to named JPEG if needed", "URL-encode file name only", "PUT raw File body to serverOrigin + /push/files/ + encodedName", "Read JSON; stop if error; collect returned name", "Show uploaded names"],
+      "response": { "name": "stored filename, possibly numbered", "size": "byte count" }
+    },
+    {
+      "name": "Send text to Airdrop",
+      "showInShareSheet": true,
+      "acceptedTypes": ["Text", "URLs"],
+      "actions": ["Read server origin", "Use Shortcut Input or Get Clipboard", "Get Text and join items with newline", "Set Name to .clipboard.txt", "PUT raw named text File to serverOrigin + /.clipboard.txt", "Show success after request completes"]
+    }
+  ]
+}

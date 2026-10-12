@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" data-theme="light"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Airdrop</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z M22 2 11 13"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z M14 2v6h6M8 13h8M8 17h5"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+<symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8m-4-5v5"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></symbol>
+</defs></svg>
+<div class="app-shell">
+<aside class="sidebar">
+  <a class="brand" href="#transfer" aria-label="Airdrop home"><span class="brand-mark"><svg><use href="#i-send"/></svg></span><span>Airdrop<span class="brand-caption">FILES. SIMPLY SHARED.</span></span></a>
+  <div class="nav-label">WORKSPACE</div>
+  <nav aria-label="Main navigation">
+    <button class="nav-item selected" data-view="transfer" aria-current="page"><svg><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
+    <button class="nav-item" data-view="activity"><svg><use href="#i-clock"/></svg>Activity</button>
+    <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg>Settings</button>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="nav-item" id="folder"><svg><use href="#i-folder"/></svg>Shared folder<svg class="trailing"><use href="#i-arrow"/></svg></button>
+    <button class="nav-item" id="pwa"><svg><use href="#i-arrow"/></svg>Open web app</button>
+    <div class="device-card"><span class="device-icon"><svg><use href="#i-monitor"/></svg></span><div><strong id="deviceName">This computer</strong><span>Your local workspace</span></div><span class="device-dot"></span></div>
+  </div>
+</aside>
+<div class="workspace">
+  <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
+  <main>
+    <section id="view-transfer" class="view">
+      <div class="page-heading"><div class="eyebrow">PRIVATE FILE SHARING</div><h1>Your files, <span>within reach.</span></h1><p>Send from this computer. Pick up on your other devices.</p></div>
+      <div id="dropZone" class="drop-zone" tabindex="0" role="group" aria-label="Drop files here or press Enter to choose files">
+        <div class="drop-orbit" aria-hidden="true"><span class="orbit-dot one"></span><span class="orbit-dot two"></span><div class="upload-symbol"><svg><use href="#i-upload"/></svg></div></div>
+        <h2>Drop files to share</h2><p>Choose a file, or bring the whole collection.</p>
+        <button class="button button-primary" id="choose">Choose files<svg class="button-arrow"><use href="#i-arrow"/></svg></button>
+        <span class="drop-caption">Any file type <span>·</span> Multiple files welcome</span>
+      </div>
+      <section class="queue-card" aria-label="Files to send">
+        <div class="section-heading"><div><h2>Ready to send <span class="count-pill" id="fileCount">0</span></h2><p id="queueSummary">Your next transfer starts here.</p></div><button class="text-button" id="clearFiles" hidden>Clear all</button></div>
+        <div id="queueEmpty" class="queue-empty"><svg><use href="#i-file"/></svg><span>Choose a few files to get started.</span></div>
+        <ul id="files" class="file-list"></ul>
+        <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Send files<svg><use href="#i-send"/></svg></button></div>
+      </section>
+      <div class="result" id="result" role="status" aria-live="polite" hidden></div>
+      <div class="privacy-note"><svg><use href="#i-lock"/></svg><span>Your files stay in your workspace. Shared through your private Tailscale network.</span></div>
+    </section>
+    <section id="view-activity" class="view" hidden>
+      <div class="page-heading"><div class="eyebrow">ALL IN ONE PLACE</div><h1>A little history.</h1><p>The latest files in your shared workspace.</p></div>
+      <section class="queue-card activity-card"><div class="section-heading"><div><h2>Shared files</h2><p>Recent additions, ready on your other devices.</p></div><button class="text-button" id="refreshActivity">Refresh</button></div><ul class="file-list" id="recentFiles"></ul><div class="queue-empty" id="activityEmpty">Nothing here yet. Send your first file.</div></section><div id="activityResult" class="result" role="status" hidden></div>
+    </section>
+    <section id="view-settings" class="view" hidden>
+      <div class="page-heading"><div class="eyebrow">MAKE YOURSELF AT HOME</div><h1>Your workspace.</h1><p>A few thoughtful details, just the way you like them.</p></div>
+      <section class="settings-card"><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>Connect your web app</h2><p>Add your Tailscale address to open Airdrop on this computer and your other devices.</p><label class="field-label" for="url">Workspace address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Use the HTTPS address shown after installing Airdrop.</p><div id="settingsResult" class="result" role="status" hidden></div></section>
+      <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
+      <div class="privacy-note"><svg><use href="#i-monitor"/></svg><span>Airdrop shares files from this computer. You’re always in control.</span></div>
+    </section>
+  </main>
+  <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>
+</div></div>
+<script src="renderer.js"></script></body></html>

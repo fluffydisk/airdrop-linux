@@ -1,3 +1,4 @@
+importScripts('/ui/pending-share.js');
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -74,27 +75,13 @@ self.addEventListener('fetch', (event) => {
 
 async function handleShareTarget(request) {
   try {
+    await AirdropShares.cleanup();
     const formData = await request.formData();
-    const files = formData.getAll('files');
-    const uploaded = [];
-
-    for (const file of files) {
-      if (!(file instanceof File) || !file.name) continue;
-      const res = await fetch('/' + encodeURIComponent(file.name), {
-        method: 'PUT',
-        body: file
-      });
-      uploaded.push({ name: file.name, ok: res.ok });
-    }
-
-    const redirectUrl = new URL(
-      'index.html?shared=' + encodeURIComponent(uploaded.map(u => u.name).join(',')),
-      self.registration.scope
-    ).href;
-
-    return Response.redirect(redirectUrl, 303);
-  } catch (e) {
-    const redirectUrl = new URL('index.html?shared_error=1', self.registration.scope).href;
-    return Response.redirect(redirectUrl, 303);
+    const files = formData.getAll('files').filter(file => file instanceof File && file.name);
+    if (!files.length) throw new Error('No files received');
+    const id = await AirdropShares.stage(files);
+    return Response.redirect(new URL('index.html?pending=' + encodeURIComponent(id), self.registration.scope).href, 303);
+  } catch (error) {
+    return Response.redirect(new URL('index.html?shared_error=1', self.registration.scope).href, 303);
   }
 }

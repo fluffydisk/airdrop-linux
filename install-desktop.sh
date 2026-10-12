@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Optional per-user GUI installation; the main installer must be run first.
+set -Eeuo pipefail
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "${1:-}" == '--help' ]]; then
+  printf 'Usage: ./install-desktop.sh\nBuilds and installs the optional Linux Electron application for this user.\n'
+  exit 0
+fi
+[[ "$(uname -s)" == Linux && "$(id -u)" -ne 0 ]] || { printf 'Run as a normal Linux user.\n' >&2; exit 1; }
+command -v node >/dev/null && command -v npm >/dev/null || { printf 'Node.js and npm are required in PATH.\n' >&2; exit 1; }
+node -e 'const [major,minor]=process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 12)) { console.error("GUI build requires Node.js 22.12 or later"); process.exit(1); }'
+airdrop_root="$(node -e 'console.log(require(process.argv[1]).getPaths().root)' "$repo_dir/lib/paths.js")"
+[[ -f "$airdrop_root/config/server.env" && -d "$airdrop_root/app/ui" ]] || { printf 'Run ./install.sh first to install or migrate the unified layout.\n' >&2; exit 1; }
+node -e 'const {getPaths}=require(process.argv[1]);const {checkDesktopClosed}=require(process.argv[2]);Promise.all([checkDesktopClosed(getPaths().desktopData),checkDesktopClosed(getPaths().legacyDesktopData)]).catch(e=>{console.error(e.message);process.exitCode=1})' "$repo_dir/lib/paths.js" "$repo_dir/scripts/migrate-layout.js"
+node "$repo_dir/scripts/prepare-desktop.js"
+(
+  cd "$repo_dir/desktop"
+  npm ci --no-audit --no-fund
+  npm run package
+)
+arch="$(node -p process.arch)"
+source_dir="$repo_dir/desktop/out/Airdrop-linux-$arch"
+[[ -x "$source_dir/Airdrop" ]] || { printf 'GUI build failed.\n' >&2; exit 1; }
+target_dir="$airdrop_root/app/desktop"
+mkdir -p "$target_dir" "$HOME/.local/bin" "$HOME/.local/share/applications"
+cp -a "$source_dir/." "$target_dir/"
+# Shell quote absolute paths, including homes containing spaces or apostrophes.
+printf '#!/usr/bin/env bash\nexport AIRDROP_HOME=%q\nexec %q "$@"\n' "$airdrop_root" "$target_dir/Airdrop" > "$HOME/.local/bin/airdrop-desktop"
+chmod 0755 "$HOME/.local/bin/airdrop-desktop"
+launcher_cmd="$(printf '%s' "$HOME/.local/bin/airdrop-desktop" | sed 's/\\/\\\\/g; s/"/\\"/g; s/`/\\`/g; s/\$/\\$/g; s/%/%%/g')"
+cat > "$HOME/.local/share/applications/airdrop.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Airdrop
+Comment=Local file sharing and ZIP transfers
+Exec="$launcher_cmd"
+Terminal=false
+Categories=Network;Utility;
+DESKTOP
+printf 'Installed. Launch Airdrop from your application menu or run airdrop-desktop.\n'
