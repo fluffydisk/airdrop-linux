@@ -20,8 +20,8 @@ class Setup {
   migrationRequired() {
     return ['deb', 'arch'].includes(this.source.channel) && (fs.existsSync(require('node:path').join(this.paths.root, 'app/desktop/Airdrop')) || ['airdrop-push.service', 'airdropshare.service'].some(name => fs.existsSync('/etc/systemd/system/' + name))) && !fs.existsSync(require('node:path').join(this.paths.config, 'package-migration-complete'));
   }
-  async session() {
-    if (!['deb', 'arch'].includes(this.source.channel) || this.migrationRequired()) return;
+  async session({ migrating = false } = {}) {
+    if (!['deb', 'arch'].includes(this.source.channel) || (!migrating && this.migrationRequired())) return;
     const env = { ...process.env, AIRDROP_APP_DIR: this.paths.app, AIRDROP_HOME: this.paths.root };
     await exec(path.join(this.paths.app, 'runtime/node'), [path.join(this.paths.server, 'scripts/user-service.js'), '--init'], { env, timeout: 15000 });
     // A per-user environment file supports custom XDG roots without mutating global manager environment.
@@ -80,7 +80,16 @@ class Setup {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       if (action === 'migrate') {
-        try { await require('./migration').apply(this.paths); fs.writeFileSync(path.join(this.paths.config, 'package-migration-complete'), '1\n', { mode: 0o600 }); await this.session(); }
+        try {
+          await require('./migration').apply(this.paths, undefined, async () => {
+            try { await this.session({ migrating: true }); }
+            catch (error) {
+              await exec('/usr/bin/systemctl', ['--user', 'stop', 'airdrop-session.service']).catch(() => {});
+              throw error;
+            }
+          });
+          fs.writeFileSync(path.join(this.paths.config, 'package-migration-complete'), '1\n', { mode: 0o600 });
+        }
         catch (error) {
           const rollback = await bridge.Run('restore-migration');
           while (true) { const job = JSON.parse(await bridge.GetJob(rollback)); if (job.state !== 'running') break; await new Promise(resolve => setTimeout(resolve, 500)); }

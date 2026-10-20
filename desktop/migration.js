@@ -13,7 +13,7 @@ async function check(paths) {
     }
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
 }
-async function apply(paths, home = os.homedir()) {
+async function apply(paths, home = os.homedir(), finalize = async () => {}) {
   const backup = path.join(paths.backups, 'package-migration-' + Date.now()); await fs.mkdir(backup, { recursive: true, mode: 0o700 });
   const contents = await fs.readFile(paths.env, 'utf8');
   await fs.writeFile(path.join(backup, 'server.env'), contents, { mode: 0o600 });
@@ -32,6 +32,7 @@ async function apply(paths, home = os.homedir()) {
         }
       } catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
+    await finalize();
     return { backup };
   } catch (error) {
     await fs.writeFile(paths.env, contents, { mode: 0o600 });

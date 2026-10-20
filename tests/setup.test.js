@@ -86,3 +86,18 @@ test('managed package downloads verify bytes and reject corruption without repla
   assert.deepEqual(await fs.readdir(root), [pkg.name]);
   await assert.rejects(downloadManaged(root, { ...pkg, name: '../outside.deb' }), /Invalid/);
 });
+
+test('failed native session startup rolls back migration settings and launchers', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-migration-rollback-'));
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const p = getPaths({ home, root: path.join(home, 'data'), appRoot: path.join(home, 'managed') });
+  await initialize(p);
+  const before = await fs.readFile(p.env, 'utf8');
+  const launcher = path.join(home, '.local/bin/airdrop');
+  await fs.mkdir(path.dirname(launcher), { recursive: true });
+  await fs.writeFile(launcher, `exec ${p.root}/app/server/bin/airdrop.js`);
+  await assert.rejects(require('../desktop/migration').apply(p, home, async () => { throw new Error('Session startup failed'); }), /Session startup failed/);
+  assert.equal(await fs.readFile(p.env, 'utf8'), before);
+  assert.equal(await fs.readFile(launcher, 'utf8'), `exec ${p.root}/app/server/bin/airdrop.js`);
+  await assert.rejects(fs.access(path.join(p.config, 'package-migration-complete')), { code: 'ENOENT' });
+});
