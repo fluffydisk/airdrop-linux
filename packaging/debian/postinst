@@ -12,20 +12,10 @@ if [ "$1" = configure ] && [ -d /sys/kernel/security/apparmor ] && [ -f /usr/sha
   install -d -m 0700 /var/lib/airdrop-system
   sha256sum "$profile" | cut -d' ' -f1 > /var/lib/airdrop-system/profile-sha256
 fi
-if [ "$1" = configure ] && [ -d /run/systemd/system ]; then
+if [ "$1" = configure ] && [ -x /opt/airdrop/server/scripts/resume-user-sessions.sh ]; then
+  /opt/airdrop/server/scripts/resume-user-sessions.sh
+elif [ -d /run/systemd/system ]; then
   systemctl daemon-reload
-  if [ -f /run/airdrop-upgrade-users ]; then
-    while read -r uid; do
-      case "$uid" in ''|*[!0-9]*) continue ;; esac
-      bus="/run/user/$uid/bus"
-      [ -S "$bus" ] || continue
-      user=$(getent passwd "$uid" | cut -d: -f1)
-      [ -n "$user" ] || continue
-      runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" /usr/bin/systemctl --user daemon-reload
-      runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" /usr/bin/systemctl --user start airdrop-session.service
-    done < /run/airdrop-upgrade-users
-    rm -f /run/airdrop-upgrade-users
-  fi
 fi
 # No account login, credentials, network changes or fresh per-user startup here.
 exit 0

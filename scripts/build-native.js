@@ -25,6 +25,7 @@ async function prepareNative(target, arch = process.arch) {
   for (const name of ['push-server.js', 'package.json', 'package-lock.json', 'lib', 'bin', 'scripts']) await fsp.cp(path.join(root, name), path.join(target, 'server', name), { recursive: true });
   await fsp.copyFile(path.join(root, 'packaging/debian/prerm'), path.join(target, 'server/scripts/package-lifecycle.sh'));
   await fsp.chmod(path.join(target, 'server/scripts/package-lifecycle.sh'), 0o755);
+  await fsp.chmod(path.join(target, 'server/scripts/resume-user-sessions.sh'), 0o755);
   await fsp.mkdir(path.join(target, 'server/ui')); await fsp.copyFile(path.join(root, 'ui/zip.js'), path.join(target, 'server/ui/zip.js'));
   execFileSync('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: path.join(target, 'server'), stdio: 'inherit' });
   await fsp.cp(path.join(root, 'ui'), path.join(target, 'ui'), { recursive: true });
