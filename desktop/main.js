@@ -127,8 +127,14 @@ function registerIpc() {
       if (source.channel === 'arch') { await shell.openExternal('https://aur.archlinux.org/packages/airdrop-linux-bin'); return updateState; }
       const download = source.channel === 'deb' ? updateState.deb : updateState.flatpak;
       if (!download) throw new Error('This release has no package for your installation source yet.');
-      await shell.openExternal(download.url);
-      return publishUpdate({ ...updateState, message: 'Download opened. Open the package in your system software installer. APT users can update through their system update manager.' });
+      updateBusy = true; const release = updateState;
+      try {
+        const file = await updater.downloadManaged(path.join(desktopData, 'package-downloads'), download, { progress: fraction => publishUpdate({ ...release, status: 'downloading', message: `Downloading and verifying package: ${Math.round(fraction * 100)}%` }) });
+        const error = await shell.openPath(file);
+        if (error) throw new Error('The package was verified, but no system installer could open it: ' + error);
+        return publishUpdate({ ...release, message: 'Verified package opened in your system installer. Complete the installation there, then restart Airdrop.' });
+      } catch (error) { return publishUpdate({ ...release, message: 'Package update failed: ' + error.message }); }
+      finally { updateBusy = false; }
     }
     if (process.env.APPIMAGE) {
       if (!updateState.appImage) throw new Error('This release has no AppImage for your architecture yet.');

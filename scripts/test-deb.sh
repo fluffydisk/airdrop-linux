@@ -8,9 +8,10 @@ fi
 package=${1:?DEB package path required}
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y --no-install-recommends "$package" curl binutils dbus-x11
+apt-get install -y --no-install-recommends "$package" curl binutils dbus-x11 passwd
 version=$(dpkg-query -W -f='${Version}' airdrop-linux)
-test "$version" = 1.5.0
+expected_version=$(basename "$package" | cut -d_ -f2)
+test "$version" = "$expected_version"
 /usr/bin/python3 -m py_compile /opt/airdrop/system/core.py /opt/airdrop/system/bridge.py
 test "$(stat -c %U /opt/airdrop/desktop/Airdrop)" = root
 id airdrop-test >/dev/null 2>&1 || useradd -m -s /bin/sh airdrop-test

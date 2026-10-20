@@ -32,7 +32,8 @@ jobs:
       - name: Permit the Electron sandbox at its exact CI path
         run: |
           if test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1; then
-            node scripts/desktop-apparmor.js "$(node -p 'require("./desktop/node_modules/electron")')" > /tmp/airdrop-ci.apparmor
+            test -x "$PWD/desktop/node_modules/electron/dist/electron"
+            node scripts/desktop-apparmor.js "$PWD/desktop/node_modules/electron/dist/electron" > /tmp/airdrop-ci.apparmor
             sudo apparmor_parser --replace /tmp/airdrop-ci.apparmor
           fi
       - run: xvfb-run -a npm run test:desktop

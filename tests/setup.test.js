@@ -77,3 +77,12 @@ test('native migration keeps the old code and backs up only owned launchers', as
   assert.equal(await fs.readFile(path.join(p.root, 'app/old-code'), 'utf8'), 'kept'); assert.equal(await fs.readFile(path.join(home, '.local/bin/copy-clipboard'), 'utf8'), 'unrelated script');
   assert.match(await fs.readFile(p.env, 'utf8'), /AIRDROP_APP_DIR=/); assert.ok(await fs.readFile(path.join(result.backup, 'server.env'))); await assert.rejects(fs.access(path.join(home, '.local/bin/airdrop')), { code: 'ENOENT' });
 });
+test('managed package downloads verify bytes and reject corruption without replacing application code', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-managed-download-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const { downloadManaged } = require('../lib/updater'), crypto = require('node:crypto');
+  const bytes = Buffer.from('test package'), pkg = { name: 'airdrop-linux_1.5.0_amd64.deb', size: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), url: 'https://example.invalid/package' };
+  const out = await downloadManaged(root, pkg, { fetcher: async () => new Response(bytes) }); assert.equal(await fs.readFile(out, 'utf8'), 'test package');
+  await assert.rejects(downloadManaged(root, { ...pkg, sha256: '0'.repeat(64) }, { fetcher: async () => new Response(bytes) }), /checksum/);
+  assert.deepEqual(await fs.readdir(root), [pkg.name]);
+  await assert.rejects(downloadManaged(root, { ...pkg, name: '../outside.deb' }), /Invalid/);
+});

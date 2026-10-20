@@ -9,7 +9,7 @@ const { execFileSync } = require('node:child_process');
 const { prepareNative } = require('./build-native');
 const root = path.resolve(__dirname, '..'), version = require('../package.json').version;
 const arch = process.arch === 'x64' ? 'amd64' : process.arch;
-const dependencies = 'libc6 (>= 2.35), libasound2 | libasound2t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libatk1.0-0 | libatk1.0-0t64, libcairo2, libcups2 | libcups2t64, libdbus-1-3, libexpat1, libgbm1, libglib2.0-0 | libglib2.0-0t64, libgtk-3-0 | libgtk-3-0t64, libnspr4, libnss3, libpango-1.0-0, libudev1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxkbcommon0, libxrandr2, python3, python3-dbus, python3-gi, dbus, systemd, policykit-1 | polkitd, xdg-utils, ca-certificates, gnupg, apt';
+const dependencies = 'libc6 (>= 2.35), libasound2 | libasound2t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libatk1.0-0 | libatk1.0-0t64, libcairo2, libcups2 | libcups2t64, libdbus-1-3, libexpat1, libgbm1, libglib2.0-0 | libglib2.0-0t64, libgtk-3-0 | libgtk-3-0t64, libnspr4, libnss3, libpango-1.0-0, libudev1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxkbcommon0, libxrandr2, python3, python3-dbus, python3-gi, dbus, systemd, policykit-1 | polkitd, xdg-utils, ca-certificates, gnupg, apt, apparmor';
 async function put(base, name, content, mode = 0o644) { const file = path.join(base, name); await fsp.mkdir(path.dirname(file), { recursive: true }); await fsp.writeFile(file, content, { mode }); }
 async function bridgeFiles(stage) {
   await fsp.cp(path.join(root, 'system'), path.join(stage, 'opt/airdrop/system'), { recursive: true, filter: name => !name.includes('__pycache__') });
@@ -43,6 +43,7 @@ async function main() {
     else await prepareNative(app);
     await put(stage, 'opt/airdrop/install-source.json', JSON.stringify({ schema: 1, channel: 'deb' }));
     await bridgeFiles(stage);
+    await put(stage, 'usr/share/airdrop/desktop.apparmor', require('./desktop-apparmor').desktopProfile('/opt/airdrop/desktop/Airdrop'));
     await put(stage, 'usr/bin/airdrop-desktop', '#!/bin/sh\nexport AIRDROP_APP_DIR=/opt/airdrop\nexec /opt/airdrop/desktop/Airdrop "$@"\n', 0o755);
     await put(stage, 'usr/bin/airdrop', '#!/bin/sh\nexport AIRDROP_APP_DIR=/opt/airdrop\nexec /opt/airdrop/runtime/node /opt/airdrop/server/bin/airdrop.js "$@"\n', 0o755);
     await put(stage, 'usr/share/applications/io.github.fluffydisk.airdrop-linux.desktop', await fsp.readFile(path.join(root, 'packaging/debian/airdrop.desktop')));

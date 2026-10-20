@@ -1,5 +1,13 @@
 #!/bin/sh
 set -eu
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+  profile=/etc/apparmor.d/airdrop-desktop
+  record=/var/lib/airdrop-system/profile-sha256
+  if [ -f "$profile" ] && [ -f "$record" ] && [ "$(sha256sum "$profile" | cut -d' ' -f1)" = "$(cat "$record")" ]; then
+    if command -v apparmor_parser >/dev/null 2>&1; then apparmor_parser --remove "$profile" || true; fi
+    rm -f "$profile" "$record"
+  fi
+fi
 if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
 # User files, credentials, Tailscale and network configuration are retained.
 exit 0
