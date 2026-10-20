@@ -202,6 +202,8 @@ Choose files or drop them into the app to upload **immediately** into the open f
 
 The file manager supports grid/list views, format-specific icons, checkboxes, Ctrl/Cmd-click, Shift-click and Ctrl+A. Right-click or use the action toolbar to **Delete**, **Download**, or **Copy to folder**. Copy to folder asks for a name, creates a new folder in the open directory, and preserves the originals. A single file downloads directly; multiple items or folders download as a streamed ZIP retaining their relative paths. No archives are extracted automatically.
 
+Click an item once to select it. Double-click it (or press Enter while it is focused) to open it: folders open inside Airdrop, and desktop files open in the computer's default application. In the web/PWA interface, opening a file requests a download so it can be opened on that device. Checkboxes only change selection; items in Trash must be restored before opening.
+
 Delete moves items into the private `.airdrop-trash` directory under the share root. This directory is hidden by dufs and the manager. Use **Undo**, or open **Trash**, select items and choose **Restore**. Restoring a conflicting name adds a numbered suffix; restoring into a removed parent reports an error until the parent is recreated. Trash does not expire automatically and continues to occupy disk space.
 
 Press **Ctrl+V** in the file area (or desktop Transfer view) to save a clipboard image as `clipboard-<timestamp>.png`, or text as UTF-8 `.txt`, in the open folder. Images take precedence when both formats are present. Text is limited to 1 MiB. Pasting in text inputs keeps normal editing behavior. The clipboard is only read in response to paste. The existing shared text clipboard controls remain available separately.

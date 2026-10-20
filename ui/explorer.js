@@ -61,6 +61,15 @@
       restore.hidden = !trash; restore.disabled = busy || !selected.size;
       count.textContent = selected.size ? `${selected.size} selected` : `${entries.length} items`;
     }
+    function updateSelection() {
+      // Keep the clicked nodes alive so the browser can recognize a double click.
+      for (const row of content.querySelectorAll('.explorer-item')) {
+        const checked = selected.has(row.dataset.key);
+        row.classList.toggle('selected', checked);
+        row.querySelector('input').checked = checked;
+      }
+      controls();
+    }
     function render() {
       content.className = 'explorer-items explorer-' + mode; content.replaceChildren(); crumbs.replaceChildren();
       button(crumbs, 'Airdrop', () => navigate(''));
@@ -68,25 +77,35 @@
       else { const segments = directory.split('/').filter(Boolean); segments.forEach((part, index) => { crumbs.append(node('span', '/')); button(crumbs, part, () => navigate(segments.slice(0, index + 1).join('/'))); }); }
       entries.forEach((file, index) => {
         const key = trash ? file.id : file.path;
-        const row = node('div', undefined, 'explorer-item'); row.dataset.path = file.path; row.dataset.kind = kind(file); row.classList.toggle('selected', selected.has(key)); row.tabIndex = 0;
+        const row = node('div', undefined, 'explorer-item'); row.dataset.path = file.path; row.dataset.key = key; row.dataset.kind = kind(file); row.classList.toggle('selected', selected.has(key)); row.tabIndex = 0;
         const checkbox = node('input'); checkbox.type = 'checkbox'; checkbox.checked = selected.has(key); checkbox.setAttribute('aria-label', `Select ${file.name}`);
-        checkbox.onclick = event => event.stopPropagation(); checkbox.onchange = () => { if (checkbox.checked) selected.add(key); else selected.delete(key); anchor = index; render(); };
+        checkbox.onclick = event => event.stopPropagation(); checkbox.onchange = () => { if (checkbox.checked) selected.add(key); else selected.delete(key); anchor = index; updateSelection(); };
         const symbol = node('span', symbols[kind(file)], 'explorer-symbol'); symbol.setAttribute('aria-hidden', 'true');
         const details = node('div', undefined, 'explorer-details'); const name = node('span', file.name, 'explorer-name'); name.title = file.name;
         const meta = node('small', trash ? file.path : file.type === 'directory' ? 'Folder' : file.size < 1024 ? `${file.size || 0} B` : file.size < 1024 ** 2 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / 1024 ** 2).toFixed(1)} MB`);
         details.append(name, meta); row.append(checkbox, symbol, details);
         row.onclick = event => {
+          if (event.detail > 1) return;
           if (event.shiftKey) { if (!event.ctrlKey && !event.metaKey) selected.clear(); for (let i = Math.min(anchor, index); i <= Math.max(anchor, index); i++) selected.add(trash ? entries[i].id : entries[i].path); }
           else if (event.ctrlKey || event.metaKey) { if (selected.has(key)) selected.delete(key); else selected.add(key); anchor = index; }
           else { selected = new Set([key]); anchor = index; }
-          render();
+          updateSelection();
         };
-        const open = () => { if (!trash && file.type === 'directory') navigate(file.path); };
-        row.ondblclick = open;
-        row.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); open(); } if (event.key === ' ') { event.preventDefault(); checkbox.click(); } };
+        const open = async () => {
+          if (trash || busy) return;
+          if (file.type === 'directory') return navigate(file.path);
+          busy = true; controls();
+          try {
+            if (adapter.open) { await adapter.open(file.path); say(`Opened: ${file.name}`); }
+            else { await adapter.download([file.path]); say('Download requested'); }
+          } catch (error) { say(error.message); }
+          finally { busy = false; controls(); }
+        };
+        row.ondblclick = event => { if (!event.target.closest('input, button')) open(); };
+        row.onkeydown = event => { if (event.target !== row) return; if (event.key === 'Enter') { event.preventDefault(); open(); } if (event.key === ' ') { event.preventDefault(); checkbox.click(); } };
         if (file.type === 'directory' && !trash) { const openButton = button(row, 'Open', open, `Open ${file.name}`); openButton.onclick = event => { event.stopPropagation(); open(); }; }
         row.oncontextmenu = event => {
-          event.preventDefault(); if (!selected.has(key)) { selected = new Set([key]); render(); }
+          event.preventDefault(); if (!selected.has(key)) { selected = new Set([key]); updateSelection(); }
           menu.replaceChildren();
           for (const [label, action] of trash ? [['Restore', restoreSelection]] : [['Delete', trashSelection], ['Download', downloadSelection], ['Copy to folder', copySelection]]) {
             const item = button(menu, label, () => { menu.hidden = true; return action(); }); item.setAttribute('role', 'menuitem'); item.disabled = busy;
@@ -141,7 +160,7 @@
     const editable = target => target.closest?.('textarea, [contenteditable="true"], [role="textbox"], input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=file])');
     document.addEventListener('keydown', event => {
       if (!enabled() || editable(event.target)) return;
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && host.contains(event.target)) { event.preventDefault(); selected = new Set(entries.map(file => trash ? file.id : file.path)); render(); }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && host.contains(event.target)) { event.preventDefault(); selected = new Set(entries.map(file => trash ? file.id : file.path)); updateSelection(); }
       if (adapter.paste && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
         event.preventDefault();
         if (busy || trash) { say('Open a folder and wait for the current operation to finish before pasting.'); return; }

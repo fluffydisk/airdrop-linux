@@ -103,6 +103,7 @@ async function loadActivity() {
 }
 const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer'), {
   list: directory => window.airdrop.explore('list', { directory }),
+  open: path => window.airdrop.explore('open', { path }),
   mkdir: (directory, name) => window.airdrop.explore('mkdir', { directory, name }),
   copy: (directory, paths, name) => window.airdrop.explore('copy', { directory, paths, name }),
   trash: paths => window.airdrop.explore('trash', { paths }),

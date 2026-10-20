@@ -52,6 +52,23 @@ test('every explorer operation rejects root escapes and intermediate links', asy
   assert.equal(await fs.readFile(path.join(outside, 'secret'), 'utf8'), 'PRIVATE');
   assert.deepEqual(await fs.readdir(outside), ['secret']);
 });
+test('opening a file passes only a regular shared file to the system opener', async t => {
+  const { root, temp } = await fixture(t);
+  await explorer.mkdir(root, '', 'Belgeler');
+  const file = path.join(root, 'Belgeler', 'İstanbul.txt'); await fs.writeFile(file, 'hello');
+  const outside = path.join(temp, 'private.txt'); await fs.writeFile(outside, 'private');
+  await fs.symlink(outside, path.join(root, 'link.txt'));
+  await fs.symlink(path.dirname(outside), path.join(root, 'linked-folder'));
+  const opened = [];
+  const open = target => { opened.push(target); return 'opened'; };
+  assert.equal(await explorer.openFile(root, 'Belgeler/İstanbul.txt', open), 'opened');
+  assert.deepEqual(opened, [file]);
+  for (const unsafe of ['', '../private.txt', outside, 'link.txt', 'linked-folder/private.txt', 'Belgeler', '.airdrop-trash/item', 'missing.txt']) {
+    await assert.rejects(explorer.openFile(root, unsafe, open));
+  }
+  assert.deepEqual(opened, [file]);
+  await assert.rejects(explorer.openFile(root, 'Belgeler/İstanbul.txt', () => { throw new Error('No application available'); }), /No application available/);
+});
 test('in-flight upload stays on its opened directory when its name becomes an outside symlink', async t => {
   const { root, temp } = await fixture(t); await explorer.mkdir(root, '', 'target');
   const outside = path.join(temp, 'outside'); await fs.mkdir(outside);

@@ -37,6 +37,29 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.evaluate(() => { const transfer = new DataTransfer(); transfer.items.add(document.getElementById('osFile').files[0]); document.getElementById('dropZone').dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: transfer })); document.getElementById('osFile').remove(); });
   await page.waitForFunction(() => document.getElementById('result').textContent.startsWith('Sent:'));
   assert.equal(await fs.readFile(path.join(share, 'ü,a.txt'), 'utf8'), 'desktop payload');
+  await app.evaluate(({ shell }) => { globalThis.openedFiles = []; shell.openPath = async file => { globalThis.openedFiles.push(file); return ''; }; });
+  await page.locator('[data-view="files"]').click();
+  const sharedFile = page.locator('#fileExplorer .explorer-item[data-path="ü,a.txt"]');
+  await sharedFile.click();
+  assert.equal(await sharedFile.getAttribute('class').then(value => value.includes('selected')), true);
+  assert.deepEqual(await app.evaluate(() => globalThis.openedFiles), []);
+  await sharedFile.dblclick();
+  await page.waitForFunction(() => document.querySelector('#fileExplorer .explorer-status').textContent === 'Opened: ü,a.txt');
+  assert.deepEqual(await app.evaluate(() => globalThis.openedFiles), [path.join(share, 'ü,a.txt')]);
+  await sharedFile.locator('input').dblclick();
+  assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 1);
+  await sharedFile.focus(); await page.keyboard.press('Enter');
+  assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 2);
+  await app.evaluate(({ shell }) => { shell.openPath = async () => 'No application available'; });
+  await sharedFile.dblclick();
+  await page.waitForFunction(() => document.querySelector('#fileExplorer .explorer-status').textContent.includes('Could not open file: No application available'));
+  await fs.symlink(source, path.join(share, 'outside-link.txt'));
+  for (const unsafe of ['../ü,a.txt', source, 'outside-link.txt', '']) {
+    const error = await page.evaluate(async target => { try { await window.airdrop.explore('open', { path: target }); return ''; } catch (error) { return error.message; } }, unsafe);
+    assert.ok(error, `Opening ${unsafe} must be rejected`);
+  }
+  await fs.unlink(path.join(share, 'outside-link.txt'));
+  await page.locator('[data-view="transfer"]').click();
   await page.locator('#zip').check();
   await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, source);
   await page.locator('#choose').click();
@@ -50,7 +73,11 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.locator('#clearFiles').click();
   await page.locator('[data-view="files"]').click(); const manager = page.locator('#fileExplorer');
   await manager.getByRole('button', { name: 'New folder', exact: true }).click(); await manager.getByRole('textbox', { name: 'Folder name' }).fill('Belgeler'); await manager.getByRole('button', { name: 'Create', exact: true }).click();
-  await manager.getByRole('button', { name: 'Open Belgeler', exact: true }).click();
+  const folder = manager.locator('.explorer-item[data-path="Belgeler"]');
+  await folder.locator('.explorer-name').click();
+  assert.equal(await manager.getByRole('button', { name: 'Parent folder', exact: true }).isDisabled(), true);
+  await folder.locator('.explorer-name').dblclick();
+  await page.waitForFunction(() => !document.querySelector('#fileExplorer button[aria-label="Parent folder"]').disabled);
   await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, source);
   await manager.getByRole('button', { name: 'Upload', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('#fileExplorer .explorer-item').length === 1);

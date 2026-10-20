@@ -138,6 +138,10 @@ function registerIpc() {
     ownWindow(event);
     const read = {
       list: () => explorer.list(shareDir, payload.directory || ''),
+      open: () => explorer.openFile(shareDir, payload.path, async file => {
+        const error = await shell.openPath(file);
+        if (error) throw new Error(`Could not open file: ${error}`);
+      }),
       trashList: () => explorer.trashList(shareDir)
     };
     if (Object.hasOwn(read, action)) return read[action]();
