@@ -70,3 +70,38 @@ jobs:
         run: |
           if test '${{ matrix.arch }}' = x64; then arch=amd64; else arch=arm64; fi
           AIRDROP_DISPOSABLE_TEST=yes sh scripts/test-deb.sh "/tmp/airdrop-packages/airdrop-linux_1.5.0_${arch}.deb"
+  flatpak:
+    needs: [build, install]
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.arch }}
+          path: release
+      - run: sudo apt-get update && sudo apt-get install -y flatpak
+      - run: flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - run: flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.electronjs.Electron2.BaseApp//25.08
+      - name: Reuse verified native payload
+        run: |
+          mkdir -p .test-artifacts/native
+          if test '${{ matrix.arch }}' = x64; then arch=amd64; else arch=arm64; fi
+          version=$(node -p 'require("./package.json").version')
+          ar p "release/airdrop-linux_${version}_${arch}.deb" data.tar.gz | tar -xz -C .test-artifacts/native ./opt/airdrop
+          AIRDROP_NATIVE_STAGE="$PWD/.test-artifacts/native/opt/airdrop" node scripts/build-flatpak.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: |
+            release/*.flatpak
+            release/airdrop-flatpak-*.json
