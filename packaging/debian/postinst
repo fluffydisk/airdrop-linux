@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-if [ "$1" = configure ] && [ -f /usr/share/airdrop/desktop.apparmor ] && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1 ]; then
+if [ "$1" = configure ] && [ -d /sys/kernel/security/apparmor ] && [ -f /usr/share/airdrop/desktop.apparmor ] && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1 ]; then
   profile=/etc/apparmor.d/airdrop-desktop
   if [ -e "$profile" ] && ! cmp -s /usr/share/airdrop/desktop.apparmor "$profile"; then
     echo 'Airdrop sandbox policy has local changes; it was not overwritten.' >&2

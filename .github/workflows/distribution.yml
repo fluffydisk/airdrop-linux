@@ -25,6 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm ci --prefix desktop
+      - name: Download the Electron runtime before sandbox setup
+        run: node desktop/node_modules/electron/install.js
       - run: npm test
       - run: sudo apt-get update && sudo apt-get install -y python3-dbus python3-gi dbus-x11 xvfb
       - run: /usr/bin/python3 tests/system-core.py

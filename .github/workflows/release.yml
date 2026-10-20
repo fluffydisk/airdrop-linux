@@ -27,6 +27,8 @@ jobs:
       - run: dbus-run-session -- /usr/bin/python3 tests/system-bridge.py
       - run: npm test
       - run: npm ci --prefix desktop
+      - name: Download the Electron runtime before sandbox setup
+        run: node desktop/node_modules/electron/install.js
       - name: Permit the Electron sandbox at its exact CI path
         run: |
           if test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1; then
