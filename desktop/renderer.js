@@ -5,6 +5,7 @@ const result = document.getElementById('result');
 const sendButton = document.getElementById('send');
 const zipInput = document.getElementById('zip');
 function message(text, kind = 'success', target = result) {
+  if (target === result && activeView === 'files') { fileExplorer.say(text); return; }
   target.textContent = text; target.dataset.kind = kind; target.hidden = !text;
 }
 function report(error) {
@@ -36,10 +37,11 @@ function theme(value) {
 try { theme(localStorage.getItem('airdrop-theme') === 'dark' ? 'dark' : 'light'); } catch { theme('light'); }
 function navigate(view) {
   activeView = view;
-  for (const name of ['transfer', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
+  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();
+  if (view === 'files') fileExplorer.refresh();
 }
 function fileRow(file, removable) {
   const row = document.createElement('li'); row.className = 'file-row';
@@ -66,25 +68,27 @@ function renderQueue() {
   document.getElementById('clearFiles').hidden = !files.length;
   document.getElementById('clearFiles').disabled = busy;
   document.getElementById('queueSummary').textContent = files.length ? `${files.length} ${files.length === 1 ? 'file' : 'files'} · ${formatSize(total)} total` : 'Your next transfer starts here.';
-  zipInput.disabled = busy || total > MAX_ZIP;
-  if (total > MAX_ZIP) zipInput.checked = false;
+  zipInput.disabled = busy;
   document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'One neat package. Up to 100 MiB.';
   sendButton.disabled = busy || !files.length;
-  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : zipInput.checked ? 'Send ZIP' : 'Send files'), icon('send'));
-  document.getElementById('choose').disabled = busy;
+  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : 'Retry failed files'), icon('send'));
+  document.getElementById('choose').disabled = busy || files.length > 0;
   document.body.classList.toggle('busy', busy);
 }
+let transferTarget = '', transferZip = false;
 async function select(paths) {
-  if (!paths.length || busy) return;
+  if (!paths.length || busy || files.length) return;
   const version = ++selectionVersion;
+  transferTarget = fileExplorer.directory; transferZip = zipInput.checked;
   try {
     const next = await window.airdrop.describe(paths);
     if (version !== selectionVersion || busy) return;
-    const merged = new Map(files.map(file => [file.path, file]));
+    const merged = new Map();
     for (const file of next) merged.set(file.path, file);
     if (merged.size > 1000) throw new Error('You can send up to 1000 files at a time.');
     files = [...merged.values()];
     message(''); renderQueue();
+    await sendButton.onclick();
   } catch (error) { report(error); }
 }
 async function loadActivity() {
@@ -97,6 +101,38 @@ async function loadActivity() {
   } catch { document.getElementById('recentFiles').replaceChildren(); empty.hidden = false; empty.textContent = 'Your shared folder is unavailable. Open it from the sidebar or check your installation.'; }
   finally { refresh.disabled = false; }
 }
+const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer'), {
+  list: directory => window.airdrop.explore('list', { directory }),
+  mkdir: (directory, name) => window.airdrop.explore('mkdir', { directory, name }),
+  copy: (directory, paths, name) => window.airdrop.explore('copy', { directory, paths, name }),
+  trash: paths => window.airdrop.explore('trash', { paths }),
+  trashList: () => window.airdrop.explore('trashList'),
+  restore: id => window.airdrop.explore('restore', { id }),
+  paste: directory => window.airdrop.explore('paste', { directory }),
+  download: paths => window.airdrop.explore('download', { paths })
+}, { enabled: () => ['transfer', 'files'].includes(activeView) && !busy,
+  choose: () => { if (!busy && !files.length) return window.airdrop.choose().then(select).catch(report); },
+  onMessage: text => { if (activeView === 'transfer') message(text); },
+  onNavigate: directory => { document.getElementById('transferDestination').textContent = 'Destination: Airdrop/' + directory; }
+});
+window.airdrop.onShowFiles(() => navigate('files'));
+let dismissedVersion = '';
+function updateState(state) {
+  document.getElementById('updateState').textContent = state.message || `Current version: ${state.current}`;
+  document.getElementById('checkUpdate').disabled = ['checking', 'downloading', 'installing'].includes(state.status);
+  document.getElementById('installUpdate').hidden = state.status !== 'available';
+  document.getElementById('installUpdate').textContent = state.distribution === 'appimage' ? 'Download AppImage update' : 'Update';
+  document.getElementById('portableNote').hidden = state.distribution !== 'appimage';
+  const show = state.status === 'available' && dismissedVersion !== state.version;
+  document.getElementById('updateBanner').hidden = !show;
+  document.getElementById('updateNotice').textContent = `Airdrop ${state.version} is available.`;
+  document.getElementById('dismissUpdate').onclick = () => { dismissedVersion = state.version; document.getElementById('updateBanner').hidden = true; };
+}
+window.airdrop.onUpdate(updateState);
+window.airdrop.update('state').then(updateState).catch(report);
+document.getElementById('checkUpdate').onclick = () => window.airdrop.update('check').then(updateState).catch(report);
+document.getElementById('installUpdate').onclick = () => window.airdrop.update('install').then(updateState).catch(report);
+document.getElementById('showUpdate').onclick = () => navigate('settings');
 window.airdrop.onStatus(status); window.airdrop.status().then(status).catch(report);
 window.airdrop.settings().then(settings => { document.getElementById('url').value = settings.pwaUrl; document.getElementById('deviceName').textContent = settings.deviceName || 'This computer'; }).catch(report);
 document.querySelectorAll('[data-view]').forEach(button => { button.onclick = () => navigate(button.dataset.view); });
@@ -106,27 +142,32 @@ document.querySelectorAll('[data-theme-choice]').forEach(button => { button.oncl
 document.getElementById('refreshActivity').onclick = loadActivity;
 document.getElementById('choose').onclick = () => { if (!busy) window.airdrop.choose().then(select).catch(report); };
 document.getElementById('clearFiles').onclick = () => { if (!busy) { selectionVersion++; files = []; renderQueue(); message(''); } };
-zipInput.onchange = renderQueue;
+try { zipInput.checked = localStorage.getItem('airdrop-zip') === 'true'; } catch {}
+zipInput.onchange = () => { try { localStorage.setItem('airdrop-zip', String(zipInput.checked)); } catch {} renderQueue(); };
 const dropZone = document.getElementById('dropZone');
 document.addEventListener('dragover', event => event.preventDefault());
-document.addEventListener('drop', event => event.preventDefault());
+document.addEventListener('drop', event => {
+  event.preventDefault();
+  if (!busy && ['transfer', 'files'].includes(activeView)) window.airdrop.drop(Array.from(event.dataTransfer.files)).then(select).catch(report);
+});
 dropZone.addEventListener('keydown', event => { if (event.target === dropZone && ['Enter', ' '].includes(event.key)) { event.preventDefault(); document.getElementById('choose').click(); } });
 dropZone.addEventListener('dragover', event => { event.preventDefault(); if (!busy) dropZone.classList.add('active'); });
 dropZone.addEventListener('dragleave', event => { if (!dropZone.contains(event.relatedTarget)) dropZone.classList.remove('active'); });
-dropZone.addEventListener('drop', event => { event.preventDefault(); dropZone.classList.remove('active'); if (!busy) Promise.resolve().then(() => window.airdrop.drop(Array.from(event.dataTransfer.files))).then(select).catch(report); });
+dropZone.addEventListener('drop', event => { event.preventDefault(); event.stopPropagation(); dropZone.classList.remove('active'); if (!busy) Promise.resolve().then(() => window.airdrop.drop(Array.from(event.dataTransfer.files))).then(select).catch(report); });
 sendButton.onclick = async () => {
   if (busy || !files.length) return;
   selectionVersion++; busy = true; renderQueue(); message('Preparing your transfer…', 'pending');
   try {
-    const bundled = zipInput.checked;
-    const results = await window.airdrop.send(files.map(file => file.path), bundled);
+    const bundled = transferZip;
+    if (bundled && files.reduce((sum, file) => sum + file.size, 0) > MAX_ZIP) throw new Error('ZIP source files exceed 100 MiB. Turn off ZIP and select the files again.');
+    const results = await window.airdrop.send(files.map(file => file.path), bundled, transferTarget);
     const failed = results.filter(file => !file.ok);
     message(results.map(file => file.ok ? `Sent: ${file.name}` : `Failed: ${file.name} (${file.error})`).join('; '), failed.length ? 'error' : 'success');
     files = bundled ? failed.length ? files : [] : files.filter((file, index) => !results[index].ok);
   } catch (error) { report(error); }
-  finally { busy = false; renderQueue(); if (activeView === 'activity') loadActivity(); }
+  finally { busy = false; renderQueue(); fileExplorer.refresh(); if (activeView === 'activity') loadActivity(); }
 };
-document.getElementById('folder').onclick = () => window.airdrop.folder().then(text => { if (text) report(text); }).catch(report);
+document.getElementById('folder').onclick = () => navigate('files');
 document.getElementById('pwa').onclick = () => window.airdrop.pwa().catch(report);
 document.getElementById('saveUrl').onclick = async () => {
   const button = document.getElementById('saveUrl'); button.disabled = true;

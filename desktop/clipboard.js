@@ -43,4 +43,29 @@ async function writeSharedClipboard(root, text) {
     await fs.promises.rename(source, path.join(root, '.clipboard.txt'));
   } finally { await fs.promises.rm(temp, { recursive: true, force: true }); }
 }
-module.exports = { readSharedClipboard, writeSharedClipboard, validateText };
+async function readClipboardFile(clipboard, nativeImage) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  if (typeof clipboard.read === 'function') {
+    const items = await clipboard.read();
+    for (const item of items) {
+      const type = item.types.find(type => type.startsWith('image/'));
+      if (!type) continue;
+      const blob = await item.getType(type);
+      const image = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()));
+      if (image.isEmpty()) throw new Error('Could not decode clipboard image');
+      return { name: `clipboard-${stamp}.png`, data: image.toPNG() };
+    }
+    const item = items.find(item => item.types.includes('text/plain'));
+    const text = item ? await (await item.getType('text/plain')).text() : '';
+    validateText(text);
+    if (!text) throw new Error('Clipboard has no supported image or text');
+    return { name: `clipboard-${stamp}.txt`, data: Buffer.from(text, 'utf8') };
+  }
+  // Compatibility with installations built against older Electron runtimes.
+  const image = clipboard.readImage();
+  if (!image.isEmpty()) return { name: `clipboard-${stamp}.png`, data: image.toPNG() };
+  const text = await clipboard.readText(); validateText(text);
+  if (!text) throw new Error('Clipboard has no supported image or text');
+  return { name: `clipboard-${stamp}.txt`, data: Buffer.from(text, 'utf8') };
+}
+module.exports = { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile };

@@ -1,0 +1,180 @@
+/* Shared desktop/PWA file manager. Adapters own privileged I/O. */
+'use strict';
+(function (global) {
+  const symbols = { directory: '📁', image: '🖼️', video: '🎬', audio: '🎵', pdf: '📕', archive: '🗜️', text: '📄', file: '📎' };
+  function kind(file) {
+    if (file.type === 'directory') return 'directory';
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (/^(png|jpg|jpeg|gif|webp|svg|heic|avif|bmp)$/.test(ext)) return 'image';
+    if (/^(mp4|mov|mkv|webm|avi)$/.test(ext)) return 'video';
+    if (/^(mp3|wav|flac|ogg|m4a|aac)$/.test(ext)) return 'audio';
+    if (ext === 'pdf') return 'pdf';
+    if (/^(zip|gz|tar|7z|rar|xz)$/.test(ext)) return 'archive';
+    return /^(txt|md|json|csv|log|js|html|css|xml)$/.test(ext) ? 'text' : 'file';
+  }
+  function node(tag, text, className) { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; }
+  function mount(host, adapter, options = {}) {
+    host.replaceChildren();
+    host.classList.add('explorer'); host.tabIndex = 0; host.setAttribute('aria-label', 'Shared files');
+    let directory = '', entries = [], selected = new Set(), history = [''], position = 0, anchor = 0, busy = false, trash = false, request = 0;
+    let mode = 'grid'; try { mode = localStorage.getItem('airdrop-file-view') || 'grid'; } catch {}
+    const nav = node('div', undefined, 'explorer-toolbar'), crumbs = node('nav', undefined, 'explorer-crumbs'); crumbs.setAttribute('aria-label', 'Folder path');
+    const actions = node('div', undefined, 'explorer-toolbar');
+    const content = node('div', undefined, 'explorer-items'); content.setAttribute('role', 'group');
+    const status = node('p', '', 'explorer-status'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+    const menu = node('div', undefined, 'explorer-menu'); menu.hidden = true; menu.setAttribute('role', 'menu');
+    const dialog = node('dialog', undefined, 'explorer-dialog'); const form = node('form'); form.method = 'dialog';
+    const label = node('label', 'Folder name'); const input = node('input'); input.required = true; input.maxLength = 200; input.setAttribute('aria-label', 'Folder name');
+    const submit = node('button', 'Create'); submit.type = 'submit'; const cancel = node('button', 'Cancel'); cancel.type = 'button'; cancel.onclick = () => dialog.close();
+    label.append(input); form.append(label, submit, cancel); dialog.append(form);
+    host.append(nav, crumbs, actions, content, status, menu, dialog);
+    function say(text) { status.textContent = text; options.onMessage?.(text); }
+    function button(parent, text, action, title = text) {
+      const control = node('button', text); control.type = 'button'; control.title = title; control.setAttribute('aria-label', title);
+      control.onclick = () => Promise.resolve().then(action).catch(error => say(error.message)); parent.append(control); return control;
+    }
+    if (options.choose) button(nav, 'Upload', options.choose);
+    const back = button(nav, '←', () => goHistory(-1), 'Back');
+    const forward = button(nav, '→', () => goHistory(1), 'Forward');
+    const up = button(nav, '↑', () => navigate(directory.split('/').slice(0, -1).join('/')), 'Parent folder');
+    button(nav, '⌂', () => navigate(''), 'Airdrop root');
+    button(nav, '↻', refresh, 'Refresh files');
+    button(nav, 'Grid / List', () => { mode = mode === 'grid' ? 'list' : 'grid'; try { localStorage.setItem('airdrop-file-view', mode); } catch {} render(); });
+    button(nav, 'Trash', async () => { trash = !trash; selected.clear(); await refresh(); });
+    const newFolder = button(actions, 'New folder', async () => { const name = await askName(); if (name) await run(() => adapter.mkdir(directory, name), 'Folder created'); });
+    const copy = button(actions, 'Copy to folder', copySelection);
+    const download = button(actions, 'Download', downloadSelection);
+    const remove = button(actions, 'Delete', trashSelection);
+    const restore = button(actions, 'Restore', restoreSelection);
+    const count = node('span', '', 'explorer-selection'); actions.append(count);
+    function askName() {
+      return new Promise(resolve => {
+        input.value = ''; dialog.addEventListener('close', () => resolve(dialog.returnValue === 'create' ? input.value.trim() : null), { once: true });
+        dialog.returnValue = ''; form.onsubmit = event => { event.preventDefault(); if (input.value.trim()) dialog.close('create'); };
+        dialog.showModal(); input.focus();
+      });
+    }
+    function controls() {
+      back.disabled = busy || position <= 0; forward.disabled = busy || position >= history.length - 1;
+      up.disabled = busy || trash || !directory; newFolder.disabled = busy || trash;
+      for (const item of [copy, download, remove]) { item.hidden = trash; item.disabled = busy || !selected.size; }
+      restore.hidden = !trash; restore.disabled = busy || !selected.size;
+      count.textContent = selected.size ? `${selected.size} selected` : `${entries.length} items`;
+    }
+    function render() {
+      content.className = 'explorer-items explorer-' + mode; content.replaceChildren(); crumbs.replaceChildren();
+      button(crumbs, 'Airdrop', () => navigate(''));
+      if (trash) crumbs.append(node('span', ' / Trash'));
+      else { const segments = directory.split('/').filter(Boolean); segments.forEach((part, index) => { crumbs.append(node('span', '/')); button(crumbs, part, () => navigate(segments.slice(0, index + 1).join('/'))); }); }
+      entries.forEach((file, index) => {
+        const key = trash ? file.id : file.path;
+        const row = node('div', undefined, 'explorer-item'); row.dataset.path = file.path; row.dataset.kind = kind(file); row.classList.toggle('selected', selected.has(key)); row.tabIndex = 0;
+        const checkbox = node('input'); checkbox.type = 'checkbox'; checkbox.checked = selected.has(key); checkbox.setAttribute('aria-label', `Select ${file.name}`);
+        checkbox.onclick = event => event.stopPropagation(); checkbox.onchange = () => { if (checkbox.checked) selected.add(key); else selected.delete(key); anchor = index; render(); };
+        const symbol = node('span', symbols[kind(file)], 'explorer-symbol'); symbol.setAttribute('aria-hidden', 'true');
+        const details = node('div', undefined, 'explorer-details'); const name = node('span', file.name, 'explorer-name'); name.title = file.name;
+        const meta = node('small', trash ? file.path : file.type === 'directory' ? 'Folder' : file.size < 1024 ? `${file.size || 0} B` : file.size < 1024 ** 2 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / 1024 ** 2).toFixed(1)} MB`);
+        details.append(name, meta); row.append(checkbox, symbol, details);
+        row.onclick = event => {
+          if (event.shiftKey) { if (!event.ctrlKey && !event.metaKey) selected.clear(); for (let i = Math.min(anchor, index); i <= Math.max(anchor, index); i++) selected.add(trash ? entries[i].id : entries[i].path); }
+          else if (event.ctrlKey || event.metaKey) { if (selected.has(key)) selected.delete(key); else selected.add(key); anchor = index; }
+          else { selected = new Set([key]); anchor = index; }
+          render();
+        };
+        const open = () => { if (!trash && file.type === 'directory') navigate(file.path); };
+        row.ondblclick = open;
+        row.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); open(); } if (event.key === ' ') { event.preventDefault(); checkbox.click(); } };
+        if (file.type === 'directory' && !trash) { const openButton = button(row, 'Open', open, `Open ${file.name}`); openButton.onclick = event => { event.stopPropagation(); open(); }; }
+        row.oncontextmenu = event => {
+          event.preventDefault(); if (!selected.has(key)) { selected = new Set([key]); render(); }
+          menu.replaceChildren();
+          for (const [label, action] of trash ? [['Restore', restoreSelection]] : [['Delete', trashSelection], ['Download', downloadSelection], ['Copy to folder', copySelection]]) {
+            const item = button(menu, label, () => { menu.hidden = true; return action(); }); item.setAttribute('role', 'menuitem'); item.disabled = busy;
+          }
+          menu.hidden = false; menu.style.left = Math.min(event.clientX, innerWidth - 210) + 'px'; menu.style.top = Math.min(event.clientY, innerHeight - 160) + 'px'; menu.querySelector('button')?.focus();
+        };
+        content.append(row);
+      });
+      if (!entries.length) content.append(node('p', trash ? 'Trash is empty.' : 'No files yet. Drop files or paste with Ctrl+V.', 'explorer-empty'));
+      controls();
+    }
+    async function refresh() {
+      const version = ++request, current = directory, inTrash = trash;
+      try {
+        const result = inTrash ? await adapter.trashList() : await adapter.list(current);
+        if (version !== request) return;
+        entries = result; selected = new Set([...selected].filter(key => entries.some(file => (inTrash ? file.id : file.path) === key))); render();
+      } catch (error) { if (version === request) say(error.message); }
+    }
+    async function navigate(target, addHistory = true) {
+      if (busy) return;
+      trash = false; directory = target; selected.clear();
+      if (addHistory && history[position] !== target) { history = history.slice(0, position + 1); history.push(target); position++; }
+      entries = []; render();
+      await refresh(); options.onNavigate?.(directory);
+    }
+    async function goHistory(delta) { if (busy || !history[position + delta] && history[position + delta] !== '') return; position += delta; await navigate(history[position], false); }
+    async function run(action, success) {
+      if (busy) return;
+      busy = true; controls(); say('Working…');
+      try { const result = await action(); say(success || 'Done'); await refresh(); return result; }
+      catch (error) { say(error.message); throw error; }
+      finally { busy = false; controls(); }
+    }
+    async function copySelection() {
+      const paths = [...selected], target = directory; if (!paths.length) return;
+      const name = await askName(); if (name) await run(() => adapter.copy(target, paths, name), 'Copied. Originals kept.');
+    }
+    async function downloadSelection() { const paths = [...selected]; if (paths.length) await run(() => adapter.download(paths), 'Download requested'); }
+    async function trashSelection() {
+      const paths = [...selected]; if (!paths.length) return;
+      const results = await run(() => adapter.trash(paths), 'Moved to trash');
+      if (!results) return;
+      const good = results.filter(item => item.ok), failed = results.filter(item => !item.ok);
+      say(failed.length ? failed.map(item => `${item.path}: ${item.error}`).join('; ') : 'Moved to trash. ');
+      if (good.length) button(status, 'Undo', () => run(async () => { for (const item of good) await adapter.restore(item.id); }, 'Restored'));
+      selected.clear(); controls();
+    }
+    async function restoreSelection() { const ids = [...selected]; if (ids.length) await run(async () => { for (const id of ids) await adapter.restore(id); }, 'Restored'); }
+    document.addEventListener('click', event => { if (!menu.contains(event.target)) menu.hidden = true; });
+    const enabled = () => options.enabled ? options.enabled() : !host.hidden;
+    const editable = target => target.closest?.('textarea, [contenteditable="true"], [role="textbox"], input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=file])');
+    document.addEventListener('keydown', event => {
+      if (!enabled() || editable(event.target)) return;
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && host.contains(event.target)) { event.preventDefault(); selected = new Set(entries.map(file => trash ? file.id : file.path)); render(); }
+      if (adapter.paste && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+        event.preventDefault();
+        if (busy || trash) { say('Open a folder and wait for the current operation to finish before pasting.'); return; }
+        const target = directory;
+        run(() => adapter.paste(target), 'Pasted into shared folder').catch(() => {});
+      }
+      if (event.key === 'Escape') menu.hidden = true;
+    });
+    document.addEventListener('paste', event => {
+      if (!enabled() || editable(event.target)) return;
+      event.preventDefault(); if (trash || busy) { say('Open a folder and wait for the current operation to finish before pasting.'); return; }
+      const target = directory;
+      run(async () => {
+        if (adapter.paste) return adapter.paste(target);
+        const image = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith('image/'));
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        if (image) {
+          const file = image.getAsFile(); if (!file) throw new Error('Clipboard image unavailable');
+          const bitmap = await createImageBitmap(file);
+          try {
+            const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height; canvas.getContext('2d').drawImage(bitmap, 0, 0);
+            const png = await new Promise(resolve => canvas.toBlob(resolve, 'image/png')); if (!png) throw new Error('Could not convert clipboard image');
+            return adapter.upload(target, new File([png], `clipboard-${stamp}.png`, { type: 'image/png' }));
+          } finally { bitmap.close(); }
+        }
+        const text = event.clipboardData?.getData('text/plain');
+        if (!text) throw new Error('Clipboard has no supported image or text');
+        if (new TextEncoder().encode(text).length > 1024 * 1024) throw new Error('Clipboard text must be at most 1 MiB.');
+        return adapter.upload(target, new File([text], `clipboard-${stamp}.txt`, { type: 'text/plain' }));
+      }, 'Pasted into shared folder').catch(() => {});
+    });
+    render(); refresh();
+    return { refresh, navigate, get directory() { return directory; }, get busy() { return busy; }, say };
+  }
+  global.AirdropExplorer = { mount, kind };
+})(window);

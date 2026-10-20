@@ -28,8 +28,10 @@ test('desktop clipboard buttons paste, share, load and copy; failed loads preser
   const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only', url: 'https://local.test' });
   const { window } = dom; let shared = null, copied;
   window.airdrop = { onStatus() {}, status: async () => ({ label: 'Ready', status: 'ready' }), settings: async () => ({}),
+    explore: async () => [], onShowFiles() {}, onUpdate() {}, update: async () => ({ status: 'current', current: '1.4.0' }),
     readClipboard: async () => 'local text', shareClipboard: async text => { shared = text; },
     loadClipboard: async () => shared, copyClipboard: async text => { copied = text; } };
+  window.eval(await fs.readFile('ui/explorer.js', 'utf8'));
   window.eval(await fs.readFile('desktop/renderer.js', 'utf8'));
   const get = id => window.document.getElementById(id);
   try {
@@ -47,4 +49,16 @@ test('desktop clipboard buttons paste, share, load and copy; failed loads preser
     await get('copyClipboard').onclick(); assert.equal(copied, shared);
     assert.equal(get('pasteClipboard').disabled, false);
   } finally { window.close(); }
+});
+
+test('native clipboard snapshots prefer images and support the current asynchronous Electron API', async () => {
+  const { readClipboardFile } = require('../desktop/clipboard');
+  const fakeImage = { isEmpty: () => false, toPNG: () => Buffer.from('png') };
+  const item = { types: ['text/plain', 'image/jpeg'], getType: async type => new Blob([type === 'image/jpeg' ? 'image' : 'caption']) };
+  const file = await readClipboardFile({ read: async () => [item] }, { createFromBuffer: bytes => { assert.equal(bytes.toString(), 'image'); return fakeImage; } });
+  assert.match(file.name, /^clipboard-.*\.png$/); assert.equal(file.data.toString(), 'png');
+  const text = await readClipboardFile({ read: async () => [{ types: ['text/plain'], getType: async () => new Blob(['İstanbul 👋']) }] });
+  assert.match(text.name, /\.txt$/); assert.equal(text.data.toString(), 'İstanbul 👋');
+  await assert.rejects(readClipboardFile({ read: async () => [] }), /no supported/);
+  await assert.rejects(readClipboardFile({ read: async () => [{ types: ['text/plain'], getType: async () => new Blob(['ü'.repeat(1024 * 1024)]) }] }), /1 MiB/);
 });

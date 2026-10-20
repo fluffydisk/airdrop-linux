@@ -379,6 +379,7 @@
   .quick-btn:active { background: var(--card-pressed); }
   .quick-btn svg { width: 22px; height: 22px; }
 </style>
+<link rel="stylesheet" href="explorer.css">
 </head>
 <body>
   <div class="navbar" id="navbar">
@@ -419,14 +420,14 @@
     </div>
 
     <input type="file" id="fileInput" multiple>
+    <div class="section"><label><input type="checkbox" id="sendZip"> Upload as one ZIP (up to 100 MiB)</label><p>Files upload immediately into the open folder.</p><button id="reloadApp" hidden>New version available — reload</button></div>
     <div class="section" id="sendPanel" hidden>
-      <div class="section-header">Send files</div>
+      <div class="section-header">Failed transfer</div>
       <div class="card" style="padding:16px">
         <ul id="sendNames"></ul>
-        <label><input type="checkbox" id="sendZip"> Send as one ZIP (up to 100 MiB)</label>
         <p id="sendHint" role="status"></p>
-        <button id="sendConfirm">Send</button>
-        <button id="sendCancel">Cancel</button>
+        <button id="sendConfirm">Retry failed files</button>
+        <button id="sendCancel">Discard failed transfer</button>
       </div>
     </div>
 
@@ -451,7 +452,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
         </button>
       </div>
-      <button id="downloadZip" disabled>Download selected as ZIP</button>
       <div class="card" id="fileListCard">
         <div class="empty-row">No files yet.</div>
       </div>
@@ -478,6 +478,7 @@
 <script src="vendor/jszip.min.js"></script>
 <script src="zip.js"></script>
 <script src="pending-share.js"></script>
+<script src="explorer.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

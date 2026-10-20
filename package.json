@@ -1,6 +1,6 @@
 {
   "name": "airdrop-push",
-  "version": "1.0.0",
+  "version": "1.4.0",
   "description": "Push notification server for Airdrop (self-hosted file/clipboard transfer over Tailscale)",
   "main": "push-server.js",
   "scripts": {
@@ -9,7 +9,9 @@
     "test": "node --test tests/*.test.js",
     "test:browser": "node --test tests/browser.cjs",
     "prepare-desktop": "node scripts/prepare-desktop.js",
-    "test:desktop": "node --test tests/desktop.cjs"
+    "test:desktop": "node --test tests/desktop.cjs",
+    "release:build": "node scripts/build-release.js",
+    "release:appimage": "node scripts/build-appimage.js"
   },
   "dependencies": {
     "archiver": "^7.0.1",

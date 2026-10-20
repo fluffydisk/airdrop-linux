@@ -249,7 +249,7 @@ if [[ -n "$NODE_BIN" ]]; then
   CURRENT_NODE_MAJOR="$(node_major "$NODE_BIN" || true)"
 fi
 
-if [[ -z "$NODE_BIN" || -z "$NPM_BIN" || -z "$CURRENT_NODE_MAJOR" || "$CURRENT_NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]]; then
+if [[ -z "$NODE_BIN" || -z "$CURRENT_NODE_MAJOR" || "$CURRENT_NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]] || [[ -z "$NPM_BIN" && -z "${AIRDROP_PREBUILT_DIR:-}" ]]; then
   info "Checking the system package manager for Node.js and npm..."
   case "$PKG_MANAGER" in
     apt)
@@ -288,7 +288,7 @@ fi
 
 # If the distro ships an old/missing Node.js, install an official Node.js LTS
 # binary in the user's home instead of changing system packages further.
-if [[ -z "$NODE_BIN" || -z "$NPM_BIN" || -z "$CURRENT_NODE_MAJOR" || "$CURRENT_NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]]; then
+if [[ -z "$NODE_BIN" || -z "$CURRENT_NODE_MAJOR" || "$CURRENT_NODE_MAJOR" -lt "$MIN_NODE_MAJOR" ]] || [[ -z "$NPM_BIN" && -z "${AIRDROP_PREBUILT_DIR:-}" ]]; then
   info "The system Node.js is missing or too old; installing Node.js v$NODE_VERSION locally..."
 
   case "$(uname -m)" in
@@ -322,11 +322,11 @@ if [[ -z "$NODE_BIN" || -z "$NPM_BIN" || -z "$CURRENT_NODE_MAJOR" || "$CURRENT_N
 fi
 
 [[ -x "$NODE_BIN" ]] || fail "Node.js executable not found at '$NODE_BIN'."
-[[ -x "$NPM_BIN" ]] || fail "npm executable not found at '$NPM_BIN'."
+[[ -n "${AIRDROP_PREBUILT_DIR:-}" || -x "$NPM_BIN" ]] || fail "npm executable not found at '$NPM_BIN'."
 CURRENT_NODE_MAJOR="$(node_major "$NODE_BIN")"
 [[ -n "$CURRENT_NODE_MAJOR" && "$CURRENT_NODE_MAJOR" -ge "$MIN_NODE_MAJOR" ]] \
   || fail "Node.js $MIN_NODE_MAJOR or newer is required. Detected: $CURRENT_NODE_MAJOR"
-ok "Node.js $($NODE_BIN --version) and npm $($NPM_BIN --version) are available."
+ok "Node.js $($NODE_BIN --version) is available."
 
 # ---------- dufs ----------
 
@@ -531,6 +531,12 @@ info "Installing Airdrop files..."
 mkdir -p "$SHARE_DIR" "$UI_DIR" "$PUSH_DIR" "$LOCAL_BIN_DIR" "$CONFIG_DIR" "$STATE_DIR"
 chmod 700 "$AIRDROP_ROOT" "$CONFIG_DIR" "$STATE_DIR"
 
+if [[ -n "${AIRDROP_PREBUILT_DIR:-}" ]]; then
+  [[ "$AIRDROP_PREBUILT_DIR" == /* ]] || fail "Prebuilt directory must be absolute."
+  "$NODE_BIN" "$REPO_DIR/scripts/validate-prebuilt.js" "$AIRDROP_PREBUILT_DIR"
+  cp -a "$AIRDROP_PREBUILT_DIR/app/ui/." "$UI_DIR/"
+  cp -a "$AIRDROP_PREBUILT_DIR/app/server/." "$PUSH_DIR/"
+else
 cp -a "$REPO_DIR/ui/." "$UI_DIR/"
 cp -a "$REPO_DIR/push-server.js" "$REPO_DIR/package.json" "$PUSH_DIR/"
 mkdir -p "$PUSH_DIR/lib" "$PUSH_DIR/bin" "$PUSH_DIR/ui" "$PUSH_DIR/scripts"
@@ -540,10 +546,18 @@ cp -a "$REPO_DIR/bin/." "$PUSH_DIR/bin/"
 cp -a "$REPO_DIR/ui/zip.js" "$PUSH_DIR/ui/"
 [[ -f "$REPO_DIR/package-lock.json" ]] && cp -a "$REPO_DIR/package-lock.json" "$PUSH_DIR/"
 
+fi
+
+mkdir -p "$AIRDROP_ROOT/state"
+"$NODE_BIN" -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({node:process.execPath}), {mode:0o600})' "$AIRDROP_ROOT/state/runtime.json"
 ok "Application files installed."
 
 # ---------- npm dependencies ----------
 
+if [[ -n "${AIRDROP_PREBUILT_DIR:-}" ]]; then
+  "$NODE_BIN" -e 'for(const name of ["express","web-push","archiver","jszip"])require(require.resolve(name,{paths:[process.argv[1]]}))' "$PUSH_DIR"
+  ok "Bundled server dependencies are available; npm installation skipped."
+else
 info "Installing npm dependencies..."
 (
   cd "$PUSH_DIR"
@@ -555,6 +569,8 @@ info "Installing npm dependencies..."
 )
 [[ -x "$PUSH_DIR/node_modules/.bin/web-push" ]] || fail "npm dependencies were installed, but web-push is missing."
 ok "npm dependencies installed."
+
+fi
 
 # ---------- Prepare migration ----------
 # Stop legacy writers before copying. Keep the original units for rollback.
@@ -854,3 +870,8 @@ printf '  CLI helpers: %s\n' "$LOCAL_BIN_DIR"
 printf '  dufs: %s\n' "$DUFS_BIN"
 printf '  Node.js: %s\n' "$NODE_BIN"
 printf '\n%bThe installer is safe to run again: existing .env/VAPID credentials are preserved.%b\n' "$C_YELLOW" "$C_RESET"
+
+if [[ -n "${AIRDROP_PREBUILT_DIR:-}" ]]; then
+  info "Installing the prebuilt desktop application..."
+  PATH="$(dirname "$NODE_BIN"):$PATH" "$REPO_DIR/install-desktop.sh" --prebuilt "$AIRDROP_PREBUILT_DIR/app/desktop"
+fi

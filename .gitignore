@@ -20,3 +20,9 @@ desktop/core/
 desktop/out/
 
 .test-artifacts/
+
+# Prepared release assets
+release/
+
+# Verified AppImage packaging tools
+.cache/

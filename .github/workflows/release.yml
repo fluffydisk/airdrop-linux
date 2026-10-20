@@ -1,0 +1,61 @@
+name: Prepare application release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm ci --prefix desktop
+      - run: npm run prepare-desktop
+      - run: npm run package --prefix desktop
+      - run: node scripts/build-release.js
+      - run: node scripts/build-appimage.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: release/*
+  draft:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - run: node scripts/merge-release.js
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          test "$GITHUB_REF_NAME" = "v$version"
+          notes="docs/releases/v$version.md"
+          if test -f "$notes"; then
+            gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --notes-file "$notes"
+          else
+            gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --generate-notes
+          fi

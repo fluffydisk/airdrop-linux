@@ -3,11 +3,26 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, cli
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const explorer = require('./core/lib/explorer');
+const { operation } = require('./core/lib/maintenance');
+const { Readable } = require('node:stream');
+const { pipeline } = require('node:stream/promises');
 const { validName, rootDirectory } = require('./core/lib/files');
 const { sendFiles } = require('./core/lib/transfer');
 const { getPaths } = require('./core/lib/paths');
-const { readSharedClipboard, writeSharedClipboard, validateText } = require('./clipboard');
+const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
 const paths = getPaths();
+const updater = require('./core/lib/updater');
+let updateTimer, updateBusy = false;
+let updateState = { distribution: process.env.APPIMAGE ? 'appimage' : 'installed', status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
+function publishUpdate(value) { value = { ...value, distribution: process.env.APPIMAGE ? 'appimage' : 'installed' }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
+async function checkUpdate() {
+  if (updateBusy) return updateState;
+  updateBusy = true; publishUpdate({ ...updateState, status: 'checking', message: 'Checking for updates…' });
+  try { return publishUpdate(await updater.check(app.getVersion())); }
+  catch (error) { return publishUpdate({ status: 'error', current: app.getVersion(), message: error.message }); }
+  finally { updateBusy = false; }
+}
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
@@ -31,7 +46,7 @@ async function health() {
     tray.setToolTip(`Airdrop: ${state.label}`);
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: state.label, enabled: false }, { label: 'Open Airdrop', click: () => window.show() },
-      { label: 'Open shared folder', click: () => shell.openPath(shareDir) },
+      { label: 'Shared files', click: () => { window.show(); window.webContents.send('airdrop:show-files'); } },
       { type: 'separator' }, { label: 'Quit', click: () => app.quit() }
     ]));
   }
@@ -57,10 +72,35 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.handle('airdrop:update', async (event, action) => {
+    ownWindow(event);
+    if (action === 'state') return updateState;
+    if (action === 'check') return checkUpdate();
+    if (action !== 'install') throw new Error('Unknown update action');
+    if (updateBusy || updateState.status !== 'available') throw new Error('Check for updates first');
+    if (process.env.APPIMAGE) {
+      if (!updateState.appImage) throw new Error('This release has no AppImage for your architecture yet.');
+      await shell.openExternal(updateState.appImage.url);
+      return publishUpdate({ ...updateState, message: 'AppImage download opened. Quit Airdrop and replace your AppImage with the downloaded file. The local server is updated separately.' });
+    }
+    if (!app.isPackaged || path.resolve(process.execPath) !== path.join(paths.desktop, 'Airdrop')) throw new Error('Install this version with the installers once to enable in-app updates.');
+    updateBusy = true;
+    const release = updateState;
+    publishUpdate({ ...release, status: 'downloading', message: 'Downloading and verifying update…' });
+    try {
+      const prepared = await updater.prepare(paths.root, release, { progress: fraction => publishUpdate({ ...release, status: 'downloading', message: `Downloading update: ${Math.round(fraction * 100)}%` }) });
+      publishUpdate({ ...release, status: 'installing', message: 'Finishing transfers, then restarting Airdrop. Linux may request service-management permission.' });
+      while (sending) await new Promise(resolve => setTimeout(resolve, 100));
+      await updater.launch(paths.root, prepared, process.pid);
+      quitting = true; app.quit();
+      return updateState;
+    } catch (error) { return publishUpdate({ ...release, status: 'available', message: `Update failed: ${error.message}` }); }
+    finally { updateBusy = false; }
+  });
   ipcMain.handle('airdrop:clipboard-read', event => { ownWindow(event); return clipboard.readText(); });
-  ipcMain.handle('airdrop:clipboard-copy', (event, text) => { ownWindow(event); validateText(text); clipboard.writeText(text); });
+  ipcMain.handle('airdrop:clipboard-copy', (event, text) => { ownWindow(event); validateText(text); return clipboard.writeText(text); });
   ipcMain.handle('airdrop:clipboard-load', event => { ownWindow(event); return readSharedClipboard(shareDir); });
-  ipcMain.handle('airdrop:clipboard-share', (event, text) => { ownWindow(event); return writeSharedClipboard(shareDir, text); });
+  ipcMain.handle('airdrop:clipboard-share', (event, text) => { ownWindow(event); return operation(() => writeSharedClipboard(shareDir, text)); });
   ipcMain.handle('airdrop:choose', async event => {
     ownWindow(event);
     const result = await dialog.showOpenDialog(window, { properties: ['openFile', 'multiSelections'] });
@@ -73,12 +113,16 @@ function registerIpc() {
     for (const file of files) allowedPaths.add(file);
     return files;
   });
-  ipcMain.handle('airdrop:send', async (event, sources, zip) => {
+  ipcMain.handle('airdrop:send', async (event, sources, zip, destination = '') => {
     ownWindow(event);
     if (sending) throw new Error('A transfer is already running');
     if (!Array.isArray(sources) || !sources.length || sources.length > 1000 || !sources.every(file => allowedPaths.has(file)) || typeof zip !== 'boolean') throw new Error('Choose files first');
     sending = true;
-    try { return await sendFiles(shareDir, sources, zip); }
+    try {
+      const target = await explorer.directory(shareDir, destination);
+      try { return await sendFiles(target.path, sources, zip, { anchored: true }); }
+      finally { await target.close(); }
+    }
     finally { sending = false; }
   });
   ipcMain.handle('airdrop:describe', async (event, sources) => {
@@ -89,6 +133,38 @@ function registerIpc() {
       if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('Choose regular files. Folders and links cannot be sent.');
       return { path: source, name: path.basename(source), size: stat.size };
     }));
+  });
+  ipcMain.handle('airdrop:explorer', async (event, action, payload = {}) => {
+    ownWindow(event);
+    const read = {
+      list: () => explorer.list(shareDir, payload.directory || ''),
+      trashList: () => explorer.trashList(shareDir)
+    };
+    if (Object.hasOwn(read, action)) return read[action]();
+    const write = {
+      mkdir: () => explorer.mkdir(shareDir, payload.directory || '', payload.name),
+      copy: () => explorer.copy(shareDir, payload.directory || '', payload.paths, payload.name),
+      trash: () => explorer.trash(shareDir, payload.paths),
+      restore: () => explorer.restore(shareDir, payload.id),
+      paste: async () => {
+        const file = await readClipboardFile(clipboard, nativeImage);
+        return explorer.upload(shareDir, payload.directory || '', file.name, Readable.from([file.data]));
+      },
+      download: async () => {
+        const result = await explorer.download(shareDir, payload.paths);
+        let streamError; result.stream.on('error', error => { streamError = error; });
+        try {
+          const save = await dialog.showSaveDialog(window, { defaultPath: result.name });
+          if (save.canceled) return;
+          if (streamError) throw streamError;
+          const temp = await fs.promises.mkdtemp(path.join(path.dirname(save.filePath), '.airdrop-download-'));
+          try { const output = path.join(temp, 'download'); await pipeline(result.stream, fs.createWriteStream(output, { flags: 'wx', mode: 0o600 })); await fs.promises.rename(output, save.filePath); }
+          finally { await fs.promises.rm(temp, { recursive: true, force: true }); }
+        } finally { result.stream.destroy(); }
+      }
+    };
+    if (!Object.hasOwn(write, action)) throw new Error('Unknown file operation');
+    return operation(write[action]);
   });
   ipcMain.handle('airdrop:recent', async event => {
     ownWindow(event);
@@ -104,7 +180,7 @@ function registerIpc() {
   });
   ipcMain.handle('airdrop:settings', event => { ownWindow(event); return readSettings(); });
   ipcMain.handle('airdrop:status', event => { ownWindow(event); return state; });
-  ipcMain.handle('airdrop:folder', event => { ownWindow(event); return shell.openPath(shareDir); });
+  ipcMain.handle('airdrop:folder', event => { ownWindow(event); window.webContents.send('airdrop:show-files'); });
   ipcMain.handle('airdrop:pwa', event => { ownWindow(event); return openPwa(); });
   ipcMain.handle('airdrop:save-url', async (event, input) => {
     ownWindow(event);
@@ -119,7 +195,7 @@ function registerIpc() {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { window?.show(); window?.focus(); });
-  app.on('before-quit', () => { quitting = true; clearInterval(timer); });
+  app.on('before-quit', () => { quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
@@ -145,6 +221,10 @@ else {
     window.on('closed', () => { window = null; });
     window.on('close', event => { if (!quitting && tray) { event.preventDefault(); window.hide(); } });
     await health(); timer = setInterval(health, 5000);
+    const journal = await updater.readJournal(paths.root);
+    if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
+    else if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) checkUpdate();
+    if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(checkUpdate, 6 * 60 * 60 * 1000);
   }).catch(error => { console.error(error); app.quit(); });
   app.on('window-all-closed', () => { if (!tray) app.quit(); });
 }

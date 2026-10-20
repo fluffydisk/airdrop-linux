@@ -1,168 +1,100 @@
-
 const statusEl = document.getElementById('status');
 const fileInput = document.getElementById('fileInput');
 const fileListCard = document.getElementById('fileListCard');
 const navbar = document.getElementById('navbar');
-const scrollArea = document.getElementById('scrollArea');
-
-window.addEventListener('scroll', () => {
-  navbar.classList.toggle('scrolled', window.scrollY > 28);
-});
-
-document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
-document.getElementById('browseBtn').addEventListener('click', () => {
-  window.location.href = '/?browse';
-});
-
-let selectedFiles = [];
-let pendingShareId = null;
-let sending = false;
+window.addEventListener('scroll', () => navbar.classList.toggle('scrolled', window.scrollY > 28));
+let selectedFiles = [], pendingShareId = null, sending = false, retryTarget = null, retryZip = false, preparedZip = null;
 const sendPanel = document.getElementById('sendPanel');
 const sendZip = document.getElementById('sendZip');
-function showSend(files) {
-  selectedFiles = files;
-  document.getElementById('sendNames').replaceChildren(...files.map(file => {
-    const li = document.createElement('li');
-    li.textContent = `${file.name} (${formatSize(file.size)})`;
-    return li;
-  }));
-  const tooLarge = files.reduce((sum, file) => sum + file.size, 0) > AirdropZip.MAX_ZIP_BYTES;
-  sendZip.checked = false;
-  sendZip.disabled = tooLarge;
-  document.getElementById('sendHint').textContent = tooLarge ? 'ZIP source files exceed 100 MiB. Send files separately.' : '';
-  sendPanel.hidden = false;
+try { sendZip.checked = localStorage.getItem('airdrop-zip') === 'true'; } catch {}
+sendZip.onchange = () => { try { localStorage.setItem('airdrop-zip', String(sendZip.checked)); } catch {} };
+function setStatus(msg, cls = '') { statusEl.textContent = msg; statusEl.className = 'status ' + cls; }
+async function api(route, body, method = 'POST') {
+  const response = await fetch('/push/explorer' + route, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const value = await response.json(); if (!response.ok) throw new Error(value.error || 'File operation failed'); return value;
 }
-fileInput.addEventListener('change', () => {
-  if (fileInput.files.length) showSend(Array.from(fileInput.files));
-  fileInput.value = '';
-});
-async function uploadFile(file) {
-  setStatus(`Uploading: ${file.name}`, '');
+async function uploadFile(file, directory) {
+  setStatus(`Uploading: ${file.name}`);
   try {
-    const res = await fetch('/push/files/' + encodeURIComponent(file.name), { method: 'PUT', body: file });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`);
-    return { ok: true, ...result };
+    const response = await fetch('/push/explorer/file?directory=' + encodeURIComponent(directory) + '&name=' + encodeURIComponent(file.name), { method: 'PUT', body: file });
+    const value = await response.json(); if (!response.ok) throw new Error(value.error || 'Upload failed'); return { ok: true, ...value };
   } catch (error) { return { ok: false, name: file.name, error: error.message }; }
+}
+const explorer = AirdropExplorer.mount(fileListCard, {
+  list: async directory => (await api('?directory=' + encodeURIComponent(directory), null, 'GET')).entries,
+  mkdir: (directory, name) => api('/directories', { directory, name }),
+  copy: (directory, paths, name) => api('/copy', { directory, paths, name }),
+  trash: async paths => (await api('/trash', { paths })).results,
+  trashList: async () => (await api('/trash', null, 'GET')).entries,
+  restore: id => api('/trash/' + encodeURIComponent(id) + '/restore'),
+  upload: async (directory, file) => { const result = await uploadFile(file, directory); if (!result.ok) throw new Error(result.error); setStatus(`Pasted: ${result.name}`, 'ok'); return result; },
+  download: async paths => {
+    await api('/download', { paths, validateOnly: true });
+    const form = document.createElement('form'); form.method = 'POST'; form.action = '/push/explorer/download';
+    const input = document.createElement('input'); input.type = 'hidden'; input.name = 'paths'; input.value = JSON.stringify(paths);
+    // An iframe keeps mobile browsers on the manager while native downloads stream.
+    let frame = document.getElementById('downloadFrame');
+    if (!frame) { frame = document.createElement('iframe'); frame.id = 'downloadFrame'; frame.name = 'airdropDownload'; frame.hidden = true; document.body.append(frame); }
+    form.target = frame.name; form.append(input); document.body.append(form); form.submit(); form.remove();
+  }
+}, { enabled: () => !sending, choose: () => { if (!sending && !selectedFiles.length) fileInput.click(); } });
+function loadRecent() { return explorer.refresh(); }
+document.getElementById('browseBtn').onclick = () => { fileListCard.scrollIntoView({ behavior: 'smooth' }); fileListCard.focus(); };
+document.getElementById('refreshBtn').onclick = loadRecent;
+document.getElementById('uploadBtn').onclick = () => { if (!sending && !selectedFiles.length) fileInput.click(); };
+function renderFailed() {
+  sendPanel.hidden = !selectedFiles.length;
+  document.getElementById('sendNames').replaceChildren(...selectedFiles.map(file => { const row = document.createElement('li'); row.textContent = file.name; return row; }));
+  document.getElementById('sendConfirm').disabled = sending;
+  document.getElementById('sendCancel').disabled = sending;
 }
 async function clearSend() {
   if (pendingShareId) await AirdropShares.remove(pendingShareId);
-  pendingShareId = null;
-  selectedFiles = [];
-  sendPanel.hidden = true;
-  document.getElementById('uploadBtn').disabled = false;
-  window.history.replaceState({}, '', '/ui/');
+  pendingShareId = null; selectedFiles = []; preparedZip = null; retryTarget = null;
+  window.history.replaceState({}, '', '/ui/'); renderFailed();
 }
-document.getElementById('sendCancel').addEventListener('click', () => {
-  if (!sending) clearSend().catch(error => setStatus(error.message, 'err'));
-});
-document.getElementById('sendConfirm').addEventListener('click', async () => {
-  if (sending || !selectedFiles.length) return;
-  sending = true;
-  fileInput.disabled = true;
-  document.getElementById('uploadBtn').disabled = true;
-  document.getElementById('sendConfirm').disabled = true;
-  document.getElementById('sendCancel').disabled = true;
-  sendZip.disabled = true;
+async function startUpload(files, retry = false) {
+  if (sending || !files.length) return;
+  if (files.length > 1000) { setStatus('Select at most 1000 files.', 'err'); return; }
+  if (!retry && selectedFiles.length) { setStatus('Retry or discard the failed transfer first.', 'err'); return; }
+  if (!retry) { retryTarget = explorer.directory; retryZip = sendZip.checked; preparedZip = null; }
+  selectedFiles = files;
+  sending = true; fileInput.disabled = true; sendZip.disabled = true; document.getElementById('uploadBtn').disabled = true;
+  const original = files;
   try {
-    let files = selectedFiles;
-    if (sendZip.checked) {
-      const archive = await AirdropZip.createZip(files, 'blob', progress => setStatus(`Creating ZIP: ${Math.round(progress.percent)}%`, ''));
-      files = [new File([archive.data], archive.name, { type: 'application/zip' })];
+    if (retryZip) {
+      if (files.reduce((sum, file) => sum + file.size, 0) > AirdropZip.MAX_ZIP_BYTES) throw new Error('ZIP source files exceed 100 MiB. Turn off ZIP and select the files again.');
+      if (!preparedZip) { const zip = await AirdropZip.createZip(files, 'blob', progress => setStatus(`Creating ZIP: ${Math.round(progress.percent)}%`)); preparedZip = new File([zip.data], zip.name, { type: 'application/zip' }); }
+      files = [preparedZip];
     }
-    const results = [];
-    for (const file of files) results.push(await uploadFile(file));
-    const failed = results.filter(result => !result.ok);
-    const success = results.length - failed.length;
-    setStatus(`${success} uploaded${failed.length ? '; failed: ' + failed.map(file => `${file.name} (${file.error})`).join(', ') : ''}`, failed.length ? 'err' : 'ok');
-    // Release staged Android files after this attempt, including partial failure.
-    await clearSend();
+    const results = []; for (const file of files) results.push(await uploadFile(file, retryTarget));
+    const failed = results.filter(item => !item.ok);
+    selectedFiles = retryZip ? failed.length ? original : [] : original.filter((file, index) => !results[index].ok);
+    setStatus(`${results.length - failed.length} uploaded${failed.length ? '; failed: ' + failed.map(item => `${item.name} (${item.error})`).join(', ') : ''}`, failed.length ? 'err' : 'ok');
+    if (pendingShareId) {
+      if (selectedFiles.length) {
+        await AirdropShares.replace(pendingShareId, selectedFiles, { directory: retryTarget, zip: retryZip });
+      } else await clearSend();
+    } else if (!selectedFiles.length) await clearSend();
     await loadRecent();
   } catch (error) { setStatus(error.message, 'err'); }
-  finally {
-    sending = false;
-    fileInput.disabled = false;
-    document.getElementById('uploadBtn').disabled = false;
-    document.getElementById('sendConfirm').disabled = false;
-    document.getElementById('sendCancel').disabled = false;
-    sendZip.disabled = selectedFiles.reduce((sum, file) => sum + file.size, 0) > AirdropZip.MAX_ZIP_BYTES;
-  }
-});
-
-function setStatus(msg, cls) {
-  statusEl.textContent = msg;
-  statusEl.className = 'status' + (cls ? ' ' + cls : '');
+  finally { sending = false; fileInput.disabled = false; sendZip.disabled = false; document.getElementById('uploadBtn').disabled = selectedFiles.length > 0; renderFailed(); }
 }
-
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+fileInput.addEventListener('change', () => { const files = Array.from(fileInput.files); fileInput.value = ''; startUpload(files); });
+document.getElementById('sendConfirm').onclick = () => startUpload(selectedFiles, true);
+document.getElementById('sendCancel').onclick = () => clearSend().then(() => { document.getElementById('uploadBtn').disabled = false; }).catch(error => setStatus(error.message, 'err'));
+document.addEventListener('dragover', event => { if (event.dataTransfer?.types?.includes('Files')) event.preventDefault(); });
+document.addEventListener('drop', event => { event.preventDefault(); if (!sending) startUpload(Array.from(event.dataTransfer?.files || [])); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadRecent(); });
+let serverVersion;
+async function checkVersion() {
+  try { const response = await fetch('/push/version', { cache: 'no-store' }); const data = await response.json(); if (!data.version) return;
+    if (serverVersion && data.version !== serverVersion && !sending) { document.getElementById('reloadApp').hidden = false; }
+    if (!serverVersion) serverVersion = data.version;
+  } catch {}
 }
-
-const downloadZip = document.getElementById('downloadZip');
-function selectedNames() {
-  return Array.from(fileListCard.querySelectorAll('input:checked')).map(input => input.value);
-}
-async function loadRecent() {
-  try {
-    const previous = new Set(selectedNames());
-    const res = await fetch('/?json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('File listing unavailable');
-    const data = await res.json();
-    const files = (data.paths || []).filter(p => p.path_type === 'File' && !p.name.startsWith('.'))
-      .sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-    fileListCard.replaceChildren();
-    for (const file of files) {
-      const row = document.createElement('div'); row.className = 'row';
-      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = file.name;
-      checkbox.className = 'file-selection'; checkbox.checked = previous.has(file.name);
-      checkbox.setAttribute('aria-label', `Select ${file.name}`);
-      checkbox.addEventListener('change', () => { downloadZip.disabled = !selectedNames().length; });
-      const link = document.createElement('a'); link.className = 'row-label';
-      link.href = '/' + encodeURIComponent(file.name); link.download = file.name; link.textContent = file.name;
-      const size = document.createElement('span'); size.className = 'row-value'; size.textContent = formatSize(file.size || 0);
-      row.append(checkbox, link, size); fileListCard.append(row);
-    }
-    if (!files.length) { const empty = document.createElement('div'); empty.className = 'empty-row'; empty.textContent = 'No files yet.'; fileListCard.append(empty); }
-    downloadZip.disabled = !selectedNames().length;
-  } catch (error) {
-    fileListCard.textContent = 'Could not load the file list.';
-    downloadZip.disabled = true;
-  }
-}
-downloadZip.addEventListener('click', async () => {
-  const files = selectedNames();
-  if (!files.length) return;
-  downloadZip.disabled = true;
-  try {
-    // Validate before submitting a native download; avoid buffering the ZIP in page memory.
-    const res = await fetch('/push/archive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ files, validateOnly: true }) });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Could not download ZIP');
-    const form = document.createElement('form'); form.method = 'POST'; form.action = '/push/archive'; form.target = '_blank';
-    const input = document.createElement('input'); input.type = 'hidden'; input.name = 'files'; input.value = JSON.stringify(files);
-    form.append(input); document.body.append(form); form.submit(); form.remove();
-    setStatus('ZIP download requested', 'ok');
-  } catch (error) { setStatus(error.message, 'err'); }
-  finally { downloadZip.disabled = !selectedNames().length; }
-});
-
-loadRecent();
-
-const refreshBtn = document.getElementById('refreshBtn');
-refreshBtn.addEventListener('click', async () => {
-  refreshBtn.classList.add('spinning');
-  await loadRecent();
-  setTimeout(() => refreshBtn.classList.remove('spinning'), 400);
-});
-
-// Refresh the list automatically whenever the page becomes visible again
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    loadRecent();
-  }
-});
+document.getElementById('reloadApp').onclick = () => { if (!sending) location.reload(); };
+checkVersion(); setInterval(checkVersion, 30000);
 
 // --- Shared clipboard ---
 const clipSub = document.getElementById('clipSub');
@@ -266,7 +198,7 @@ initPush().catch(error => { notifySwitch.classList.remove('on'); setStatus(error
 
 const params = new URLSearchParams(window.location.search);
 
-// Android staged files are opened for confirmation, never auto-uploaded.
+// The user already shared these files with Airdrop: upload without another confirmation.
 async function restoreShare() {
   await AirdropShares.cleanup();
   const id = params.get('pending');
@@ -274,8 +206,9 @@ async function restoreShare() {
     const files = await AirdropShares.get(id);
     if (!files?.length) { setStatus('Shared files expired or are unavailable. Share them again.', 'err'); return; }
     pendingShareId = id;
-    showSend(files);
-    document.getElementById('uploadBtn').disabled = true;
+    const options = await AirdropShares.options(id);
+    if (options) { retryTarget = options.directory; retryZip = options.zip; await startUpload(files, true); }
+    else await startUpload(files);
   } else if (params.has('shared_error')) {
     setStatus('Could not prepare the shared files. Check available device storage and share again.', 'err');
     window.history.replaceState({}, '', '/ui/');
@@ -290,6 +223,7 @@ const incomingName = document.getElementById('incomingName');
 
 function showIncomingSheet(fileName) {
   incomingName.textContent = fileName;
+  explorer.navigate(fileName.split('/').slice(0, -1).join('/'));
   incomingBackdrop.classList.add('show');
 }
 
@@ -300,7 +234,7 @@ function hideIncomingSheet() {
 
 document.getElementById('incomingAccept').addEventListener('click', () => {
   const fileName = incomingName.textContent;
-  window.location.href = '/' + encodeURIComponent(fileName);
+  window.location.href = '/push/explorer/download?path=' + encodeURIComponent(fileName);
   hideIncomingSheet();
 });
 

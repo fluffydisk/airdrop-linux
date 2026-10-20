@@ -1,15 +1,16 @@
 {
   "name": "airdrop-desktop",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Local Linux tray companion for Airdrop",
   "license": "MIT",
   "main": "main.js",
   "scripts": {
     "prepare-core": "node ../scripts/prepare-desktop.js",
     "start": "electron .",
-    "package": "electron-packager . Airdrop --platform=linux --out=out --overwrite --ignore=out --ignore=smoke.js"
+    "package": "electron-packager . Airdrop --platform=linux --out=out --overwrite --ignore=out --ignore=smoke.js --no-asar"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "jszip": "^3.10.1"
   },
   "devDependencies": {

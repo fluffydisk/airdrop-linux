@@ -28,6 +28,8 @@
       await transaction('readwrite', store => store.put({ id, created: Date.now(), files: files.map(file => ({ name: file.name, type: file.type, modified: file.lastModified, file })) }));
       return id;
     },
+    replace: (id, files, options = {}) => transaction('readwrite', store => store.put({ id, created: Date.now(), options, files: files.map(file => ({ name: file.name, type: file.type, modified: file.lastModified, file })) })),
+    options: id => transaction('readonly', store => store.get(id)).then(entry => entry?.options),
     async get(id) {
       const entry = await transaction('readonly', store => store.get(id));
       if (!entry) return null;

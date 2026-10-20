@@ -27,7 +27,7 @@ function validSubscription(sub) {
 
 function createServer({ watchDir = process.env.WATCH_DIR || getPaths().files,
   stateDir = process.env.AIRDROP_STATE_DIR || getPaths().pushState, sendNotification = (sub, data) => webpush.sendNotification(sub, data),
-  watch = true, stableMs = 1600, logger = console } = {}) {
+  watch = true, stableMs = 1600, logger = console, maintenanceRoot = process.env.AIRDROP_HOME || path.dirname(watchDir) } = {}) {
   fs.mkdirSync(stateDir, { recursive: true, mode: 0o700 });
   const subsFile = path.join(stateDir, 'subscriptions.json');
   const seenFile = path.join(stateDir, 'seen-files.json');
@@ -59,13 +59,24 @@ function createServer({ watchDir = process.env.WATCH_DIR || getPaths().files,
   function snapshot() {
     const files = Object.create(null);
     if (!fs.existsSync(watchDir)) return files;
-    for (const entry of fs.readdirSync(watchDir, { withFileTypes: true })) {
-      if (!entry.isFile() || !validName(entry.name)) continue;
+    function walk(directory, prefix = '') {
+      const fd = fs.openSync(directory, fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW);
       try {
-        const stat = fs.lstatSync(path.join(watchDir, entry.name));
-        if (stat.isFile() && !stat.isSymbolicLink()) files[entry.name] = { size: stat.size, mtimeMs: stat.mtimeMs, ctimeMs: stat.ctimeMs };
-      } catch (error) { if (error.code !== 'ENOENT') logger.warn('File scan failed:', error.message); }
+        const anchored = `/proc/self/fd/${fd}`;
+        for (const entry of fs.readdirSync(anchored, { withFileTypes: true })) {
+          if (!validName(entry.name) || entry.isSymbolicLink()) continue;
+          const relative = prefix ? prefix + '/' + entry.name : entry.name;
+          try {
+            const target = anchored + '/' + entry.name;
+            const stat = fs.lstatSync(target);
+            if (stat.isSymbolicLink()) continue;
+            if (stat.isDirectory()) walk(target, relative);
+            else if (stat.isFile()) files[relative] = { size: stat.size, mtimeMs: stat.mtimeMs, ctimeMs: stat.ctimeMs };
+          } catch (error) { if (!['ENOENT', 'ELOOP', 'ENOTDIR'].includes(error.code)) logger.warn('File scan failed:', error.message); }
+        }
+      } finally { fs.closeSync(fd); }
     }
+    walk(watchDir);
     return files;
   }
   // Baseline each startup: existing files do not generate a notification storm.
@@ -96,6 +107,7 @@ function createServer({ watchDir = process.env.WATCH_DIR || getPaths().files,
   }, 800) : null;
   const app = express();
   app.disable('x-powered-by');
+  app.locals.maintenanceRoot = maintenanceRoot;
   // All browser callers use the same Tailscale origin. Reject cross-origin writes.
   app.use((req, res, next) => {
     if (req.headers.origin) {
@@ -105,6 +117,15 @@ function createServer({ watchDir = process.env.WATCH_DIR || getPaths().files,
     }
     next();
   });
+  app.use(async (req, res, next) => {
+    if (['GET', 'HEAD'].includes(req.method)) return next();
+    try {
+      const release = await require('./lib/maintenance').acquire(maintenanceRoot);
+      res.once('close', release); res.once('finish', release); next();
+    } catch (error) { next(error); }
+  });
+  app.use('/explorer', require('./lib/explorer-api').router(watchDir));
+  app.get('/version', (req, res) => res.json({ version: require('./package.json').version }));
   app.get('/vapid-public-key', (req, res) => res.send(process.env.VAPID_PUBLIC_KEY || ''));
   app.get('/health', async (req, res) => {
     try {
