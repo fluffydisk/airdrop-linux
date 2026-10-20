@@ -32,6 +32,7 @@ The user-session service stays available after closing the desktop. It belongs t
 ```sh
 npm ci
 npm ci --prefix desktop
+node desktop/node_modules/electron/install.js
 npm test
 /usr/bin/python3 tests/system-core.py
 dbus-run-session -- /usr/bin/python3 tests/system-bridge.py
@@ -65,7 +66,7 @@ No production key or Pages site has been provisioned by merely adding these scri
 
 ## Flatpak and AUR
 
-The GitHub-only Flatpak packager reuses the native payload, the supported Freedesktop runtime and Electron BaseApp/Zypak. It grants network/display access and exact D-Bus destinations, with no blanket home or system-bus access. Install the Electron BaseApp build dependency, then run `build-flatpak.js` with `AIRDROP_NATIVE_STAGE` set. Build inputs in `packaging/flatpak` are for self-distribution and must not be submitted as a Flathub manifest.
+The GitHub-only Flatpak packager reuses the native payload, the supported Freedesktop runtime and Electron BaseApp/Zypak. It grants network/display access and exact D-Bus destinations, with no blanket home or system-bus access. Install the Electron BaseApp build dependency, then run `build-flatpak.js` with `AIRDROP_NATIVE_STAGE` set. The packager also starts both bundled servers in an isolated network namespace and verifies the web UI and a UTF-8 upload without installing the application. Build inputs in `packaging/flatpak` are for self-distribution and must not be submitted as a Flathub manifest.
 
 The sandbox contains its own servers and workspace. It accesses the host bridge through its narrow D-Bus interface. If no full native package provides the bridge, install the standalone connection DEB through the OS installer. On non-DEB distributions an equivalent native bridge package must exist before guided setup is supported.
 

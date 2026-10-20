@@ -26,6 +26,8 @@ async function main() {
     await put('share/icons/hicolor/192x192/apps/' + spec.id + '.png', await fsp.readFile(path.join(root, 'ui/icon-192.png')));
     await put('share/metainfo/' + spec.id + '.metainfo.xml', await fsp.readFile(path.join(root, 'packaging/airdrop.metainfo.xml')));
     execFileSync('flatpak', ['build-finish', '--command=airdrop', ...spec.permissions, build], { stdio: 'inherit' });
+    // Never connect these smoke-test servers to the developer's host network.
+    execFileSync('flatpak', ['build', '--readonly', '--unshare=network', '--nosocket=system-bus', '--nosocket=session-bus', build, '/app/airdrop/runtime/node', '-e', await fsp.readFile(path.join(root, 'tests/flatpak-runtime.cjs'), 'utf8')], { stdio: 'inherit', timeout: 60000 });
     const repo = path.join(work, 'repo'); execFileSync('flatpak', ['build-export', repo, build, 'stable'], { stdio: 'inherit' });
     const out = path.join(root, 'release'); await fsp.mkdir(out, { recursive: true });
     const name = `airdrop-linux-${process.arch}-${version}.flatpak`;
