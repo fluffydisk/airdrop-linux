@@ -9,13 +9,13 @@ This file records evidence, not an assertion that every supported desktop has be
 | Bridge authorization | Isolated real D-Bus with a fake Polkit authority: permission denial, per-connection jobs and login URL isolation |
 | Desktop interactions | Real Electron chooser/drop, ZIP, double-click, clipboard and restart tests |
 | Debian 12 amd64 | Local disposable container: installation, backend health, nested uploads, removal and reinstall retaining files/credentials |
-| Debian 12/13 and Ubuntu 22.04/24.04/26.04, amd64/arm64 | [GitHub Actions run 39463096806](https://github.com/fluffydisk/airdrop-linux/actions/runs/39463096806): both native builds and all 10 disposable container combinations passed; latest PR checks repeat this against the current revision |
+| Debian 12/13 and Ubuntu 22.04/24.04/26.04, amd64/arm64 | [GitHub Actions run 39463963838](https://github.com/fluffydisk/airdrop-linux/actions/runs/39463963838): both native builds and all 10 disposable container combinations passed; latest PR checks repeat this against the current revision |
 | GNOME X11/Wayland and Mint Cinnamon 21/22, LMDE 7 | Pending full desktop VM acceptance |
 | Graphical administrator authentication | Pending real Polkit dialog, cancellation and retry in desktop VMs |
 | Authenticated Tailscale sharing | Pending test tailnet: browser login, machine/HTTPS approval, second device, lost connection and preserved unrelated routes |
 | Session lifecycle and package upgrades during transfers | Pending real logind/systemd sessions, including logout with pre-existing linger |
 | Flatpak desktop portals | Bundle builds locally; isolated sandbox runtime verifies both bundled servers, web UI and UTF-8 upload. File chooser/opening, background allow/deny and explicit native-data import require desktop acceptance |
 | APT production | Not enabled. Only ephemeral test keys used. Production key, backup and Pages configuration pending DEB acceptance |
-| AUR publication | Not submitted. Requires both architecture manifests, clean Arch validation and maintainer AUR account |
+| AUR publication | Not submitted. Both real architecture checksums verified with makepkg; x64 package layout built locally with dependency checks skipped. Clean Arch installation validation and maintainer AUR account remain required |
 
 The existing installed Airdrop on the development computer must not be upgraded as part of these tests. Use isolated test roots, containers or VMs. Never use a real user tailnet or its credentials for unattended CI.

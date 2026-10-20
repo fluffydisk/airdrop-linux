@@ -19,6 +19,7 @@ pkgdesc='Private files and clipboard between your devices'
 arch=('x86_64' 'aarch64')
 url='https://github.com/fluffydisk/airdrop-linux'
 license=('MIT')
+options=('!strip' '!debug')
 depends=(${deps.map(x => `'${x}'`).join(' ')})
 makedepends=('binutils')
 optdepends=('tailscale: private network connection, also installable in the setup wizard')
@@ -42,6 +43,6 @@ package() {
 `;
 fs.writeFileSync(path.join(output, 'PKGBUILD'), text);
 fs.writeFileSync(path.join(output, 'airdrop.install'), 'pre_upgrade() { /opt/airdrop/server/scripts/package-lifecycle.sh upgrade; }\npre_remove() { /opt/airdrop/server/scripts/package-lifecycle.sh remove; }\npost_upgrade() { /opt/airdrop/server/scripts/resume-user-sessions.sh; }\npost_install() { systemctl daemon-reload; }\npost_remove() { systemctl daemon-reload; }\n');
-const info = ['pkgbase = airdrop-linux-bin', `\tpkgdesc = Private files and clipboard between your devices`, `\tpkgver = ${version}`, '\tpkgrel = 1', '\tinstall = airdrop.install', '\turl = https://github.com/fluffydisk/airdrop-linux', '\tarch = x86_64', '\tarch = aarch64', '\tlicense = MIT', '\tmakedepends = binutils', ...deps.map(x => '\tdepends = ' + x), '\toptdepends = tailscale: private network connection, also installable in the setup wizard', '\tprovides = airdrop-linux', '\tprovides = airdrop-system-bridge', '\tconflicts = airdrop-linux', '\tconflicts = airdrop-system-bridge', ...['x64', 'arm64'].flatMap(cpu => { const arch = cpu === 'x64' ? 'x86_64' : 'aarch64'; return [`\tsource_${arch} = https://github.com/fluffydisk/airdrop-linux/releases/download/v${version}/${packages[cpu].name}`, `\tsha256sums_${arch} = ${packages[cpu].sha256}`]; }), ...['x64', 'arm64'].map(cpu => '\tnoextract = ' + packages[cpu].name), '', 'pkgname = airdrop-linux-bin', ''];
+const info = ['pkgbase = airdrop-linux-bin', `\tpkgdesc = Private files and clipboard between your devices`, `\tpkgver = ${version}`, '\tpkgrel = 1', '\tinstall = airdrop.install', '\turl = https://github.com/fluffydisk/airdrop-linux', '\tarch = x86_64', '\tarch = aarch64', '\tlicense = MIT', '\tmakedepends = binutils', ...deps.map(x => '\tdepends = ' + x), '\toptdepends = tailscale: private network connection, also installable in the setup wizard', '\tprovides = airdrop-linux', '\tprovides = airdrop-system-bridge', '\tconflicts = airdrop-linux', '\tconflicts = airdrop-system-bridge', '\toptions = !strip', '\toptions = !debug', ...['x64', 'arm64'].flatMap(cpu => { const arch = cpu === 'x64' ? 'x86_64' : 'aarch64'; return [`\tsource_${arch} = https://github.com/fluffydisk/airdrop-linux/releases/download/v${version}/${packages[cpu].name}`, `\tsha256sums_${arch} = ${packages[cpu].sha256}`]; }), ...['x64', 'arm64'].map(cpu => '\tnoextract = ' + packages[cpu].name), '', 'pkgname = airdrop-linux-bin', ''];
 fs.writeFileSync(path.join(output, '.SRCINFO'), info.join('\n'));
 console.log('Prepared AUR recipe and metadata. No AUR submission performed.');
