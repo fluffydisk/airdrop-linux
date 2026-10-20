@@ -218,12 +218,23 @@ class Operations:
                 self.command(['/usr/bin/systemctl', 'enable', '--now', *units])
             return
         if units:
-            self.command(['/usr/bin/systemctl', 'disable', '--now', *units])
+            # Make recoverable copies before stopping anything, including partial failures.
             backup.mkdir(mode=0o700, parents=True, exist_ok=True)
             for name in units:
-                target = Path('/etc/systemd/system', name)
-                shutil.copyfile(target, backup / name); target.unlink()
-            self.command(['/usr/bin/systemctl', 'daemon-reload'])
+                shutil.copyfile(Path('/etc/systemd/system', name), backup / name)
+            try:
+                self.command(['/usr/bin/systemctl', 'disable', '--now', *units])
+                for name in units:
+                    Path('/etc/systemd/system', name).unlink()
+                self.command(['/usr/bin/systemctl', 'daemon-reload'])
+            except Exception:
+                for name in units:
+                    target = Path('/etc/systemd/system', name)
+                    if not target.exists():
+                        shutil.copyfile(backup / name, target); target.chmod(0o644)
+                self.command(['/usr/bin/systemctl', 'daemon-reload'])
+                self.command(['/usr/bin/systemctl', 'enable', '--now', *units])
+                raise
 
     def perform(self, action, uid, progress):
         if action not in ACTIONS:

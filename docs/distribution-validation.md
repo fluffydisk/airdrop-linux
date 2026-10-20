@@ -5,7 +5,7 @@ This file records evidence, not an assertion that every supported desktop has be
 | Check | Evidence / status |
 | --- | --- |
 | Shared operation and regression tests | Local Node suite, including managed paths, import, migration and signed APT staging |
-| Bridge operations | Python tests: OS mapping, signed source key checks, connection JSON and route conflicts |
+| Bridge operations | Seven Python tests: OS mapping, signed source key checks, connection JSON, route conflicts and partial migration rollback |
 | Bridge authorization | Isolated real D-Bus with a fake Polkit authority: permission denial, per-connection jobs and login URL isolation |
 | Desktop interactions | Real Electron chooser/drop, ZIP, double-click, clipboard and restart tests |
 | Debian 12 amd64 | Local disposable container: installation, backend health, nested uploads, removal and reinstall retaining files/credentials |

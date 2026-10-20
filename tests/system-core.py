@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+import tempfile
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('airdrop_system_core', Path(__file__).parent.parent / 'system/core.py')
@@ -54,6 +55,32 @@ class CoreTests(unittest.TestCase):
         with patch.object(core.subprocess, 'Popen', return_value=proc):
             core.Operations().connect(lambda message, **extra: progress.append((message, extra)))
         self.assertEqual(progress[0][1]['auth_url'], 'https://login.tailscale.com/a/test')
+
+    def test_partial_legacy_migration_restores_services(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            units = root / 'etc/systemd/system'
+            units.mkdir(parents=True)
+            content = 'User=demo\nExecStart=/home/demo/.local/share/airdrop/app/server\n'
+            for name in ['airdrop-push.service', 'airdropshare.service']:
+                (units / name).write_text(content)
+            commands = []
+            failed = False
+            def command(args, **kwargs):
+                nonlocal failed
+                commands.append(args)
+                if args[-1] == 'daemon-reload' and not failed:
+                    failed = True
+                    raise RuntimeError('Reload failed')
+                return SimpleNamespace(returncode=0, stdout='')
+            def local_path(*parts):
+                return root / str(Path(*parts)).lstrip('/')
+            with patch.object(core, 'Path', side_effect=local_path), patch.object(core.pwd, 'getpwuid', return_value=SimpleNamespace(pw_name='demo', pw_dir='/home/demo')):
+                with self.assertRaisesRegex(RuntimeError, 'Reload failed'):
+                    core.Operations(command).migrate(1000)
+            for name in ['airdrop-push.service', 'airdropshare.service']:
+                self.assertEqual((units / name).read_text(), content)
+            self.assertEqual(commands[-1][1:3], ['enable', '--now'])
 
     def test_changed_vendor_key_is_rejected_before_system_writes(self):
         commands = []
