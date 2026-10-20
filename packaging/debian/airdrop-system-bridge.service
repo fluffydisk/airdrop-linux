@@ -1,0 +1,11 @@
+[Unit]
+Description=Airdrop authorized Tailscale setup bridge
+After=dbus.service
+[Service]
+Type=dbus
+BusName=io.github.fluffydisk.Airdrop.System
+ExecStart=/usr/bin/python3 /opt/airdrop/system/bridge.py
+User=root
+Environment=PATH=/usr/sbin:/usr/bin:/sbin:/bin
+PrivateTmp=true
+NoNewPrivileges=true

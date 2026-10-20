@@ -1,0 +1,15 @@
+[Unit]
+Description=Airdrop session file and notification servers
+PartOf=graphical-session.target
+After=graphical-session-pre.target
+[Service]
+Type=simple
+ExecStart=/opt/airdrop/runtime/node /opt/airdrop/server/scripts/user-service.js
+Environment=AIRDROP_APP_DIR=/opt/airdrop
+Environment=AIRDROP_SESSION_MONITOR=1
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=160
+NoNewPrivileges=true
+[Install]
+WantedBy=graphical-session.target

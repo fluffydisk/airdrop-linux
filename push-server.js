@@ -125,7 +125,7 @@ function createServer({ watchDir = process.env.WATCH_DIR || getPaths().files,
     } catch (error) { next(error); }
   });
   app.use('/explorer', require('./lib/explorer-api').router(watchDir));
-  app.get('/version', (req, res) => res.json({ version: require('./package.json').version }));
+  app.get('/version', (req, res) => res.json({ version: require('./package.json').version, instance: require('node:crypto').createHash('sha256').update(require('node:path').resolve(watchDir)).digest('hex') }));
   app.get('/vapid-public-key', (req, res) => res.send(process.env.VAPID_PUBLIC_KEY || ''));
   app.get('/health', async (req, res) => {
     try {

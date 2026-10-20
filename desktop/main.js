@@ -13,9 +13,14 @@ const { getPaths } = require('./core/lib/paths');
 const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
 const paths = getPaths();
 const updater = require('./core/lib/updater');
+const source = require('./core/lib/installation').installation(paths);
+const { Setup } = require('./setup');
+const setup = new Setup(paths, source, value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:setup-state', value); });
+let setupTimer;
+const flatpakSession = source.channel === 'flatpak' ? new (require('./flatpak-session').FlatpakSession)(paths) : null;
 let updateTimer, updateBusy = false;
-let updateState = { distribution: process.env.APPIMAGE ? 'appimage' : 'installed', status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
-function publishUpdate(value) { value = { ...value, distribution: process.env.APPIMAGE ? 'appimage' : 'installed' }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
+let updateState = { distribution: source.channel === 'github' ? 'installed' : source.channel, status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
+function publishUpdate(value) { value = { ...value, distribution: source.channel === 'github' ? 'installed' : source.channel }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
 async function checkUpdate() {
   if (updateBusy) return updateState;
   updateBusy = true; publishUpdate({ ...updateState, status: 'checking', message: 'Checking for updates…' });
@@ -38,9 +43,21 @@ async function health() {
   const check = async url => {
     try { return (await fetch(url, { signal: AbortSignal.timeout(3000) })).ok; } catch { return false; }
   };
-  const [files, api] = await Promise.all([check(`http://127.0.0.1:${process.env.AIRDROP_FILE_PORT || 5000}/?json`), check(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/push/health`)]);
+  const [files, apiHealthy] = await Promise.all([check(`http://127.0.0.1:${process.env.AIRDROP_FILE_PORT || 5000}/?json`), check(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/push/health`)]);
+  let api = apiHealthy;
+  if (source.managed && api) {
+    try {
+      const identity = await (await fetch(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/push/version`, { signal: AbortSignal.timeout(3000) })).json();
+      const expected = require('node:crypto').createHash('sha256').update(path.resolve(shareDir)).digest('hex');
+      api = identity.instance === expected;
+      if (!api) setup.sessionError = 'Another Airdrop workspace is using the sharing ports. Stop that installation before starting this one.';
+    } catch { api = false; }
+  }
   state = { status: files && api ? 'ready' : files || api ? 'partial' : 'offline',
     label: files && api ? 'Ready to share' : files || api ? 'Needs attention' : 'Server unavailable' };
+  if (source.managed && !process.env.AIRDROP_DISABLE_SETUP && files && api && setup.value.state !== 'connected') {
+    state = { status: 'partial', label: setup.value.label || 'Set up private sharing' };
+  }
   if (window && !window.isDestroyed()) window.webContents.send('airdrop:status', state);
   if (tray) {
     tray.setToolTip(`Airdrop: ${state.label}`);
@@ -72,12 +89,53 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.handle('airdrop:setup', async (event, action) => {
+    ownWindow(event);
+    if (action === 'state') return setup.value;
+    if (action === 'refresh') return setup.poll();
+    if (action === 'login') {
+      if (!setup.authUrl) throw new Error('Start the connection step first.');
+      return shell.openExternal(setup.authUrl);
+    }
+    if (action === 'import') {
+      if (!flatpakSession) throw new Error('Data import is available in the Flatpak edition.');
+      const selected = await dialog.showOpenDialog(window, { title: 'Import an existing Airdrop data folder (originals are kept)', properties: ['openDirectory'] });
+      if (selected.canceled) return;
+      await flatpakSession.stop();
+      try {
+        await require('./core/lib/data-import').importData(selected.filePaths[0], paths);
+      } finally { await flatpakSession.start(); }
+      return setup.poll();
+    }
+    if (action === 'approve') return shell.openExternal('https://login.tailscale.com/admin/machines');
+    if (action === 'phone') return shell.openExternal('https://tailscale.com/download');
+    if (action === 'apt') return shell.openExternal('https://fluffydisk.github.io/airdrop-linux/apt/');
+    if (action === 'bridge') {
+      const release = await updater.check('0.0.0');
+      if (!release.bridge) throw new Error('No system connection package is published for this platform yet.');
+      return shell.openExternal(release.bridge.url);
+    }
+    return setup.run(action);
+  });
   ipcMain.handle('airdrop:update', async (event, action) => {
     ownWindow(event);
     if (action === 'state') return updateState;
     if (action === 'check') return checkUpdate();
     if (action !== 'install') throw new Error('Unknown update action');
     if (updateBusy || updateState.status !== 'available') throw new Error('Check for updates first');
+    if (source.managed) {
+      if (source.channel === 'arch') { await shell.openExternal('https://aur.archlinux.org/packages/airdrop-linux-bin'); return updateState; }
+      const download = source.channel === 'deb' ? updateState.deb : updateState.flatpak;
+      if (!download) throw new Error('This release has no package for your installation source yet.');
+      updateBusy = true; const release = updateState;
+      try {
+        const file = await updater.downloadManaged(path.join(desktopData, 'package-downloads'), download, { progress: fraction => publishUpdate({ ...release, status: 'downloading', message: `Downloading and verifying package: ${Math.round(fraction * 100)}%` }) });
+        const error = await shell.openPath(file);
+        if (error) throw new Error('The package was verified, but no system installer could open it: ' + error);
+        return publishUpdate({ ...release, message: 'Verified package opened in your system installer. Complete the installation there, then restart Airdrop.' });
+      } catch (error) { return publishUpdate({ ...release, message: 'Package update failed: ' + error.message }); }
+      finally { updateBusy = false; }
+    }
     if (process.env.APPIMAGE) {
       if (!updateState.appImage) throw new Error('This release has no AppImage for your architecture yet.');
       await shell.openExternal(updateState.appImage.url);
@@ -199,7 +257,10 @@ function registerIpc() {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { window?.show(); window?.focus(); });
-  app.on('before-quit', () => { quitting = true; clearInterval(timer); clearInterval(updateTimer); });
+  let stoppingFlatpak = false;
+  app.on('before-quit', event => {
+    if (flatpakSession?.child && !stoppingFlatpak) { event.preventDefault(); stoppingFlatpak = true; flatpakSession.stop().finally(() => app.quit()); return; }
+    quitting = true; clearInterval(timer); clearInterval(updateTimer); clearInterval(setupTimer); setup.close(); });
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
@@ -223,12 +284,17 @@ else {
       } catch (error) { console.warn('Tray unavailable:', error.message); }
     }
     window.on('closed', () => { window = null; });
-    window.on('close', event => { if (!quitting && tray) { event.preventDefault(); window.hide(); } });
+    window.on('close', event => { if (!quitting && (flatpakSession ? flatpakSession.background : tray)) { event.preventDefault(); window.hide(); } });
+    if (!process.env.AIRDROP_DISABLE_SETUP) {
+      if (flatpakSession) { await flatpakSession.start(); flatpakSession.requestBackground(); }
+      setup.session().catch(error => { setup.sessionError = error.message; });
+      setup.poll(); setupTimer = setInterval(() => setup.poll(), 5000);
+    }
     await health(); timer = setInterval(health, 5000);
     const journal = await updater.readJournal(paths.root);
     if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
     else if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) checkUpdate();
     if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(checkUpdate, 6 * 60 * 60 * 1000);
   }).catch(error => { console.error(error); app.quit(); });
-  app.on('window-all-closed', () => { if (!tray) app.quit(); });
+  app.on('window-all-closed', () => { if (flatpakSession ? !flatpakSession.background : !tray) app.quit(); });
 }

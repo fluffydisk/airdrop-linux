@@ -28,6 +28,7 @@
     <button class="nav-item" data-view="files"><svg><use href="#i-folder"/></svg>Files</button>
     <button class="nav-item" data-view="clipboard"><svg><use href="#i-file"/></svg>Clipboard</button>
     <button class="nav-item" data-view="activity"><svg><use href="#i-clock"/></svg>Activity</button>
+    <button class="nav-item" data-view="connection"><svg><use href="#i-lock"/></svg>Connect devices<span id="setupNavStatus" class="nav-count">!</span></button>
     <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg>Settings</button>
   </nav>
   <div class="sidebar-bottom">
@@ -39,6 +40,14 @@
 <div class="workspace">
   <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
   <main><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
+    <section id="view-connection" class="view" hidden><section class="settings-card connection-card" id="connectionCard" aria-label="Private connection setup">
+      <div class="section-heading"><div><h2>Connect your devices</h2><p id="setupState" role="status" aria-live="polite">Checking private connection…</p></div><button class="text-button" id="refreshConnection">Check again</button></div>
+      <ol id="setupSteps"><li>System check</li><li>Install Tailscale</li><li>Start service</li><li>Sign in</li><li>Prepare sharing</li><li>Connect another device</li></ol>
+      <p id="setupMessage" role="status"></p>
+      <div class="clipboard-actions"><button class="button button-primary" id="setupAction" hidden></button><button class="button" id="setupLogin" hidden>Open sign-in page</button><button class="button" id="setupMigrate" hidden>Move existing installation</button><button class="button" id="setupImport" hidden>Import existing files and settings</button><button class="button" id="setupPhone">Connect phone or tablet</button></div>
+      <div id="setupDevice" hidden><img id="setupQr" width="180" height="180" alt="QR code for this computer’s Airdrop web app"><div><strong>Open Airdrop on your other device</strong><p>Install Tailscale there, sign in to the same network, then scan this code.</p><p id="setupAddress"></p><small>Online Tailscale devices are network peers; this does not verify that Airdrop is open on them.</small></div></div>
+    </section>
+    </section>
     <section id="view-transfer" class="view">
       <div class="page-heading"><div class="eyebrow">PRIVATE FILE SHARING</div><h1>Your files, <span>within reach.</span></h1><p>Send from this computer. Pick up on your other devices.</p></div>
       <p id="transferDestination">Destination: Airdrop/</p>
@@ -81,10 +90,10 @@
       <div class="page-heading"><div class="eyebrow">MAKE YOURSELF AT HOME</div><h1>Your workspace.</h1><p>A few thoughtful details, just the way you like them.</p></div>
       <section class="settings-card"><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>Connect your web app</h2><p>Add your Tailscale address to open Airdrop on this computer and your other devices.</p><label class="field-label" for="url">Workspace address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Use the HTTPS address shown after installing Airdrop.</p><div id="settingsResult" class="result" role="status" hidden></div></section>
       <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
-      <section class="settings-card"><h2>Updates</h2><p id="portableNote" hidden>AppImage desktop companion: the local server and Tailscale must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
+      <section class="settings-card"><h2>Updates</h2><p id="packageUpdateNote" hidden></p><button class="text-button" id="aptGuide" hidden>Set up APT updates</button><p id="portableNote" hidden>AppImage desktop companion: the local server and Tailscale must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
       <div class="privacy-note"><svg><use href="#i-monitor"/></svg><span>Airdrop shares files from this computer. You’re always in control.</span></div>
     </section>
   </main>
   <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>
 </div></div>
-<script src="core/ui/explorer.js"></script><script src="renderer.js"></script></body></html>
+<script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="setup-renderer.js"></script></body></html>

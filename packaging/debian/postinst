@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ] && [ -d /sys/kernel/security/apparmor ] && [ -f /usr/share/airdrop/desktop.apparmor ] && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1 ]; then
+  profile=/etc/apparmor.d/airdrop-desktop
+  if [ -e "$profile" ] && ! cmp -s /usr/share/airdrop/desktop.apparmor "$profile"; then
+    echo 'Airdrop sandbox policy has local changes; it was not overwritten.' >&2
+    exit 1
+  fi
+  apparmor_parser --skip-kernel-load --skip-cache /usr/share/airdrop/desktop.apparmor
+  install -m 0644 /usr/share/airdrop/desktop.apparmor "$profile"
+  apparmor_parser --replace "$profile"
+  install -d -m 0700 /var/lib/airdrop-system
+  sha256sum "$profile" | cut -d' ' -f1 > /var/lib/airdrop-system/profile-sha256
+fi
+if [ "$1" = configure ] && [ -x /opt/airdrop/server/scripts/resume-user-sessions.sh ]; then
+  /opt/airdrop/server/scripts/resume-user-sessions.sh
+elif [ -d /run/systemd/system ]; then
+  systemctl daemon-reload
+fi
+# No account login, credentials, network changes or fresh per-user startup here.
+exit 0

@@ -22,18 +22,91 @@ jobs:
           node-version: '26'
           cache: npm
       - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y python3-dbus python3-gi dbus-x11 xvfb
+      - run: /usr/bin/python3 tests/system-core.py
+      - run: dbus-run-session -- /usr/bin/python3 tests/system-bridge.py
       - run: npm test
       - run: npm ci --prefix desktop
+      - name: Download the Electron runtime before sandbox setup
+        run: node desktop/node_modules/electron/install.js
+      - name: Permit the Electron sandbox at its exact CI path
+        run: |
+          if test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1; then
+            test -x "$PWD/desktop/node_modules/electron/dist/electron"
+            node scripts/desktop-apparmor.js "$PWD/desktop/node_modules/electron/dist/electron" > /tmp/airdrop-ci.apparmor
+            sudo apparmor_parser --replace /tmp/airdrop-ci.apparmor
+          fi
+      - run: xvfb-run -a npm run test:desktop
+        env:
+          AIRDROP_DISABLE_SETUP: '1'
       - run: npm run prepare-desktop
+      - run: dbus-run-session -- xvfb-run -a node --test tests/setup-desktop.cjs
       - run: npm run package --prefix desktop
+      - run: node scripts/build-deb.js
       - run: node scripts/build-release.js
       - run: node scripts/build-appimage.js
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}
           path: release/*
-  draft:
+  verify:
     needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['debian:12', 'debian:13', 'ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04']
+        arch: [x64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: /tmp/airdrop-packages
+      - shell: bash
+        run: |
+          if test '${{ matrix.arch }}' = x64; then arch=amd64; else arch=arm64; fi
+          version=$(node -p 'require("./package.json").version' 2>/dev/null || sed -n 's/.*"version": "\([^" ]*\)".*/\1/p' package.json | head -n1)
+          AIRDROP_DISPOSABLE_TEST=yes sh scripts/test-deb.sh "/tmp/airdrop-packages/airdrop-linux_${version}_${arch}.deb"
+  flatpak:
+    needs: [build, verify]
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: release
+      - run: sudo apt-get update && sudo apt-get install -y flatpak
+      - run: flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - run: flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.electronjs.Electron2.BaseApp//25.08
+      - name: Reuse verified native payload
+        run: |
+          mkdir -p .test-artifacts/native
+          if test '${{ matrix.arch }}' = x64; then arch=amd64; else arch=arm64; fi
+          version=$(node -p 'require("./package.json").version')
+          ar p "release/airdrop-linux_${version}_${arch}.deb" data.tar.gz | tar -xz -C .test-artifacts/native ./opt/airdrop
+          AIRDROP_NATIVE_STAGE="$PWD/.test-artifacts/native/opt/airdrop" node scripts/build-flatpak.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: |
+            release/*.flatpak
+            release/airdrop-flatpak-*.json
+  draft:
+    needs: [build, verify, flatpak]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -55,7 +128,7 @@ jobs:
           test "$GITHUB_REF_NAME" = "v$version"
           notes="docs/releases/v$version.md"
           if test -f "$notes"; then
-            gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --notes-file "$notes"
+            gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.flatpak release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --notes-file "$notes"
           else
-            gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --generate-notes
+            gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.flatpak release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --generate-notes
           fi

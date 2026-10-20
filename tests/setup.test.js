@@ -1,0 +1,103 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const { JSDOM } = require('jsdom');
+const { getPaths } = require('../lib/paths');
+const { installation, assertSelfUpdate } = require('../lib/installation');
+const { connectionState } = require('../lib/connection');
+const { initialize } = require('../lib/session');
+test('managed application paths preserve user data and cannot self-update', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-setup-')); t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const p = getPaths({ home, root: path.join(home, 'data'), appRoot: path.join(home, 'managed') });
+  await fs.mkdir(p.app); await fs.writeFile(path.join(p.app, 'install-source.json'), JSON.stringify({ schema: 1, channel: 'deb' }));
+  assert.equal(p.files, path.join(home, 'data/files')); assert.equal(p.server, path.join(home, 'managed/server'));
+  assert.equal(installation(p, {}).channel, 'deb'); assert.throws(() => assertSelfUpdate(p), /package manager/);
+  assert.throws(() => getPaths({ home, appRoot: '../code' }), /absolute/);
+  await initialize(p); const first = await fs.readFile(p.env, 'utf8'); assert.match(first, /VAPID_PRIVATE_KEY=.+/);
+  await initialize(p); assert.equal(await fs.readFile(p.env, 'utf8'), first); assert.equal((await fs.stat(p.env)).mode & 0o777, 0o600);
+  await fs.writeFile(path.join(p.files, 'my-file.txt'), 'saved'); await initialize(p); assert.equal(await fs.readFile(path.join(p.files, 'my-file.txt'), 'utf8'), 'saved');
+  await fs.writeFile(path.join(p.app, 'install-source.json'), '{"schema":1,"channel":"wrong"}'); assert.throws(() => installation(p, {}), /Invalid/);
+});
+test('connection states distinguish service, login, approval, peer presence and actual sharing configuration', () => {
+  assert.equal(connectionState({}).state, 'missing');
+  assert.equal(connectionState({ installed: true }).state, 'stopped');
+  const running = { installed: true, service: true, BackendState: 'Running', TailscaleIPs: ['100.64.0.1'], Self: { ID: 'self', DNSName: 'pc.test.ts.net.', Online: true } };
+  assert.equal(connectionState({ ...running, BackendState: 'NeedsLogin' }).state, 'login');
+  assert.equal(connectionState({ ...running, BackendState: 'NeedsMachineAuth' }).state, 'approval');
+  assert.equal(connectionState({ ...running, BackendState: 'Stopped' }).state, 'disconnected');
+  assert.equal(connectionState(running).state, 'configure');
+  assert.equal(connectionState({ ...running, sharing: true, Peer: { self: { ID: 'self', Online: true }, sleeping: { Online: false } } }).state, 'no-peers');
+  const ready = connectionState({ ...running, sharing: true, Peer: { phone: { ID: 'phone', Online: true, HostName: 'Phone' } } });
+  assert.equal(ready.state, 'connected'); assert.equal(ready.peers.length, 1); assert.equal(ready.url, 'https://pc.test.ts.net/ui/');
+  assert.equal(connectionState({ ...running, Self: { DNSName: 'evil.test/path.ts.net' } }).url, '');
+});
+test('setup UI offers actions without blocking files and keeps no-peer warning distinct', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only', url: 'https://local.test' }); t.after(() => dom.window.close());
+  const w = dom.window; let notify; const calls = [];
+  w.airdrop = { setup: async action => { calls.push(action); if (action === 'state') return { state: 'missing', label: 'Install Tailscale', action: 'install', step: 1 }; if (action === 'install') throw new Error('Permission was cancelled'); }, onSetup: callback => { notify = callback; } };
+  w.eval(await fs.readFile('desktop/setup-renderer.js', 'utf8')); await new Promise(resolve => setImmediate(resolve));
+  const get = id => w.document.getElementById(id);
+  assert.equal(get('setupAction').textContent, 'Install Tailscale'); assert.equal(get('view-transfer').hidden, false);
+  await get('setupAction').onclick(); assert.match(get('setupMessage').textContent, /cancelled/); assert.equal(get('setupAction').disabled, false);
+  notify({ state: 'no-peers', step: 5, label: 'Connect a second device', url: 'https://pc.test.ts.net/ui/' });
+  assert.match(get('setupMessage').textContent, /No other online/); assert.equal(get('setupDevice').hidden, false); assert.equal(get('setupAction').hidden, true);
+  notify({ state: 'connected', step: 6, label: 'Tailscale connected', peers: [{ name: 'Phone' }] }); assert.equal(get('connectionCard').dataset.state, 'connected');
+  assert.deepEqual(calls, ['state', 'install']);
+});
+test('managed update preparation refuses package-owned application code before touching disk', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-update-owned-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  await fs.mkdir(path.join(root, 'app')); await fs.writeFile(path.join(root, 'app/install-source.json'), '{"schema":1,"channel":"deb"}');
+  await assert.rejects(require('../lib/updater').prepare(root, {}), /package manager/);
+  assert.deepEqual((await fs.readdir(root)).sort(), ['app']);
+});
+test('explicit import preserves originals and credentials, rejects links and refuses nonempty destinations', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-import-')); t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const a = getPaths({ home, root: path.join(home, 'source') }), b = getPaths({ home, root: path.join(home, 'destination') });
+  await initialize(a); await initialize(b); await fs.mkdir(path.join(a.files, 'nested')); await fs.writeFile(path.join(a.files, 'nested/İstanbul.txt'), 'hello');
+  const sourceCredentials = await fs.readFile(a.env, 'utf8');
+  const { importData } = require('../lib/data-import');
+  const options = { ensureIdle: async () => {} };
+  await fs.symlink('/etc/passwd', path.join(a.files, 'bad-link'));
+  await assert.rejects(importData(a.root, b, options), /links/); assert.deepEqual(await fs.readdir(b.files), []);
+  await fs.unlink(path.join(a.files, 'bad-link'));
+  await importData(a.root, b, options);
+  assert.equal(await fs.readFile(path.join(b.files, 'nested/İstanbul.txt'), 'utf8'), 'hello'); assert.equal(await fs.readFile(path.join(a.files, 'nested/İstanbul.txt'), 'utf8'), 'hello');
+  assert.equal(await fs.readFile(b.env, 'utf8'), sourceCredentials); assert.equal((await fs.stat(b.env)).mode & 0o777, 0o600);
+  await assert.rejects(importData(a.root, b, options), /empty destination/);
+});
+test('native migration keeps the old code and backs up only owned launchers', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-migrate-package-')); t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const p = getPaths({ home, root: path.join(home, 'data'), appRoot: path.join(home, 'managed') }); await initialize(p);
+  await fs.mkdir(path.join(home, '.local/bin'), { recursive: true }); await fs.writeFile(path.join(home, '.local/bin/airdrop'), `exec ${p.root}/app/server/bin/airdrop.js`); await fs.writeFile(path.join(home, '.local/bin/copy-clipboard'), 'unrelated script');
+  await fs.mkdir(path.join(p.root, 'app')); await fs.writeFile(path.join(p.root, 'app/old-code'), 'kept');
+  const { check, apply } = require('../desktop/migration'); await check(p); const result = await apply(p, home);
+  assert.equal(await fs.readFile(path.join(p.root, 'app/old-code'), 'utf8'), 'kept'); assert.equal(await fs.readFile(path.join(home, '.local/bin/copy-clipboard'), 'utf8'), 'unrelated script');
+  assert.match(await fs.readFile(p.env, 'utf8'), /AIRDROP_APP_DIR=/); assert.ok(await fs.readFile(path.join(result.backup, 'server.env'))); await assert.rejects(fs.access(path.join(home, '.local/bin/airdrop')), { code: 'ENOENT' });
+});
+test('managed package downloads verify bytes and reject corruption without replacing application code', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-managed-download-')); t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const { downloadManaged } = require('../lib/updater'), crypto = require('node:crypto');
+  const bytes = Buffer.from('test package'), pkg = { name: 'airdrop-linux_1.5.0_amd64.deb', size: bytes.length, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), url: 'https://example.invalid/package' };
+  const out = await downloadManaged(root, pkg, { fetcher: async () => new Response(bytes) }); assert.equal(await fs.readFile(out, 'utf8'), 'test package');
+  await assert.rejects(downloadManaged(root, { ...pkg, sha256: '0'.repeat(64) }, { fetcher: async () => new Response(bytes) }), /checksum/);
+  assert.deepEqual(await fs.readdir(root), [pkg.name]);
+  await assert.rejects(downloadManaged(root, { ...pkg, name: '../outside.deb' }), /Invalid/);
+});
+
+test('failed native session startup rolls back migration settings and launchers', async t => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-migration-rollback-'));
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const p = getPaths({ home, root: path.join(home, 'data'), appRoot: path.join(home, 'managed') });
+  await initialize(p);
+  const before = await fs.readFile(p.env, 'utf8');
+  const launcher = path.join(home, '.local/bin/airdrop');
+  await fs.mkdir(path.dirname(launcher), { recursive: true });
+  await fs.writeFile(launcher, `exec ${p.root}/app/server/bin/airdrop.js`);
+  await assert.rejects(require('../desktop/migration').apply(p, home, async () => { throw new Error('Session startup failed'); }), /Session startup failed/);
+  assert.equal(await fs.readFile(p.env, 'utf8'), before);
+  assert.equal(await fs.readFile(launcher, 'utf8'), `exec ${p.root}/app/server/bin/airdrop.js`);
+  await assert.rejects(fs.access(path.join(p.config, 'package-migration-complete')), { code: 'ENOENT' });
+});

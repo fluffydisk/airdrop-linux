@@ -331,3 +331,7 @@ Pull requests and issues are welcome.
 ## License
 
 MIT
+
+### Native distribution development (1.5.0)
+
+The DEB/Flatpak packaging and guided Tailscale setup are documented in [the native distribution guide](docs/native-distribution.md). See [the acceptance record](docs/distribution-validation.md) for verified and pending targets. Production APT and AUR publication are gated separately; development packaging does not imply release or official distribution-repository acceptance.

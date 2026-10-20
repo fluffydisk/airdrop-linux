@@ -1,0 +1,53 @@
+name: Publish signed APT repository
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: airdrop-apt-production
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: vars.AIRDROP_APT_ENABLED == 'true' && (github.event_name != 'release' || (!github.event.release.prerelease && !github.event.release.draft))
+    runs-on: ubuntu-24.04
+    environment: apt-production
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify production signing configuration
+        env:
+          KEY: ${{ secrets.AIRDROP_APT_PRIVATE_KEY }}
+          FINGERPRINT: ${{ vars.AIRDROP_APT_SIGNING_KEY }}
+        run: |
+          test -n "$KEY"
+          test -n "$FINGERPRINT"
+      - name: Collect completed stable packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/collect-apt-releases.js apt-input
+      - name: Build and sign staging repository
+        env:
+          PRIVATE_KEY: ${{ secrets.AIRDROP_APT_PRIVATE_KEY }}
+          AIRDROP_APT_SIGNING_KEY: ${{ vars.AIRDROP_APT_SIGNING_KEY }}
+          GNUPGHOME: ${{ runner.temp }}/airdrop-apt-signing
+        run: |
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent || true; rm -rf "$GNUPGHOME"' EXIT
+          printf '%s' "$PRIVATE_KEY" | gpg --batch --import
+          mkdir site
+          node scripts/build-apt.js apt-input site/apt
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4

@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('airdrop', {
   send: (files, zip, directory) => ipcRenderer.invoke('airdrop:send', files, zip, directory),
   explore: (action, payload) => ipcRenderer.invoke('airdrop:explorer', action, payload),
   onShowFiles: callback => ipcRenderer.on('airdrop:show-files', callback),
+  setup: action => ipcRenderer.invoke('airdrop:setup', action),
+  onSetup: callback => ipcRenderer.on('airdrop:setup-state', (event, value) => callback(value)),
   update: action => ipcRenderer.invoke('airdrop:update', action),
   onUpdate: callback => ipcRenderer.on('airdrop:update-state', (event, value) => callback(value)),
   status: () => ipcRenderer.invoke('airdrop:status'),

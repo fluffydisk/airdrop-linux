@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Airdrop
+Comment=Private files and clipboard between your devices
+Exec=/usr/bin/airdrop-desktop
+Icon=io.github.fluffydisk.airdrop-linux
+Terminal=false
+Categories=Network;Utility;
+StartupWMClass=airdrop-desktop
