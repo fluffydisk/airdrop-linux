@@ -26,3 +26,7 @@ release/
 
 # Verified AppImage packaging tools
 .cache/
+
+# Python test/build caches
+__pycache__/
+*.pyc

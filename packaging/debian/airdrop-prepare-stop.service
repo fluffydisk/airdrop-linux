@@ -1,0 +1,8 @@
+[Unit]
+Description=Finish Airdrop writes before a package change
+[Service]
+Type=oneshot
+ExecStart=/opt/airdrop/runtime/node /opt/airdrop/server/scripts/user-service.js --prepare-stop
+Environment=AIRDROP_APP_DIR=/opt/airdrop
+TimeoutStartSec=130
+NoNewPrivileges=true

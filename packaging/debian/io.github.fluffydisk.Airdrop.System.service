@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=io.github.fluffydisk.Airdrop.System
+Exec=/usr/bin/python3 /opt/airdrop/system/bridge.py
+User=root
+SystemdService=airdrop-system-bridge.service

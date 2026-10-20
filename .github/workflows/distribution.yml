@@ -1,0 +1,69 @@
+name: Validate native distribution
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/distribution-*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm ci --prefix desktop
+      - run: npm test
+      - run: sudo apt-get update && sudo apt-get install -y python3-dbus python3-gi dbus-x11 xvfb
+      - run: /usr/bin/python3 tests/system-core.py
+      - run: dbus-run-session -- /usr/bin/python3 tests/system-bridge.py
+      - name: Permit the Electron sandbox at its exact CI path
+        run: |
+          if test "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || true)" = 1; then
+            node scripts/desktop-apparmor.js "$(node -p 'require("./desktop/node_modules/electron")')" > /tmp/airdrop-ci.apparmor
+            sudo apparmor_parser --replace /tmp/airdrop-ci.apparmor
+          fi
+      - run: xvfb-run -a npm run test:desktop
+        env:
+          AIRDROP_DISABLE_SETUP: '1'
+      - run: dbus-run-session -- xvfb-run -a node --test tests/setup-desktop.cjs
+      - run: npm run package --prefix desktop
+      - run: node scripts/build-deb.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.arch }}
+          path: |
+            release/*.deb
+            release/airdrop-deb-*.json
+  install:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['debian:12', 'debian:13', 'ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04']
+        arch: [x64, arm64]
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-${{ matrix.arch }}
+          path: /tmp/airdrop-packages
+      - shell: bash
+        run: |
+          if test '${{ matrix.arch }}' = x64; then arch=amd64; else arch=arm64; fi
+          AIRDROP_DISPOSABLE_TEST=yes sh scripts/test-deb.sh "/tmp/airdrop-packages/airdrop-linux_1.5.0_${arch}.deb"

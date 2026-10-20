@@ -48,7 +48,9 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   assert.deepEqual(await app.evaluate(() => globalThis.openedFiles), [path.join(share, 'ü,a.txt')]);
   await sharedFile.locator('input').dblclick();
   assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 1);
+  await page.evaluate(() => { document.querySelector('#fileExplorer .explorer-status').textContent = ''; });
   await sharedFile.focus(); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelector('#fileExplorer .explorer-status').textContent === 'Opened: ü,a.txt');
   assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 2);
   await app.evaluate(({ shell }) => { shell.openPath = async () => 'No application available'; });
   await sharedFile.dblclick();

@@ -1,0 +1,12 @@
+{
+  "nodeVersion": "24.22.0",
+  "dufsVersion": "0.46.0",
+  "x64": {
+    "node": { "url": "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-x64.tar.xz", "sha256": "cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008", "member": "node-v24.22.0-linux-x64/bin/node" },
+    "dufs": { "url": "https://github.com/sigoden/dufs/releases/download/v0.46.0/dufs-v0.46.0-x86_64-unknown-linux-musl.tar.gz", "sha256": "817769f726613194bcff9d0e3e481eaccc86ac11208857614f36a8c02f410977", "member": "dufs" }
+  },
+  "arm64": {
+    "node": { "url": "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-arm64.tar.xz", "sha256": "fef00bb4d36e1c50104a9775a10359beee98f162b4104dd12472c75065c6a143", "member": "node-v24.22.0-linux-arm64/bin/node" },
+    "dufs": { "url": "https://github.com/sigoden/dufs/releases/download/v0.46.0/dufs-v0.46.0-aarch64-unknown-linux-musl.tar.gz", "sha256": "1472123ae3aa07e49404d16b20305c2dec90c59883ebda9308717f7205e6511b", "member": "dufs" }
+  }
+}

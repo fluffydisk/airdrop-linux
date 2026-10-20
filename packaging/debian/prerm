@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+# Ask active per-user servers to finish before removing/replacing their code.
+if [ -d /run/systemd/system ]; then
+  if [ "$1" = upgrade ]; then install -m 0600 /dev/null /run/airdrop-upgrade-users; fi
+  for bus in /run/user/*/bus; do
+    [ -S "$bus" ] || continue
+    uid=$(stat -c %u "$bus")
+    user=$(getent passwd "$uid" | cut -d: -f1)
+    [ -n "$user" ] || continue
+    if runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" /usr/bin/systemctl --user is-active --quiet airdrop-session.service; then
+      runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" /usr/bin/systemctl --user start airdrop-prepare-stop.service
+      runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" DBUS_SESSION_BUS_ADDRESS="unix:path=$bus" /usr/bin/systemctl --user stop airdrop-session.service
+      if [ "$1" = upgrade ]; then printf '%s\n' "$uid" >> /run/airdrop-upgrade-users; fi
+    fi
+  done
+  systemctl stop airdrop-system-bridge.service || true
+fi
+exit 0

@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+if [ -d /run/systemd/system ]; then systemctl daemon-reload; fi
+# User files, credentials, Tailscale and network configuration are retained.
+exit 0

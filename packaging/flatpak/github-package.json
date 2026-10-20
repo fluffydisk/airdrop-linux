@@ -1,0 +1,8 @@
+{
+  "distribution": "github-only",
+  "id": "io.github.fluffydisk.airdrop-linux",
+  "runtime": "org.freedesktop.Platform",
+  "branch": "25.08",
+  "base": "org.electronjs.Electron2.BaseApp",
+  "permissions": ["--share=network", "--share=ipc", "--socket=wayland", "--socket=fallback-x11", "--device=dri", "--system-talk-name=io.github.fluffydisk.Airdrop.System", "--talk-name=org.freedesktop.Flatpak", "--env=ELECTRON_TRASH=gio"]
+}

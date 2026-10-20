@@ -37,7 +37,7 @@ function theme(value) {
 try { theme(localStorage.getItem('airdrop-theme') === 'dark' ? 'dark' : 'light'); } catch { theme('light'); }
 function navigate(view) {
   activeView = view;
-  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
+  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings', 'connection']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();
@@ -122,7 +122,9 @@ function updateState(state) {
   document.getElementById('updateState').textContent = state.message || `Current version: ${state.current}`;
   document.getElementById('checkUpdate').disabled = ['checking', 'downloading', 'installing'].includes(state.status);
   document.getElementById('installUpdate').hidden = state.status !== 'available';
-  document.getElementById('installUpdate').textContent = state.distribution === 'appimage' ? 'Download AppImage update' : 'Update';
+  document.getElementById('installUpdate').textContent = ({ appimage: 'Download AppImage update', deb: 'Download DEB update', flatpak: 'Download Flatpak update', arch: 'Open AUR package' })[state.distribution] || 'Update';
+  const note = document.getElementById('packageUpdateNote'); note.hidden = !['deb', 'flatpak', 'arch'].includes(state.distribution); note.textContent = state.distribution === 'deb' ? 'Update with a new DEB package or your system update manager if the Airdrop APT repository is enabled.' : 'This installation is updated by its package manager. Airdrop will not replace package-managed files.';
+  document.getElementById('aptGuide').hidden = state.distribution !== 'deb';
   document.getElementById('portableNote').hidden = state.distribution !== 'appimage';
   const show = state.status === 'available' && dismissedVersion !== state.version;
   document.getElementById('updateBanner').hidden = !show;
