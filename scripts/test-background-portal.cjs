@@ -1,10 +1,9 @@
 'use strict';
 // Run under dbus-run-session; emulate the portal's directed response, not stdout.
 const assert = require('node:assert/strict');
-const {spawn, execFile} = require('node:child_process');
-const {promisify} = require('node:util');
+const {spawn} = require('node:child_process');
 const path = require('node:path');
-const run = promisify(execFile);
+const {requestBackground} = require('../desktop/background');
 (async () => {
   const helper = process.argv[2];
   assert.ok(helper, 'Pass the compiled background portal helper');
@@ -17,14 +16,14 @@ const run = promisify(execFile);
         fixture.once('error', error => { clearTimeout(timer); reject(error); });
         fixture.once('exit', () => { clearTimeout(timer); reject(new Error('Portal fixture exited')); });
       });
-      const result = await run(helper, [], {timeout:5000});
-      assert.equal(result.stdout.trim(), grant ? 'granted' : 'denied');
+      const granted = await requestBackground({spawnProcess:()=>spawn(helper),timeout:5000});
+      assert.equal(granted, grant);
     } finally {
       fixture.kill();
       if (fixture.exitCode === null && !fixture.signalCode) await new Promise(resolve => fixture.once('exit', resolve));
     }
   }
-  const absent = await run(helper, [], {timeout:5000});
-  assert.equal(absent.stdout.trim(), 'denied');
+  const absent = await requestBackground({spawnProcess:()=>spawn(helper),timeout:5000});
+  assert.equal(absent, false);
   console.log('Real D-Bus portal: directed grant, denial, returned request path and missing portal passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -3,6 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const {pathToFileURL} = require('node:url');
 const { version } = require('./build-packages');
 const pkg = require('../package.json');
 const root=path.resolve(__dirname,'..');
@@ -19,7 +20,8 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   const out=path.join(directory,local?'local-submissions':'submissions');await fs.mkdir(out,{recursive:true});
   const aur=path.join(out,'aur');await fs.mkdir(aur,{recursive:true});
   const native=arch=>`airdrop-native-${arch}-${pkg.version}.tar.gz`;
-  const build=`# Generated from immutable v${pkg.version} release payloads.\npkgname=airdrop-linux-bin\npkgver=${pkg.version}\npkgrel=1\npkgdesc='Private file and clipboard sharing over Tailscale'\narch=('x86_64' 'aarch64')\nurl='https://github.com/fluffydisk/airdrop-linux'\nlicense=('MIT')\noptions=('!strip' '!debug')\nprovides=('airdrop-linux')\nconflicts=('airdrop-linux')\ndepends=('glibc>=2.39' 'gcc-libs' 'gtk3' 'nss' 'alsa-lib' 'at-spi2-core' 'libcups' 'libdrm' 'mesa' 'libx11' 'libxcb' 'libxcomposite' 'libxdamage' 'libxext' 'libxfixes' 'libxrandr' 'libxkbcommon' 'dbus' 'systemd')\noptdepends=('tailscale: private networking' 'xdg-desktop-portal: desktop integration')\nsource_x86_64=('${base}/${native('x64')}')\nsource_aarch64=('${base}/${native('arm64')}')\nsha256sums_x86_64=('${checksums[native('x64')]}')\nsha256sums_aarch64=('${checksums[native('arm64')]}')\npackage() {\n  cp -a usr \"$pkgdir/\"\n  install -Dm644 usr/share/licenses/airdrop-linux/LICENSE \"$pkgdir/usr/share/licenses/$pkgname/LICENSE\"\n}\n`;
+  const nativeURL=arch=>local?pathToFileURL(path.join(directory,native(arch))).href:base+'/'+native(arch);
+  const build=`# Generated from immutable v${pkg.version} release payloads.\npkgname=airdrop-linux-bin\npkgver=${pkg.version}\npkgrel=1\npkgdesc='Private file and clipboard sharing over Tailscale'\narch=('x86_64' 'aarch64')\nurl='https://github.com/fluffydisk/airdrop-linux'\nlicense=('MIT')\noptions=('!strip' '!debug')\nprovides=('airdrop-linux')\nconflicts=('airdrop-linux')\ndepends=('glibc>=2.39' 'gcc-libs' 'gtk3' 'nss' 'alsa-lib' 'at-spi2-core' 'libcups' 'libdrm' 'mesa' 'libx11' 'libxcb' 'libxcomposite' 'libxdamage' 'libxext' 'libxfixes' 'libxrandr' 'libxkbcommon' 'dbus' 'systemd')\noptdepends=('tailscale: private networking' 'xdg-desktop-portal: desktop integration')\nsource_x86_64=('${nativeURL('x64')}')\nsource_aarch64=('${nativeURL('arm64')}')\nsha256sums_x86_64=('${checksums[native('x64')]}')\nsha256sums_aarch64=('${checksums[native('arm64')]}')\npackage() {\n  cp -a usr \"$pkgdir/\"\n  install -Dm644 usr/share/licenses/airdrop-linux/LICENSE \"$pkgdir/usr/share/licenses/$pkgname/LICENSE\"\n}\n`;
   await fs.writeFile(path.join(aur,'PKGBUILD'),build);
   const fields = build.split('\n').flatMap(line=>{
     const m=/^([a-z0-9_]+)=(.*)$/.exec(line);if(!m || !['pkgver','pkgrel','pkgdesc','arch','url','license','options','provides','conflicts','depends','optdepends','source_x86_64','source_aarch64','sha256sums_x86_64','sha256sums_aarch64'].includes(m[1]))return [];

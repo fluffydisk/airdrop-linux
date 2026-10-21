@@ -90,7 +90,7 @@ test('background portal waits for the matching response; denial and absence fail
  async function response(granted){
   const monitor=new EventEmitter();monitor.stdout=new PassThrough();monitor.stderr=new PassThrough();monitor.kill=()=>{};
   const result=request({spawnProcess:()=>monitor,timeout:1000});
-  monitor.stdout.write(granted?'granted\n':'denied\n');monitor.emit('exit',0);return result;
+  monitor.stdout.write(granted?'granted\n':'denied\n');monitor.emit('close',0);return result;
  }
  assert.equal(await response(true),true);assert.equal(await response(false),false);
  const monitor=new EventEmitter();monitor.stdout=new PassThrough();monitor.stderr=new PassThrough();monitor.kill=()=>{};

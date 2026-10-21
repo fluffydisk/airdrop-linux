@@ -14,7 +14,7 @@ function requestBackground({ spawnProcess = spawn, timeout = 65000, signal } = {
     function abort() { finish(false); }
     signal?.addEventListener('abort', abort, { once:true });
     child.on('error', () => finish(false));
-    child.on('exit', code => finish(code === 0 && output.trim() === 'granted'));
+    child.on('close', code => finish(code === 0 && output.trim() === 'granted'));
     child.stdout.on('data', chunk => { output = (output + chunk).slice(-128); });
     child.stderr.on('data', () => {});
     if (signal?.aborted) finish(false);
