@@ -40,8 +40,16 @@ async function generate(directory=path.join(root,'release'), { local = false } =
     {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-512.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-512.png'))),'dest-filename':'icon.png'}
   ];
   if(local) for(const source of sources) {
-    if(source.type==='archive'){source.path=path.join(directory,path.basename(source.url));delete source.url;}
-    else if(source.type==='file'){source.path=path.join(root,'ui/icon-512.png');delete source.url;}
+    // flathub-build --sandbox only permits local files within the manifest's
+    // directory. Keep this test bundle self-contained, including both arches.
+    if(source.type==='archive'){
+      const name=path.basename(source.url);
+      await fs.copyFile(path.join(directory,name),path.join(flatpak,name));
+      source.path=name;delete source.url;
+    } else if(source.type==='file'){
+      await fs.copyFile(path.join(root,'ui/icon-512.png'),path.join(flatpak,'icon.png'));
+      source.path='icon.png';delete source.url;
+    }
   }
   const manifest={
     'app-id':'io.github.fluffydisk.Airdrop',runtime:'org.freedesktop.Platform','runtime-version':'25.08',base:'org.electronjs.Electron2.BaseApp','base-version':'25.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
