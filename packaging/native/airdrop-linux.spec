@@ -2,6 +2,8 @@ Name: airdrop-linux
 Version: @VERSION@
 Release: 1
 Summary: Private file and clipboard sharing over Tailscale
+Packager: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>
+Group: Applications/Internet
 License: MIT
 URL: https://github.com/fluffydisk/airdrop-linux
 Source0: payload.tar.gz
@@ -56,3 +58,7 @@ fi
 /usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png
 %license /usr/share/licenses/airdrop-linux/LICENSE
 %config(noreplace) /etc/apparmor.d/airdrop-linux
+
+%changelog
+* Wed Oct 21 2026 Airdrop Linux maintainers <fluffydisk@users.noreply.github.com> - @VERSION@-1
+- Add package-managed desktop, CLI, user services and data-preserving removal.

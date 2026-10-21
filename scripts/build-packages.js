@@ -48,6 +48,7 @@ async function stage(target, {source='apt', arch=process.arch, desktop=path.join
   await download(pins.dufsLicense.url,pins.dufsLicense.sha256,license);
   await fs.copyFile(license,path.join(target,'runtime/DUFS-LICENSE'));
   await normalizePayload(target,arch);
+  await deduplicatePayload(target);
 }
 async function normalizePayload(directory, arch) {
   // Electron packager creates private directories. Snapcraft stages as root,
@@ -74,6 +75,33 @@ async function normalizePayload(directory, arch) {
       if(/\.(js|cjs|mjs|mts)$/.test(entry.name) || /^#![^\n]*\bnode\b/.test(data))await fs.chmod(file,0o644);
     }
     await fs.chmod(file,((await fs.stat(file)).mode&0o111)?0o755:0o644);
+  }
+}
+async function deduplicatePayload(directory) {
+  const groups=new Map();
+  async function collect(folder) {
+    for(const entry of await fs.readdir(folder,{withFileTypes:true})) {
+      const file=path.join(folder,entry.name);
+      if(entry.isDirectory()){await collect(file);continue;}
+      if(!entry.isFile())throw new Error('Unexpected package file type');
+      const stat=await fs.stat(file),key=`${stat.size}:${stat.mode&0o777}`;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push(file);
+    }
+  }
+  await collect(directory);
+  for(const files of groups.values()) {
+    if(files.length<2)continue;
+    const contents=new Map();
+    for(const file of files) {
+      const digest=hash(await fs.readFile(file)),original=contents.get(digest);
+      if(!original){contents.set(digest,file);continue;}
+      // These are immutable code files. Preserve both module paths and modes
+      // while allowing RPM and tar to store identical dependency content once.
+      const temporary=file+'.dedupe-'+crypto.randomUUID();
+      try {await fs.link(original,temporary);await fs.rename(temporary,file);}
+      finally {await fs.rm(temporary,{force:true});}
+    }
   }
 }
 async function layout(target,source,arch=process.arch) {
@@ -141,4 +169,4 @@ async function main() {
   }finally{await fs.rm(temp,{recursive:true,force:true});}
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={stage,layout,version,normalizePayload};
+module.exports={stage,layout,version,normalizePayload,deduplicatePayload};

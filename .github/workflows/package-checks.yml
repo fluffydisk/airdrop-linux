@@ -23,7 +23,7 @@ jobs:
           node-version: '26'
           cache: npm
       - name: Install test and package tools
-        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
+        run: sudo apt-get update && sudo apt-get install -y rpm rpmlint lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
       - run: npm ci
       - run: umask 022; bash scripts/ci-command.sh Node-tests npm test
       - name: Real background portal responses
@@ -49,6 +49,9 @@ jobs:
           gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop CI test <test@example.invalid>' ed25519 sign 1d
           export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
           scripts/build-repository.sh release "$RUNNER_TEMP/test-repository"
+          # Lint the signed copy and keep missing/invalid signatures fatal.
+          rpm --import "$RUNNER_TEMP/test-repository/airdrop-linux.asc"
+          bash scripts/ci-command.sh RPM-lint rpmlint -c packaging/native/rpmlint.toml "$RUNNER_TEMP/test-repository"/rpm/*/*.rpm
       - name: Validate native metadata
         run: |
           for tool in lintian desktop-file-validate appstreamcli dpkg-deb rpm; do
