@@ -100,3 +100,60 @@ jobs:
           PACKAGE_FORMAT: ${{ matrix.format }}
         run: |
           docker run --rm -v "$PWD:/work" -w /work -e PACKAGE_FORMAT "$TEST_IMAGE" bash scripts/test-native-package.sh
+  flatpak:
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: release
+      - run: npm ci
+      - name: Build and exercise Flatpak sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder dbus-x11
+          node scripts/prepare-channels.js --local
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
+          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
+          dbus-run-session -- flatpak install --user --noninteractive --reinstall Airdrop.flatpak
+          dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-x64
+          path: Airdrop.flatpak
+  snap:
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: release
+      - uses: snapcore/action-setup@v1
+      - run: npm ci
+      - name: Build and exercise strict Snap
+        run: |
+          node scripts/prepare-channels.js --local
+          mkdir -p snap-build/snap
+          cp release/local-submissions/snap/snapcraft-x64.yaml snap-build/snap/snapcraft.yaml
+          (cd snap-build && sudo snapcraft pack --destructive-mode)
+          # This is our locally built, unsigned test artifact; store content snaps
+          # retain their normal assertion/signature verification.
+          sudo snap install --dangerous snap-build/*.snap
+          node scripts/smoke-sandbox.js snap
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap-x64
+          path: snap-build/*.snap

@@ -147,5 +147,5 @@ jobs:
           test -n "$SNAPCRAFT_STORE_CREDENTIALS"
           mkdir -p snap
           cp "submissions/snap/snapcraft-$PACKAGE_ARCH.yaml" snap/snapcraft.yaml
-          snapcraft --destructive-mode
+          sudo snapcraft pack --destructive-mode
           snapcraft upload ./*.snap --release candidate
