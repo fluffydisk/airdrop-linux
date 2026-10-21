@@ -125,4 +125,9 @@ test('channel recipes pin both architectures to actual payload checksums',async 
  assert.ok(!flatpak['finish-args'].some(arg=>arg.includes('--filesystem=home')));
  const sources=flatpak.modules.at(-1).sources.filter(s=>s.type==='archive');assert.equal(sources.length,2);assert.ok(sources.every(s=>/^[a-f0-9]{64}$/.test(s.sha256)));
  const snap=await fs.readFile(path.join(out,'snap/snapcraft-x64.yaml'),'utf8');assert.match(snap,/source-checksum: sha512\/[a-f0-9]{128}/);assert.match(snap,/daemon-scope: user/);
+ const localOut=await require('../scripts/prepare-channels').generate(directory,{local:true});
+ assert.notEqual(localOut,out);
+ const localManifest=JSON.parse(await fs.readFile(path.join(localOut,'flatpak/io.github.fluffydisk.Airdrop.json'),'utf8'));
+ for(const source of localManifest.modules.at(-1).sources.filter(s=>s.type==='archive'||s.type==='file')){assert.ok(path.isAbsolute(source.path));assert.equal(source.url,undefined);await fs.access(source.path);}
+ assert.ok(sources.every(source=>source.url.startsWith('https://')));
 });

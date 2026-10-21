@@ -7,7 +7,8 @@ const { version } = require('./build-packages');
 const pkg = require('../package.json');
 const root=path.resolve(__dirname,'..');
 const sha=file=>crypto.createHash('sha256').update(file).digest('hex');
-async function generate(directory=path.join(root,'release')) {
+async function generate(directory=path.join(root,'release'), { local = false } = {}) {
+  directory = path.resolve(directory);
   version(pkg.version);
   const base=`https://github.com/fluffydisk/airdrop-linux/releases/download/v${pkg.version}`;
   const checksums={};
@@ -15,7 +16,7 @@ async function generate(directory=path.join(root,'release')) {
     const name=`airdrop-${source}-${arch}-${pkg.version}.tar.gz`;
     checksums[name]=sha(await fs.readFile(path.join(directory,name)));
   }
-  const out=path.join(directory,'submissions');await fs.mkdir(out,{recursive:true});
+  const out=path.join(directory,local?'local-submissions':'submissions');await fs.mkdir(out,{recursive:true});
   const aur=path.join(out,'aur');await fs.mkdir(aur,{recursive:true});
   const native=arch=>`airdrop-native-${arch}-${pkg.version}.tar.gz`;
   const build=`# Generated from immutable v${pkg.version} release payloads.\npkgname=airdrop-linux-bin\npkgver=${pkg.version}\npkgrel=1\npkgdesc='Private file and clipboard sharing over Tailscale'\narch=('x86_64' 'aarch64')\nurl='https://github.com/fluffydisk/airdrop-linux'\nlicense=('MIT')\noptions=('!strip' '!debug')\nprovides=('airdrop-linux')\nconflicts=('airdrop-linux')\ndepends=('glibc>=2.39' 'gcc-libs' 'gtk3' 'nss' 'alsa-lib' 'at-spi2-core' 'libcups' 'libdrm' 'mesa' 'libx11' 'libxcb' 'libxcomposite' 'libxdamage' 'libxext' 'libxfixes' 'libxrandr' 'libxkbcommon' 'dbus' 'systemd')\noptdepends=('tailscale: private networking' 'xdg-desktop-portal: desktop integration')\nsource_x86_64=('${base}/${native('x64')}')\nsource_aarch64=('${base}/${native('arm64')}')\nsha256sums_x86_64=('${checksums[native('x64')]}')\nsha256sums_aarch64=('${checksums[native('arm64')]}')\npackage() {\n  cp -a usr \"$pkgdir/\"\n  install -Dm644 usr/share/licenses/airdrop-linux/LICENSE \"$pkgdir/usr/share/licenses/$pkgname/LICENSE\"\n}\n`;
@@ -35,6 +36,10 @@ async function generate(directory=path.join(root,'release')) {
     ...await Promise.all(['io.github.fluffydisk.Airdrop.desktop','io.github.fluffydisk.Airdrop.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
     {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-192.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-192.png'))),'dest-filename':'icon.png'}
   ];
+  if(local) for(const source of sources) {
+    if(source.type==='archive'){source.path=path.join(directory,path.basename(source.url));delete source.url;}
+    else if(source.type==='file'){source.path=path.join(root,'ui/icon-192.png');delete source.url;}
+  }
   const manifest={
     'app-id':'io.github.fluffydisk.Airdrop',runtime:'org.freedesktop.Platform','runtime-version':'25.08',base:'org.electronjs.Electron2.BaseApp','base-version':'25.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
     'finish-args':['--share=ipc','--share=network','--socket=wayland','--socket=fallback-x11','--device=dri','--talk-name=org.kde.StatusNotifierWatcher','--env=GTK_USE_PORTAL=1'],
@@ -53,11 +58,11 @@ async function generate(directory=path.join(root,'release')) {
   for(const arch of ['x64','arm64']){
     const name=`airdrop-snap-${arch}-${pkg.version}.tar.gz`;
     const recipe=(await fs.readFile(path.join(root,'packaging/snap/snapcraft.yaml.in'),'utf8'))
-      .replaceAll('@VERSION@',pkg.version).replaceAll('@ARCH@',arch==='x64'?'amd64':'arm64').replaceAll('@URL@',base+'/'+name).replaceAll('@SHA512@',crypto.createHash('sha512').update(await fs.readFile(path.join(directory,name))).digest('hex'));
+      .replaceAll('@VERSION@',pkg.version).replaceAll('@ARCH@',arch==='x64'?'amd64':'arm64').replaceAll('@URL@',local?path.join(directory,name):base+'/'+name).replaceAll('@SHA512@',crypto.createHash('sha512').update(await fs.readFile(path.join(directory,name))).digest('hex'));
     await fs.writeFile(path.join(snap,`snapcraft-${arch}.yaml`),recipe);
   }
   await fs.writeFile(path.join(directory,'channel-checksums.json'),JSON.stringify({version:pkg.version,files:checksums},null,2)+'\n');
   return out;
 }
-if(require.main===module)generate(process.argv[2]).then(console.log).catch(e=>{console.error(e);process.exitCode=1;});
+if(require.main===module)generate(process.argv.slice(2).find(arg=>arg!=='--local'),{local:process.argv.includes('--local')}).then(console.log).catch(e=>{console.error(e);process.exitCode=1;});
 module.exports={generate};

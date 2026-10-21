@@ -208,3 +208,9 @@ AUR publication also requires an SSH route to aur.archlinux.org:22 when publishi
 from the cloud task; the provided GitHub-hosted publishing workflow uses its own
 network access. Store credentials and signing material belong in the protected
 GitHub environments described above, not in chat.
+
+For local sandbox build checks before publishing a version tag, use
+`node scripts/prepare-channels.js --local`. This writes a separate
+`release/local-submissions/` tree using local, checksum-pinned payload archives and
+the local icon. It never replaces the production submission manifests or removes
+checksum verification. Do not submit these local-path recipes to a store.

@@ -27,11 +27,15 @@ Ubuntu/Fedora/openSUSE clean-install checks and real user-systemd lifecycle chec
 remain for their corresponding CI/host environments. CI jobs for these native
 distribution checks have been added; their remote results are not available here.
 
-Flathub and Snap bundles have not been built or exercised in their actual
-sandboxes here. Store endpoints (`dl.flathub.org`, `api.snapcraft.io`,
-`aur.archlinux.org`) and GitHub API requests returned HTTP 403 through the managed
-network. The checked endpoints were added to the environment's editable allowlist
-draft; saving that draft does not update current networking or publish anything.
+Flathub and Snap bundles have not yet been exercised in their actual sandboxes.
+After the environment network draft was saved, follow-up requests to Flathub and
+AUR returned HTTP 200 and the Snap API returned HTTP 404 for `airdrop-linux`.
+GitHub repository metadata is now accessible and reports push/admin access.
+AUR returned zero matching entries and the Flathub application repository returned
+404; these observations do not establish reservation rights or store acceptance.
+GitHub secret/variable and Actions-permission metadata requests still return
+“Resource not accessible by integration” (HTTP 403). Signing/store configuration
+therefore remains unverified, rather than proven absent.
 
 Flathub's prebuilt-payload policy review, Snap strict-confinement/portal and user
 service checks, actual background permission behavior, physical devices and
