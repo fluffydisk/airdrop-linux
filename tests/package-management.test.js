@@ -139,4 +139,7 @@ test('managed packages can be removed before first setup without touching a data
  assert.match(result,/No user data directory/);assert.equal(calls.length,1);assert.equal(calls[0][0],'sudo');
  await assert.rejects(fs.access(paths.root));
  await assert.rejects(manage.uninstall({paths,source:'flatpak',execute:async()=>{throw new Error('must not run host command');}}),/Run this command on the host/);
+ await assert.rejects(manage.uninstall({paths,source:'snap'}),error=>error.message.includes('sudo snap remove airdrop-linux.') && !error.message.includes('--purge'));
+ await assert.rejects(manage.uninstall({paths,source:'snap',deleteData:true}),error=>error.message.includes('sudo snap remove airdrop-linux --purge') && error.message.includes('snap forget <set-id> airdrop-linux'));
+ await assert.rejects(manage.uninstall({paths,source:'flatpak',deleteData:true}),/flatpak uninstall io.github.fluffydisk.Airdrop --delete-data/);
 });

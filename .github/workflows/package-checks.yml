@@ -159,6 +159,8 @@ jobs:
           (cd snap-build && bash ../scripts/ci-command.sh Snap-build sudo snapcraft pack --destructive-mode)
           # This is our locally built, unsigned test artifact; store content snaps
           # retain their normal assertion/signature verification.
+          # snapd currently gates user-scoped daemons behind this feature flag.
+          sudo snap set system experimental.user-daemons=true
           bash scripts/ci-command.sh Snap-install sudo snap install --dangerous snap-build/*.snap
           sudo snap connect airdrop-linux:browser-sandbox
           bash scripts/ci-command.sh Snap-backend node scripts/smoke-sandbox.js snap
