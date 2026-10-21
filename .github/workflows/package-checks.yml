@@ -203,7 +203,14 @@ jobs:
           # retain their normal assertion/signature verification.
           # snapd currently gates user-scoped daemons behind this feature flag.
           sudo snap set system experimental.user-daemons=true
+          # Hosted runners need an explicit user manager/session agent for
+          # snapd's user service API, as a desktop login would normally provide.
+          sudo loginctl enable-linger "$(id -un)"
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          systemctl --user start snapd.session-agent.socket
           bash scripts/ci-command.sh Snap-install sudo snap install --dangerous snap-build/*.snap
+          systemctl --user daemon-reload
           sudo snap connect airdrop-linux:browser-sandbox
           bash scripts/ci-command.sh Snap-backend node scripts/smoke-sandbox.js snap
           sudo apt-get update

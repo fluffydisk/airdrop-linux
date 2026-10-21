@@ -23,6 +23,10 @@ const base='http://127.0.0.1:6001';
    try{const response=await fetch(base+'/push/health');const health=await response.json();if(response.ok&&health.push&&health.share){ready=true;break;}}catch{}
    await new Promise(resolve=>setTimeout(resolve,200));
   }
+  if(!ready && channel==='snap') {
+   try {log+=(await run('sudo',['journalctl','--user-unit=snap.airdrop-linux.backend.service','--no-pager','--lines=40'])).stdout;} catch(error){log+=error.message;}
+   try {log+=(await run('systemctl',['--user','status','snap.airdrop-linux.backend.service','--no-pager','--full'])).stdout;} catch(error){log+=error.stdout||error.message;}
+  }
   assert.ok(ready,'Sandbox backend readiness timeout: '+log);
   assert.equal((await fetch(base+'/ui/')).status,200);
   const name=`sandbox-smoke-${Date.now()}.txt`;
