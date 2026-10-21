@@ -1,0 +1,63 @@
+name: Verify protected repository signing (no publication)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft release to verify without publishing
+        required: true
+        default: v1.5.0
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    environment: package-publishing
+    # GitHub restricts draft release downloads to users with push access.
+    # This job only reads assets; it never edits a release or deploys Pages.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Install verification tools
+        run: sudo apt-get update && sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv
+      - name: Download and verify draft packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
+          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+          mkdir incoming
+          gh release download "$RELEASE_TAG" --pattern '*.deb' --pattern '*.rpm' --pattern SHA256SUMS --dir incoming
+          node scripts/verify-release-assets.js incoming
+      - name: Verify protected key and sign packages and indexes
+        env:
+          REPOSITORY_SIGNING_KEY: ${{ secrets.REPOSITORY_SIGNING_KEY }}
+          REPOSITORY_SIGNING_PASSPHRASE: ${{ secrets.REPOSITORY_SIGNING_PASSPHRASE }}
+          SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$REPOSITORY_SIGNING_KEY" || { echo '::error::Missing REPOSITORY_SIGNING_KEY'; exit 1; }
+          test -n "$SIGNING_KEY_FINGERPRINT" || { echo '::error::Missing SIGNING_KEY_FINGERPRINT'; exit 1; }
+          export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s' "$REPOSITORY_SIGNING_KEY" | gpg --batch --import
+          passfile="$GNUPGHOME/passphrase"
+          (umask 077; printf '%s' "$REPOSITORY_SIGNING_PASSPHRASE" > "$passfile")
+          printf 'probe' | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$passfile" --local-user "$SIGNING_KEY_FINGERPRINT" --sign > "$GNUPGHOME/probe.gpg"
+          rm "$passfile"
+          scripts/build-repository.sh incoming verified-repository
+          printf '### Signing verified; nothing published\n\nDraft: `%s`\n\nFingerprint: `%s`\n\nBoth RPM architectures, APT InRelease, and RPM metadata signatures verified. The temporary repository is not uploaded or deployed.\n' "$RELEASE_TAG" "$SIGNING_KEY_FINGERPRINT" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove signing material and temporary repository
+        if: always()
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME" verified-repository
