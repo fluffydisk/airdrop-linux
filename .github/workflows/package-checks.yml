@@ -205,11 +205,11 @@ jobs:
           sudo snap set system experimental.user-daemons=true
           # Hosted runners need an explicit user manager/session agent for
           # snapd's user service API, as a desktop login would normally provide.
-          sudo loginctl enable-linger "$(id -un)"
-          sudo systemctl start "user@$(id -u).service"
+          bash scripts/ci-command.sh Snap-user-linger sudo loginctl enable-linger "$(id -un)"
+          bash scripts/ci-command.sh Snap-user-manager sudo systemctl start "user@$(id -u).service"
           export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
-          systemctl --user start snapd.session-agent.socket
+          bash scripts/ci-command.sh Snap-session-agent systemctl --user start snapd.session-agent.socket
           bash scripts/ci-command.sh Snap-install sudo snap install --dangerous snap-build/*.snap
           systemctl --user daemon-reload
           sudo snap connect airdrop-linux:browser-sandbox
@@ -217,7 +217,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb dbus-x11
           # Disposable runner: start this snap's user service for the test session.
-          sudo snap start --users=all airdrop-linux.backend
+          bash scripts/ci-command.sh Snap-background-start sudo snap start --users=all airdrop-linux.backend
           bash scripts/ci-command.sh Snap-background-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs snap background
           bash scripts/ci-command.sh Snap-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs snap
       - uses: actions/upload-artifact@v4
