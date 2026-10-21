@@ -163,14 +163,14 @@ jobs:
           sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb
           node scripts/prepare-channels.js --local
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
+          flatpak install --user --noninteractive flathub org.flatpak.Builder
+          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --repo=flatpak-repo release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
           flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
           bash scripts/ci-command.sh Flatpak-install dbus-run-session -- flatpak install --user --noninteractive --reinstall Airdrop.flatpak
           bash scripts/ci-command.sh Flatpak-backend dbus-run-session -- node scripts/smoke-sandbox.js flatpak
           bash scripts/ci-command.sh Flatpak-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
       - name: Collect official Flathub lint diagnostics (acceptance is separate)
         run: |
-          flatpak install --user --noninteractive flathub org.flatpak.Builder
           node scripts/prepare-channels.js
           mkdir -p flathub-lint
           manifest_status=0

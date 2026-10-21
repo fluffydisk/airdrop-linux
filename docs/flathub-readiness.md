@@ -33,6 +33,10 @@ behavior and backend shutdown on exit. Background portal grant/denial/absence
 are also exercised against a real D-Bus fixture in the native jobs. These fixture
 tests do not replace interactive portal consent testing with a desktop portal.
 
+Builds use the official `org.flatpak.Builder` `flathub-build` wrapper, including
+its sandboxed build and screenshot-mirroring options. Screenshot media stays in
+the temporary OSTree repository; no media is uploaded to Flathub by CI.
+
 The official `org.flatpak.Builder` linter runs against both the generated
 production manifest and the built OSTree repository. Reports, tool version and
 exit codes are uploaded as `flathub-lint-x64` / `flathub-lint-arm64` artifacts.
@@ -54,6 +58,9 @@ VPN daemon in the sandbox.
    requires source-available application components and bundled runtime
    dependencies to build from source, with dependencies available offline.
    A compliant source-build recipe has not been completed or certified here.
+   The inline C portal helper must also become a separately fetched source file
+   under Flathub's prohibition on embedding application/dependency source code in
+   a manifest.
    The human packaging maintainer must select supported SDK extensions, pin app
    sources, generate npm/Cargo dependency sources from lockfiles, and build and
    test offline. Bundled runtime exceptions require explicit reviewer agreement.
@@ -92,6 +99,9 @@ does not guarantee acceptance.
 ## Sources
 
 Checked against the official documentation during this cloud task:
+
+Requirements documentation revision: `b1f0539de6aed7aa26e097ede5de936510ab1df0`
+(checked 2026-10-21).
 
 * [GitHub fine-grained PAT limitations](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations)
 * [Flathub requirements](https://docs.flathub.org/docs/for-app-authors/requirements/),
