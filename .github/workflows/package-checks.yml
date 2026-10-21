@@ -148,7 +148,8 @@ jobs:
           pattern: packages-*
           merge-multiple: true
           path: release
-      - uses: snapcore/action-setup@v1
+      - name: Install supported Snapcraft
+        run: sudo snap install snapcraft --classic --channel=8.x/stable
       - run: npm ci
       - name: Build and exercise strict Snap
         run: |

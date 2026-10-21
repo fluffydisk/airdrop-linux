@@ -137,7 +137,8 @@ jobs:
         with:
           name: store-submissions
           path: submissions
-      - uses: snapcore/action-setup@v1
+      - name: Install supported Snapcraft
+        run: sudo snap install snapcraft --classic --channel=8.x/stable
       - name: Build and upload to candidate
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
