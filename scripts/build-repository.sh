@@ -6,12 +6,15 @@ input=${1:?Usage: build-repository.sh INPUT OUTPUT}
 output=${2:?Usage: build-repository.sh INPUT OUTPUT}
 : "${SIGNING_KEY_FINGERPRINT:?Set the full signing key fingerprint}"
 [[ "$SIGNING_KEY_FINGERPRINT" =~ ^[A-Fa-f0-9]{40,64}$ ]] || { echo 'Invalid signing fingerprint' >&2; exit 1; }
+[[ -d "$input" ]] || { printf 'Package input directory does not exist: %s\n' "$input" >&2; exit 1; }
+input=$(realpath "$input")
 [[ ! -e "$output" ]] || { echo 'Output must be a new directory' >&2; exit 1; }
-mkdir -p "$output/apt/pool/main" "$output/rpm/x86_64" "$output/rpm/aarch64"
 shopt -s nullglob
 packages=("$input"/*.deb)
 rpms=("$input"/*.rpm)
-(( ${#packages[@]} > 0 && ${#rpms[@]} > 0 )) || { echo 'Both DEB and RPM assets are required' >&2; exit 1; }
+printf 'Package input: %s; DEB=%s RPM=%s\n' "$input" "${#packages[@]}" "${#rpms[@]}"
+(( ${#packages[@]} > 0 && ${#rpms[@]} > 0 )) || { echo 'Both DEB and RPM assets are required; refusing to create an empty repository' >&2; exit 1; }
+mkdir -p "$output/apt/pool/main" "$output/rpm/x86_64" "$output/rpm/aarch64"
 cp "${packages[@]}" "$output/apt/pool/main/"
 for package in "${rpms[@]}"; do
   arch=$(rpm -qp --qf '%{ARCH}' "$package")
