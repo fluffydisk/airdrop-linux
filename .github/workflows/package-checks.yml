@@ -206,6 +206,7 @@ jobs:
           # Hosted runners need an explicit user manager/session agent for
           # snapd's user service API, as a desktop login would normally provide.
           sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
           export XDG_RUNTIME_DIR="/run/user/$(id -u)"
           export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
           systemctl --user start snapd.session-agent.socket
