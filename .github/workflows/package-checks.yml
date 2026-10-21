@@ -219,8 +219,8 @@ jobs:
           sudo apt-get install -y xvfb dbus-x11
           # Disposable runner: start this snap's user service for the test session.
           bash scripts/ci-command.sh Snap-background-start sudo snap start --users=all airdrop-linux.backend
-          bash scripts/ci-command.sh Snap-background-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs snap background
-          bash scripts/ci-command.sh Snap-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs snap
+          bash scripts/ci-command.sh Snap-background-desktop xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap background
+          bash scripts/ci-command.sh Snap-desktop xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap
       - uses: actions/upload-artifact@v4
         with:
           name: snap-${{ matrix.target.arch }}

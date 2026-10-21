@@ -15,10 +15,11 @@ const {_electron:electron}=require('playwright-core');
    executable=path.join(temp,'flatpak-airdrop');
    await fs.writeFile(executable,'#!/bin/sh\nexec flatpak run io.github.fluffydisk.Airdrop "$@"\n',{mode:0o755});
   }
-  app=await electron.launch({executablePath:executable,args:['--ozone-platform=x11'],env:{...process.env,AIRDROP_DISABLE_TRAY:'1'},timeout:60000});
+  app=await electron.launch({executablePath:executable,chromiumSandbox:true,args:['--ozone-platform=x11'],env:{...process.env,AIRDROP_DISABLE_TRAY:'1'},timeout:60000});
   const page=await app.firstWindow();
   await page.waitForFunction(()=>document.getElementById('health').dataset.status==='ready',{},{timeout:30000});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
+  assert.equal(await app.evaluate(({app})=>app.commandLine.hasSwitch('no-sandbox')),false);
   if(channel==='snap') {
    const background=process.argv[3]==='background';
    assert.equal(await app.evaluate(()=>process.env.AIRDROP_SNAP_BACKGROUND),background?'1':'0');
