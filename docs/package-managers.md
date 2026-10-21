@@ -183,6 +183,22 @@ repository indexes, verifies metadata signatures, and deploys Pages. It includes
 up to the latest 100 stable release versions, preserving versioned artifacts.
 It never signs or publishes from a pull-request workflow.
 
+For an already published release, run **Publish signed package repositories**
+using the **main** branch and the exact release tag (for example `v1.5.0`). Leave
+`publish` unchecked first: this verifies both DEB/RPM architectures and checksums,
+then signs a temporary repository with a disposable test key without using
+production secrets or deploying Pages. Set `publish` only for the production run;
+its `package-publishing` environment approval follows successful input validation.
+The job summary records the source commit, requested version and package hashes.
+Do not rerun the old release-event run after fixing a workflow: GitHub reruns that
+old tag commit, not the corrected code on main. Do not move the published tag or
+replace its release assets to update repository tooling.
+
+Package discovery uses structured GitHub metadata and does not require ripgrep.
+A release API/tool failure, a missing requested release, missing architecture or
+format, or an invalid checksum is an error rather than an implicit skipped release.
+Only older releases containing neither DEB nor RPM packages may be skipped.
+
 `store-submissions.yml` defaults to preparation only. To submit after validation:
 
 * AUR: reserve/own `airdrop-linux-bin`; environment `aur-publishing` needs

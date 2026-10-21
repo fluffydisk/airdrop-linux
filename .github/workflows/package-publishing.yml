@@ -3,14 +3,91 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable release to include
+        required: true
+        default: v1.5.0
+      publish:
+        description: Deploy production repository (requires main and environment approval)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: package-repositories
   cancel-in-progress: false
 jobs:
-  repository:
+  prepare:
     if: github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && !github.event.release.draft)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check production source ref
+        env:
+          PUBLISH_REQUESTED: ${{ github.event_name == 'release' || inputs.publish == true }}
+        run: |
+          if [[ "$PUBLISH_REQUESTED" == true && "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" != refs/heads/main ]]; then
+            echo '::error::Production publication must be dispatched from main; do not rerun the old v1.5.0 release-event run.'
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Download and validate stable package inputs before signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
+          if command -v rg >/dev/null; then
+            echo '::notice title=Downloader prerequisites::ripgrep is present but is not a downloader dependency.'
+          else
+            echo '::notice title=Downloader prerequisites::ripgrep is absent; the legacy if-not-rg selector would silently skip every release.'
+          fi
+          bash scripts/ci-command.sh Repository-download node scripts/download-repository-assets.js "$RELEASE_TAG" incoming downloads
+          printf '### Repository inputs verified\n\nSource commit: `%s`\n\nRequested release: `%s`\n\n' "$GITHUB_SHA" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
+          cat incoming/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repository-packages
+          path: incoming/
+          if-no-files-found: error
+  verify:
+    needs: prepare
+    if: github.event_name == 'workflow_dispatch' && inputs.publish != true
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          name: repository-packages
+          path: incoming
+      - name: Verify complete signing flow with a disposable key (no deployment)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv
+          node scripts/verify-release-assets.js incoming
+          export GNUPGHOME="$RUNNER_TEMP/test-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME" verified-repository' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop CI test <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
+          bash scripts/ci-command.sh Repository-test-signing scripts/build-repository.sh incoming verified-repository
+          echo '### Validation passed with real release assets and a disposable key; nothing deployed.' >> "$GITHUB_STEP_SUMMARY"
+  repository:
+    needs: prepare
+    if: github.event_name == 'release' || inputs.publish == true
     runs-on: ubuntu-24.04
     environment: package-publishing
     permissions:
@@ -19,31 +96,19 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          name: repository-packages
+          path: incoming
+      - name: Verify staged checksums before accessing signing material
+        run: node scripts/verify-release-assets.js incoming
       - name: Install repository tools
         run: sudo apt-get update && sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv
-      - name: Download checksum-verified stable package history
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p incoming downloads
-          gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '.[].tagName' > /tmp/stable-tags
-          test -s /tmp/stable-tags
-          while IFS= read -r tag; do
-            [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-            dir="downloads/$tag"
-            mkdir -p "$dir"
-            # Old releases without native packages predate this distribution channel.
-            gh release view "$tag" --json assets --jq '.assets[].name' > /tmp/asset-names
-            if ! rg -q '\.deb$' /tmp/asset-names; then continue; fi
-            gh release download "$tag" --pattern '*.deb' --pattern '*.rpm' --pattern SHA256SUMS --dir "$dir"
-            node scripts/verify-release-assets.js "$dir"
-            cp "$dir"/*.deb "$dir"/*.rpm incoming/
-          done < /tmp/stable-tags
       - name: Import protected signing key
         env:
           REPOSITORY_SIGNING_KEY: ${{ secrets.REPOSITORY_SIGNING_KEY }}
@@ -57,15 +122,17 @@ jobs:
           export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
           mkdir -m 700 "$GNUPGHOME"
           printf '%s' "$REPOSITORY_SIGNING_KEY" | gpg --batch --import
-          # Unlock once using a private temporary file; subsequent gpg/rpmsign use the agent.
           passfile="$GNUPGHOME/passphrase"
           (umask 077; printf '%s' "$REPOSITORY_SIGNING_PASSPHRASE" > "$passfile")
           printf 'allow-preset-passphrase\n' > "$GNUPGHOME/gpg-agent.conf"
           gpgconf --kill gpg-agent
           printf 'probe' | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$passfile" --local-user "$SIGNING_KEY_FINGERPRINT" --sign > "$GNUPGHOME/probe.gpg"
           rm "$passfile"
-          scripts/build-repository.sh incoming public
           printf 'GNUPGHOME=%s\n' "$GNUPGHOME" >> "$GITHUB_ENV"
+      - name: Build and verify signed APT and RPM repositories
+        env:
+          SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
+        run: bash scripts/ci-command.sh Repository-build scripts/build-repository.sh incoming public
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
