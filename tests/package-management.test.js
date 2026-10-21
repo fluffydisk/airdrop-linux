@@ -131,3 +131,12 @@ test('channel recipes pin both architectures to actual payload checksums',async 
  for(const source of localManifest.modules.at(-1).sources.filter(s=>s.type==='archive'||s.type==='file')){assert.ok(path.isAbsolute(source.path));assert.equal(source.url,undefined);await fs.access(source.path);}
  assert.ok(sources.every(source=>source.url.startsWith('https://')));
 });
+test('managed packages can be removed before first setup without touching a data tree',async t=>{
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-uninitialised-'));
+ t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+ const paths=getPaths({root:path.join(directory,'not-created')});const calls=[];
+ const result=await manage.uninstall({paths,source:'apt',execute:async(...args)=>calls.push(args)});
+ assert.match(result,/No user data directory/);assert.equal(calls.length,1);assert.equal(calls[0][0],'sudo');
+ await assert.rejects(fs.access(paths.root));
+ await assert.rejects(manage.uninstall({paths,source:'flatpak',execute:async()=>{throw new Error('must not run host command');}}),/Run this command on the host/);
+});

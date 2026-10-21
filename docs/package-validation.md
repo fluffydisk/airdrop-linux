@@ -4,7 +4,7 @@ No store submission or public repository deployment has been completed.
 
 | Check | Observed result |
 | --- | --- |
-| Node test suite | 58 passed, no failures or skips |
+| Node test suite | 59 passed, no failures or skips |
 | Chromium integration | 1 passed: uploads, ZIPs, Android staging, folders, trash, clipboard |
 | Packaged Linux x64 Electron on Xvfb | Functional test passed; tray test skipped because no StatusNotifier host is present |
 | DEB on Debian 13 | Built, installed, exercised UI/API/dufs and ZIP transfer; removal retained user files |
@@ -63,3 +63,5 @@ are not production keys. Protected GitHub environment credentials and channel
 ownership/reviewer approval are required as documented in
 [the package-manager guide](package-managers.md). No channel is marked as
 submitted or live solely because its recipe was generated.
+
+Removal is also covered before the first per-user setup; an uninitialised native package delegates directly to its package manager without creating or touching a data tree.
