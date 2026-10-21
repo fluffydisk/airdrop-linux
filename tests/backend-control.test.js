@@ -17,6 +17,10 @@ test('private Snap backend control reports identity and stops only its own serve
  assert.equal((await fs.stat(path.join(root,'state/backend.sock'))).mode&0o777,0o600);
  assert.deepEqual(await request(root),{source:'snap',root,version:'1.5.0'});
  assert.equal(stopped,false);
+ const other=await fixture(t);
+ await fs.link(path.join(root,'state/backend.sock'),path.join(other,'state/backend.sock'));
+ await assert.rejects(request(other,'stop'));
+ assert.equal(stopped,false);
  await assert.rejects(listen(root,'1.5.0',()=>{}),/already in use/);
  await request(root,'stop');
  for(let i=0;i<20&&!stopped;i++)await new Promise(r=>setTimeout(r,5));
