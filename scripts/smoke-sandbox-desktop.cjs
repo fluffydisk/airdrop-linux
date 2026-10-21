@@ -20,6 +20,9 @@ const {_electron:electron}=require('playwright-core');
   await page.waitForFunction(()=>document.getElementById('health').dataset.status==='ready',{},{timeout:30000});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
   assert.equal(await app.evaluate(({app})=>app.commandLine.hasSwitch('no-sandbox')),false);
+  const clipboardText='Airdrop sandbox clipboard '+Date.now();
+  await page.evaluate(text=>window.airdrop.copyClipboard(text),clipboardText);
+  assert.equal(await page.evaluate(()=>window.airdrop.readClipboard()),clipboardText);
   if(channel==='snap') {
    const background=process.argv[3]==='background';
    assert.equal(await app.evaluate(()=>process.env.AIRDROP_SNAP_BACKGROUND),background?'1':'0');
