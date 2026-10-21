@@ -24,8 +24,8 @@ const base='http://127.0.0.1:6001';
    await new Promise(resolve=>setTimeout(resolve,200));
   }
   if(!ready && channel==='snap') {
-   try {log+=(await run('sudo',['journalctl','--user-unit=snap.airdrop-linux.backend.service','--no-pager','--lines=40'])).stdout;} catch(error){log+=error.message;}
-   try {log+=(await run('systemctl',['--user','status','snap.airdrop-linux.backend.service','--no-pager','--full'])).stdout;} catch(error){log+=error.stdout||error.message;}
+   try {log+=(await run('sudo',['journalctl','_SYSTEMD_USER_UNIT=snap.airdrop-linux.backend.service','--no-pager','--lines=80'])).stdout;} catch(error){log+=error.message;}
+   try {log+=(await run('systemctl',['--user','status','snap.airdrop-linux.backend.service','--no-pager','--full','--lines=100'])).stdout;} catch(error){log+=error.stdout||error.message;}
   }
   assert.ok(ready,'Sandbox backend readiness timeout: '+log);
   assert.equal((await fetch(base+'/ui/')).status,200);
