@@ -1,67 +1,67 @@
 # Package distribution validation — 1.5.0 preparation
 
-No store submission or public repository deployment has been completed.
+No store submission or public package repository deployment has been completed.
+“Hazır” below refers to the prepared artifacts and recorded automated checks;
+production signing, channel ownership, platform acceptance and the remaining
+manual acceptance tests are separate publication gates.
+
+| Channel | Preparation status | Publication status |
+| --- | --- | --- |
+| APT | Hazır: x86_64/ARM64 DEBs and signed repository tooling | Not published; production signing/protection verification remains |
+| AUR | Hazır for x86_64: checksum-pinned PKGBUILD/.SRCINFO, dependency installation and runtime checks; aarch64 recipe awaits an Arch Linux ARM host | Not submitted |
+| RPM | Hazır: x86_64/ARM64 RPMs and signed repository tooling | Not published; production signing/protection verification remains |
+| Flathub | Hazır for review: both architecture sandbox builds and lifecycle checks passed | Not submitted; prebuilt-payload policy acceptance remains |
+| Snap | Not ready: private service-control adaptation passed local tests; updated sandbox checks are queued | Not submitted; name/credential/confinement review remains |
 
 | Check | Observed result |
 | --- | --- |
-| Node test suite | 59 passed, no failures or skips |
-| Chromium integration | 1 passed: uploads, ZIPs, Android staging, folders, trash, clipboard |
-| Packaged Linux x64 Electron on Xvfb | Functional test passed; tray test skipped because no StatusNotifier host is present |
-| DEB on Debian 13 | Built, installed, exercised UI/API/dufs and ZIP transfer; removal retained user files |
-| Signed APT repository | Temporary test key used; InRelease verified, APT installed from the local signed repository |
-| Debian lint | No errors, with documented narrow embedded-library overrides; warnings remain |
-| AppStream and desktop entry | Validation passed (AppStream has one pedantic suggestion) |
-| RPM | x64 package built; package signature and repodata signatures verified with a temporary test key |
-| AUR | Generated .SRCINFO matches makepkg; x64 package built with checksum verification and --nodeps |
-| ARM64 | Electron, native DEB and payload archives built; local execution on ARM64 not tested |
-| Snap build | Real amd64 `.snap` produced with Snapcraft 8.11.1/core24; native runtime libraries staged; GNOME content-library and NSS dynamic-loading warnings remain |
-| Workflow and Snap recipe syntax | YAML parsed; shell and JavaScript syntax checks passed |
+| Current local Node suite | 61 passed, no failures or skips, including real dufs and private backend socket ownership/isolation |
+| Chromium integration | Passed on x64 and ARM64: upload, ZIP, Android staging, folders, trash and clipboard |
+| Packaged Electron | Native functional checks passed on both architectures; tray checks skip without a StatusNotifier host |
+| Native metadata and signatures | Debian lint, desktop entry/AppStream and disposable-key APT/RPM signing/verification passed on both native runners; narrow upstream-binary lint exceptions are documented |
+| Signed APT installation | Installed from a local signed repository using a disposable test key; no production key used |
+| Distribution installation/removal | All 12 combinations passed: x64/ARM64 × Debian 13, Ubuntu 24.04/26.04, Fedora 43/44, openSUSE Tumbleweed; real file/ZIP transfer and data-preserving removal |
+| AUR x86_64 | Official Arch base-devel container: dependencies installed, checksums verified, package built/installed, backend transfer and removal passed; generated SRCINFO fields matched makepkg |
+| Flatpak x64/ARM64 | Build/install, real backend file/ZIP transfer, sandboxed Electron launch, managed update guard and quit stopping the backend passed |
+| Background portal | Persistent GIO helper compiled and exercised against a real session bus: directed grant, denial, returned request path, unrelated signal and absent portal; also passed native CI on both architectures |
+| Snap | Strict archives build and install with snapd user-daemons enabled. Previous runtime checks identified unsupported unprivileged service commands; replacement private socket control and foreground fallback pass local tests, with sandbox verification pending |
+| Cloud development startup | Health, UI, upload and download passed; tested install_script and start_skill saved; new-task snapshot restoration not tested |
 
-The Electron test container requires a UTF-8 locale (`LANG=C.UTF-8`,
-`LC_ALL=C.UTF-8`) for the Unicode filename test. An ASCII locale reproduces the
-same file-input failure in the unmodified desktop implementation. Tests were not
-weakened to bypass this failure. Electron's sandbox remains enabled.
+The completed distribution/AUR/Flatpak evidence is recorded in
+[run 39613777548](https://github.com/fluffydisk/airdrop-linux/actions/runs/39613777548)
+for commit `ac0e0bc`. That run failed its Snap checks; it is not an overall green
+run. The service-control replacement is in commit `e988101`, whose
+[validation run](https://github.com/fluffydisk/airdrop-linux/actions/runs/39616453904)
+is currently queued. Local tests use the replacement code, including rejection
+of control commands sent through another data root's hard-linked socket.
 
-The AUR build above verifies packaging and checksums, not runtime dependency
-resolution or a complete Arch installation. ARM64 native DEB/RPM execution,
-Ubuntu/Fedora/openSUSE clean-install checks and real user-systemd lifecycle checks
-remain for their corresponding CI/host environments. CI jobs for these native
-distribution checks have been added; their remote results are not available here.
+Snapd currently requires `experimental.user-daemons=true` and rejects ordinary
+users' snapctl start/stop commands. Airdrop now attaches to its own running user
+service through a private, ownership-checked Unix socket. Otherwise it starts a
+foreground backend and explains that closing the window stops sharing. Explicit
+quit requests stop only that data root's backend. The updated CI exercises both
+service attachment/window hiding and foreground/window-close behavior; those
+results must pass before marking Snap ready.
 
-The Snap archive has been built but has not been exercised in its runtime sandbox.
-Flatpak SDK, runtime and Electron BaseApp 25.08 were downloaded and sources were
-validated. The build reached the module command, where bubblewrap failed because
-the managed container cannot create the required user namespace. Using the
-supported copy-based cache mode avoided the separate missing-FUSE issue; sandbox
-namespace checks were kept enabled.
-After the environment network draft was saved, follow-up requests to Flathub and
-AUR returned HTTP 200 and the Snap API returned HTTP 404 for `airdrop-linux`.
-GitHub repository metadata is now accessible and reports push/admin access.
-AUR returned zero matching entries and the Flathub application repository returned
-404; these observations do not establish reservation rights or store acceptance.
-GitHub secret/variable and Actions-permission metadata requests still return
-“Resource not accessible by integration” (HTTP 403). Signing/store configuration
-therefore remains unverified, rather than proven absent. Creating the GitHub
-Pages site through the API was also rejected with HTTP 403. The repository
-currently reports Pages disabled and no configured deployment environments.
+The cloud Docker kernel cannot create Flatpak's required user namespaces. That
+restriction was preserved; GitHub-hosted sandbox checks supplied the runtime
+validation. Electron sandboxing, TLS, artifact checksums and package/repository
+signatures were kept enabled. The UTF-8 locale used for Electron filename tests
+is required; ASCII locales reproduce an existing Unicode file-input failure.
 
-A draft implementation PR was opened at
-https://github.com/fluffydisk/airdrop-linux/pull/2. Its first native validation run
-found Ubuntu ARM64 lintian classifying the upstream musl dufs binary as static;
-the package now documents this deliberate upstream-runtime choice with a narrow
-path-specific override. Follow-up checks also added the explicit Node libatomic
-runtime dependency and Snap runtime search paths. Native checks are being rerun
-for these corrections; consult the PR checks for the current remote outcome.
+After saving the network draft, GitHub, Flathub, AUR and Snap API requests worked.
+AUR returned zero matching entries; Snap/Flathub returned no existing app listing.
+These observations do not establish reservation rights or platform acceptance.
+GitHub Pages now uses the GitHub Actions source and package-publishing exists,
+but its latest observed configuration has no protection rules or branch policy.
+Secret/variable administration still returns HTTP 403, so existing signing/store
+credentials remain unverified, rather than proven absent. Configure environment
+protection and verify the existing secret/variable names securely in GitHub.
 
-Flathub's prebuilt-payload policy review, Snap strict-confinement/portal and user
-service checks, actual background permission behavior, physical devices and
-Tailscale HTTPS still require validation. A unit test covers matching background
-portal responses, denial and absence, but does not replace a real portal test.
-
-Production repository signing requires maintainer-owned signing keys; test keys
-are not production keys. Protected GitHub environment credentials and channel
-ownership/reviewer approval are required as documented in
-[the package-manager guide](package-managers.md). No channel is marked as
-submitted or live solely because its recipe was generated.
-
-Removal is also covered before the first per-user setup; an uninitialised native package delegates directly to its package manager without creating or touching a data tree.
+Remaining acceptance work includes interactive file portals and background
+permission prompts, real login/session lifecycle, physical devices/Tailscale
+HTTPS, AUR on aarch64, RPM lint review, published-repository installation and
+production signature verification. Flathub must review the prebuilt payload
+approach and may require source-based packaging. Snap requires name ownership,
+store credentials and confinement/interface review. See
+[the package manager guide](package-managers.md) for those external prerequisites.

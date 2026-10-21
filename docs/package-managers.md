@@ -89,6 +89,8 @@ After acceptance and stable publication:
 ```sh
 flatpak install flathub io.github.fluffydisk.Airdrop
 # Or:
+# snapd currently requires this host opt-in for user-scoped services.
+sudo snap set system experimental.user-daemons=true
 sudo snap install airdrop-linux
 ```
 
@@ -97,9 +99,16 @@ closing the window stops sharing. If granted, closing hides the window and shari
 continues; reopening the app shows it again. **Stop sharing and quit** stops its
 bundled processes. Flatpak does not request automatic login startup.
 
-Snap starts its user-scoped backend when opened; closing the window leaves sharing
-active. **Stop sharing and quit** also stops the Snap user service. Service control:
-`snap stop --user airdrop-linux.backend` and `snap start --user airdrop-linux.backend`.
+Snap connects to its own running user service through a private socket. If no
+service is enabled, it starts foreground sharing and tells the user that closing
+the window stops sharing. **Stop sharing and quit** stops either backend through
+that socket. It never elevates the desktop to control services. To opt into
+background sharing, enable the user service from the host terminal:
+`snap start --user --enable airdrop-linux.backend`. The host snapd API can require
+administrative authorization; without it, foreground sharing remains available.
+Unprivileged `snapctl start/stop` is unsupported by current snapd. Host service
+maintenance can use `snap stop --user airdrop-linux.backend`; the in-app quit
+operation uses its private socket instead.
 No user data is exposed through a blanket home plug.
 
 All backends use loopback ports 5000 and 6001. Running another installation on those
@@ -136,7 +145,10 @@ remove personal data. Sandboxes cannot run a host package manager: uninstall the
 from the host with `flatpak uninstall io.github.fluffydisk.Airdrop` or
 `sudo snap remove airdrop-linux`. Flatpak retains application data unless the user
 explicitly passes `--delete-data`. Snap normally retains an automatic removal
-snapshot; `snap remove --purge` changes that behavior. Do not delete native data
+snapshot; explicit `airdrop uninstall --delete-data` directs the host to use
+`snap remove --purge`. Earlier saved snapshots remain separate: inspect `snap saved`
+and use `sudo snap forget <set-id> airdrop-linux` for each matching set, preserving
+other applications in the set. Do not delete native data
 when removing a sandbox installation.
 
 ## Maintainer build and publication
@@ -215,11 +227,13 @@ For local sandbox build checks before publishing a version tag, use
 the local icon. It never replaces the production submission manifests or removes
 checksum verification. Do not submit these local-path recipes to a store.
 
-The current GitHub integration can push code and open PRs, but Pages creation and
-Secrets/Variables administration returned HTTP 403. If those permissions are not
-available to the integration, configure **Settings → Pages → Source: GitHub
-Actions** and the protected publishing environments directly in GitHub. Existing
-keys can be reused under the documented names; do not paste private keys or store
+The current GitHub integration can push code and open PRs. Pages now uses the
+GitHub Actions source, but Secrets/Variables administration returned HTTP 403.
+Verify the existing credential names directly in GitHub; the integration cannot
+read their configuration through the administration API. The latest environment
+metadata shows no protection rules or branch restrictions; configure these before
+production publication. Existing keys can be reused under the documented names;
+do not paste private keys or store
 credentials into chat.
 
 The Snap declares `browser-support` with `allow-sandbox: true` to retain Electron's
