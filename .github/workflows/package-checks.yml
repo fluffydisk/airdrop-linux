@@ -25,7 +25,7 @@ jobs:
       - name: Install test and package tools
         run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
       - run: npm ci
-      - run: umask 022; npm test
+      - run: umask 022; bash scripts/ci-command.sh Node-tests npm test
       - name: Real background portal responses
         run: |
           cc -Wall -Wextra -Werror packaging/flatpak/background-portal.c -o "$RUNNER_TEMP/airdrop-background-portal" $(pkg-config --cflags --libs gio-2.0)
@@ -33,7 +33,7 @@ jobs:
       - name: Chromium integration
         run: |
           npx playwright-core install --with-deps chromium
-          CHROMIUM_PATH="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')" npm run test:browser
+          CHROMIUM_PATH="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')" bash scripts/ci-command.sh Chromium npm run test:browser
       - run: npm ci --prefix desktop
       - run: npm run prepare-desktop && npm run package --prefix desktop
       - name: Build all channel payloads
