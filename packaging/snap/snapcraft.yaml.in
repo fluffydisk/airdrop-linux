@@ -27,12 +27,17 @@ apps:
     daemon-scope: user
     install-mode: disable
     plugs: [network, network-bind]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/@TRIPLET@:$SNAP_LIBRARY_PATH
   cli:
     command: lib/airdrop-linux/runtime/node lib/airdrop-linux/server/scripts/managed-runtime.js cli
     plugs: [network]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib/@TRIPLET@:$SNAP_LIBRARY_PATH
 parts:
   airdrop:
     plugin: dump
+    stage-packages: [libatomic1, libnss3, libnspr4, libasound2t64, libcups2t64]
     source: '@URL@'
     source-checksum: sha512/@SHA512@
     organize:

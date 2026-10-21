@@ -58,7 +58,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   for(const arch of ['x64','arm64']){
     const name=`airdrop-snap-${arch}-${pkg.version}.tar.gz`;
     const recipe=(await fs.readFile(path.join(root,'packaging/snap/snapcraft.yaml.in'),'utf8'))
-      .replaceAll('@VERSION@',pkg.version).replaceAll('@ARCH@',arch==='x64'?'amd64':'arm64').replaceAll('@URL@',local?path.join(directory,name):base+'/'+name).replaceAll('@SHA512@',crypto.createHash('sha512').update(await fs.readFile(path.join(directory,name))).digest('hex'));
+      .replaceAll('@VERSION@',pkg.version).replaceAll('@ARCH@',arch==='x64'?'amd64':'arm64').replaceAll('@TRIPLET@',arch==='x64'?'x86_64-linux-gnu':'aarch64-linux-gnu').replaceAll('@URL@',local?path.join(directory,name):base+'/'+name).replaceAll('@SHA512@',crypto.createHash('sha512').update(await fs.readFile(path.join(directory,name))).digest('hex'));
     await fs.writeFile(path.join(snap,`snapcraft-${arch}.yaml`),recipe);
   }
   await fs.writeFile(path.join(directory,'channel-checksums.json'),JSON.stringify({version:pkg.version,files:checksums},null,2)+'\n');

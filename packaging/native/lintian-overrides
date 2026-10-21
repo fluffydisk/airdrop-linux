@@ -11,3 +11,7 @@ airdrop-linux: embedded-library tiff [usr/lib/airdrop-linux/desktop/Airdrop]
 airdrop-linux: embedded-library libyaml [usr/lib/airdrop-linux/runtime/dufs]
 airdrop-linux: embedded-library mbedtls [usr/lib/airdrop-linux/runtime/node]
 airdrop-linux: embedded-library zlib [usr/lib/airdrop-linux/runtime/node]
+# The checksum-pinned upstream dufs musl release is intentionally static.
+# ARM64 is classified as static by Ubuntu's lintian; the same binary is used
+# across the supported distributions rather than linking against their libc.
+airdrop-linux: statically-linked-binary [usr/lib/airdrop-linux/runtime/dufs]

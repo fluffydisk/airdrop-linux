@@ -13,7 +13,8 @@ No store submission or public repository deployment has been completed.
 | AppStream and desktop entry | Validation passed (AppStream has one pedantic suggestion) |
 | RPM | x64 package built; package signature and repodata signatures verified with a temporary test key |
 | AUR | Generated .SRCINFO matches makepkg; x64 package built with checksum verification and --nodeps |
-| ARM64 | Electron and native/Flatpak/Snap payload archives built; execution on ARM64 not tested here |
+| ARM64 | Electron, native DEB and payload archives built; local execution on ARM64 not tested |
+| Snap build | Real amd64 `.snap` produced with Snapcraft 8.11.1/core24; native runtime libraries staged; GNOME content-library and NSS dynamic-loading warnings remain |
 | Workflow and Snap recipe syntax | YAML parsed; shell and JavaScript syntax checks passed |
 
 The Electron test container requires a UTF-8 locale (`LANG=C.UTF-8`,
@@ -27,7 +28,12 @@ Ubuntu/Fedora/openSUSE clean-install checks and real user-systemd lifecycle chec
 remain for their corresponding CI/host environments. CI jobs for these native
 distribution checks have been added; their remote results are not available here.
 
-Flathub and Snap bundles have not yet been exercised in their actual sandboxes.
+The Snap archive has been built but has not been exercised in its runtime sandbox.
+Flatpak SDK, runtime and Electron BaseApp 25.08 were downloaded and sources were
+validated. The build reached the module command, where bubblewrap failed because
+the managed container cannot create the required user namespace. Using the
+supported copy-based cache mode avoided the separate missing-FUSE issue; sandbox
+namespace checks were kept enabled.
 After the environment network draft was saved, follow-up requests to Flathub and
 AUR returned HTTP 200 and the Snap API returned HTTP 404 for `airdrop-linux`.
 GitHub repository metadata is now accessible and reports push/admin access.
@@ -35,7 +41,17 @@ AUR returned zero matching entries and the Flathub application repository return
 404; these observations do not establish reservation rights or store acceptance.
 GitHub secret/variable and Actions-permission metadata requests still return
 “Resource not accessible by integration” (HTTP 403). Signing/store configuration
-therefore remains unverified, rather than proven absent.
+therefore remains unverified, rather than proven absent. Creating the GitHub
+Pages site through the API was also rejected with HTTP 403. The repository
+currently reports Pages disabled and no configured deployment environments.
+
+A draft implementation PR was opened at
+https://github.com/fluffydisk/airdrop-linux/pull/2. Its first native validation run
+found Ubuntu ARM64 lintian classifying the upstream musl dufs binary as static;
+the package now documents this deliberate upstream-runtime choice with a narrow
+path-specific override. Follow-up checks also added the explicit Node libatomic
+runtime dependency and Snap runtime search paths. Native checks are being rerun
+for these corrections; consult the PR checks for the current remote outcome.
 
 Flathub's prebuilt-payload policy review, Snap strict-confinement/portal and user
 service checks, actual background permission behavior, physical devices and

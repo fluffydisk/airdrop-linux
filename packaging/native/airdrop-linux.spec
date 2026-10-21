@@ -7,6 +7,7 @@ URL: https://github.com/fluffydisk/airdrop-linux
 Source0: payload.tar.gz
 AutoReqProv: no
 Requires: glibc >= 2.39, systemd, dbus
+Requires: libatomic.so.1()(64bit)
 Requires: libgtk-3.so.0()(64bit), libnss3.so()(64bit), libnspr4.so()(64bit), libasound.so.2()(64bit)
 Requires: libatspi.so.0()(64bit)
 Requires: libatk-1.0.so.0()(64bit), libatk-bridge-2.0.so.0()(64bit), libcups.so.2()(64bit)

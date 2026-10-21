@@ -8,6 +8,7 @@ permissions:
 jobs:
   native:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - runner: ubuntu-24.04
@@ -46,7 +47,16 @@ jobs:
           scripts/build-repository.sh release "$RUNNER_TEMP/test-repository"
       - name: Validate native metadata
         run: |
-          lintian --fail-on error release/*.deb
+          lint_status=0
+          lintian --fail-on error release/*.deb > "$RUNNER_TEMP/lintian.log" 2>&1 || lint_status=$?
+          cat "$RUNNER_TEMP/lintian.log"
+          if (( lint_status )); then
+            while IFS= read -r line; do
+              line=${line//%/%25}
+              printf '::error title=Lintian::%s\n' "$line"
+            done < <(rg '^E:' "$RUNNER_TEMP/lintian.log")
+            exit "$lint_status"
+          fi
           desktop-file-validate packaging/io.github.fluffydisk.Airdrop.desktop
           appstreamcli validate --no-net packaging/io.github.fluffydisk.Airdrop.metainfo.xml
           dpkg-deb --info release/*.deb

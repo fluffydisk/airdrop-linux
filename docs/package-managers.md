@@ -214,3 +214,10 @@ For local sandbox build checks before publishing a version tag, use
 `release/local-submissions/` tree using local, checksum-pinned payload archives and
 the local icon. It never replaces the production submission manifests or removes
 checksum verification. Do not submit these local-path recipes to a store.
+
+The current GitHub integration can push code and open PRs, but Pages creation and
+Secrets/Variables administration returned HTTP 403. If those permissions are not
+available to the integration, configure **Settings → Pages → Source: GitHub
+Actions** and the protected publishing environments directly in GitHub. Existing
+keys can be reused under the documented names; do not paste private keys or store
+credentials into chat.
