@@ -221,3 +221,9 @@ available to the integration, configure **Settings → Pages → Source: GitHub
 Actions** and the protected publishing environments directly in GitHub. Existing
 keys can be reused under the documented names; do not paste private keys or store
 credentials into chat.
+
+The Snap declares `browser-support` with `allow-sandbox: true` to retain Electron's
+own sandbox. Store auto-connection requires review; for a locally built test snap,
+connect `airdrop-linux:browser-sandbox` explicitly. The hosted sandbox checks
+exercise the real backend and desktop startup/update/quit behavior. Neither the
+Snap nor the Flatpak launcher passes `--no-sandbox`.

@@ -13,12 +13,16 @@ platforms:
   @ARCH@:
     build-on: [@ARCH@]
     build-for: [@ARCH@]
+plugs:
+  browser-sandbox:
+    interface: browser-support
+    allow-sandbox: true
 apps:
   airdrop-linux:
     command: bin/airdrop-desktop
     extensions: [gnome]
     desktop: usr/share/applications/io.github.fluffydisk.Airdrop.desktop
-    plugs: [network, network-bind]
+    plugs: [network, network-bind, browser-sandbox]
     environment:
       GTK_USE_PORTAL: '1'
   backend:

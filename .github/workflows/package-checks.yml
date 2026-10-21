@@ -23,7 +23,7 @@ jobs:
           node-version: '26'
           cache: npm
       - name: Install test and package tools
-        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv
+        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv
       - run: npm ci
       - run: umask 022; npm test
       - name: Chromium integration
@@ -47,6 +47,12 @@ jobs:
           scripts/build-repository.sh release "$RUNNER_TEMP/test-repository"
       - name: Validate native metadata
         run: |
+          for tool in lintian desktop-file-validate appstreamcli dpkg-deb rpm; do
+            if ! command -v "$tool" >/dev/null; then
+              printf '::error::Missing metadata validation tool: %s\n' "$tool"
+              exit 127
+            fi
+          done
           lint_status=0
           lintian --fail-on error release/*.deb > "$RUNNER_TEMP/lintian.log" 2>&1 || lint_status=$?
           cat "$RUNNER_TEMP/lintian.log"
@@ -117,13 +123,14 @@ jobs:
       - name: Build and exercise Flatpak sandbox
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder dbus-x11
+          sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb
           node scripts/prepare-channels.js --local
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
           flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
           dbus-run-session -- flatpak install --user --noninteractive --reinstall Airdrop.flatpak
           dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-x64
@@ -152,7 +159,11 @@ jobs:
           # This is our locally built, unsigned test artifact; store content snaps
           # retain their normal assertion/signature verification.
           sudo snap install --dangerous snap-build/*.snap
+          sudo snap connect airdrop-linux:browser-sandbox
           node scripts/smoke-sandbox.js snap
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11
+          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs snap
       - uses: actions/upload-artifact@v4
         with:
           name: snap-x64
