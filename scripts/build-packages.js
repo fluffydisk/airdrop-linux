@@ -50,6 +50,9 @@ async function stage(target, {source='apt', arch=process.arch, desktop=path.join
   await normalizePayload(target,arch);
 }
 async function normalizePayload(directory, arch) {
+  // Electron packager creates private directories. Snapcraft stages as root,
+  // while the installed app runs as the user, so payloads must be traversable.
+  await fs.chmod(directory,0o755);
   for(const entry of await fs.readdir(directory,{withFileTypes:true})) {
     const file=path.join(directory,entry.name);
     if(entry.isSymbolicLink()) { await fs.rm(file); continue; } // dependency CLI links are unused
@@ -70,6 +73,7 @@ async function normalizePayload(directory, arch) {
       if(data.startsWith('#!') && /^#![^\n]*\bnode\b/.test(data))await fs.writeFile(file,data.replace(/^#![^\n]*\n/,''));
       if(/\.(js|cjs|mjs|mts)$/.test(entry.name) || /^#![^\n]*\bnode\b/.test(data))await fs.chmod(file,0o644);
     }
+    await fs.chmod(file,((await fs.stat(file)).mode&0o111)?0o755:0o644);
   }
 }
 async function layout(target,source,arch=process.arch) {
@@ -137,4 +141,4 @@ async function main() {
   }finally{await fs.rm(temp,{recursive:true,force:true});}
 }
 if(require.main===module)main().catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={stage,layout,version};
+module.exports={stage,layout,version,normalizePayload};

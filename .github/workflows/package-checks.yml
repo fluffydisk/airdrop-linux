@@ -214,6 +214,7 @@ jobs:
           systemctl --user daemon-reload
           bash scripts/ci-command.sh Snap-cli snap run airdrop-linux.cli --help
           sudo snap connect airdrop-linux:browser-sandbox
+          bash scripts/ci-command.sh Snap-desktop-permissions test -x /snap/airdrop-linux/current/lib/airdrop-linux/desktop/Airdrop
           bash scripts/ci-command.sh Snap-backend node scripts/smoke-sandbox.js snap
           sudo apt-get update
           sudo apt-get install -y xvfb dbus-x11
