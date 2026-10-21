@@ -208,11 +208,18 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   if (distribution.source === 'flatpak') process.stdout.write('AIRDROP_START_BACKEND\n');
   app.on('second-instance', () => { window?.show(); window?.focus(); });
-  app.on('before-quit', () => {
+  app.on('before-quit', event => {
     backgroundRequest.abort();
-    if (distribution.source === 'snap') {
-      try { require('node:child_process').execFileSync('snapctl',['stop','--user','airdrop-linux.backend']); }
-      catch (error) { console.error('Could not stop sharing:',error.message); }
+    if (distribution.source === 'snap' && !quitting) {
+      event.preventDefault(); quitting = true;
+      require('./core/lib/backend-control').request(paths.root,'stop')
+        .then(() => app.quit())
+        .catch(error => {
+          quitting = false;
+          console.error('Could not stop sharing:',error.message);
+          dialog.showErrorBox('Sharing could not be stopped', 'Try again or stop the Airdrop user service from the host.');
+        });
+      return;
     }
     quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
@@ -238,19 +245,22 @@ else {
       } catch (error) { console.warn('Tray unavailable:', error.message); }
     }
     window.on('closed', () => { window = null; });
-    window.on('close', event => { if (!quitting && (distribution.source === 'flatpak' ? backgroundGranted : (tray || backgroundGranted))) { event.preventDefault(); window.hide(); } });
+    window.on('close', event => { if (!quitting && (['flatpak','snap'].includes(distribution.source) ? backgroundGranted : tray)) { event.preventDefault(); window.hide(); } });
     if (distribution.source === 'flatpak') {
       require('./background').requestBackground({signal:backgroundRequest.signal}).then(granted => {
         backgroundGranted = granted;
         if (!granted && window && !quitting) dialog.showMessageBox(window, {type:'info', message:'Background sharing is not enabled', detail:'Sharing stops when you close Airdrop. You can reopen it to resume.'});
       });
     }
-    if (distribution.source === 'snap') backgroundGranted = true;
+    if (distribution.source === 'snap') {
+      backgroundGranted = process.env.AIRDROP_SNAP_BACKGROUND === '1';
+      if (!backgroundGranted) dialog.showMessageBox(window, {type:'info', message:'Background sharing is not enabled', detail:'Sharing stops when you close Airdrop. See the package guide to enable its user service.'});
+    }
     await health(); timer = setInterval(health, 5000);
     const journal = await updater.readJournal(paths.root);
     if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
     else if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) checkUpdate();
     if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(checkUpdate, 6 * 60 * 60 * 1000);
   }).catch(error => { console.error(error); app.quit(); });
-  app.on('window-all-closed', () => { if (distribution.source === 'flatpak' ? !backgroundGranted : (!tray && !backgroundGranted)) app.quit(); });
+  app.on('window-all-closed', () => { if (['flatpak','snap'].includes(distribution.source) ? !backgroundGranted : !tray) app.quit(); });
 }

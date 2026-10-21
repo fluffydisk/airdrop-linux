@@ -11,6 +11,7 @@ const { distribution } = require('../lib/installation');
 const { getPaths } = require('../lib/paths');
 const { initialize, record, available, read, runtimeConfig, saveRuntimeConfig } = require('../lib/manage');
 const dist = distribution();
+const version = require('../package.json').version;
 if (!['flatpak','snap'].includes(dist.source) && !process.env.AIRDROP_HOME) {
   try { const config=JSON.parse(fs.readFileSync(runtimeConfig(),'utf8')); if(config.source!==dist.source)throw new Error('Runtime installation source mismatch'); process.env.AIRDROP_HOME=config.root; }
   catch(error){if(error.code!=='ENOENT')throw error;}
@@ -19,6 +20,7 @@ if (dist.source === 'snap') process.env.AIRDROP_HOME = path.join(process.env.SNA
 const paths = getPaths();
 const action = process.argv[2] || 'desktop';
 const children = [];
+let controlServer;
 function child(command, args, options = {}) {
   const proc = spawn(command, args, { stdio:'inherit', ...options }); children.push(proc);
   proc.on('error', error => { console.error(error.message); shutdown(1); });
@@ -27,6 +29,7 @@ function child(command, args, options = {}) {
 let stopping = false;
 function shutdown(code = 0) {
   if (stopping) return; stopping = true;
+  controlServer?.close();
   for (const proc of children) proc.kill('SIGTERM');
   const timeout = setTimeout(() => { for (const proc of children) proc.kill('SIGKILL'); process.exit(code); }, 5000);
   Promise.all(children.map(proc => proc.exitCode !== null ? Promise.resolve() : new Promise(resolve => proc.once('exit',resolve)))).then(()=>{ clearTimeout(timeout); process.exit(code); });
@@ -47,7 +50,10 @@ async function backend() {
   for (let i=0;i<50;i++) {
     try {
       const h=await fetch('http://127.0.0.1:6001/push/health');
-      if (h.ok && (await fetch('http://127.0.0.1:5000/')).ok) return;
+      if (h.ok && (await fetch('http://127.0.0.1:5000/')).ok) {
+        if (dist.source === 'snap') controlServer = await require('../lib/backend-control').listen(paths.root, version, () => shutdown());
+        return;
+      }
     } catch {}
     await new Promise(r=>setTimeout(r,100));
   }
@@ -62,8 +68,16 @@ async function main() {
   if (action !== 'desktop') throw new Error('Unknown runtime action');
   if (dist.source === 'flatpak') await prepare();
   else if (dist.source === 'snap') {
-    execFileSync('snapctl',['start','--user','airdrop-linux.backend'],{stdio:'inherit'});
     await prepare();
+    try {
+      const status = await require('../lib/backend-control').request(paths.root);
+      if (status.version !== version) throw new Error('A different Airdrop version owns the user service. Restart that service from the host.');
+      process.env.AIRDROP_SNAP_BACKGROUND = '1';
+    } catch (error) {
+      if (!['ENOENT','ECONNREFUSED'].includes(error.code)) throw error;
+      await backend();
+      process.env.AIRDROP_SNAP_BACKGROUND = '0';
+    }
   } else {
     await prepare();
     let active=false;

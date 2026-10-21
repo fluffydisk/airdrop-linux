@@ -30,6 +30,7 @@ apps:
     daemon: simple
     daemon-scope: user
     install-mode: disable
+    restart-condition: on-failure
     plugs: [network, network-bind]
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib/@TRIPLET@:$SNAP_LIBRARY_PATH

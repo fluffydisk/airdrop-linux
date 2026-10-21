@@ -19,9 +19,22 @@ const {_electron:electron}=require('playwright-core');
   const page=await app.firstWindow();
   await page.waitForFunction(()=>document.getElementById('health').dataset.status==='ready',{},{timeout:30000});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
+  if(channel==='snap') {
+   const background=process.argv[3]==='background';
+   assert.equal(await app.evaluate(()=>process.env.AIRDROP_SNAP_BACKGROUND),background?'1':'0');
+   if(background) {
+    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
+    assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false);
+    assert.equal((await fetch('http://127.0.0.1:6001/push/health')).status,200);
+   }
+  }
   const update=await page.evaluate(()=>window.airdrop.update('check'));
   assert.equal(update.distribution,channel);assert.equal(update.status,'managed');
-  await app.close();app=null;
+  if(channel==='snap' && process.argv[3]!=='background') {
+   const closed=app.waitForEvent('close',{timeout:15000});
+   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close()).catch(error=>{if(!/closed/i.test(error.message))throw error;});
+   await closed;app=null;
+  } else {await app.close();app=null;}
   for(let i=0;i<50;i++){
    const running=await fetch('http://127.0.0.1:6001/push/health').then(()=>true,()=>false);
    if(!running){console.log(channel+': sandboxed desktop ready, managed updates and quit lifecycle passed');return;}

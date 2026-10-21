@@ -16,7 +16,7 @@ const base='http://127.0.0.1:6001';
    proc=spawn('flatpak',['run','--command=/app/lib/airdrop-linux/runtime/node',id,'/app/lib/airdrop-linux/server/scripts/managed-runtime.js','backend'],{stdio:['ignore','pipe','pipe']});
    proc.stdout.on('data',chunk=>{log+=chunk;});proc.stderr.on('data',chunk=>{log+=chunk;});
    proc.on('error',error=>{log+=error.message;});started=true;
-  }else{await run('snap',['run','--shell','airdrop-linux.cli','-c','snapctl start --user airdrop-linux.backend']);started=true;}
+  }else{await run('sudo',['snap','start','--users=all','airdrop-linux.backend']);started=true;}
   let ready=false;
   for(let i=0;i<100;i++){
    if(proc && (proc.exitCode!==null || proc.signalCode))throw new Error('Sandbox backend exited: '+log);
@@ -34,7 +34,7 @@ const base='http://127.0.0.1:6001';
   console.log(channel+': real sandbox UI/API upload, dufs download and ZIP contents passed');
  }finally{
   if(started){
-   if(channel==='snap')await run('snap',['run','--shell','airdrop-linux.cli','-c','snapctl stop --user airdrop-linux.backend']);
+   if(channel==='snap')await run('sudo',['snap','stop','--users=all','airdrop-linux.backend']);
    else await run('flatpak',['kill',id]).catch(error=>{if(proc?.exitCode===null&&!proc?.signalCode)throw error;});
   }
  }
