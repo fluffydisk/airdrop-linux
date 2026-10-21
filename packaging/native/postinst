@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+# Never start per-user services, create keys or configure Tailscale as root.
+if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+  apparmor_parser --replace /etc/apparmor.d/airdrop-linux
+fi
+
+if command -v loginctl >/dev/null; then
+  loginctl list-users --no-legend 2>/dev/null | while read -r uid user rest; do
+    systemctl --user --machine="$user@.host" daemon-reload || true
+    systemctl --user --machine="$user@.host" try-restart airdrop-linux-backend.service || true
+  done
+fi

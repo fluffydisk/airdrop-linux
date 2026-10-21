@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+# Stop only our named user service in logged-in users' managers. Do not touch user data.
+if test "${1:-}" = remove && command -v loginctl >/dev/null; then
+  loginctl list-users --no-legend 2>/dev/null | while read -r uid user rest; do
+    systemctl --user --machine="$user@.host" disable --now airdrop-linux.target || true
+  done
+fi
+if test "${1:-}" = remove && command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+  apparmor_parser --remove /etc/apparmor.d/airdrop-linux
+fi

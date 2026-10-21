@@ -12,11 +12,14 @@ const { sendFiles } = require('./core/lib/transfer');
 const { getPaths } = require('./core/lib/paths');
 const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
 const paths = getPaths();
+const distribution = require('./core/lib/installation').distribution();
+const backgroundRequest = new AbortController();
 const updater = require('./core/lib/updater');
 let updateTimer, updateBusy = false;
-let updateState = { distribution: process.env.APPIMAGE ? 'appimage' : 'installed', status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
-function publishUpdate(value) { value = { ...value, distribution: process.env.APPIMAGE ? 'appimage' : 'installed' }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
+let updateState = { distribution: distribution.source, status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
+function publishUpdate(value) { value = { ...value, distribution: distribution.source }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
 async function checkUpdate() {
+  if (distribution.managed) return publishUpdate({ status: 'managed', current: app.getVersion(), message: distribution.message });
   if (updateBusy) return updateState;
   updateBusy = true; publishUpdate({ ...updateState, status: 'checking', message: 'Checking for updates…' });
   try { return publishUpdate(await updater.check(app.getVersion())); }
@@ -27,7 +30,7 @@ const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
-let window, tray, timer, quitting = false, sending = false;
+let window, tray, timer, quitting = false, sending = false, backgroundGranted = false;
 let state = { status: 'offline', label: 'Checking services…' };
 const allowedPaths = new Set();
 
@@ -47,7 +50,7 @@ async function health() {
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: state.label, enabled: false }, { label: 'Open Airdrop', click: () => window.show() },
       { label: 'Shared files', click: () => { window.show(); window.webContents.send('airdrop:show-files'); } },
-      { type: 'separator' }, { label: 'Quit', click: () => app.quit() }
+      { type: 'separator' }, { label: distribution.source === 'flatpak' || distribution.source === 'snap' ? 'Stop sharing and quit' : 'Quit', click: () => app.quit() }
     ]));
   }
   return state;
@@ -72,10 +75,12 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.handle('airdrop:quit', event => { ownWindow(event); app.quit(); });
   ipcMain.handle('airdrop:update', async (event, action) => {
     ownWindow(event);
     if (action === 'state') return updateState;
     if (action === 'check') return checkUpdate();
+    if (distribution.managed) throw new Error(distribution.message);
     if (action !== 'install') throw new Error('Unknown update action');
     if (updateBusy || updateState.status !== 'available') throw new Error('Check for updates first');
     if (process.env.APPIMAGE) {
@@ -161,6 +166,9 @@ function registerIpc() {
           const save = await dialog.showSaveDialog(window, { defaultPath: result.name });
           if (save.canceled) return;
           if (streamError) throw streamError;
+          if (['flatpak','snap'].includes(distribution.source)) {
+            await pipeline(result.stream, fs.createWriteStream(save.filePath, {mode:0o600})); return;
+          }
           const temp = await fs.promises.mkdtemp(path.join(path.dirname(save.filePath), '.airdrop-download-'));
           try { const output = path.join(temp, 'download'); await pipeline(result.stream, fs.createWriteStream(output, { flags: 'wx', mode: 0o600 })); await fs.promises.rename(output, save.filePath); }
           finally { await fs.promises.rm(temp, { recursive: true, force: true }); }
@@ -198,8 +206,15 @@ function registerIpc() {
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
+  if (distribution.source === 'flatpak') process.stdout.write('AIRDROP_START_BACKEND\n');
   app.on('second-instance', () => { window?.show(); window?.focus(); });
-  app.on('before-quit', () => { quitting = true; clearInterval(timer); clearInterval(updateTimer); });
+  app.on('before-quit', () => {
+    backgroundRequest.abort();
+    if (distribution.source === 'snap') {
+      try { require('node:child_process').execFileSync('snapctl',['stop','--user','airdrop-linux.backend']); }
+      catch (error) { console.error('Could not stop sharing:',error.message); }
+    }
+    quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null);
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
@@ -223,12 +238,19 @@ else {
       } catch (error) { console.warn('Tray unavailable:', error.message); }
     }
     window.on('closed', () => { window = null; });
-    window.on('close', event => { if (!quitting && tray) { event.preventDefault(); window.hide(); } });
+    window.on('close', event => { if (!quitting && (distribution.source === 'flatpak' ? backgroundGranted : (tray || backgroundGranted))) { event.preventDefault(); window.hide(); } });
+    if (distribution.source === 'flatpak') {
+      require('./background').requestBackground({signal:backgroundRequest.signal}).then(granted => {
+        backgroundGranted = granted;
+        if (!granted && window && !quitting) dialog.showMessageBox(window, {type:'info', message:'Background sharing is not enabled', detail:'Sharing stops when you close Airdrop. You can reopen it to resume.'});
+      });
+    }
+    if (distribution.source === 'snap') backgroundGranted = true;
     await health(); timer = setInterval(health, 5000);
     const journal = await updater.readJournal(paths.root);
     if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
     else if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) checkUpdate();
     if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(checkUpdate, 6 * 60 * 60 * 1000);
   }).catch(error => { console.error(error); app.quit(); });
-  app.on('window-all-closed', () => { if (!tray) app.quit(); });
+  app.on('window-all-closed', () => { if (distribution.source === 'flatpak' ? !backgroundGranted : (!tray && !backgroundGranted)) app.quit(); });
 }

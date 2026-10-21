@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.fluffydisk.Airdrop</id>
+  <name>Airdrop Linux</name>
+  <summary>Share files and clipboard across your devices</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.fluffydisk"><name>Airdrop Linux contributors</name></developer>
+  <description><p>Share files, ZIP archives and clipboard text between your Linux computer and mobile devices. Includes a local file server, a desktop file manager and a web app.</p><p>Sharing across devices requires Tailscale installed and configured separately on the host. Closing the window can keep sharing active with background permission. Stop sharing and quit ends the bundled server.</p></description>
+  <launchable type="desktop-id">io.github.fluffydisk.Airdrop.desktop</launchable>
+  <url type="homepage">https://github.com/fluffydisk/airdrop-linux</url>
+  <url type="bugtracker">https://github.com/fluffydisk/airdrop-linux/issues</url>
+  <screenshots><screenshot type="default"><caption>File transfer and clipboard sharing</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/main/assets/airdrop-desktop.png</image></screenshot></screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="1.5.0" date="2026-10-21"/></releases>
+</component>

@@ -19,6 +19,19 @@ GitHub releases provide a stand-alone `install-prebuilt.sh` and native x64/arm64
 
 See the [distribution guide](docs/distribution.md) for download commands, prerequisites, release preparation, portable updates and the AUR / Debian / RPM / Flathub roadmap. These downloads become available once the v1.4.0 draft is published.
 
+## Package-manager builds and removal
+
+APT, AUR, RPM, Flatpak and Snap packaging is being prepared for 1.5.0. See the
+[package-manager guide](docs/package-managers.md) for current publication status,
+repository setup, sandbox behavior and maintainer instructions. These instructions
+do not imply that a store entry or package repository is already live.
+
+For an installation made by the updated installer, quit the desktop and run
+`airdrop uninstall` to remove the app; it asks whether to retain shared files and
+settings (the default). `airdrop uninstall --yes` keeps data without prompting;
+`--delete-data` explicitly removes it. Older installations must rerun the updated
+installer once to record ownership before automatic removal is available.
+
 ## Quick start
 
 ```bash

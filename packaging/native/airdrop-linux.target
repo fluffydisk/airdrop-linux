@@ -1,0 +1,7 @@
+[Unit]
+Description=Airdrop Linux file sharing
+Wants=airdrop-linux-backend.service
+After=airdrop-linux-backend.service
+
+[Install]
+WantedBy=default.target

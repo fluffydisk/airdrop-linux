@@ -1,0 +1,13 @@
+# Third-party repository bundles the upstream Electron distribution and checksum-
+# pinned Node/dufs runtimes. These upstream binaries embed their dependencies;
+# replacing them with distro libraries requires rebuilding the upstream runtime.
+# This is not a claim of compliance with Debian's official archive policy.
+airdrop-linux: embedded-library freetype [usr/lib/airdrop-linux/desktop/Airdrop]
+airdrop-linux: embedded-library lcms2 [usr/lib/airdrop-linux/desktop/Airdrop]
+airdrop-linux: embedded-library libjpeg [usr/lib/airdrop-linux/desktop/Airdrop]
+airdrop-linux: embedded-library openjpeg [usr/lib/airdrop-linux/desktop/Airdrop]
+airdrop-linux: embedded-library srtp [usr/lib/airdrop-linux/desktop/Airdrop]
+airdrop-linux: embedded-library tiff [usr/lib/airdrop-linux/desktop/Airdrop]
+airdrop-linux: embedded-library libyaml [usr/lib/airdrop-linux/runtime/dufs]
+airdrop-linux: embedded-library mbedtls [usr/lib/airdrop-linux/runtime/node]
+airdrop-linux: embedded-library zlib [usr/lib/airdrop-linux/runtime/node]

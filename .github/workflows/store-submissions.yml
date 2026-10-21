@@ -1,0 +1,151 @@
+name: Prepare and submit store packages
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable version tag
+        required: true
+      channel:
+        description: Submission channel
+        type: choice
+        options: [prepare, aur, flathub, snap]
+        default: prepare
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Download and verify immutable channel payloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
+          test "$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '[.isDraft,.isPrerelease] | any')" = false
+          mkdir release
+          gh release download "$RELEASE_TAG" --pattern 'airdrop-native-*.tar.gz' --pattern 'airdrop-flatpak-*.tar.gz' --pattern 'airdrop-snap-*.tar.gz' --pattern SHA256SUMS --dir release
+          node scripts/verify-release-assets.js release
+          node scripts/prepare-channels.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-submissions
+          path: release/submissions
+          include-hidden-files: true
+  aur-check:
+    needs: prepare
+    if: inputs.channel == 'aur'
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-submissions
+          path: submissions
+      - name: Check canonical AUR metadata and source checksums
+        run: |
+          useradd -m builder
+          chown -R builder:builder submissions
+          runuser -u builder -- bash -c 'cd "$1"; makepkg --printsrcinfo > canonical; diff -u <(sort .SRCINFO) <(sort canonical); makepkg --verifysource' bash "$PWD/submissions/aur"
+  aur:
+    needs: [prepare, aur-check]
+    if: inputs.channel == 'aur'
+    runs-on: ubuntu-24.04
+    environment: aur-publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-submissions
+          path: submissions
+      - name: Publish verified AUR recipe
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test -n "$AUR_SSH_KEY" && test -n "$AUR_KNOWN_HOSTS"
+          mkdir -m 700 -p ~/.ssh
+          (umask 077; printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur_key; printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts)
+          export GIT_SSH_COMMAND='ssh -i /home/runner/.ssh/aur_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes'
+          git clone ssh://aur@aur.archlinux.org/airdrop-linux-bin.git aur
+          cp submissions/aur/PKGBUILD submissions/aur/.SRCINFO aur/
+          git -C aur add PKGBUILD .SRCINFO
+          git -C aur -c user.name='Airdrop Linux packaging' -c user.email='airdrop-linux@users.noreply.github.com' commit -m "Update to $RELEASE_TAG"
+          git -C aur push origin HEAD
+      - if: always()
+        run: rm -f ~/.ssh/aur_key
+  flathub:
+    needs: prepare
+    if: inputs.channel == 'flathub'
+    runs-on: ubuntu-24.04
+    environment: flathub-publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-submissions
+          path: submissions
+      - name: Install Flatpak build tools
+        run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
+      - name: Build sandbox bundle before submission
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --user --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir submissions/flatpak/io.github.fluffydisk.Airdrop.json
+          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-bundle
+          path: Airdrop.flatpak
+      - name: Open initial Flathub submission
+        env:
+          GH_TOKEN: ${{ secrets.FLATHUB_TOKEN }}
+          FLATHUB_FORK: ${{ vars.FLATHUB_FORK }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" && test -n "$FLATHUB_FORK"
+          gh auth setup-git
+          git clone --branch new-pr "https://github.com/$FLATHUB_FORK.git" flathub
+          git -C flathub checkout -b "airdrop-$RELEASE_TAG"
+          cp submissions/flatpak/io.github.fluffydisk.Airdrop.json flathub/
+          git -C flathub add io.github.fluffydisk.Airdrop.json
+          git -C flathub -c user.name='Airdrop Linux packaging' -c user.email='airdrop-linux@users.noreply.github.com' commit -m "Add Airdrop Linux $RELEASE_TAG"
+          git -C flathub push origin HEAD
+          printf '%s\n' 'Desktop, local gateway and dufs are bundled. Tailscale remains on the host. Please review sandbox permissions and the prebuilt, checksum-pinned payload approach before acceptance.' > /tmp/flathub-body.md
+          gh pr create --repo flathub/flathub --base new-pr --head "${FLATHUB_FORK%%/*}:airdrop-$RELEASE_TAG" --title 'Add Airdrop Linux' --body-file /tmp/flathub-body.md
+  snap:
+    needs: prepare
+    if: inputs.channel == 'snap'
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    environment: snap-publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-submissions
+          path: submissions
+      - uses: snapcore/action-setup@v1
+      - name: Build and upload to candidate
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          test -n "$SNAPCRAFT_STORE_CREDENTIALS"
+          mkdir -p snap
+          cp "submissions/snap/snapcraft-$PACKAGE_ARCH.yaml" snap/snapcraft.yaml
+          snapcraft --destructive-mode
+          snapcraft upload ./*.snap --release candidate

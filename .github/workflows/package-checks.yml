@@ -1,0 +1,92 @@
+name: Package validation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+      - name: Install test and package tools
+        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv
+      - run: npm ci
+      - run: umask 022; npm test
+      - name: Chromium integration
+        run: |
+          npx playwright-core install --with-deps chromium
+          CHROMIUM_PATH="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')" npm run test:browser
+      - run: npm ci --prefix desktop
+      - run: npm run prepare-desktop && npm run package --prefix desktop
+      - name: Build all channel payloads
+        run: |
+          for channel in apt rpm aur flatpak snap; do node scripts/build-packages.js "$channel"; done
+      - name: Verify repository signing with a disposable test key
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/test-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop CI test <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
+          scripts/build-repository.sh release "$RUNNER_TEMP/test-repository"
+      - name: Validate native metadata
+        run: |
+          lintian --fail-on error release/*.deb
+          desktop-file-validate packaging/io.github.fluffydisk.Airdrop.desktop
+          appstreamcli validate --no-net packaging/io.github.fluffydisk.Airdrop.metainfo.xml
+          dpkg-deb --info release/*.deb
+          rpm -qip release/*.rpm
+      - name: Install and exercise DEB
+        run: |
+          sudo apt-get install -y ./release/*.deb
+          AIRDROP_CODE_DIR=/usr/lib/airdrop-linux AIRDROP_INSTALL_MANIFEST=/usr/lib/airdrop-linux/distribution.json node scripts/smoke-managed.js
+          ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop xvfb-run -a dbus-run-session -- npm run test:desktop
+          sudo apt-get remove -y airdrop-linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.arch }}
+          path: release/*
+  distro-install:
+    needs: native
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:13
+            format: apt
+          - image: ubuntu:24.04
+            format: apt
+          - image: ubuntu:26.04
+            format: apt
+          - image: fedora:44
+            format: dnf
+          - image: opensuse/tumbleweed:latest
+            format: zypper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages-x64
+          path: release
+      - name: Clean installation, backend smoke and removal
+        env:
+          TEST_IMAGE: ${{ matrix.image }}
+          PACKAGE_FORMAT: ${{ matrix.format }}
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work -e PACKAGE_FORMAT "$TEST_IMAGE" bash scripts/test-native-package.sh

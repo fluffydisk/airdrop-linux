@@ -19,6 +19,7 @@ if [[ -z "$prebuilt_source" ]]; then
   node -e 'const [major,minor]=process.versions.node.split(".").map(Number); if (major < 22 || (major === 22 && minor < 12)) { console.error("GUI build requires Node.js 22.12 or later"); process.exit(1); }'
 fi
 airdrop_root="$(node -e 'console.log(require(process.argv[1]).getPaths().root)' "$repo_dir/lib/paths.js")"
+node -e 'require(process.argv[1]).assertWritableInstallation(process.argv[2])' "$repo_dir/lib/installation.js" "$airdrop_root"
 [[ -f "$airdrop_root/config/server.env" && -d "$airdrop_root/app/ui" ]] || { printf 'Run ./install.sh first to install or migrate the unified layout.\n' >&2; exit 1; }
 node -e 'const {getPaths}=require(process.argv[1]);const {checkDesktopClosed}=require(process.argv[2]);Promise.all([checkDesktopClosed(getPaths().desktopData),checkDesktopClosed(getPaths().legacyDesktopData)]).catch(e=>{console.error(e.message);process.exitCode=1})' "$repo_dir/lib/paths.js" "$repo_dir/scripts/migrate-layout.js"
 if [[ -n "$prebuilt_source" ]]; then
@@ -72,3 +73,7 @@ Categories=Network;Utility;
 Icon=$target_dir/resources/app/core/ui/icon-192.png
 DESKTOP
 printf 'Installed. Launch Airdrop from your application menu or run airdrop-desktop.\n'
+
+owned_files=("$HOME/.local/bin/airdrop-desktop" "$HOME/.local/share/applications/airdrop.desktop")
+if [[ -n "${profile_tmp:-}" ]]; then owned_files+=("/etc/apparmor.d/airdrop-desktop-$(id -u)"); fi
+AIRDROP_HOME="$airdrop_root" node "$repo_dir/scripts/register-install.js" "${owned_files[@]}"

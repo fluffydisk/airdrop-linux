@@ -1,0 +1,78 @@
+name: Publish signed package repositories
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: package-repositories
+  cancel-in-progress: false
+jobs:
+  repository:
+    if: github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && !github.event.release.draft)
+    runs-on: ubuntu-24.04
+    environment: package-publishing
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Install repository tools
+        run: sudo apt-get update && sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv
+      - name: Download checksum-verified stable package history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming downloads
+          gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '.[].tagName' > /tmp/stable-tags
+          test -s /tmp/stable-tags
+          while IFS= read -r tag; do
+            [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+            dir="downloads/$tag"
+            mkdir -p "$dir"
+            # Old releases without native packages predate this distribution channel.
+            gh release view "$tag" --json assets --jq '.assets[].name' > /tmp/asset-names
+            if ! rg -q '\.deb$' /tmp/asset-names; then continue; fi
+            gh release download "$tag" --pattern '*.deb' --pattern '*.rpm' --pattern SHA256SUMS --dir "$dir"
+            node scripts/verify-release-assets.js "$dir"
+            cp "$dir"/*.deb "$dir"/*.rpm incoming/
+          done < /tmp/stable-tags
+      - name: Import protected signing key
+        env:
+          REPOSITORY_SIGNING_KEY: ${{ secrets.REPOSITORY_SIGNING_KEY }}
+          REPOSITORY_SIGNING_PASSPHRASE: ${{ secrets.REPOSITORY_SIGNING_PASSPHRASE }}
+          SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$REPOSITORY_SIGNING_KEY"
+          test -n "$SIGNING_KEY_FINGERPRINT"
+          export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          printf '%s' "$REPOSITORY_SIGNING_KEY" | gpg --batch --import
+          # Unlock once using a private temporary file; subsequent gpg/rpmsign use the agent.
+          passfile="$GNUPGHOME/passphrase"
+          (umask 077; printf '%s' "$REPOSITORY_SIGNING_PASSPHRASE" > "$passfile")
+          printf 'allow-preset-passphrase\n' > "$GNUPGHOME/gpg-agent.conf"
+          gpgconf --kill gpg-agent
+          printf 'probe' | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$passfile" --local-user "$SIGNING_KEY_FINGERPRINT" --sign > "$GNUPGHOME/probe.gpg"
+          rm "$passfile"
+          scripts/build-repository.sh incoming public
+          printf 'GNUPGHOME=%s\n' "$GNUPGHOME" >> "$GITHUB_ENV"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - uses: actions/deploy-pages@v4
+      - name: Remove signing material
+        if: always()
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
+          gpgconf --kill gpg-agent || true
+          rm -rf "$GNUPGHOME"

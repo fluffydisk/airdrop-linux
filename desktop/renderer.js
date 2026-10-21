@@ -119,6 +119,7 @@ const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer
 window.airdrop.onShowFiles(() => navigate('files'));
 let dismissedVersion = '';
 function updateState(state) {
+  document.getElementById('stopSharing').textContent = ['flatpak','snap'].includes(state.distribution) ? 'Stop sharing and quit' : 'Quit desktop';
   document.getElementById('updateState').textContent = state.message || `Current version: ${state.current}`;
   document.getElementById('checkUpdate').disabled = ['checking', 'downloading', 'installing'].includes(state.status);
   document.getElementById('installUpdate').hidden = state.status !== 'available';
@@ -211,3 +212,5 @@ for (const [id, action, success] of [
     finally { clipboardBusy = false; updateClipboardControls(); }
   };
 }
+
+document.getElementById('stopSharing').onclick = () => window.airdrop.quit().catch(report);

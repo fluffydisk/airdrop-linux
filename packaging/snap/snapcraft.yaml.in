@@ -1,0 +1,62 @@
+name: airdrop-linux
+version: '@VERSION@'
+summary: Private file and clipboard sharing across your devices
+description: |
+  Desktop file manager, local Node gateway and file server for file and
+  clipboard sharing. Tailscale is installed and configured separately on
+  the host. Stop sharing and quit stops the user background service.
+base: core24
+grade: stable
+confinement: strict
+license: MIT
+platforms:
+  @ARCH@:
+    build-on: [@ARCH@]
+    build-for: [@ARCH@]
+apps:
+  airdrop-linux:
+    command: bin/airdrop-desktop
+    extensions: [gnome]
+    desktop: usr/share/applications/io.github.fluffydisk.Airdrop.desktop
+    plugs: [network, network-bind]
+    environment:
+      GTK_USE_PORTAL: '1'
+  backend:
+    command: lib/airdrop-linux/runtime/node lib/airdrop-linux/server/scripts/managed-runtime.js backend
+    daemon: simple
+    daemon-scope: user
+    install-mode: disable
+    plugs: [network, network-bind]
+  cli:
+    command: lib/airdrop-linux/runtime/node lib/airdrop-linux/server/scripts/managed-runtime.js cli
+    plugs: [network]
+parts:
+  airdrop:
+    plugin: dump
+    source: '@URL@'
+    source-checksum: sha512/@SHA512@
+    organize:
+      server: lib/airdrop-linux/server
+      desktop: lib/airdrop-linux/desktop
+      runtime: lib/airdrop-linux/runtime
+      ui: lib/airdrop-linux/ui
+      distribution.json: lib/airdrop-linux/distribution.json
+      LICENSE: lib/airdrop-linux/LICENSE
+    override-build: |
+      craftctl default
+      mkdir -p "$CRAFT_PART_INSTALL/bin" "$CRAFT_PART_INSTALL/usr/share/applications" "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/192x192/apps"
+      cat > "$CRAFT_PART_INSTALL/bin/airdrop-desktop" <<'SH'
+      #!/bin/sh
+      export GTK_USE_PORTAL=1
+      exec "$SNAP/lib/airdrop-linux/runtime/node" "$SNAP/lib/airdrop-linux/server/scripts/managed-runtime.js" desktop "$@"
+      SH
+      chmod 755 "$CRAFT_PART_INSTALL/bin/airdrop-desktop"
+      cat > "$CRAFT_PART_INSTALL/usr/share/applications/io.github.fluffydisk.Airdrop.desktop" <<'DESKTOP'
+      [Desktop Entry]
+      Type=Application
+      Name=Airdrop Linux
+      Exec=airdrop-linux
+      Icon=${SNAP}/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png
+      Categories=Network;FileTransfer;
+      DESKTOP
+      cp "$CRAFT_PART_INSTALL/ui/icon-192.png" "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png"
