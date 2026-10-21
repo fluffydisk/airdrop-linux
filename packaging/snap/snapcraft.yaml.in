@@ -26,7 +26,7 @@ apps:
     environment:
       GTK_USE_PORTAL: '1'
   backend:
-    command: lib/airdrop-linux/runtime/node lib/airdrop-linux/server/scripts/managed-runtime.js backend
+    command: bin/airdrop-backend
     daemon: simple
     daemon-scope: user
     install-mode: disable
@@ -35,7 +35,7 @@ apps:
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib/@TRIPLET@:$SNAP_LIBRARY_PATH
   cli:
-    command: lib/airdrop-linux/runtime/node lib/airdrop-linux/server/scripts/managed-runtime.js cli
+    command: bin/airdrop-cli
     plugs: [network]
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib/@TRIPLET@:$SNAP_LIBRARY_PATH
@@ -60,7 +60,15 @@ parts:
       export GTK_USE_PORTAL=1
       exec "$SNAP/lib/airdrop-linux/runtime/node" "$SNAP/lib/airdrop-linux/server/scripts/managed-runtime.js" desktop "$@"
       SH
-      chmod 755 "$CRAFT_PART_INSTALL/bin/airdrop-desktop"
+      cat > "$CRAFT_PART_INSTALL/bin/airdrop-backend" <<'SH'
+      #!/bin/sh
+      exec "$SNAP/lib/airdrop-linux/runtime/node" "$SNAP/lib/airdrop-linux/server/scripts/managed-runtime.js" backend "$@"
+      SH
+      cat > "$CRAFT_PART_INSTALL/bin/airdrop-cli" <<'SH'
+      #!/bin/sh
+      exec "$SNAP/lib/airdrop-linux/runtime/node" "$SNAP/lib/airdrop-linux/server/scripts/managed-runtime.js" cli "$@"
+      SH
+      chmod 755 "$CRAFT_PART_INSTALL/bin/airdrop-desktop" "$CRAFT_PART_INSTALL/bin/airdrop-backend" "$CRAFT_PART_INSTALL/bin/airdrop-cli"
       cat > "$CRAFT_PART_INSTALL/usr/share/applications/io.github.fluffydisk.Airdrop.desktop" <<'DESKTOP'
       [Desktop Entry]
       Type=Application
