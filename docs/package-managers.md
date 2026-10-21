@@ -190,11 +190,13 @@ It never signs or publishes from a pull-request workflow.
   Validate generated `.SRCINFO` with `makepkg --printsrcinfo`, clean installation,
   upgrades and removal before pushing.
 * Flathub: environment `flathub-publishing` needs `FLATHUB_TOKEN` and variable
-  `FLATHUB_FORK` (`owner/flathub`, fork of `flathub/flathub` with `new-pr`). The
-  workflow opens the initial submission PR. Existing accepted applications need
-  their dedicated Flathub repository workflow instead. Build with flatpak-builder
-  first and run Flathub lint. The checksum-pinned prebuilt payload approach needs
-  Flathub review; acceptance may require source-based Electron/npm packaging.
+  `FLATHUB_FORK` (`owner/flathub`, fork of `flathub/flathub`). Choose
+  `flathub-check` to verify environment bindings and actual fork write access
+  without submitting anything. A fork-only fine-grained PAT cannot open upstream
+  PRs. Automatic Flathub PR creation is disabled. A human-authored source-build
+  manifest, ID review and manual submission are required under current Flathub
+  rules; see [the readiness report](flathub-readiness.md). Runtime sandbox tests
+  alone do not establish eligibility for Flathub.
 * Snap: reserve `airdrop-linux`; environment `snap-publishing` needs scoped
   `SNAPCRAFT_STORE_CREDENTIALS`. Uploads go to **candidate**, not stable. Review
   strict confinement, portal interaction, user-service control and architectures

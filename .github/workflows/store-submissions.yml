@@ -8,12 +8,13 @@ on:
       channel:
         description: Submission channel
         type: choice
-        options: [prepare, aur, flathub, snap]
+        options: [prepare, aur, flathub-check, flathub, snap]
         default: prepare
 permissions:
   contents: read
 jobs:
   prepare:
+    if: inputs.channel != 'flathub-check' && inputs.channel != 'flathub'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -82,44 +83,29 @@ jobs:
           git -C aur push origin HEAD
       - if: always()
         run: rm -f ~/.ssh/aur_key
-  flathub:
-    needs: prepare
-    if: inputs.channel == 'flathub'
+  flathub-check:
+    if: inputs.channel == 'flathub-check'
     runs-on: ubuntu-24.04
     environment: flathub-publishing
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          name: store-submissions
-          path: submissions
-      - name: Install Flatpak build tools
-        run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
-      - name: Build sandbox bundle before submission
-        run: |
-          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak-builder --user --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir submissions/flatpak/io.github.fluffydisk.Airdrop.json
-          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
-      - uses: actions/upload-artifact@v4
-        with:
-          name: flatpak-bundle
-          path: Airdrop.flatpak
-      - name: Open initial Flathub submission
+          node-version: '26'
+      - name: Verify environment bindings and fork write access without submitting
         env:
           GH_TOKEN: ${{ secrets.FLATHUB_TOKEN }}
           FLATHUB_FORK: ${{ vars.FLATHUB_FORK }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          set -euo pipefail
-          test -n "$GH_TOKEN" && test -n "$FLATHUB_FORK"
-          gh auth setup-git
-          git clone --branch new-pr "https://github.com/$FLATHUB_FORK.git" flathub
-          git -C flathub checkout -b "airdrop-$RELEASE_TAG"
-          cp submissions/flatpak/io.github.fluffydisk.Airdrop.json flathub/
-          git -C flathub add io.github.fluffydisk.Airdrop.json
-          git -C flathub -c user.name='Airdrop Linux packaging' -c user.email='airdrop-linux@users.noreply.github.com' commit -m "Add Airdrop Linux $RELEASE_TAG"
-          git -C flathub push origin HEAD
-          printf '%s\n' 'Desktop, local gateway and dufs are bundled. Tailscale remains on the host. Please review sandbox permissions and the prebuilt, checksum-pinned payload approach before acceptance.' > /tmp/flathub-body.md
-          gh pr create --repo flathub/flathub --base new-pr --head "${FLATHUB_FORK%%/*}:airdrop-$RELEASE_TAG" --title 'Add Airdrop Linux' --body-file /tmp/flathub-body.md
+          bash scripts/ci-command.sh Flathub-access node scripts/check-flathub-access.js
+  flathub:
+    if: inputs.channel == 'flathub'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Explain manual submission requirements
+        run: |
+          echo '::error::Automatic Flathub submission is disabled. Use flathub-check for access verification. Source builds and a human-authored manifest and manual submission are required; see docs/flathub-readiness.md.'
+          exit 1
   snap:
     needs: prepare
     if: inputs.channel == 'snap'

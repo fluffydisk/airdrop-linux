@@ -163,11 +163,33 @@ jobs:
           sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb
           node scripts/prepare-channels.js --local
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
+          flatpak install --user --noninteractive flathub org.flatpak.Builder
+          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --repo=flatpak-repo release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
           flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
           bash scripts/ci-command.sh Flatpak-install dbus-run-session -- flatpak install --user --noninteractive --reinstall Airdrop.flatpak
           bash scripts/ci-command.sh Flatpak-backend dbus-run-session -- node scripts/smoke-sandbox.js flatpak
           bash scripts/ci-command.sh Flatpak-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+      - name: Collect official Flathub lint diagnostics (acceptance is separate)
+        run: |
+          node scripts/prepare-channels.js
+          mkdir -p flathub-lint
+          manifest_status=0
+          repo_status=0
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest release/submissions/flatpak/io.github.fluffydisk.Airdrop.json > flathub-lint/manifest.json 2>&1 || manifest_status=$?
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo > flathub-lint/repo.json 2>&1 || repo_status=$?
+          flatpak info --user org.flatpak.Builder > flathub-lint/tool.txt
+          printf '{"manifestExitCode":%s,"repoExitCode":%s}\n' "$manifest_status" "$repo_status" > flathub-lint/status.json
+          cat flathub-lint/status.json
+          cat flathub-lint/manifest.json flathub-lint/repo.json
+          node -e 'const fs=require("node:fs");for(const name of ["manifest","repo"]){const report=fs.readFileSync("flathub-lint/"+name+".json","utf8").slice(0,20000).replaceAll("%","%25").replaceAll("\r","%0D").replaceAll("\n","%0A");console.log("::notice title=Flathub lint "+name+"::"+report)}'
+          if (( manifest_status || repo_status )); then
+            echo '::warning::Official Flathub lint found acceptance blockers; see flathub-lint artifacts. Sandbox smoke-test success does not mean Flathub readiness.'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flathub-lint-${{ matrix.target.arch }}
+          path: flathub-lint/
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-${{ matrix.target.arch }}

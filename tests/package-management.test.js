@@ -126,7 +126,14 @@ test('channel recipes pin both architectures to actual payload checksums',async 
  const localOut=await require('../scripts/prepare-channels').generate(directory,{local:true});
  assert.notEqual(localOut,out);
  const localManifest=JSON.parse(await fs.readFile(path.join(localOut,'flatpak/io.github.fluffydisk.Airdrop.json'),'utf8'));
- for(const source of localManifest.modules.at(-1).sources.filter(s=>s.type==='archive'||s.type==='file')){assert.ok(path.isAbsolute(source.path));assert.equal(source.url,undefined);await fs.access(source.path);}
+ const relocated=path.join(directory,'relocated-flatpak');
+ await fs.rename(path.join(localOut,'flatpak'),relocated);
+ for(const source of localManifest.modules.at(-1).sources.filter(s=>s.type==='archive'||s.type==='file')){
+  assert.equal(source.path,path.basename(source.path),'All sources must remain inside the sandboxed manifest directory');
+  assert.equal(source.url,undefined);
+  const content=await fs.readFile(path.join(relocated,source.path));
+  assert.equal(require('node:crypto').createHash('sha256').update(content).digest('hex'),source.sha256,'Relocated sources must keep their pinned checksum');
+ }
  assert.ok(sources.every(source=>source.url.startsWith('https://')));
 });
 test('managed packages can be removed before first setup without touching a data tree',async t=>{
