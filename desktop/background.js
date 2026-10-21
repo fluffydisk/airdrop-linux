@@ -1,28 +1,23 @@
 'use strict';
-const { spawn, execFile } = require('node:child_process');
-// Listen before calling RequestBackground: the response can arrive immediately.
-function requestBackground({ spawnProcess = spawn, call = execFile, timeout = 60000, signal } = {}) {
+const { spawn } = require('node:child_process');
+// The helper owns a persistent D-Bus connection: portal responses are unicast.
+function requestBackground({ spawnProcess = spawn, timeout = 65000, signal } = {}) {
   return new Promise(resolve => {
-    const token = `airdrop${process.pid}`;
-    const monitor = spawnProcess('gdbus',['monitor','--session','--dest','org.freedesktop.portal.Desktop']);
-    let buffer = '', requested = false, done = false;
-    const timer = setTimeout(()=>finish(false),timeout);
-    function finish(granted) { if(done)return; done=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);monitor.kill();resolve(granted); }
-    function abort(){finish(false);}
-    signal?.addEventListener('abort',abort,{once:true});
-    if(signal?.aborted){finish(false);return;}
-    monitor.on('error',()=>finish(false)); monitor.on('exit',()=>finish(false));
-    monitor.stdout.on('data',chunk=>{
-      buffer = (buffer + chunk).slice(-16384);
-      if (!requested && buffer.includes('Monitoring signals')) {
-        requested = true;
-        const options = `{'handle_token': <'${token}'>, 'reason': <'Keep sharing files after closing the window'>, 'autostart': <false>}`;
-        call('gdbus',['call','--session','--dest','org.freedesktop.portal.Desktop','--object-path','/org/freedesktop/portal/desktop','--method','org.freedesktop.portal.Background.RequestBackground','',options], error=>{if(error)finish(false);});
-      }
-      const response=buffer.split('\n').find(line=>line.includes('/'+token+':') && line.includes('Request.Response'));
-      if(response)finish(/\(uint32 0,/.test(response) && /'background': <true>/.test(response));
-    });
-    monitor.stderr.on('data',()=>{});
+    let done = false, output = '';
+    const child = spawnProcess('/app/bin/airdrop-background-portal', []);
+    const timer = setTimeout(() => finish(false), timeout);
+    function finish(granted) {
+      if (done) return;
+      done = true; clearTimeout(timer); signal?.removeEventListener('abort', abort);
+      child.kill(); resolve(granted);
+    }
+    function abort() { finish(false); }
+    signal?.addEventListener('abort', abort, { once:true });
+    child.on('error', () => finish(false));
+    child.on('exit', code => finish(code === 0 && output.trim() === 'granted'));
+    child.stdout.on('data', chunk => { output = (output + chunk).slice(-128); });
+    child.stderr.on('data', () => {});
+    if (signal?.aborted) finish(false);
   });
 }
 module.exports = { requestBackground };

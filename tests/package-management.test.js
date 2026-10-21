@@ -89,10 +89,8 @@ test('background portal waits for the matching response; denial and absence fail
  const request=require('../desktop/background').requestBackground;
  async function response(granted){
   const monitor=new EventEmitter();monitor.stdout=new PassThrough();monitor.stderr=new PassThrough();monitor.kill=()=>{};
-  const result=request({spawnProcess:()=>monitor,call:(_cmd,_args,cb)=>{
-   cb(null);monitor.stdout.write(`/org/freedesktop/portal/desktop/request/1_2/airdrop${process.pid}: org.freedesktop.portal.Request.Response (uint32 ${granted?0:1}, {'background': <${granted}>})\n`);
-  },timeout:1000});
-  monitor.stdout.write('Monitoring signals from all objects\n');return result;
+  const result=request({spawnProcess:()=>monitor,timeout:1000});
+  monitor.stdout.write(granted?'granted\n':'denied\n');monitor.emit('exit',0);return result;
  }
  assert.equal(await response(true),true);assert.equal(await response(false),false);
  const monitor=new EventEmitter();monitor.stdout=new PassThrough();monitor.stderr=new PassThrough();monitor.kill=()=>{};

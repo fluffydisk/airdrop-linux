@@ -23,9 +23,13 @@ jobs:
           node-version: '26'
           cache: npm
       - name: Install test and package tools
-        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv
+        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
       - run: npm ci
       - run: umask 022; npm test
+      - name: Real background portal responses
+        run: |
+          cc -Wall -Wextra -Werror packaging/flatpak/background-portal.c -o "$RUNNER_TEMP/airdrop-background-portal" $(pkg-config --cflags --libs gio-2.0)
+          bash scripts/ci-command.sh Background-portal dbus-run-session -- node scripts/test-background-portal.cjs "$RUNNER_TEMP/airdrop-background-portal"
       - name: Chromium integration
         run: |
           npx playwright-core install --with-deps chromium

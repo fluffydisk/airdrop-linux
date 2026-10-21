@@ -33,6 +33,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   const sources=[
     ...['x64','arm64'].map(arch=>({type:'archive',url:base+`/airdrop-flatpak-${arch}-${pkg.version}.tar.gz`,sha256:checksums[`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`],'only-arches':[arch==='x64'?'x86_64':'aarch64']})),
     {type:'inline','dest-filename':'airdrop-desktop',contents:'#!/bin/sh\nexport GTK_USE_PORTAL=1\nexec /app/lib/airdrop-linux/runtime/node /app/lib/airdrop-linux/server/scripts/managed-runtime.js desktop "$@"\n'},
+    {type:'inline','dest-filename':'background-portal.c',contents:await fs.readFile(path.join(root,'packaging/flatpak/background-portal.c'),'utf8')},
     ...await Promise.all(['io.github.fluffydisk.Airdrop.desktop','io.github.fluffydisk.Airdrop.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
     {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-512.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-512.png'))),'dest-filename':'icon.png'}
   ];
@@ -47,6 +48,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
         'mkdir -p /app/lib/airdrop-linux',
         'cp -a server ui desktop runtime distribution.json LICENSE /app/lib/airdrop-linux/',
         'install -Dm755 airdrop-desktop /app/bin/airdrop-desktop',
+        'cc -Wall -Wextra -Werror background-portal.c -o /app/bin/airdrop-background-portal $(pkg-config --cflags --libs gio-2.0)',
         'install -Dm644 io.github.fluffydisk.Airdrop.desktop /app/share/applications/io.github.fluffydisk.Airdrop.desktop',
         'install -Dm644 io.github.fluffydisk.Airdrop.metainfo.xml /app/share/metainfo/io.github.fluffydisk.Airdrop.metainfo.xml',
         'install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/io.github.fluffydisk.Airdrop.png'
