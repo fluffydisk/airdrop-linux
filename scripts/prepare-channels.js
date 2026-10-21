@@ -34,11 +34,11 @@ async function generate(directory=path.join(root,'release'), { local = false } =
     ...['x64','arm64'].map(arch=>({type:'archive',url:base+`/airdrop-flatpak-${arch}-${pkg.version}.tar.gz`,sha256:checksums[`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`],'only-arches':[arch==='x64'?'x86_64':'aarch64']})),
     {type:'inline','dest-filename':'airdrop-desktop',contents:'#!/bin/sh\nexport GTK_USE_PORTAL=1\nexec /app/lib/airdrop-linux/runtime/node /app/lib/airdrop-linux/server/scripts/managed-runtime.js desktop "$@"\n'},
     ...await Promise.all(['io.github.fluffydisk.Airdrop.desktop','io.github.fluffydisk.Airdrop.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
-    {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-192.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-192.png'))),'dest-filename':'icon.png'}
+    {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-512.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-512.png'))),'dest-filename':'icon.png'}
   ];
   if(local) for(const source of sources) {
     if(source.type==='archive'){source.path=path.join(directory,path.basename(source.url));delete source.url;}
-    else if(source.type==='file'){source.path=path.join(root,'ui/icon-192.png');delete source.url;}
+    else if(source.type==='file'){source.path=path.join(root,'ui/icon-512.png');delete source.url;}
   }
   const manifest={
     'app-id':'io.github.fluffydisk.Airdrop',runtime:'org.freedesktop.Platform','runtime-version':'25.08',base:'org.electronjs.Electron2.BaseApp','base-version':'25.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
@@ -49,7 +49,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
         'install -Dm755 airdrop-desktop /app/bin/airdrop-desktop',
         'install -Dm644 io.github.fluffydisk.Airdrop.desktop /app/share/applications/io.github.fluffydisk.Airdrop.desktop',
         'install -Dm644 io.github.fluffydisk.Airdrop.metainfo.xml /app/share/metainfo/io.github.fluffydisk.Airdrop.metainfo.xml',
-        'install -Dm644 icon.png /app/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png'
+        'install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/io.github.fluffydisk.Airdrop.png'
       ],sources}]
   };
   await fs.writeFile(path.join(flatpak,'io.github.fluffydisk.Airdrop.json'),JSON.stringify(manifest,null,2)+'\n');
