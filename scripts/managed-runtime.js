@@ -62,6 +62,7 @@ async function backend() {
 async function main() {
   if (!dist.managed) throw new Error('Missing package distribution marker');
   if (action === 'cli') {
+    process.argv.splice(1, 2, path.join(code, 'server/bin/airdrop.js'));
     require('../bin/airdrop'); return;
   }
   if (action === 'backend') { await backend(); return; }

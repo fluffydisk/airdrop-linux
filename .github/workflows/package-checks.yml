@@ -212,7 +212,7 @@ jobs:
           bash scripts/ci-command.sh Snap-session-agent systemctl --user start snapd.session-agent.socket
           bash scripts/ci-command.sh Snap-install sudo snap install --dangerous snap-build/*.snap
           systemctl --user daemon-reload
-          bash scripts/ci-command.sh Snap-cli snap run airdrop-linux.cli
+          bash scripts/ci-command.sh Snap-cli snap run airdrop-linux.cli --help
           sudo snap connect airdrop-linux:browser-sandbox
           bash scripts/ci-command.sh Snap-backend node scripts/smoke-sandbox.js snap
           sudo apt-get update
