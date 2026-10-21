@@ -19,7 +19,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   const share = path.join(root, 'files'); await fs.mkdir(share);
   const fileServer = await mockServer(), apiServer = await mockServer();
   const source = path.join(root, 'ü,a.txt'); await fs.writeFile(source, 'desktop payload');
-  const launch = () => electron.launch({ executablePath: executable, args: [...(process.env.ELECTRON_PATH ? [] : [path.resolve('desktop')]), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')], env: { ...process.env, AIRDROP_DISABLE_TRAY: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_TEST_ICON_ROOT: process.cwd(), AIRDROP_HOME: root, AIRDROP_FILE_PORT: String(fileServer.port), AIRDROP_API_PORT: String(apiServer.port) }, timeout: 20000 });
+  const launch = () => electron.launch({ executablePath: executable, chromiumSandbox:true, args: [...(process.env.ELECTRON_PATH ? [] : [path.resolve('desktop')]), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')], env: { ...process.env, AIRDROP_DISABLE_TRAY: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_TEST_ICON_ROOT: process.cwd(), AIRDROP_HOME: root, AIRDROP_FILE_PORT: String(fileServer.port), AIRDROP_API_PORT: String(apiServer.port) }, timeout: 20000 });
   let app;
   t.after(async () => { if (app) await app.close().catch(() => {}); await fileServer.close(); await apiServer.close(); await fs.rm(root, { recursive: true, force: true }); });
   app = await launch(); const page = await app.firstWindow();
@@ -27,6 +27,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
   assert.equal(await page.evaluate(() => typeof require), 'undefined');
   assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox), true);
+  assert.equal(await app.evaluate(({ app }) => app.commandLine.hasSwitch('no-sandbox')), false);
   await page.evaluate(() => { const transfer = new DataTransfer(); transfer.items.add(new File(['synthetic'], 'bad.txt')); document.getElementById('dropZone').dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: transfer })); });
   await page.waitForFunction(() => document.getElementById('result').textContent.includes('Invalid dropped files'));
   // Real OS-backed File: exercise webUtils path extraction in the sandboxed preload.
@@ -130,7 +131,7 @@ test('Electron: real StatusNotifier tray keeps window accessible after close', a
   } catch {}
   if (!host) { t.skip('No StatusNotifier watcher in this desktop session'); return; }
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-tray-test-'));
-  const app = await electron.launch({ executablePath: executable, args: [...(process.env.ELECTRON_PATH ? [] : [path.resolve('desktop')]), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')],
+  const app = await electron.launch({ executablePath: executable, chromiumSandbox:true, args: [...(process.env.ELECTRON_PATH ? [] : [path.resolve('desktop')]), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')],
     env: { ...process.env, AIRDROP_DISABLE_TRAY: '', AIRDROP_HOME: root, AIRDROP_DISABLE_UPDATE_CHECK: '1' }, timeout: 20000 });
   t.after(async () => { await app.close(); await fs.rm(root, { recursive: true, force: true }); });
   const page = await app.firstWindow();

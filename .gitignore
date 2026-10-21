@@ -26,3 +26,6 @@ release/
 
 # Verified AppImage packaging tools
 .cache/
+
+# Flatpak builder state
+.flatpak-builder/

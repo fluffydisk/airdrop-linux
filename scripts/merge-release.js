@@ -10,7 +10,7 @@ if (images.some(value => value.version !== manifests[0].version)) throw new Erro
 const result = { appImages: Object.assign({}, ...images.map(value => value.appImages)), version: manifests[0].version, minimumNode: manifests[0].minimumNode, packages: Object.assign({}, ...manifests.map(value => value.packages)) };
 fs.writeFileSync(path.join(directory, 'airdrop-update.json'), JSON.stringify(result, null, 2));
 
-const assets = fs.readdirSync(directory).filter(name => /\.(zip|tar\.gz|AppImage)$/.test(name) || ['install-prebuilt.sh', 'airdrop-update.json'].includes(name)).sort();
+const assets = fs.readdirSync(directory).filter(name => /\.(zip|tar\.gz|AppImage|deb|rpm)$/.test(name) || ['install-prebuilt.sh', 'airdrop-update.json'].includes(name)).sort();
 (async () => {
   const lines = [];
   for (const name of assets) {

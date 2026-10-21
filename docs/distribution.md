@@ -69,13 +69,13 @@ Run checksum verification from `release/` with `sha256sum --check SHA256SUMS`. A
 
 Local build outputs are ignored by Git. Publish the generated assets through the tag workflow; do not commit binary bundles or tool caches into the source repository.
 
-## Package managers: next stages
+## Package managers
 
-This is a roadmap, not a claim that packages have already been submitted or accepted.
+Version 1.5.0 adds package-managed installation, explicit removal, native DEB/RPM
+and AUR payload builds, and bundled-server Flatpak/Snap recipes. See the
+[package-manager guide](package-managers.md) for build commands, installation
+layout, migration, removal, signing and submission requirements.
 
-1. **Prepare an OS-managed installation layout.** Separate immutable application code (`/usr/lib/airdrop` or `/opt/airdrop`) from user-owned files, credentials and profile (`$XDG_DATA_HOME/airdrop`). Add an installation-source marker. For package-managed installs, the update button must point to the package manager instead of overwriting managed files. Replace username-specific system services with appropriate user units and explicit setup commands. Do not log into Tailscale, change Serve configuration or create credentials in package build/install hooks.
-2. **Arch/AUR binary package first.** Prepare an `airdrop-linux-bin` PKGBUILD using the fixed versioned release asset, declared runtime dependencies and real SHA-256 values. Submit it to AUR as a separate packaging repository after testing clean installation, upgrades and removal. An AUR entry is community-maintained packaging, not admission into Arch's official repositories. Follow the [AUR submission guidelines](https://wiki.archlinux.org/title/AUR_submission_guidelines).
-3. **Debian/Ubuntu and RPM packages.** Produce `.deb` and `.rpm` from the same native payload, with proper dependencies, desktop integration, services and removal behavior. Validate package linting and upgrades on target distributions before providing a signed APT/RPM repository. Official distribution repositories require their own review processes; downloadable packages alone do not add an application to them.
-4. **Flathub after the backend boundary is addressed.** Keep privileged host services outside the Flatpak, or introduce an explicit supported backend connection. Use portals for file import/export and clipboard interactions where available. Avoid blanket home-directory access. Add a stable application ID, AppStream metadata, icons, screenshots and a Flatpak manifest, then follow [Flathub's submission process](https://docs.flathub.org/docs/for-app-authors/submission).
-
-For every channel, test fresh install, data-preserving upgrade/downgrade policy, app/server compatibility, background service lifecycle and uninstall that retains user files unless deletion is explicitly requested.
+These channels are not advertised as published until their builds, host tests,
+repository deployment or store review have completed. Existing GitHub bundles
+and AppImages remain supported.

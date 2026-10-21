@@ -1,0 +1,4 @@
+#!/bin/sh
+set -e
+# User data is deliberately retained, including on apt purge.
+# Reloading policy after package removal is managed by the host's AppArmor service.

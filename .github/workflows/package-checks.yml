@@ -1,0 +1,231 @@
+name: Package validation
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+      - name: Install test and package tools
+        run: sudo apt-get update && sudo apt-get install -y rpm rpmlint lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
+      - run: npm ci
+      - run: umask 022; bash scripts/ci-command.sh Node-tests npm test
+      - name: Real background portal responses
+        run: |
+          cc -Wall -Wextra -Werror packaging/flatpak/background-portal.c -o "$RUNNER_TEMP/airdrop-background-portal" $(pkg-config --cflags --libs gio-2.0)
+          bash scripts/ci-command.sh Background-portal dbus-run-session -- node scripts/test-background-portal.cjs "$RUNNER_TEMP/airdrop-background-portal"
+      - name: Chromium integration
+        run: |
+          npx playwright-core install --with-deps chromium
+          CHROMIUM_PATH="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')" bash scripts/ci-command.sh Chromium npm run test:browser
+      - run: npm ci --prefix desktop
+      - run: npm run prepare-desktop && npm run package --prefix desktop
+      - name: Build all channel payloads
+        run: |
+          for channel in apt rpm aur flatpak snap; do node scripts/build-packages.js "$channel"; done
+      - name: Verify repository signing with a disposable test key
+        shell: bash
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/test-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop CI test <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
+          scripts/build-repository.sh release "$RUNNER_TEMP/test-repository"
+          # Lint the signed copy and keep missing/invalid signatures fatal.
+          rpm --import "$RUNNER_TEMP/test-repository/airdrop-linux.asc"
+          bash scripts/ci-command.sh RPM-lint rpmlint -c packaging/native/rpmlint.toml "$RUNNER_TEMP/test-repository"/rpm/*/*.rpm
+      - name: Validate native metadata
+        run: |
+          for tool in lintian desktop-file-validate appstreamcli dpkg-deb rpm; do
+            if ! command -v "$tool" >/dev/null; then
+              printf '::error::Missing metadata validation tool: %s\n' "$tool"
+              exit 127
+            fi
+          done
+          lint_status=0
+          lintian --fail-on error release/*.deb > "$RUNNER_TEMP/lintian.log" 2>&1 || lint_status=$?
+          cat "$RUNNER_TEMP/lintian.log"
+          if (( lint_status )); then
+            while IFS= read -r line; do
+              line=${line//%/%25}
+              printf '::error title=Lintian::%s\n' "$line"
+            done < <(rg '^E:' "$RUNNER_TEMP/lintian.log")
+            exit "$lint_status"
+          fi
+          desktop-file-validate packaging/io.github.fluffydisk.Airdrop.desktop
+          appstreamcli validate --no-net packaging/io.github.fluffydisk.Airdrop.metainfo.xml
+          dpkg-deb --info release/*.deb
+          rpm -qip release/*.rpm
+      - name: Install and exercise DEB
+        run: |
+          bash scripts/ci-command.sh DEB-install sudo apt-get install -y ./release/*.deb
+          AIRDROP_CODE_DIR=/usr/lib/airdrop-linux AIRDROP_INSTALL_MANIFEST=/usr/lib/airdrop-linux/distribution.json bash scripts/ci-command.sh DEB-backend node scripts/smoke-managed.js
+          ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop bash scripts/ci-command.sh DEB-desktop xvfb-run -a dbus-run-session -- npm run test:desktop
+          bash scripts/ci-command.sh DEB-remove sudo apt-get remove -y airdrop-linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.arch }}
+          path: release/*
+  distro-install:
+    needs: native
+    runs-on: ${{ matrix.target.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {runner: ubuntu-24.04, arch: x64}
+          - {runner: ubuntu-24.04-arm, arch: arm64}
+        distro:
+          - image: debian:13
+            format: apt
+          - image: ubuntu:24.04
+            format: apt
+          - image: ubuntu:26.04
+            format: apt
+          - image: fedora:44
+            format: dnf
+          - image: fedora:43
+            format: dnf
+          - image: opensuse/tumbleweed:latest
+            format: zypper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages-${{ matrix.target.arch }}
+          path: release
+      - name: Clean installation, backend smoke and removal
+        env:
+          TEST_IMAGE: ${{ matrix.distro.image }}
+          PACKAGE_FORMAT: ${{ matrix.distro.format }}
+          PACKAGE_ARCH: ${{ matrix.target.arch }}
+        run: |
+          bash scripts/ci-command.sh Distro-install docker run --rm -v "$PWD:/work" -w /work -e PACKAGE_FORMAT -e PACKAGE_ARCH "$TEST_IMAGE" bash scripts/test-native-package.sh
+  aur:
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: release
+      - run: npm ci
+      - name: Build AUR with dependencies and exercise installation
+        run: |
+          node scripts/prepare-channels.js --local
+          bash scripts/ci-command.sh AUR-install docker run --rm -v "$PWD:$PWD" -w "$PWD" archlinux:base-devel bash scripts/test-aur-package.sh
+  flatpak:
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {runner: ubuntu-24.04, arch: x64}
+          - {runner: ubuntu-24.04-arm, arch: arm64}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: release
+      - run: npm ci
+      - name: Build and exercise Flatpak sandbox
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb
+          node scripts/prepare-channels.js --local
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --install-deps-from=flathub --force-clean --repo=flatpak-repo build-dir release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
+          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
+          bash scripts/ci-command.sh Flatpak-install dbus-run-session -- flatpak install --user --noninteractive --reinstall Airdrop.flatpak
+          bash scripts/ci-command.sh Flatpak-backend dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          bash scripts/ci-command.sh Flatpak-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-${{ matrix.target.arch }}
+          path: Airdrop.flatpak
+  snap:
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {runner: ubuntu-24.04, arch: x64}
+          - {runner: ubuntu-24.04-arm, arch: arm64}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: release
+      - name: Install supported Snapcraft
+        run: sudo snap install snapcraft --classic --channel=8.x/stable
+      - run: npm ci
+      - name: Build and exercise strict Snap
+        env:
+          PACKAGE_ARCH: ${{ matrix.target.arch }}
+        run: |
+          node scripts/prepare-channels.js --local
+          mkdir -p snap-build/snap
+          cp "release/local-submissions/snap/snapcraft-$PACKAGE_ARCH.yaml" snap-build/snap/snapcraft.yaml
+          (cd snap-build && bash ../scripts/ci-command.sh Snap-build sudo snapcraft pack --destructive-mode)
+          # This is our locally built, unsigned test artifact; store content snaps
+          # retain their normal assertion/signature verification.
+          # snapd currently gates user-scoped daemons behind this feature flag.
+          sudo snap set system experimental.user-daemons=true
+          # Hosted runners need an explicit user manager/session agent for
+          # snapd's user service API, as a desktop login would normally provide.
+          bash scripts/ci-command.sh Snap-user-linger sudo loginctl enable-linger "$(id -un)"
+          bash scripts/ci-command.sh Snap-user-manager sudo systemctl start "user@$(id -u).service"
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          bash scripts/ci-command.sh Snap-session-agent systemctl --user start snapd.session-agent.socket
+          bash scripts/ci-command.sh Snap-install sudo snap install --dangerous snap-build/*.snap
+          systemctl --user daemon-reload
+          bash scripts/ci-command.sh Snap-cli snap run airdrop-linux.cli --help
+          sudo snap connect airdrop-linux:browser-sandbox
+          bash scripts/ci-command.sh Snap-desktop-permissions test -x /snap/airdrop-linux/current/lib/airdrop-linux/desktop/Airdrop
+          bash scripts/ci-command.sh Snap-backend node scripts/smoke-sandbox.js snap
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11
+          # Disposable runner: start this snap's user service for the test session.
+          bash scripts/ci-command.sh Snap-background-start sudo snap start --users=all airdrop-linux.backend
+          DEBUG=pw:browser bash scripts/ci-command.sh Snap-background-desktop xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap background
+          DEBUG=pw:browser bash scripts/ci-command.sh Snap-desktop xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap-${{ matrix.target.arch }}
+          path: snap-build/*.snap

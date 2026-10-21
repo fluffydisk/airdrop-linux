@@ -1,0 +1,13 @@
+[Unit]
+Description=Airdrop Linux gateway and file server
+PartOf=airdrop-linux.target
+
+[Service]
+ExecStart=/usr/lib/airdrop-linux/runtime/node /usr/lib/airdrop-linux/server/scripts/managed-runtime.js backend
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=airdrop-linux.target

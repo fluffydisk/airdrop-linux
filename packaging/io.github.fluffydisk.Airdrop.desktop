@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Airdrop Linux
+Comment=Share files and clipboard across your devices
+Exec=airdrop-desktop
+Icon=io.github.fluffydisk.Airdrop
+Terminal=false
+Categories=Network;FileTransfer;
+StartupWMClass=Airdrop

@@ -1,0 +1,12 @@
+# Project metadata uses the SPDX identifier and conventional RPM group below.
+ValidLicenses = ['MIT']
+ValidGroups = ['Applications/Internet']
+Filters = [
+  # Checksum-pinned upstream musl dufs is intentionally static for portability.
+  'statically-linked-binary /usr/lib/airdrop-linux/runtime/dufs$',
+  # This upstream Electron helper is shipped mode 0755, never setuid. Chromium
+  # uses its user-namespace sandbox; there is no privileged uid transition here.
+  'missing-call-to-setgroups-before-setuid /usr/lib/airdrop-linux/desktop/chrome-sandbox$',
+  # Product name, not a misspelling. Keep other spelling errors visible.
+  'spelling-error .*%description -l en_US Tailscale ->',
+]

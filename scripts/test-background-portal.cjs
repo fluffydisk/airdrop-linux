@@ -1,0 +1,29 @@
+'use strict';
+// Run under dbus-run-session; emulate the portal's directed response, not stdout.
+const assert = require('node:assert/strict');
+const {spawn} = require('node:child_process');
+const path = require('node:path');
+const {requestBackground} = require('../desktop/background');
+(async () => {
+  const helper = process.argv[2];
+  assert.ok(helper, 'Pass the compiled background portal helper');
+  for (const grant of [true, false]) {
+    const fixture = spawn('/usr/bin/python3', [path.join(__dirname, '../tests/fixtures/background-portal.py')], {env:{...process.env, GRANT:grant ? '1' : '0'}, stdio:['ignore','pipe','inherit']});
+    try {
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Portal fixture startup timeout')), 5000);
+        fixture.stdout.on('data', chunk => { if (chunk.toString().includes('READY')) { clearTimeout(timer); resolve(); } });
+        fixture.once('error', error => { clearTimeout(timer); reject(error); });
+        fixture.once('exit', () => { clearTimeout(timer); reject(new Error('Portal fixture exited')); });
+      });
+      const granted = await requestBackground({spawnProcess:()=>spawn(helper),timeout:5000});
+      assert.equal(granted, grant);
+    } finally {
+      fixture.kill();
+      if (fixture.exitCode === null && !fixture.signalCode) await new Promise(resolve => fixture.once('exit', resolve));
+    }
+  }
+  const absent = await requestBackground({spawnProcess:()=>spawn(helper),timeout:5000});
+  assert.equal(absent, false);
+  console.log('Real D-Bus portal: directed grant, denial, returned request path and missing portal passed');
+})().catch(error => { console.error(error); process.exitCode = 1; });

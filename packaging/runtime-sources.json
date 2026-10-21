@@ -1,0 +1,16 @@
+{
+  "nodeVersion": "26.12.0",
+  "dufsVersion": "0.46.0",
+  "x64": {
+    "node": "fd47865ecd6391ebb431fc815e01b9135bf83ded5cf373247e9331e196b7aded",
+    "dufs": "817769f726613194bcff9d0e3e481eaccc86ac11208857614f36a8c02f410977"
+  },
+  "arm64": {
+    "node": "fd6cc729fa4448c2ac27c3fca5606019ced63c65a15c152c8df03e0cbce7f4c5",
+    "dufs": "1472123ae3aa07e49404d16b20305c2dec90c59883ebda9308717f7205e6511b"
+  },
+  "dufsLicense": {
+    "url": "https://raw.githubusercontent.com/sigoden/dufs/v0.46.0/LICENSE-MIT",
+    "sha256": "4623d04ec401ec83c94b935d75d8b4329e860580e91ed777ef03a0aa3b31bb04"
+  }
+}

@@ -527,6 +527,7 @@ configure_tailscale() {
 # ---------- Install application files ----------
 
 "$NODE_BIN" -e 'require(process.argv[1]).getPaths()' "$REPO_DIR/lib/paths.js"
+"$NODE_BIN" -e 'require(process.argv[1]).assertWritableInstallation(process.argv[2])' "$REPO_DIR/lib/installation.js" "$AIRDROP_ROOT"
 info "Installing Airdrop files..."
 mkdir -p "$SHARE_DIR" "$UI_DIR" "$PUSH_DIR" "$LOCAL_BIN_DIR" "$CONFIG_DIR" "$STATE_DIR"
 chmod 700 "$AIRDROP_ROOT" "$CONFIG_DIR" "$STATE_DIR"
@@ -540,7 +541,7 @@ else
 cp -a "$REPO_DIR/ui/." "$UI_DIR/"
 cp -a "$REPO_DIR/push-server.js" "$REPO_DIR/package.json" "$PUSH_DIR/"
 mkdir -p "$PUSH_DIR/lib" "$PUSH_DIR/bin" "$PUSH_DIR/ui" "$PUSH_DIR/scripts"
-cp -a "$REPO_DIR/scripts/migrate-layout.js" "$PUSH_DIR/scripts/"
+cp -a "$REPO_DIR/scripts/migrate-layout.js" "$REPO_DIR/scripts/register-install.js" "$PUSH_DIR/scripts/"
 cp -a "$REPO_DIR/lib/." "$PUSH_DIR/lib/"
 cp -a "$REPO_DIR/bin/." "$PUSH_DIR/bin/"
 cp -a "$REPO_DIR/ui/zip.js" "$PUSH_DIR/ui/"
@@ -875,3 +876,10 @@ if [[ -n "${AIRDROP_PREBUILT_DIR:-}" ]]; then
   info "Installing the prebuilt desktop application..."
   PATH="$(dirname "$NODE_BIN"):$PATH" "$REPO_DIR/install-desktop.sh" --prebuilt "$AIRDROP_PREBUILT_DIR/app/desktop"
 fi
+
+# Record only files created by this installation. Changed files are never silently removed.
+owned_files=("$LOCAL_BIN_DIR/airdrop" "$LOCAL_BIN_DIR/copy-clipboard" "$LOCAL_BIN_DIR/paste-clipboard")
+if [[ "$SYSTEMD_AVAILABLE" == true ]]; then
+  owned_files+=(/etc/systemd/system/airdropshare.service /etc/systemd/system/airdrop-push.service)
+fi
+"$NODE_BIN" "$PUSH_DIR/scripts/register-install.js" "${owned_files[@]}"
