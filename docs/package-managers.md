@@ -69,7 +69,7 @@ Arch repository. Never run makepkg as root.
 
 ### RPM / DNF / Zypper
 
-Install `curl`, GnuPG and CA certificates with your distribution's package manager.
+Install `curl`, GnuPG, `gawk` and CA certificates with your distribution's package manager.
 Import the fingerprint-checked public key:
 
 ```sh

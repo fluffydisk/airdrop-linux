@@ -6,10 +6,10 @@ base=https://fluffydisk.github.io/airdrop-linux
 case "${PACKAGE_FORMAT:?}" in
   apt)
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg
+    DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg gawk
     ;;
-  dnf) dnf install -y ca-certificates curl gnupg2 ;;
-  zypper) zypper --non-interactive install ca-certificates curl gpg2 ;;
+  dnf) dnf install -y ca-certificates curl gnupg2 gawk ;;
+  zypper) zypper --non-interactive install ca-certificates curl gpg2 gawk ;;
   *) exit 2 ;;
 esac
 curl -fsSL "$base/airdrop-linux.gpg" -o /tmp/airdrop-linux.gpg
