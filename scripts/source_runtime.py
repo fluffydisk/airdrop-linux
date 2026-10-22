@@ -120,6 +120,7 @@ def build(component, prepared, output, jobs):
     verify(prepared / 'source.archive', pin['sha256'])
     source = prepared / 'source'
     if component == 'node':
+        compiler = execute(['c++', '--version'], capture=True).splitlines()[0]
         execute([source / 'configure', '--prefix=' + str(output)], cwd=source)
         execute(['make', '-j' + str(jobs)], cwd=source)
         execute(['make', 'install'], cwd=source)
@@ -127,6 +128,9 @@ def build(component, prepared, output, jobs):
     else:
         verify(source / 'Cargo.lock', pin['cargoLockSha256'])
         env = {**os.environ, 'RUSTUP_TOOLCHAIN': pin['rustToolchain']}
+        compiler = execute(['rustc', '--version'], capture=True, env=env).strip()
+        if not compiler.startswith('rustc ' + pin['rustToolchain'] + ' '):
+            raise RuntimeError('Rust compiler does not match the pinned toolchain')
         execute(['cargo', 'build', '--release', '--locked', '--offline', '--bin', 'dufs', '-j', str(jobs)], cwd=source, env=env)
         (output / 'bin').mkdir(parents=True)
         shutil.copy2(source / 'target/release/dufs', output / 'bin/dufs')
@@ -142,7 +146,8 @@ def build(component, prepared, output, jobs):
         **metadata, 'architecture': platform.machine(),
         'applicationCommit': os.environ.get('GITHUB_SHA'),
         'networkInterfacesDuringBuild': interfaces,
-        'binarySha256': digest(binary), 'rustToolchain': pin.get('rustToolchain')
+        'binarySha256': digest(binary), 'rustToolchain': pin.get('rustToolchain'),
+        'compilerVersion': compiler, 'buildJobs': jobs
     }
     (output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
     (output / 'SHA256SUMS').write_text(f'{digest(binary)}  bin/{component}\n')

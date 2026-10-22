@@ -35,6 +35,12 @@ def capacity(directory):
 def environment(directory):
     return {**os.environ, 'DEPOT_TOOLS_UPDATE': '0',
             'CHROMIUM_BUILDTOOLS_PATH': str(directory / 'src/buildtools'),
+            'CIPD_CACHE_DIR': str(directory / '.cache/cipd'),
+            'VPYTHON_VIRTUALENV_ROOT': str(directory / '.cache/vpython'),
+            'XDG_CACHE_HOME': str(directory / '.cache'),
+            'YARN_ENABLE_GLOBAL_CACHE': 'false',
+            'YARN_CACHE_FOLDER': str(directory / '.cache/yarn'),
+            'npm_config_cache': str(directory / '.cache/npm'),
             'PATH': str(directory / 'depot_tools') + os.pathsep + os.environ['PATH']}
 
 
@@ -65,6 +71,7 @@ def prepare(directory, arch):
     execute(['git', '-C', depot, 'fetch', '--depth=1', 'origin', PIN['depotToolsRevision']])
     execute(['git', '-C', depot, 'checkout', '--detach', 'FETCH_HEAD'])
     env = environment(directory)
+    execute([depot / 'ensure_bootstrap'], cwd=directory, env=env)
     execute(['gclient', 'config', '--name', 'src/electron', '--unmanaged', 'https://github.com/electron/electron'], cwd=directory, env=env)
     if arch == 'arm64':
         enable_arm64_checkout(directory / '.gclient')
@@ -82,6 +89,10 @@ def prepare(directory, arch):
         raise RuntimeError('Automatic system dependency installation requires an ephemeral GitHub-hosted runner')
     execute(['sudo', directory / 'src/build/install-build-deps.sh', '--no-prompt', '--no-chromeos-fonts'], cwd=directory, env=env)
     execute(['gclient', 'runhooks'], cwd=directory, env=env)
+    # Chromium tools may select the nested depot_tools Python shim. Warm both
+    # pinned checkouts before disabling the network instead of using a fallback
+    # system interpreter or downloading build tools during compilation.
+    execute([directory / 'src/third_party/depot_tools/ensure_bootstrap'], cwd=directory, env=env)
     # Prime build-tool Python/CIPD caches while fetching is still allowed. No
     # application C++ compilation happens until the isolated build phase.
     execute(['gn', 'gen', 'out/Source', '--args=' + gn_args(arch), '--fail-on-unused-args'], cwd=directory / 'src', env=env)
@@ -119,6 +130,8 @@ def build(directory, output, jobs):
         raise ValueError('Electron sources do not match this lock')
     env = environment(directory)
     env['SISO_REAPI_INSTANCE'] = ''
+    env['YARN_ENABLE_NETWORK'] = 'false'
+    env['npm_config_offline'] = 'true'
     arch = metadata['targetArchitecture']
     if arch not in ['x64', 'arm64'] or metadata['gnArgs'] != gn_args(arch):
         raise ValueError('Unexpected Electron build arguments')
@@ -141,6 +154,7 @@ def build(directory, output, jobs):
     shutil.copy2(directory / 'source-graph.txt', output / 'source-graph.txt')
     provenance = {**metadata, 'networkInterfacesDuringBuild': interfaces,
                   'applicationCommit': os.environ.get('GITHUB_SHA'), 'versionExecutedOnProducer': native,
+                  'buildJobs': jobs,
                   'binarySha256': digest(output / 'electron'), 'distributionSha256': digest(distribution)}
     (output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
     (output / 'SHA256SUMS').write_text(f'{digest(output / "electron")}  electron\n')

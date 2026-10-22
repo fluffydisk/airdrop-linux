@@ -7,6 +7,12 @@ on:
         type: choice
         options: [both, x64, arm64]
         default: both
+      runner:
+        description: GitHub-hosted runner label (a configured larger runner can be used)
+        default: ubuntu-24.04
+      jobs:
+        description: Parallel compiler processes
+        default: '3'
   push:
     branches: [codex/source-build-infrastructure]
     paths: [scripts/electron_source.py, scripts/free-source-build-space.sh, packaging/source-runtimes.json, .github/workflows/electron-source-builds.yml]
@@ -20,7 +26,7 @@ jobs:
       matrix:
         # Development pushes retry ARM64 while the original x64 build runs.
         arch: ${{ fromJSON(inputs.target == 'x64' && '["x64"]' || inputs.target == 'arm64' && '["arm64"]' || github.event_name == 'push' && '["arm64"]' || '["x64","arm64"]') }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,7 +40,9 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
         run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-source" --arch "$TARGET_ARCH"
       - name: Compile Electron with no external network or remote execution
-        run: bash scripts/ci-command.sh Electron-source-build bash scripts/run-without-network.sh python3 scripts/electron_source.py build "$RUNNER_TEMP/electron-source" --output "$RUNNER_TEMP/electron-runtime" --jobs 2
+        env:
+          BUILD_JOBS: ${{ inputs.jobs || '3' }}
+        run: bash scripts/ci-command.sh Electron-source-build bash scripts/run-without-network.sh python3 scripts/electron_source.py build "$RUNNER_TEMP/electron-source" --output "$RUNNER_TEMP/electron-runtime" --jobs "$BUILD_JOBS"
       - name: Archive executable modes and provenance
         run: |
           tar -C "$RUNNER_TEMP/electron-runtime" -czf "$RUNNER_TEMP/electron-runtime.tar.gz" .
