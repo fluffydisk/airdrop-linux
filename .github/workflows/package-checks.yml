@@ -24,9 +24,7 @@ jobs:
           cache: npm
       - name: Install test and package tools
         run: |
-          if test -f /etc/apt/sources.list.d/ubuntu.sources; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
-          fi
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y rpm rpmlint lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
       - run: npm ci
@@ -166,6 +164,7 @@ jobs:
       - run: npm ci
       - name: Build and exercise Flatpak sandbox
         run: |
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb weston
           node scripts/prepare-channels.js --local
@@ -249,6 +248,7 @@ jobs:
           sudo snap connect airdrop-linux:browser-sandbox
           bash scripts/ci-command.sh Snap-desktop-permissions test -x /snap/airdrop-linux/current/lib/airdrop-linux/desktop/Airdrop
           bash scripts/ci-command.sh Snap-backend node scripts/smoke-sandbox.js snap
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y xvfb dbus-x11
           # Disposable runner: start this snap's user service for the test session.

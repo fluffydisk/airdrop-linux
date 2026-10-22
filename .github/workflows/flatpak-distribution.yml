@@ -92,9 +92,7 @@ jobs:
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           # The runner's Azure mirror stalled on codec dependencies. Retain the
           # Ubuntu suites, Signed-By keys and apt verification on the main mirror.
-          if test -f /etc/apt/sources.list.d/ubuntu.sources; then
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
-          fi
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk
           npm ci
@@ -235,6 +233,7 @@ jobs:
       - name: Test signed repository metadata with a disposable key
         run: |
           set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y flatpak ostree gnupg
           mkdir input
@@ -275,6 +274,7 @@ jobs:
           FLATPAK_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y flatpak xvfb dbus-x11
           npm ci
