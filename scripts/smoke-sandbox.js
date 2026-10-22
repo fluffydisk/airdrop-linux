@@ -9,7 +9,7 @@ const fs=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
 const channel=process.argv[2];
-const id='io.github.fluffydisk.Airdrop';
+const id='io.github.fluffydisk.airdrop-linux';
 const base='http://127.0.0.1:6001';
 (async()=>{
  if(!['flatpak','snap'].includes(channel))throw new Error('Usage: smoke-sandbox.js flatpak|snap');

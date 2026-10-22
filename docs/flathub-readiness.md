@@ -37,8 +37,9 @@ Builds use the official `org.flatpak.Builder` `flathub-build` wrapper, including
 its sandboxed build and screenshot-mirroring options. Screenshot media stays in
 the temporary OSTree repository; no media is uploaded to Flathub by CI.
 
-The official `org.flatpak.Builder` linter runs against both the generated
-production manifest and the built OSTree repository. Reports, tool version and
+The official `org.flatpak.Builder` linter runs against both the AI-assisted local
+runtime fixture and the built OSTree repository. No production/submission
+manifest is generated. Reports, tool version and
 exit codes are uploaded as `flathub-lint-x64` / `flathub-lint-arm64` artifacts.
 Lint errors are reported as acceptance blockers, not silently treated as passing
 lint. The runtime test and lint-readiness results are intentionally separate:
@@ -64,15 +65,24 @@ VPN daemon in the sandbox.
    The human packaging maintainer must select supported SDK extensions, pin app
    sources, generate npm/Cargo dependency sources from lockfiles, and build and
    test offline. Bundled runtime exceptions require explicit reviewer agreement.
-2. **Application ID:** `io.github.fluffydisk.Airdrop` is internally consistent but
-   maps to `https://github.com/fluffydisk/Airdrop`, whereas the actual project is
-   `fluffydisk/airdrop-linux`. Flathub's code-hosting ID rule requires a reachable
-   matching repository or an explicit exception. A maintainer must choose a
-   matching ID (for example `io.github.fluffydisk.airdrop-linux`) and update all
-   desktop, icon, data-path and test references, or obtain the exception. This
-   report does not silently change the ID requested for the project.
+2. **Application ID preparation:** the source now uses
+   `io.github.fluffydisk.airdrop-linux`, mapping exactly to the reachable
+   `https://github.com/fluffydisk/airdrop-linux`. It has four components and the
+   hyphen occurs only in the last component, as required. Desktop, AppStream,
+   icons, package paths, update/removal commands and test references agree.
+   Managed Electron launches explicitly set the desktop filename and Chromium
+   class before ready so Wayland app identity and desktop grouping can match.
+   The new Flatpak ID receives a separate `~/.var/app/` namespace. Existing
+   native and old-ID sandbox data are not imported or deleted; migration remains
+   user initiated. Future native upgrades replace package-owned desktop files;
+   manually pinned dock favorites may need to be re-added under the new ID.
+   Published v1.5.0 assets and its tag are unchanged; a future source release is
+   needed to publish this identity. Runtime/Wayland CI must pass on both arches.
 3. **Generative AI policy:** the existing manifest/generator and portions of this
-   packaging work were generated or assisted by an AI agent. Flathub currently
+   packaging work were generated or assisted by an AI agent. Production channel
+   generation now emits no Flatpak manifest and removes stale generated JSON
+   recipes from its output directory. The --local fixture remains test-only.
+   Flathub currently
    prohibits AI-generated or AI-assisted manifests, requires disclosure of other
    known generated material, and prohibits agents from opening or automating
    submission PRs and generating their submission/review text. Human review of an
@@ -83,13 +93,16 @@ VPN daemon in the sandbox.
    been removed from the workflow; selecting its old `flathub` channel fails with
    a message directing maintainers here.
 4. **Desktop acceptance:** interactive file selection/export/open portals,
-   background-permission consent and denial, Wayland clipboard/session behavior,
+   background-permission consent and denial, interactive Wayland clipboard behavior,
    and host Tailscale HTTPS access require additional acceptance testing. The
    headless X11 and D-Bus fixture results do not certify these interactions.
-5. **Release visibility:** v1.5.0 remains a draft. Production manifest release
-   URLs cannot be fetched anonymously until the release is deliberately
-   published. Local-source CI builds validate runtime behavior without making
-   that release public. No publication is authorized by this readiness check.
+   CI additionally attempts native Wayland startup under headless Weston with no
+   DISPLAY fallback. That compositor has no physical input seat and does not
+   establish interactive clipboard or portal consent acceptance.
+5. **Release visibility:** v1.5.0 is publicly available and APT/RPM repositories
+   are published. This does not publish an app on Flathub. The source changes
+   described here are newer than that immutable release and need a future source
+   release before submission. No store submission is performed by these checks.
 
 The final reviewer decides inclusion, including desktop usefulness, development
 history, host-dependency requirements, licensing, screenshots and metadata quality.
@@ -101,7 +114,7 @@ does not guarantee acceptance.
 Checked against the official documentation during this cloud task:
 
 Requirements documentation revision: `b1f0539de6aed7aa26e097ede5de936510ab1df0`
-(checked 2026-10-21).
+(rechecked 2026-10-22).
 
 * [GitHub fine-grained PAT limitations](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens-limitations)
 * [Flathub requirements](https://docs.flathub.org/docs/for-app-authors/requirements/),

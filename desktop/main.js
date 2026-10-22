@@ -13,6 +13,11 @@ const { getPaths } = require('./core/lib/paths');
 const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
 const paths = getPaths();
 const distribution = require('./core/lib/installation').distribution();
+if (process.platform === 'linux' && distribution.managed) {
+  // Match the installed desktop file for portal identity and window grouping.
+  app.setDesktopName('io.github.fluffydisk.airdrop-linux.desktop');
+  app.commandLine.appendSwitch('class', 'io.github.fluffydisk.airdrop-linux');
+}
 const backgroundRequest = new AbortController();
 const updater = require('./core/lib/updater');
 let updateTimer, updateBusy = false;

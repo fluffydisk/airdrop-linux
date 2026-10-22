@@ -21,7 +21,7 @@ apps:
   airdrop-linux:
     command: bin/airdrop-desktop
     extensions: [gnome]
-    desktop: usr/share/applications/io.github.fluffydisk.Airdrop.desktop
+    desktop: usr/share/applications/io.github.fluffydisk.airdrop-linux.desktop
     plugs: [network, network-bind, browser-sandbox]
     environment:
       GTK_USE_PORTAL: '1'
@@ -69,12 +69,13 @@ parts:
       exec "$SNAP/lib/airdrop-linux/runtime/node" "$SNAP/lib/airdrop-linux/server/scripts/managed-runtime.js" cli "$@"
       SH
       chmod 755 "$CRAFT_PART_INSTALL/bin/airdrop-desktop" "$CRAFT_PART_INSTALL/bin/airdrop-backend" "$CRAFT_PART_INSTALL/bin/airdrop-cli"
-      cat > "$CRAFT_PART_INSTALL/usr/share/applications/io.github.fluffydisk.Airdrop.desktop" <<'DESKTOP'
+      cat > "$CRAFT_PART_INSTALL/usr/share/applications/io.github.fluffydisk.airdrop-linux.desktop" <<'DESKTOP'
       [Desktop Entry]
       Type=Application
       Name=Airdrop Linux
       Exec=airdrop-linux
-      Icon=${SNAP}/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png
+      Icon=${SNAP}/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.airdrop-linux.png
+      StartupWMClass=io.github.fluffydisk.airdrop-linux
       Categories=Network;FileTransfer;
       DESKTOP
-      cp "$CRAFT_PART_INSTALL/ui/icon-192.png" "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png"
+      cp "$CRAFT_PART_INSTALL/ui/icon-192.png" "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.airdrop-linux.png"

@@ -119,13 +119,18 @@ test('channel recipes pin both architectures to actual payload checksums',async 
  for(const channel of ['native','flatpak','snap'])for(const arch of ['x64','arm64'])await fs.writeFile(path.join(directory,`airdrop-${channel}-${arch}-${version}.tar.gz`),channel+arch);
  const out=await require('../scripts/prepare-channels').generate(directory);
  const srcinfo=await fs.readFile(path.join(out,'aur/.SRCINFO'),'utf8');assert.match(srcinfo,/sha256sums_aarch64 = [a-f0-9]{64}/);
- const flatpak=JSON.parse(await fs.readFile(path.join(out,'flatpak/io.github.fluffydisk.Airdrop.json'),'utf8'));
- assert.ok(!flatpak['finish-args'].some(arg=>arg.includes('--filesystem=home')));
- const sources=flatpak.modules.at(-1).sources.filter(s=>s.type==='archive');assert.equal(sources.length,2);assert.ok(sources.every(s=>/^[a-f0-9]{64}$/.test(s.sha256)));
+ await assert.rejects(fs.access(path.join(out,'flatpak/io.github.fluffydisk.airdrop-linux.json')), {code:'ENOENT'});
+ // Regeneration must also remove a stale generated recipe from an older run.
+ await fs.writeFile(path.join(out,'flatpak/io.github.fluffydisk.Airdrop.json'),'stale');
+ await require('../scripts/prepare-channels').generate(directory);
+ await assert.rejects(fs.access(path.join(out,'flatpak/io.github.fluffydisk.Airdrop.json')), {code:'ENOENT'});
  const snap=await fs.readFile(path.join(out,'snap/snapcraft-x64.yaml'),'utf8');assert.match(snap,/source-checksum: sha512\/[a-f0-9]{128}/);assert.match(snap,/daemon-scope: user/);
  const localOut=await require('../scripts/prepare-channels').generate(directory,{local:true});
  assert.notEqual(localOut,out);
- const localManifest=JSON.parse(await fs.readFile(path.join(localOut,'flatpak/io.github.fluffydisk.Airdrop.json'),'utf8'));
+ const localManifest=JSON.parse(await fs.readFile(path.join(localOut,'flatpak/io.github.fluffydisk.airdrop-linux.json'),'utf8'));
+ assert.equal(localManifest['app-id'],'io.github.fluffydisk.airdrop-linux');
+ assert.ok(!localManifest['finish-args'].some(arg=>arg.includes('--filesystem=home')));
+ const sources=localManifest.modules.at(-1).sources.filter(s=>s.type==='archive');assert.equal(sources.length,2);assert.ok(sources.every(s=>/^[a-f0-9]{64}$/.test(s.sha256)));
  const relocated=path.join(directory,'relocated-flatpak');
  await fs.rename(path.join(localOut,'flatpak'),relocated);
  for(const source of localManifest.modules.at(-1).sources.filter(s=>s.type==='archive'||s.type==='file')){
@@ -134,7 +139,6 @@ test('channel recipes pin both architectures to actual payload checksums',async 
   const content=await fs.readFile(path.join(relocated,source.path));
   assert.equal(require('node:crypto').createHash('sha256').update(content).digest('hex'),source.sha256,'Relocated sources must keep their pinned checksum');
  }
- assert.ok(sources.every(source=>source.url.startsWith('https://')));
 });
 test('managed packages can be removed before first setup without touching a data tree',async t=>{
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-uninitialised-'));
@@ -146,5 +150,5 @@ test('managed packages can be removed before first setup without touching a data
  await assert.rejects(manage.uninstall({paths,source:'flatpak',execute:async()=>{throw new Error('must not run host command');}}),/Run this command on the host/);
  await assert.rejects(manage.uninstall({paths,source:'snap'}),error=>error.message.includes('sudo snap remove airdrop-linux.') && !error.message.includes('--purge'));
  await assert.rejects(manage.uninstall({paths,source:'snap',deleteData:true}),error=>error.message.includes('sudo snap remove airdrop-linux --purge') && error.message.includes('snap forget <set-id> airdrop-linux'));
- await assert.rejects(manage.uninstall({paths,source:'flatpak',deleteData:true}),/flatpak uninstall io.github.fluffydisk.Airdrop --delete-data/);
+ await assert.rejects(manage.uninstall({paths,source:'flatpak',deleteData:true}),/flatpak uninstall io.github.fluffydisk.airdrop-linux --delete-data/);
 });
