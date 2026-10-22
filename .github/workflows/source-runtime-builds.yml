@@ -1,0 +1,22 @@
+name: Source runtime builds
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/source-build-infrastructure]
+permissions:
+  contents: read
+jobs:
+  preflight:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Measure source-build capacity and resolve tool revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          disk_gib=$(df -BG . | awk 'NR==2 {gsub(/G/, "", $4);print $4}')
+          ram_kib=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+          depot_revision=$(git ls-remote https://chromium.googlesource.com/chromium/tools/depot_tools.git HEAD | cut -f1)
+          printf '::notice title=Source build preflight::arch=%s availableDiskGiB=%s ramKiB=%s depotToolsRevision=%s\n' "$(uname -m)" "$disk_gib" "$ram_kib" "$depot_revision"
