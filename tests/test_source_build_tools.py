@@ -17,6 +17,29 @@ import electron_source as electron
 
 
 class SourceBuildTests(unittest.TestCase):
+    def test_offline_electron_requires_verified_host_and_cross_target_sysroots(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'src'
+            (source / 'electron/script').mkdir(parents=True)
+            pins = {('bullseye_' + cpu): {'SysrootDir': 'debian_bullseye_' + cpu + '-sysroot',
+                    'URL': 'https://source.example.invalid', 'Sha256Sum': cpu}
+                    for cpu in ['amd64', 'arm64']}
+            (source / 'electron/script/sysroots.json').write_text(json.dumps(pins))
+            host = source / 'build/linux' / pins['bullseye_amd64']['SysrootDir']
+            host.mkdir(parents=True)
+            (host / '.stamp').write_text('https://source.example.invalid/amd64')
+            electron.verify_sysroots(root, 'x64')
+            with self.assertRaisesRegex(RuntimeError, 'Missing or unverified'):
+                electron.verify_sysroots(root, 'arm64')
+            target = source / 'build/linux' / pins['bullseye_arm64']['SysrootDir']
+            target.mkdir()
+            (target / '.stamp').write_text('stale')
+            with self.assertRaisesRegex(RuntimeError, 'Missing or unverified'):
+                electron.verify_sysroots(root, 'arm64')
+            (target / '.stamp').write_text('https://source.example.invalid/arm64')
+            electron.verify_sysroots(root, 'arm64')
+
     def test_detached_shallow_source_has_real_release_refs_for_gn(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

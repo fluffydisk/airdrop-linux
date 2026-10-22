@@ -72,6 +72,19 @@ def materialize_release_refs(repository):
         raise RuntimeError('Electron release refs were not materialized')
 
 
+def verify_sysroots(directory, arch):
+    source = directory / 'src'
+    pins = json.loads((source / 'electron/script/sysroots.json').read_text())
+    for cpu in dict.fromkeys(['amd64', 'arm64' if arch == 'arm64' else 'amd64']):
+        pin = pins['bullseye_' + cpu]
+        root = source / 'build/linux' / pin['SysrootDir']
+        expected = pin['URL'] + '/' + pin['Sha256Sum']
+        if not root.is_dir() or not (root / '.stamp').is_file() or (root / '.stamp').read_text() != expected:
+            raise RuntimeError('Missing or unverified Electron sysroot: ' + str(root))
+        if not root.resolve().is_relative_to(directory.resolve()):
+            raise RuntimeError('Electron sysroot must be inside the prepared source tree')
+
+
 def prepare(directory, arch):
     if directory.exists():
         raise ValueError('Electron preparation directory must be new')
@@ -102,6 +115,12 @@ def prepare(directory, arch):
         raise RuntimeError('Automatic system dependency installation requires an ephemeral GitHub-hosted runner')
     execute(['sudo', directory / 'src/build/install-build-deps.sh', '--no-prompt', '--no-chromeos-fonts'], cwd=directory, env=env)
     execute(['gclient', 'runhooks'], cwd=directory, env=env)
+    # Install both the host and cross-target sysroots explicitly. A hook's
+    # checkout conditions are not a guarantee that the offline SDK can see them.
+    for cpu in dict.fromkeys(['amd64', 'arm64' if arch == 'arm64' else 'amd64']):
+        execute(['python3', directory / 'src/build/linux/sysroot_scripts/install-sysroot.py',
+                 '--sysroots-json-path=electron/script/sysroots.json', '--arch=' + cpu], cwd=directory / 'src', env=env)
+    verify_sysroots(directory, arch)
     materialize_release_refs(directory / 'src/electron')
     # Chromium tools may select the nested depot_tools Python shim. Warm both
     # pinned checkouts before disabling the network instead of using a fallback
@@ -149,6 +168,7 @@ def build(directory, output, jobs):
     arch = metadata['targetArchitecture']
     if arch not in ['x64', 'arm64'] or metadata['gnArgs'] != gn_args(arch):
         raise ValueError('Unexpected Electron build arguments')
+    verify_sysroots(directory, arch)
     execute(['gn', 'gen', 'out/Source', '--args=' + gn_args(arch), '--fail-on-unused-args'], cwd=directory / 'src', env=env)
     execute(['ninja', '-C', 'out/Source', '-j', str(jobs), 'electron:electron_dist_zip'], cwd=directory / 'src', env=env)
     distribution = directory / 'src/out/Source/dist.zip'
