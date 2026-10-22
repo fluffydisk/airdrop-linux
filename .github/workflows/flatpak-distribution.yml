@@ -118,7 +118,7 @@ jobs:
           flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo > flatpak-lint/repo.txt 2>&1 || status=$?
           cat flatpak-lint/*.txt
           exit "$status"
-      - name: Create, install, and exercise the real bundle
+      - name: Create the distributable bundle
         env:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           FLATPAK_ARCH: ${{ matrix.arch }}
@@ -127,12 +127,32 @@ jobs:
           mkdir -p release
           bundle="release/airdrop-linux-${RELEASE_TAG#v}-$FLATPAK_ARCH.flatpak"
           flatpak build-bundle --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo flatpak-repo "$bundle" io.github.fluffydisk.airdrop-linux stable
-          dbus-run-session -- flatpak install --user --noninteractive "$bundle"
-          dbus-run-session -- node scripts/smoke-sandbox.js flatpak
-          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
-          dbus-run-session -- bash scripts/test-flatpak-wayland.sh
+      - name: Install the real bundle
+        timeout-minutes: 10
+        run: dbus-run-session -- flatpak install --user --noninteractive release/*.flatpak
+      - name: Test isolation and real file/ZIP transfer
+        timeout-minutes: 3
+        run: |
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+      - name: Test the sandboxed desktop under X11
+        timeout-minutes: 4
+        run: |
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" DEBUG=pw:browser xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+      - name: Test native Wayland desktop startup
+        timeout-minutes: 4
+        run: dbus-run-session -- bash scripts/test-flatpak-wayland.sh
+      - name: Record permissions and remove the disposable installation
+        if: always()
+        run: |
+          if ! flatpak info --user io.github.fluffydisk.airdrop-linux >/dev/null 2>&1; then exit 0; fi
           flatpak info --user --show-permissions io.github.fluffydisk.airdrop-linux
           flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+      - name: Record validated bundle hashes
+        env:
+          FLATPAK_ARCH: ${{ matrix.arch }}
+        run: |
           (cd release && sha256sum *.flatpak > "FLATPAK-SHA256SUMS-$FLATPAK_ARCH")
       - name: Require lint success before distribution
         env:
@@ -143,6 +163,12 @@ jobs:
         with:
           name: flatpak-lint-${{ matrix.arch }}
           path: flatpak-lint
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: flatpak-diagnostics-${{ matrix.arch }}
+          path: release/*.flatpak
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-${{ matrix.arch }}
