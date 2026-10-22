@@ -1,0 +1,93 @@
+# AI-assisted upstream packaging; not a Flathub submission.
+app-id: io.github.fluffydisk.airdrop-linux
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+- org.freedesktop.Sdk.Extension.node24
+- org.freedesktop.Sdk.Extension.rust-stable
+base: org.electronjs.Electron2.BaseApp
+base-version: '26.08'
+command: airdrop-desktop
+separate-locales: false
+finish-args:
+- --share=ipc
+- --share=network
+- --socket=wayland
+- --socket=fallback-x11
+- --device=dri
+- --talk-name=org.kde.StatusNotifierWatcher
+- --env=GTK_USE_PORTAL=1
+modules:
+- name: node
+  buildsystem: simple
+  build-commands:
+  - install -Dm755 /usr/lib/sdk/node24/bin/node /app/lib/airdrop-linux/runtime/node
+  - mkdir -p /app/share/licenses/$FLATPAK_ID/node
+  - cp -a /usr/lib/sdk/node24/share/licenses/. /app/share/licenses/$FLATPAK_ID/node/
+- name: dufs
+  buildsystem: simple
+  build-options:
+    append-path: /usr/lib/sdk/rust-stable/bin
+    env:
+      CARGO_HOME: /run/build/dufs/cargo
+      CARGO_NET_OFFLINE: 'true'
+  build-commands:
+  - cargo build --offline --locked --release --bin dufs -j$FLATPAK_BUILDER_N_JOBS
+  - install -Dm755 target/release/dufs /app/lib/airdrop-linux/runtime/dufs
+  - install -Dm644 LICENSE-MIT /app/share/licenses/$FLATPAK_ID/dufs/LICENSE-MIT
+  - mkdir -p /app/share/licenses/$FLATPAK_ID/dufs-dependencies /app/share/licenses/$FLATPAK_ID/rust-runtime
+  - find cargo/vendor -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'copyright*'
+    \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/dufs-dependencies/ \;
+  - find /usr/lib/sdk/rust-stable -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname
+    'copyright*' \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/rust-runtime/ \;
+  sources:
+  - type: archive
+    url: https://codeload.github.com/sigoden/dufs/tar.gz/b69946df232ceca5d24d0067f2beb6b5ed1c292c
+    sha256: c4f9b0a2f736bde8959c5e69967652326aaed4cc60b5a89a4b2b87739c65cb3c
+    archive-type: tar-gzip
+  - flatpak/generated-cargo-sources.json
+- name: airdrop-linux
+  buildsystem: simple
+  build-options:
+    append-path: /usr/lib/sdk/node24/bin
+    env:
+      npm_config_cache: /run/build/airdrop-linux/flatpak-node/npm-cache
+      npm_config_offline: 'true'
+      npm_config_ignore_scripts: 'true'
+  build-commands:
+  - bash install-flatpak.sh
+  sources:
+  - type: archive
+    url: https://codeload.github.com/fluffydisk/airdrop-linux/tar.gz/2a66fabc4cac57381ab5c5ddbb9d5065e274cf04
+    sha256: c42fe61d3210303d6279c28c0bfc9c00e6a3faa590b8ca3ed7c3d9f31f2cd182
+    archive-type: tar-gzip
+  - type: patch
+    path: flatpak/application-id.patch
+  - type: archive
+    url: https://github.com/electron/electron/releases/download/v44.7.0/electron-v44.7.0-linux-x64.zip
+    sha256: 3ae7d5bdad61c664486c6ab61361dd084d064c8c08af8d13a687096e18ce555a
+    dest: electron-runtime
+    strip-components: 0
+    only-arches:
+    - x86_64
+  - type: archive
+    url: https://github.com/electron/electron/releases/download/v44.7.0/electron-v44.7.0-linux-arm64.zip
+    sha256: 9cd736d1f5873839553c3fa6c8c5e57635ec4a399cc2d32e79c82a02d9cd2258
+    dest: electron-runtime
+    strip-components: 0
+    only-arches:
+    - aarch64
+  - flatpak/generated-npm-sources.json
+  - type: file
+    path: flatpak/install-flatpak.sh
+  - type: file
+    path: flatpak/build-tools/package.json
+    dest: build-tools
+  - type: file
+    path: flatpak/build-tools/package-lock.json
+    dest: build-tools
+  - type: file
+    path: io.github.fluffydisk.airdrop-linux.desktop
+  - type: file
+    path: io.github.fluffydisk.airdrop-linux.metainfo.xml

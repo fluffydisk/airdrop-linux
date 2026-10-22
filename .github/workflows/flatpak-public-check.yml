@@ -1,0 +1,55 @@
+name: Verify public signed Flatpak repository
+on:
+  workflow_call:
+    inputs:
+      tag: {type: string, required: true}
+      fingerprint: {type: string, required: true}
+permissions:
+  contents: read
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Verify the repository key and install over HTTPS with GPG verification
+        env:
+          EXPECTED_FINGERPRINT: ${{ inputs.fingerprint }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y flatpak gnupg xvfb dbus-x11
+          npm ci
+          curl -fL --retry 5 --retry-all-errors https://fluffydisk.github.io/airdrop-linux/airdrop-linux.flatpakrepo -o airdrop-linux.flatpakrepo
+          python3 - <<'PY'
+          import base64,configparser,pathlib
+          config=configparser.ConfigParser()
+          config.read('airdrop-linux.flatpakrepo')
+          section=config['Flatpak Repo']
+          assert section['Url']=='https://fluffydisk.github.io/airdrop-linux/flatpak/'
+          pathlib.Path('remote.gpg').write_bytes(base64.b64decode(section['GPGKey'],validate=True))
+          PY
+          fingerprint=$(gpg --batch --with-colons --show-keys remote.gpg | awk -F: '$1=="fpr" {print $10;exit}')
+          test "$(gpg --batch --with-colons --show-keys remote.gpg | awk -F: '$1=="pub" {n++} END {print n}')" = 1
+          test "$fingerprint" = "$EXPECTED_FINGERPRINT"
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user airdrop-linux airdrop-linux.flatpakrepo
+          dbus-run-session -- flatpak install --user --noninteractive airdrop-linux io.github.fluffydisk.airdrop-linux
+          runtime=$(mktemp -d)
+          version=$(XDG_RUNTIME_DIR="$runtime" dbus-run-session -- flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux -p 'require("/app/lib/airdrop-linux/server/package.json").version')
+          test "$version" = "${RELEASE_TAG#v}"
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+          printf 'Public signed Flatpak remote: %s install, file/ZIP transfer and sandboxed desktop passed on %s.\n' "$RELEASE_TAG" "$(uname -m)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,306 @@
+name: Build and distribute Flatpak
+on:
+  pull_request:
+    paths: ['packaging/**', 'scripts/*flatpak*', '.github/workflows/flatpak-distribution.yml']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published stable release
+        default: v1.5.0
+        required: true
+      publish:
+        description: Append validated Flatpak bundles to the release
+        type: boolean
+        default: false
+  release:
+    types: [published]
+permissions:
+  contents: read
+concurrency:
+  group: flatpak-${{ github.event.pull_request.number || inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.event_name != 'release' || (!github.event.release.prerelease && !github.event.release.draft)
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && 'main' || github.sha }}
+          persist-credentials: false
+      - id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.event.release.tag_name || 'v1.5.0' }}
+          PUBLISH: ${{ inputs.publish || github.event_name == 'release' }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ "$PUBLISH" == true && "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            test "$GITHUB_REF" = refs/heads/main
+          fi
+          printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+      - if: github.event_name != 'pull_request'
+        name: Install pinned official dependency generators
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/flatpak-builder-tools"
+          curl -fsSL https://codeload.github.com/flatpak/flatpak-builder-tools/tar.gz/3d6ff6697785b52ae34db8078e0ad5188a710b1f -o "$RUNNER_TEMP/tools.tar.gz"
+          printf '%s  %s\n' a7a1b92aed7978d319b7b730a4ca8349b51ecdb25a000246d781c59c14c11661 "$RUNNER_TEMP/tools.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/tools.tar.gz" --strip-components=1 -C "$RUNNER_TEMP/flatpak-builder-tools"
+          python3 -m venv "$RUNNER_TEMP/flatpak-tools-venv"
+          "$RUNNER_TEMP/flatpak-tools-venv/bin/pip" install "$RUNNER_TEMP/flatpak-builder-tools/node" tomlkit==0.13.3
+          printf '%s\n' "$RUNNER_TEMP/flatpak-tools-venv/bin" >> "$GITHUB_PATH"
+          printf 'FLATPAK_BUILDER_TOOLS=%s\n' "$RUNNER_TEMP/flatpak-builder-tools" >> "$GITHUB_ENV"
+      - if: github.event_name != 'pull_request'
+        name: Refresh pinned release sources and offline dependency descriptions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: bash scripts/prepare-flatpak-release.sh "$RELEASE_TAG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-inputs
+          path: packaging/
+          if-no-files-found: error
+  build:
+    needs: prepare
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x86_64}
+          - {runner: ubuntu-24.04-arm, arch: aarch64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && 'main' || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: flatpak-inputs
+          path: packaging
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Install test and Flatpak tools on the disposable VM
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          # The runner's Azure mirror stalled on codec dependencies. Retain the
+          # Ubuntu suites, Signed-By keys and apt verification on the main mirror.
+          if test -f /etc/apt/sources.list.d/ubuntu.sources; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk
+          npm ci
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder org.freedesktop.Sdk//26.08 org.freedesktop.Platform//26.08 org.electronjs.Electron2.BaseApp//26.08 org.freedesktop.Sdk.Extension.node24//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08
+      - uses: actions/cache@v4
+        with:
+          path: .flatpak-builder/ccache
+          key: flatpak-ccache-26.08-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: flatpak-ccache-26.08-${{ matrix.arch }}-
+      - name: Download all checksum-pinned build inputs before compilation
+        run: dbus-run-session -- flatpak run --command=flatpak-builder org.flatpak.Builder --download-only --disable-rofiles-fuse fetch-build packaging/io.github.fluffydisk.airdrop-linux.yml
+      - name: Build with downloads disabled and network-isolated module commands
+        run: dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-download --disable-rofiles-fuse --ccache --jobs=2 --default-branch=stable --repo=flatpak-repo packaging/io.github.fluffydisk.airdrop-linux.yml
+      - name: Validate desktop metadata
+        run: |
+          desktop-file-validate packaging/io.github.fluffydisk.airdrop-linux.desktop
+          appstreamcli validate --no-net packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml
+      - name: Flatpak manifest and repository lint
+        id: lint
+        continue-on-error: true
+        run: |
+          mkdir -p flatpak-lint
+          status=0
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest packaging/io.github.fluffydisk.airdrop-linux.yml > flatpak-lint/manifest.txt 2>&1 || status=$?
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo > flatpak-lint/repo.txt 2>&1 || status=$?
+          cat flatpak-lint/*.txt
+          exit "$status"
+      - name: Create the distributable bundle
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          FLATPAK_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          bundle="release/airdrop-linux-${RELEASE_TAG#v}-$FLATPAK_ARCH.flatpak"
+          flatpak build-bundle --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo flatpak-repo "$bundle" io.github.fluffydisk.airdrop-linux stable
+      - name: Install the real bundle
+        timeout-minutes: 10
+        run: dbus-run-session -- flatpak install --user --noninteractive release/*.flatpak
+      - name: Test isolation and real file/ZIP transfer
+        timeout-minutes: 3
+        run: |
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+      - name: Test the sandboxed desktop under X11
+        timeout-minutes: 4
+        run: |
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" DEBUG=pw:browser xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+      - name: Test native Wayland desktop startup
+        timeout-minutes: 4
+        run: dbus-run-session -- bash scripts/test-flatpak-wayland.sh
+      - name: Record permissions and remove the disposable installation
+        if: always()
+        run: |
+          if ! flatpak info --user io.github.fluffydisk.airdrop-linux >/dev/null 2>&1; then exit 0; fi
+          flatpak info --user --show-permissions io.github.fluffydisk.airdrop-linux
+          flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+      - name: Record validated bundle hashes
+        env:
+          FLATPAK_ARCH: ${{ matrix.arch }}
+        run: |
+          (cd release && sha256sum *.flatpak > "FLATPAK-SHA256SUMS-$FLATPAK_ARCH")
+      - name: Require lint success before distribution
+        env:
+          LINT_RESULT: ${{ steps.lint.outcome }}
+        run: test "$LINT_RESULT" = success
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flatpak-lint-${{ matrix.arch }}
+          path: flatpak-lint
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: flatpak-diagnostics-${{ matrix.arch }}
+          path: release/*.flatpak
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: release/*
+          if-no-files-found: error
+  publish:
+    needs: [prepare, build, repository-check]
+    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: flatpak-*
+          path: artifacts
+      - name: Append both tested bundles without replacing any release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir upload
+          for arch in x86_64 aarch64; do
+            (cd "artifacts/flatpak-$arch" && sha256sum -c "FLATPAK-SHA256SUMS-$arch")
+            cp "artifacts/flatpak-$arch/airdrop-linux-${RELEASE_TAG#v}-$arch.flatpak" upload/
+          done
+          (cd upload && sha256sum *.flatpak > FLATPAK-SHA256SUMS)
+          test "$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '[.isDraft,.isPrerelease]|any')" = false
+          gh release view "$RELEASE_TAG" --json assets > existing-assets.json
+          missing=()
+          mkdir existing
+          for file in upload/*; do
+            name=$(basename "$file")
+            if jq -e --arg name "$name" '.assets | any(.name == $name)' existing-assets.json >/dev/null; then
+              gh release download "$RELEASE_TAG" --pattern "$name" --dir existing
+              cmp -- "$file" "existing/$name"
+            else
+              missing+=("$file")
+            fi
+          done
+          # Retry safely after a partial upload; never replace an existing file.
+          if (( ${#missing[@]} )); then
+            gh release upload "$RELEASE_TAG" "${missing[@]}"
+          fi
+  repository-check:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && 'main' || github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: flatpak-*
+          path: artifacts
+      - name: Test signed repository metadata with a disposable key
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree gnupg
+          mkdir input
+          cp artifacts/flatpak-x86_64/*.flatpak artifacts/flatpak-aarch64/*.flatpak input/
+          (cd input && sha256sum *.flatpak > FLATPAK-SHA256SUMS)
+          export GNUPGHOME="$RUNNER_TEMP/test-flatpak-signing"
+          mkdir -m 700 "$GNUPGHOME" fixture-public
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Flatpak CI test <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
+          bash scripts/build-flatpak-repository.sh input fixture-public
+          gpg --batch --export "$SIGNING_KEY_FINGERPRINT" > "$RUNNER_TEMP/test-flatpak.gpg"
+          flatpak remote-add --user --gpg-import="$RUNNER_TEMP/test-flatpak.gpg" airdrop-ci "file://$PWD/fixture-public/flatpak"
+          for arch in x86_64 aarch64; do
+            flatpak remote-ls --user --arch="$arch" --columns=application airdrop-ci | grep -Fx io.github.fluffydisk.airdrop-linux
+          done
+          flatpak remote-delete --user airdrop-ci
+  public-install:
+    needs: [prepare, publish]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x86_64}
+          - {runner: ubuntu-24.04-arm, arch: aarch64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Download, verify and install the public release asset
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          FLATPAK_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y flatpak xvfb dbus-x11
+          npm ci
+          base="https://github.com/fluffydisk/airdrop-linux/releases/download/$RELEASE_TAG"
+          bundle="airdrop-linux-${RELEASE_TAG#v}-$FLATPAK_ARCH.flatpak"
+          curl --proto '=https' -fL --retry 3 "$base/$bundle" -o "$bundle"
+          curl --proto '=https' -fL --retry 3 "$base/FLATPAK-SHA256SUMS" -o FLATPAK-SHA256SUMS
+          sha256sum --strict --ignore-missing -c FLATPAK-SHA256SUMS
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          dbus-run-session -- flatpak install --user --noninteractive "$bundle"
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+          printf 'Public GitHub asset %s: verified download, install, transfer and sandboxed desktop passed.\n' "$bundle" >> "$GITHUB_STEP_SUMMARY"
+  repository-publication:
+    needs: [prepare, public-install]
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Request the protected Pages publication after public bundle tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh workflow run package-publishing.yml --ref main -f "tag=$RELEASE_TAG" -F publish=true

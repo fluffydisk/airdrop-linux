@@ -21,6 +21,9 @@ jobs:
   prepare:
     if: github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && !github.event.release.draft)
     runs-on: ubuntu-24.04
+    outputs:
+      flatpak: ${{ steps.flatpak.outputs.available }}
+      flatpak_tag: ${{ steps.flatpak.outputs.tag }}
     steps:
       - name: Check production source ref
         env:
@@ -52,6 +55,25 @@ jobs:
           bash scripts/ci-command.sh Repository-download node scripts/download-repository-assets.js "$RELEASE_TAG" incoming downloads
           printf '### Repository inputs verified\n\nSource commit: `%s`\n\nRequested release: `%s`\n\n' "$GITHUB_SHA" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
           cat incoming/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve the newest complete public Flatpak release
+        id: flatpak
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/download-flatpak-assets.js flatpak-incoming
+          if test -d flatpak-incoming; then
+            echo available=true >> "$GITHUB_OUTPUT"
+            printf 'tag=%s\n' "$(cat flatpak-incoming/tag.txt)" >> "$GITHUB_OUTPUT"
+          else
+            echo available=false >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: steps.flatpak.outputs.available == 'true'
+        with:
+          name: flatpak-repository-inputs
+          path: flatpak-incoming/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: repository-packages
@@ -72,11 +94,16 @@ jobs:
         with:
           name: repository-packages
           path: incoming
+      - uses: actions/download-artifact@v4
+        if: needs.prepare.outputs.flatpak == 'true'
+        with:
+          name: flatpak-repository-inputs
+          path: flatpak-incoming
       - name: Verify complete signing flow with a disposable key (no deployment)
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv
+          sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv flatpak ostree
           node scripts/verify-release-assets.js incoming
           export GNUPGHOME="$RUNNER_TEMP/test-signing"
           mkdir -m 700 "$GNUPGHOME"
@@ -84,12 +111,17 @@ jobs:
           gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop CI test <test@example.invalid>' ed25519 sign 1d
           export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
           bash scripts/ci-command.sh Repository-test-signing scripts/build-repository.sh incoming verified-repository
+          if test -d flatpak-incoming; then
+            bash scripts/build-flatpak-repository.sh flatpak-incoming verified-repository
+          fi
           echo '### Validation passed with real release assets and a disposable key; nothing deployed.' >> "$GITHUB_STEP_SUMMARY"
   repository:
     needs: prepare
     if: github.event_name == 'release' || inputs.publish == true
     runs-on: ubuntu-24.04
     environment: package-publishing
+    outputs:
+      fingerprint: ${{ steps.signing.outputs.fingerprint }}
     permissions:
       contents: read
       pages: write
@@ -105,11 +137,17 @@ jobs:
         with:
           name: repository-packages
           path: incoming
+      - uses: actions/download-artifact@v4
+        if: needs.prepare.outputs.flatpak == 'true'
+        with:
+          name: flatpak-repository-inputs
+          path: flatpak-incoming
       - name: Verify staged checksums before accessing signing material
         run: node scripts/verify-release-assets.js incoming
       - name: Install repository tools
-        run: sudo apt-get update && sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv
+        run: sudo apt-get update && sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv flatpak ostree
       - name: Import protected signing key
+        id: signing
         env:
           REPOSITORY_SIGNING_KEY: ${{ secrets.REPOSITORY_SIGNING_KEY }}
           REPOSITORY_SIGNING_PASSPHRASE: ${{ secrets.REPOSITORY_SIGNING_PASSPHRASE }}
@@ -129,10 +167,16 @@ jobs:
           printf 'probe' | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$passfile" --local-user "$SIGNING_KEY_FINGERPRINT" --sign > "$GNUPGHOME/probe.gpg"
           rm "$passfile"
           printf 'GNUPGHOME=%s\n' "$GNUPGHOME" >> "$GITHUB_ENV"
+          printf 'fingerprint=%s\n' "$SIGNING_KEY_FINGERPRINT" >> "$GITHUB_OUTPUT"
       - name: Build and verify signed APT and RPM repositories
         env:
           SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
         run: bash scripts/ci-command.sh Repository-build scripts/build-repository.sh incoming public
+      - name: Include the signed Flatpak remote without changing native package inputs
+        if: needs.prepare.outputs.flatpak == 'true'
+        env:
+          SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
+        run: bash scripts/build-flatpak-repository.sh flatpak-incoming public
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
@@ -143,3 +187,10 @@ jobs:
           export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
           gpgconf --kill gpg-agent || true
           rm -rf "$GNUPGHOME"
+  flatpak-install:
+    needs: [prepare, repository]
+    if: needs.prepare.outputs.flatpak == 'true'
+    uses: ./.github/workflows/flatpak-public-check.yml
+    with:
+      tag: ${{ needs.prepare.outputs.flatpak_tag }}
+      fingerprint: ${{ needs.repository.outputs.fingerprint }}
