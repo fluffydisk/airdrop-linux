@@ -9,7 +9,7 @@ release assets or change signing keys or deployment protections.
 | APT | VERIFIED INSTALLABLE | [Signed stable index](https://fluffydisk.github.io/airdrop-linux/apt/dists/stable/InRelease) | amd64/arm64: Debian 13, Ubuntu 24.04/26.04 | None for these targets; Mint untested |
 | RPM | VERIFIED INSTALLABLE | [x86_64 metadata](https://fluffydisk.github.io/airdrop-linux/rpm/x86_64/repodata/repomd.xml), [aarch64 metadata](https://fluffydisk.github.io/airdrop-linux/rpm/aarch64/repodata/repomd.xml) | x86_64/aarch64: Fedora 43/44 and openSUSE Tumbleweed, tested separately | Per-distribution graphical desktop acceptance remains |
 | AUR | BLOCKED | No public package listing | Public v1.5.0 recipe built/installed/removed on Arch x86_64; aarch64 untested | Maintainer reports account registration unavailable; deferred for this stage |
-| Snap | BLOCKED BY STORE REVIEW | No public listing; candidate/stable unreleased | Exact v1.5.0 strict local build/install/desktop/removal passed on amd64/arm64; Store access passed | ARM64 upload requires human review for browser sandbox; amd64 waits for prior upload review |
+| Snap | BLOCKED | No public listing; candidate/stable unreleased | Exact v1.5.0 strict local build/install/desktop/removal passed on amd64/arm64; Store access passed | ARM64 upload requires human review for browser sandbox; amd64 waits for prior upload review |
 | Flathub | BLOCKED | No public listing | No installation from Flathub | Electron source build incomplete; independent human manifest and submission required |
 
 ## Install the published native packages
@@ -53,8 +53,9 @@ older glibc distributions are not certified by Ubuntu tests.
 
 The [GitHub environment settings](https://github.com/fluffydisk/airdrop-linux/settings/environments)
 are the secure place to configure these bindings; do not paste credentials in
-chat. Secret administration returns HTTP 403 for this integration. Runtime checks
-confirmed absence rather than inferring it from that API failure.
+chat. Secret administration returns HTTP 403 for this integration. Earlier runtime
+checks confirmed missing bindings; the maintainer subsequently configured the
+Snap binding and its current authenticated access checks pass.
 
 1. **Snap:** the registered name and scoped `SNAPCRAFT_STORE_CREDENTIALS` binding
    are verified. No further credential export is needed. In the
