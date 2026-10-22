@@ -130,7 +130,7 @@ jobs:
           set -euo pipefail
           snapcraft whoami
           snapcraft status airdrop-linux
-          snapcraft list-revisions airdrop-linux
+          snapcraft revisions airdrop-linux
           echo 'Snap Store authentication and package access passed; nothing uploaded.' >> "$GITHUB_STEP_SUMMARY"
   prepare:
     if: contains(fromJSON('["prepare", "aur", "snap-validate", "snap"]'), inputs.channel)

@@ -39,6 +39,8 @@ Use APT `signed-by` and retain RPM `gpgcheck=1` and `repo_gpgcheck=1`.
 - [Exact-release Snap validation](https://github.com/fluffydisk/airdrop-linux/actions/runs/39811197914): both amd64/arm64 artifacts built from the checksum-verified v1.5.0 payloads, installed with strict confinement, exercised through CLI, backend transfer and sandbox-enabled foreground/background desktop lifecycle tests, then removed. Tested `.snap` artifacts were retained; no store upload occurred.
 - [Authenticated Snap Store access](https://github.com/fluffydisk/airdrop-linux/actions/runs/39819194017): the maintainer's scoped environment credential passed `whoami` and package access without exposing its value.
 - [First real Snap uploads](https://github.com/fluffydisk/airdrop-linux/actions/runs/39819533208): both freshly built immutable v1.5.0 artifacts passed the local strict CLI/backend/transfer/ZIP and desktop tests. Store processing returned `will need manual review` for ARM64 due to the browser-support `deny-connection` constraint, and `Waiting for previous upload(s) to complete their review process` for amd64. No successful candidate release or Store installation is claimed. The Store's suggestion to disable Chromium's sandbox was not applied.
+- [Authenticated revision inventory](https://github.com/fluffydisk/airdrop-linux/actions/runs/39820920075): Store received **revision 1 (arm64)** and **revision 2 (amd64)**, both version 1.5.0, but reports no released revisions.
+- [Real Store installation attempts](https://github.com/fluffydisk/airdrop-linux/actions/runs/39820964138): native amd64 and ARM64 VMs both reached normal `snap install airdrop-linux --channel=latest/candidate`, which returned `snap "airdrop-linux" not found`. Stable release and stable checks were skipped, as required. Application tests from a Store installation remain unexecuted until review and candidate release complete.
 - [AUR credential check](https://github.com/fluffydisk/airdrop-linux/actions/runs/39812202638) and [Snap credential check](https://github.com/fluffydisk/airdrop-linux/actions/runs/39809751892): failed explicitly at missing account bindings, before any publication. The AUR scan passed official host-fingerprint verification without a manually supplied known_hosts secret. AUR RPC returned zero matching entries; Snap's public API returned no listing for `airdrop-linux`. This does not establish that the Snap name is unreserved.
 
 Containers do not exercise a full desktop login/systemd session. RPM GUI launch
@@ -57,7 +59,7 @@ confirmed absence rather than inferring it from that API failure.
 1. **Snap:** the registered name and scoped `SNAPCRAFT_STORE_CREDENTIALS` binding
    are verified. No further credential export is needed. In the
    [publisher dashboard](https://dashboard.snapcraft.io/snaps/airdrop-linux/),
-   inspect the upload review messages and complete the Store's required human
+   inspect revision **1 (arm64)** and revision **2 (amd64)** and complete the Store's required human
    review for `browser-sandbox` (`browser-support`, `allow-sandbox: true`),
    retaining Electron sandboxing and obtaining the required connection approval.
 2. Once Store review is approved, rerun only the failed upload jobs in run
