@@ -23,6 +23,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 -m unittest discover -s tests -p test_source_build_tools.py
+      - name: Inspect bounded diagnostics from source-only test jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,os,subprocess
+          repo=os.environ['GITHUB_REPOSITORY']
+          for job_id,expected in [(119825056143,'electron-source-builds.yml'),(119835848814,'flatpak-runtime-checks.yml')]:
+              job=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/jobs/{job_id}']))
+              run=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{job["run_id"]}']))
+              assert run['path']==f'.github/workflows/{expected}'
+              result=subprocess.run(['gh','api',f'repos/{repo}/actions/jobs/{job_id}/logs'],capture_output=True,text=True)
+              assert result.returncode==0,'Source job logs unavailable'
+              text=result.stdout.replace('%0A','\n').replace('%0D','\n')
+              candidates=[text.rfind(marker) for marker in ['ERROR at ','AssertionError','TimeoutError','FileNotFoundError','RuntimeError']]
+              index=max(candidates)
+              message=text[max(0,index-200):index+2200] if index>=0 else text[-2200:]
+              print(f'::notice title=Source diagnostic {job_id}::'+message.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
+          PY
   source-application:
     if: github.event_name == 'workflow_dispatch'
     strategy:
