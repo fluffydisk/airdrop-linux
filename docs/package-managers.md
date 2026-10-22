@@ -277,6 +277,9 @@ file/ZIP transfer and removes it. Its artifact contains `aur/PKGBUILD` and
   Uploads go to **candidate**, not stable. Review
   strict confinement, portal interaction, user-service control and architectures
   on actual hosts before promoting the revisions to stable.
+  The maintainer has now registered the name. For a one-time login on Arch/Omarchy
+  without installing Ubuntu or Snapcraft locally, use the
+  [temporary-container credential guide](snap-store-auth.md).
 
 Never put signing keys or store credentials in source, command arguments or logs.
 Missing credentials, unavailable store names and reviewer approval remain external

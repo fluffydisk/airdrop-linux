@@ -242,4 +242,4 @@ jobs:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
           set -euo pipefail
-          snapcraft upload ./*.snap --release candidate
+          snapcraft upload ./*.snap --release latest/candidate

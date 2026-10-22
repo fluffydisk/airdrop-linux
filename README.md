@@ -29,7 +29,8 @@ Public-repository installation and removal passed on amd64/ARM64 with Debian 13,
 Ubuntu 24.04/26.04, Fedora 43/44 and openSUSE Tumbleweed. The published DEB desktop
 also passed sandbox-enabled launch and functional tests on both architectures.
 
-AUR and Snap Store are not published: their account credentials are missing.
+AUR is deferred while account registration is unavailable. Snap Store publication
+awaits a scoped credential for the maintainer's registered `airdrop-linux` name.
 Flathub remains blocked by source-build and human-authorship requirements.
 See the [distribution status and evidence](docs/distribution-status.md).
 

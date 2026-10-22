@@ -8,8 +8,8 @@ release assets or change signing keys or deployment protections.
 |---|---|---|---|---|
 | APT | VERIFIED INSTALLABLE | [Signed stable index](https://fluffydisk.github.io/airdrop-linux/apt/dists/stable/InRelease) | amd64/arm64: Debian 13, Ubuntu 24.04/26.04 | None for these targets; Mint untested |
 | RPM | VERIFIED INSTALLABLE | [x86_64 metadata](https://fluffydisk.github.io/airdrop-linux/rpm/x86_64/repodata/repomd.xml), [aarch64 metadata](https://fluffydisk.github.io/airdrop-linux/rpm/aarch64/repodata/repomd.xml) | x86_64/aarch64: Fedora 43/44 and openSUSE Tumbleweed, tested separately | Per-distribution graphical desktop acceptance remains |
-| AUR | BLOCKED | No public package listing | Public v1.5.0 recipe built/installed/removed on Arch x86_64; aarch64 untested | AUR_SSH_KEY unavailable |
-| Snap | BLOCKED | No public listing | Exact v1.5.0 strict local build/install/desktop/removal passed on amd64/arm64; no Store install | SNAPCRAFT_STORE_CREDENTIALS unavailable; name ownership/interface review unverified |
+| AUR | BLOCKED | No public package listing | Public v1.5.0 recipe built/installed/removed on Arch x86_64; aarch64 untested | Maintainer reports account registration unavailable; deferred for this stage |
+| Snap | BLOCKED | No public listing | Exact v1.5.0 strict local build/install/desktop/removal passed on amd64/arm64; no Store install | Name registration confirmed by maintainer; SNAPCRAFT_STORE_CREDENTIALS still needed; interface review pending |
 | Flathub | BLOCKED | No public listing | No installation from Flathub | Electron source build incomplete; independent human manifest and submission required |
 
 ## Install the published native packages
@@ -52,20 +52,18 @@ are the secure place to configure these bindings; do not paste credentials in
 chat. Secret administration returns HTTP 403 for this integration. Runtime checks
 confirmed absence rather than inferring it from that API failure.
 
-1. **AUR:** authenticate an [AUR account](https://aur.archlinux.org/), register the
-   public half of its authorized SSH key, and set `AUR_SSH_KEY` in
-   `aur-publishing`. The workflow verifies the server's scanned Ed25519 key
-   against the fingerprint published on the AUR HTTPS homepage; preparing
-   `AUR_KNOWN_HOSTS` manually is optional. See [AUR submission guidance](https://wiki.archlinux.org/title/AUR_submission_guidelines#Authentication).
-2. **Snap:** verify/reserve `airdrop-linux` in the [publisher dashboard](https://dashboard.snapcraft.io/).
-   Export a Snapcraft login restricted to this snap and candidate/stable upload
-   and release permissions, and set `SNAPCRAFT_STORE_CREDENTIALS` in
-   `snap-publishing`. [Snapcraft authentication guidance](https://documentation.ubuntu.com/snapcraft/stable/how-to/publishing/authenticate/).
-3. After configuration, run `store-submissions.yml` with `aur-access` and
-   `snap-access` to verify account access. AUR publication must follow its recipe
-   build check. Snap needs testing of the exact built artifact, candidate-channel
-   installation and any required browser-sandbox interface review before stable.
-   Current local build tests do not authorize skipping these gates.
+1. **Snap:** `airdrop-linux` is registered in the maintainer's account, with no
+   first revision yet. Follow the [Arch/Omarchy one-time credential guide](snap-store-auth.md)
+   using Canonical's temporary container, restricted package/channel/ACL scopes
+   and a 90-day expiry. No local Ubuntu, snapd or Snapcraft installation is needed.
+   Save the result as `SNAPCRAFT_STORE_CREDENTIALS` in `snap-publishing`.
+2. After configuration, run `store-submissions.yml` with `snap-access` to verify
+   account access. Both exact-release local Snap tests already passed. Candidate
+   installation and any required browser-sandbox interface review remain gates
+   before stable; the successful local tests do not replace them.
+3. **AUR is deferred** because account registration is currently unavailable.
+   No AUR credential action is requested at this stage. Its tested preparation is
+   preserved, and none of Snap/APT/RPM depends on AUR account access.
 
 The production `package-publishing` reviewer and deployment-branch requirements
 remain in place. No new APT/RPM deployment is necessary for this audit.
