@@ -2,7 +2,7 @@ name: Published repository validation
 on:
   workflow_dispatch:
   push:
-    branches: [codex/verify-published-repositories]
+    branches: [codex/verify-published-repositories, codex/production-distribution]
 permissions:
   contents: read
 jobs:
@@ -36,3 +36,37 @@ jobs:
           TEST_IMAGE: ${{ matrix.distro.image }}
           PACKAGE_FORMAT: ${{ matrix.distro.format }}
         run: bash scripts/ci-command.sh Published-install docker run --rm -v "$PWD:/work:ro" -w /work -e PACKAGE_FORMAT "$TEST_IMAGE" bash scripts/test-published-repository.sh
+  desktop:
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: npm
+      - name: Install the public package with its fingerprint-checked key
+        run: |
+          set -euo pipefail
+          curl -fsSL https://fluffydisk.github.io/airdrop-linux/airdrop-linux.gpg -o "$RUNNER_TEMP/airdrop-linux.gpg"
+          fingerprint=$(gpg --batch --with-colons --show-keys "$RUNNER_TEMP/airdrop-linux.gpg" | awk -F: '$1=="fpr" {print $10;exit}')
+          test "$fingerprint" = 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+          sudo install -Dm644 "$RUNNER_TEMP/airdrop-linux.gpg" /etc/apt/keyrings/airdrop-linux.gpg
+          echo 'deb [signed-by=/etc/apt/keyrings/airdrop-linux.gpg] https://fluffydisk.github.io/airdrop-linux/apt stable main' | sudo tee /etc/apt/sources.list.d/airdrop-linux.list
+          sudo apt-get update
+          sudo apt-get install -y airdrop-linux xvfb dbus-x11 desktop-file-utils appstream
+          test "$(dpkg-query -W -f='${Version}' airdrop-linux)" = 1.5.0-1
+      - name: Validate installed desktop integration and exercise the published Electron binary
+        run: |
+          set -euo pipefail
+          desktop-file-validate /usr/share/applications/io.github.fluffydisk.*.desktop
+          appstreamcli validate --no-net /usr/share/metainfo/io.github.fluffydisk.*.metainfo.xml
+          npm ci
+          ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop bash scripts/ci-command.sh Published-desktop xvfb-run -a dbus-run-session -- npm run test:desktop
+      - name: Remove the public package
+        if: always()
+        run: sudo apt-get remove -y airdrop-linux

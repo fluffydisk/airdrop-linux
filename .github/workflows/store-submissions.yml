@@ -8,13 +8,60 @@ on:
       channel:
         description: Submission channel
         type: choice
-        options: [prepare, aur, flathub-check, flathub, snap]
+        options: [prepare, aur-access, aur, flathub-check, flathub, snap-access, snap]
         default: prepare
 permissions:
   contents: read
 jobs:
+  aur-access:
+    if: inputs.channel == 'aur-access'
+    runs-on: ubuntu-24.04
+    environment: aur-publishing
+    steps:
+      - name: Check AUR credentials and authenticated access without publishing
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for binding in AUR_SSH_KEY AUR_KNOWN_HOSTS; do
+            if [[ -z "${!binding}" ]]; then
+              echo "::error::Missing $binding in aur-publishing or repository secrets"
+              missing=1
+            fi
+          done
+          (( missing == 0 )) || exit 1
+          keydir=$(mktemp -d)
+          trap 'rm -rf "$keydir"' EXIT
+          (umask 077; printf '%s\n' "$AUR_SSH_KEY" > "$keydir/key"; printf '%s\n' "$AUR_KNOWN_HOSTS" > "$keydir/known_hosts")
+          ssh -i "$keydir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$keydir/known_hosts" aur@aur.archlinux.org list-repos
+          echo 'AUR authentication passed; no package was pushed.' >> "$GITHUB_STEP_SUMMARY"
+  snap-access:
+    if: inputs.channel == 'snap-access'
+    runs-on: ubuntu-24.04
+    environment: snap-publishing
+    steps:
+      - name: Check Snap Store credential binding before installing tools
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          if [[ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]]; then
+            echo '::error::Missing SNAPCRAFT_STORE_CREDENTIALS in snap-publishing or repository secrets'
+            exit 1
+          fi
+      - name: Install supported Snapcraft
+        run: sudo snap install snapcraft --classic --channel=8.x/stable
+      - name: Check store authentication and package access without uploading
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          snapcraft whoami
+          snapcraft status airdrop-linux
+          echo 'Snap Store authentication and package access passed; nothing uploaded.' >> "$GITHUB_STEP_SUMMARY"
   prepare:
-    if: inputs.channel != 'flathub-check' && inputs.channel != 'flathub'
+    if: contains(fromJSON('["prepare", "aur", "snap"]'), inputs.channel)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
