@@ -89,19 +89,17 @@ jobs:
           include-hidden-files: true
   aur-check:
     needs: prepare
-    if: inputs.channel == 'aur'
+    if: inputs.channel == 'aur' || inputs.channel == 'prepare'
     runs-on: ubuntu-24.04
     container: archlinux:base-devel
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: store-submissions
-          path: submissions
-      - name: Check canonical AUR metadata and source checksums
-        run: |
-          useradd -m builder
-          chown -R builder:builder submissions
-          runuser -u builder -- bash -c 'cd "$1"; makepkg --printsrcinfo > canonical; diff -u <(sort .SRCINFO) <(sort canonical); makepkg --verifysource' bash "$PWD/submissions/aur"
+          path: release/local-submissions
+      - name: Build the public AUR sources, check canonical metadata, install and remove
+        run: bash scripts/test-aur-package.sh
   aur:
     needs: [prepare, aur-check]
     if: inputs.channel == 'aur'
