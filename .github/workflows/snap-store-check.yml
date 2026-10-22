@@ -1,0 +1,70 @@
+name: Verify installed Snap Store revisions
+on:
+  workflow_call:
+    inputs:
+      channel:
+        type: string
+        required: true
+      producer_run:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            artifact_arch: x64
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            artifact_arch: arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/v1.5.0
+          path: release-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-snap-${{ matrix.artifact_arch }}
+          run-id: ${{ inputs.producer_run }}
+          github-token: ${{ github.token }}
+          path: validated
+      - if: inputs.channel == 'stable'
+        uses: actions/download-artifact@v4
+        with:
+          name: snap-store-candidate-${{ matrix.arch }}
+          path: candidate-evidence
+      - run: npm ci
+        working-directory: release-source
+      - name: Install desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11
+      - name: Install from the real Store, compare bytes, and exercise the application
+        env:
+          STORE_CHANNEL: ${{ inputs.channel }}
+          STORE_ARCH: ${{ matrix.arch }}
+          PRODUCER_RUN: ${{ inputs.producer_run }}
+        run: bash scripts/test-snap-store.sh
+      - name: Remove the disposable Store installation
+        if: always()
+        run: |
+          if snap list airdrop-linux >/dev/null 2>&1; then
+            sudo snap remove --purge airdrop-linux
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap-store-${{ inputs.channel }}-${{ matrix.arch }}
+          path: snap-store-evidence/*.json
+          if-no-files-found: error
