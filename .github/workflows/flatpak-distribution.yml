@@ -254,7 +254,7 @@ jobs:
           # Exercise the actual signed delta transfer, not just ref discovery.
           python3 -m http.server 8080 --bind 127.0.0.1 --directory fixture-public > "$RUNNER_TEMP/flatpak-http.log" 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid"; gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          trap 'kill "$server_pid" 2>/dev/null || true; gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
           curl -fsS --retry 5 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/flatpak/config
           client="$RUNNER_TEMP/flatpak-delta-client"
           ostree --repo="$client" init --mode=bare-user
