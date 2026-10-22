@@ -11,7 +11,7 @@ on:
         options: [prepare, aur-access, aur, flathub-check, flathub, snap-access, snap-validate, snap, snap-store]
         default: prepare
       candidate_run:
-        description: Successful v1.5.0 candidate producer run (snap-store only)
+        description: Locally validated v1.5.0 candidate producer run (snap-store only)
         default: '39819533208'
       promote_stable:
         description: Release the verified candidate revisions to stable
@@ -28,7 +28,7 @@ jobs:
     if: inputs.channel == 'snap-store'
     runs-on: ubuntu-24.04
     steps:
-      - name: Require the reviewed v1.5.0 candidate producer and both upload gates
+      - name: Require the reviewed v1.5.0 producer and both local acceptance gates
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -40,9 +40,11 @@ jobs:
           test "$RELEASE_TAG" = v1.5.0
           gh api "repos/$GH_REPO/actions/runs/$PRODUCER_RUN" > producer.json
           # This is the reviewed PR #9 tree, squash-merged as b6c94ab.
-          jq -e '.conclusion == "success" and .event == "workflow_dispatch" and .path == ".github/workflows/store-submissions.yml" and .head_sha == "891dffac7036816534a2c5c5dddc21589e0a9b47"' producer.json
+          # Upload jobs may fail while Store review is pending. Require the
+          # actual build/installation tests; Store tests below still fail closed.
+          jq -e '.status == "completed" and (.conclusion == "success" or .conclusion == "failure") and .event == "workflow_dispatch" and .path == ".github/workflows/store-submissions.yml" and .head_sha == "891dffac7036816534a2c5c5dddc21589e0a9b47"' producer.json
           gh api "repos/$GH_REPO/actions/runs/$PRODUCER_RUN/jobs?per_page=100" > jobs.json
-          jq -e '[.jobs[] | select(.name == "snap-upload (x64)" or .name == "snap-upload (arm64)") | select(.conclusion == "success")] | length == 2' jobs.json
+          jq -e '[.jobs[] | select(.name == "snap (ubuntu-24.04, x64)" or .name == "snap (ubuntu-24.04-arm, arm64)") | select(.conclusion == "success")] | length == 2' jobs.json
   snap-candidate-check:
     needs: snap-provenance
     uses: ./.github/workflows/snap-store-check.yml
@@ -128,6 +130,7 @@ jobs:
           set -euo pipefail
           snapcraft whoami
           snapcraft status airdrop-linux
+          snapcraft list-revisions airdrop-linux
           echo 'Snap Store authentication and package access passed; nothing uploaded.' >> "$GITHUB_STEP_SUMMARY"
   prepare:
     if: contains(fromJSON('["prepare", "aur", "snap-validate", "snap"]'), inputs.channel)

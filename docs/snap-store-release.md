@@ -2,12 +2,14 @@
 
 The `snap-store` mode of `store-submissions.yml` reuses the exact `.snap` files
 from the reviewed v1.5.0 candidate producer. It does not rebuild or replace
-release assets. Both producer build/test jobs and both candidate uploads must
-have succeeded. The producer commit is pinned to the PR #9 tree, subsequently
+release assets. Both producer build/test jobs must have succeeded. An upload
+failure caused by Store review does not invalidate those tests, but Store
+acceptance cannot pass until both exact artifacts are released to candidate.
+The producer commit is pinned to the PR #9 tree, subsequently
 squash-merged into main; accepting a different release requires reviewing and
 updating this explicit provenance gate.
 
-Dispatch with `tag=v1.5.0`, `channel=snap-store`, and the successful candidate
+Dispatch with `tag=v1.5.0`, `channel=snap-store`, and the locally validated candidate
 producer's run ID. `promote_stable=false` performs candidate acceptance only;
 `promote_stable=true` also releases the verified revisions after both native
 architecture checks pass, then independently installs and tests stable.
