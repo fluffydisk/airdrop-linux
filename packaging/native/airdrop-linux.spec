@@ -52,10 +52,10 @@ fi
 /usr/bin/airdrop-desktop
 /usr/lib/airdrop-linux/
 /usr/lib/systemd/user/airdrop-linux*
-/usr/share/applications/io.github.fluffydisk.Airdrop.desktop
-/usr/share/metainfo/io.github.fluffydisk.Airdrop.metainfo.xml
+/usr/share/applications/io.github.fluffydisk.airdrop-linux.desktop
+/usr/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml
 /usr/share/doc/airdrop-linux/
-/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png
+/usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.airdrop-linux.png
 %license /usr/share/licenses/airdrop-linux/LICENSE
 %config(noreplace) /etc/apparmor.d/airdrop-linux
 

@@ -25,6 +25,8 @@ jobs:
       - name: Install test and package tools
         run: sudo apt-get update && sudo apt-get install -y rpm rpmlint lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
       - run: npm ci
+      - name: Verify offline production npm installation
+        run: bash scripts/ci-command.sh Offline-npm bash scripts/prepare-offline-npm.sh "$RUNNER_TEMP/offline-npm"
       - run: umask 022; bash scripts/ci-command.sh Node-tests npm test
       - name: Real background portal responses
         run: |
@@ -70,8 +72,8 @@ jobs:
             done < <(rg '^E:' "$RUNNER_TEMP/lintian.log")
             exit "$lint_status"
           fi
-          desktop-file-validate packaging/io.github.fluffydisk.Airdrop.desktop
-          appstreamcli validate --no-net packaging/io.github.fluffydisk.Airdrop.metainfo.xml
+          desktop-file-validate packaging/io.github.fluffydisk.airdrop-linux.desktop
+          appstreamcli validate --no-net packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml
           dpkg-deb --info release/*.deb
           rpm -qip release/*.rpm
       - name: Install and exercise DEB
@@ -160,22 +162,23 @@ jobs:
       - name: Build and exercise Flatpak sandbox
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb
+          sudo apt-get install -y flatpak flatpak-builder dbus-x11 xvfb weston
           node scripts/prepare-channels.js --local
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder
-          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --repo=flatpak-repo release/local-submissions/flatpak/io.github.fluffydisk.Airdrop.json
-          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.Airdrop
+          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --repo=flatpak-repo release/local-submissions/flatpak/io.github.fluffydisk.airdrop-linux.json
+          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.airdrop-linux
           bash scripts/ci-command.sh Flatpak-install dbus-run-session -- flatpak install --user --noninteractive --reinstall Airdrop.flatpak
           bash scripts/ci-command.sh Flatpak-backend dbus-run-session -- node scripts/smoke-sandbox.js flatpak
           bash scripts/ci-command.sh Flatpak-desktop xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          bash scripts/ci-command.sh Flatpak-Wayland dbus-run-session -- bash scripts/test-flatpak-wayland.sh
       - name: Collect official Flathub lint diagnostics (acceptance is separate)
         run: |
-          node scripts/prepare-channels.js
           mkdir -p flathub-lint
           manifest_status=0
           repo_status=0
-          flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest release/submissions/flatpak/io.github.fluffydisk.Airdrop.json > flathub-lint/manifest.json 2>&1 || manifest_status=$?
+          # The AI-assisted local fixture is diagnostic input, never a submission.
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest release/local-submissions/flatpak/io.github.fluffydisk.airdrop-linux.json > flathub-lint/manifest.json 2>&1 || manifest_status=$?
           flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo > flathub-lint/repo.json 2>&1 || repo_status=$?
           flatpak info --user org.flatpak.Builder > flathub-lint/tool.txt
           printf '{"manifestExitCode":%s,"repoExitCode":%s}\n' "$manifest_status" "$repo_status" > flathub-lint/status.json

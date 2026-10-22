@@ -34,7 +34,7 @@ jobs:
         run: |
           for channel in apt rpm aur flatpak snap; do node scripts/build-packages.js "$channel"; done
           lintian --fail-on error release/*.deb
-          appstreamcli validate --no-net packaging/io.github.fluffydisk.Airdrop.metainfo.xml
+          appstreamcli validate --no-net packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml
           sudo apt-get install -y ./release/*.deb
           AIRDROP_CODE_DIR=/usr/lib/airdrop-linux node scripts/smoke-managed.js
           ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop xvfb-run -a dbus-run-session -- npm run test:desktop

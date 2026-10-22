@@ -114,9 +114,9 @@ async function layout(target,source,arch=process.arch) {
   for(const [from,to] of [
     ['packaging/native/airdrop-linux.target','usr/lib/systemd/user/airdrop-linux.target'],
     ['packaging/native/airdrop-linux-backend.service','usr/lib/systemd/user/airdrop-linux-backend.service'],
-    ['packaging/io.github.fluffydisk.Airdrop.desktop','usr/share/applications/io.github.fluffydisk.Airdrop.desktop'],
-    ['packaging/io.github.fluffydisk.Airdrop.metainfo.xml','usr/share/metainfo/io.github.fluffydisk.Airdrop.metainfo.xml'],
-    ['ui/icon-192.png','usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.Airdrop.png'],
+    ['packaging/io.github.fluffydisk.airdrop-linux.desktop','usr/share/applications/io.github.fluffydisk.airdrop-linux.desktop'],
+    ['packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml','usr/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml'],
+    ['ui/icon-192.png','usr/share/icons/hicolor/192x192/apps/io.github.fluffydisk.airdrop-linux.png'],
     ['LICENSE','usr/share/licenses/airdrop-linux/LICENSE']]){
     await fs.mkdir(path.dirname(path.join(target,to)),{recursive:true});await fs.copyFile(path.join(root,from),path.join(target,to));
   }

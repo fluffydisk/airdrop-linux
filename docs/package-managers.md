@@ -123,7 +123,7 @@ files instead of the whole home directory.
 After acceptance and stable publication:
 
 ```sh
-flatpak install flathub io.github.fluffydisk.Airdrop
+flatpak install flathub io.github.fluffydisk.airdrop-linux
 # Or:
 # snapd currently requires this host opt-in for user-scoped services.
 sudo snap set system experimental.user-daemons=true
@@ -178,7 +178,7 @@ original installation. Tailscale Serve configuration is preserved for manual rev
 
 Direct `apt remove`, `apt purge`, `pacman -R` and `dnf remove` never prompt for or
 remove personal data. Sandboxes cannot run a host package manager: uninstall them
-from the host with `flatpak uninstall io.github.fluffydisk.Airdrop` or
+from the host with `flatpak uninstall io.github.fluffydisk.airdrop-linux` or
 `sudo snap remove airdrop-linux`. Flatpak retains application data unless the user
 explicitly passes `--delete-data`. Snap normally retains an automatic removal
 snapshot; explicit `airdrop uninstall --delete-data` directs the host to use
@@ -202,9 +202,11 @@ for channel in apt rpm aur flatpak snap; do node scripts/build-packages.js "$cha
 node scripts/prepare-channels.js
 ```
 
-The channel generator writes real, fixed-version checksums, PKGBUILD/.SRCINFO,
-a Flatpak manifest and one Snapcraft recipe per architecture under ignored
-`release/submissions/`. Node/dufs runtime sources and checksums are pinned in
+The channel generator writes real, fixed-version checksums, PKGBUILD/.SRCINFO
+and one Snapcraft recipe per architecture under ignored `release/submissions/`.
+It does not generate a Flathub submission manifest. `--local` produces an
+AI-assisted Flatpak runtime test fixture that must not be submitted to Flathub.
+Node/dufs runtime sources and checksums are pinned in
 `packaging/runtime-sources.json`; update them deliberately. Rebuild only from a
 stable version tag whose root and desktop versions match. Do not replace already
 published release assets. The release workflow creates a draft with checksums;
