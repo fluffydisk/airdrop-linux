@@ -1,0 +1,40 @@
+name: Electron source builds
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/source-build-infrastructure]
+    paths: [scripts/electron_source.py, scripts/free-source-build-space.sh, packaging/source-runtimes.json, .github/workflows/electron-source-builds.yml]
+permissions:
+  contents: read
+jobs:
+  electron:
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reclaim unused SDK space on the disposable runner
+        run: bash scripts/free-source-build-space.sh
+      - name: Install bootstrap tools
+        run: sudo apt-get update && sudo apt-get install -y git python3 python3-venv curl xz-utils ninja-build
+      - name: Fetch pinned Electron and Chromium sources and build dependencies
+        run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-source"
+      - name: Compile Electron with no external network or remote execution
+        run: bash scripts/ci-command.sh Electron-source-build bash scripts/run-without-network.sh python3 scripts/electron_source.py build "$RUNNER_TEMP/electron-source" --output "$RUNNER_TEMP/electron-runtime" --jobs 2
+      - name: Archive executable modes and provenance
+        run: |
+          tar -C "$RUNNER_TEMP/electron-runtime" -czf "$RUNNER_TEMP/electron-runtime.tar.gz" .
+          cd "$RUNNER_TEMP"
+          sha256sum electron-runtime.tar.gz > electron-runtime.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-electron-${{ matrix.runner }}
+          path: |
+            ${{ runner.temp }}/electron-runtime.tar.gz
+            ${{ runner.temp }}/electron-runtime.tar.gz.sha256
+          retention-days: 3
