@@ -27,7 +27,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 - <<'PY'
+          bash scripts/ci-command.sh Source-diagnostics python3 - <<'PY'
           import json,os,subprocess
           repo=os.environ['GITHUB_REPOSITORY']
           for job_id,expected in [(119825056143,'electron-source-builds.yml'),(119835848814,'flatpak-runtime-checks.yml')]:
