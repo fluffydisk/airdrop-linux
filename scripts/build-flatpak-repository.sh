@@ -21,7 +21,9 @@ done
 for arch in x86_64 aarch64; do
   ostree --repo="$repo" rev-parse "app/io.github.fluffydisk.airdrop-linux/$arch/stable"
 done
-flatpak build-update-repo --title='Airdrop Linux' --gpg-sign="$SIGNING_KEY_FINGERPRINT" --gpg-homedir="$GNUPGHOME" "$repo"
+# Publish standard deltas so static hosting serves a few transfer parts instead
+# of thousands of individual npm/Electron objects per installation.
+flatpak build-update-repo --generate-static-deltas --static-delta-jobs=2 --title='Airdrop Linux' --gpg-sign="$SIGNING_KEY_FINGERPRINT" --gpg-homedir="$GNUPGHOME" "$repo"
 key=$(gpg --batch --export "$SIGNING_KEY_FINGERPRINT" | base64 -w0)
 cat > "$public/airdrop-linux.flatpakrepo" <<EOF
 [Flatpak Repo]

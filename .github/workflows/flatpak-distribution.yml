@@ -251,6 +251,17 @@ jobs:
             flatpak remote-ls --user --arch="$arch" --columns=application airdrop-ci | grep -Fx io.github.fluffydisk.airdrop-linux
           done
           flatpak remote-delete --user airdrop-ci
+          # Exercise the actual signed delta transfer, not just ref discovery.
+          python3 -m http.server 8080 --bind 127.0.0.1 --directory fixture-public > "$RUNNER_TEMP/flatpak-http.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"; gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          curl -fsS --retry 5 --retry-connrefused --retry-delay 1 http://127.0.0.1:8080/flatpak/config
+          client="$RUNNER_TEMP/flatpak-delta-client"
+          ostree --repo="$client" init --mode=bare-user
+          ostree --repo="$client" remote add --gpg-import="$RUNNER_TEMP/test-flatpak.gpg" --set=gpg-verify-summary=true airdrop-ci http://127.0.0.1:8080/flatpak
+          for arch in x86_64 aarch64; do
+            ostree --repo="$client" pull --require-static-deltas airdrop-ci "app/io.github.fluffydisk.airdrop-linux/$arch/stable"
+          done
   public-install:
     needs: [prepare, publish]
     strategy:

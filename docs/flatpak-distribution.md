@@ -81,7 +81,11 @@ installation and application tests.
 
 The signed repository helper imports both validated bundles and signs commits
 and summary with the **existing** native repository signing key. CI tests it
-with a disposable key. The native Pages publisher carries forward the newest
+with a disposable key. Standard static deltas avoid thousands of individual
+object requests to static hosting; CI requires a signed HTTP delta pull for both
+architectures. The public repository check can also be dispatched independently
+to repeat installation tests without signing or deploying again.
+The native Pages publisher carries forward the newest
 complete Flatpak release even when a newer release initially has only native
 packages. Partial Flatpak releases fail validation instead of silently
 downgrading or deleting the remote.
