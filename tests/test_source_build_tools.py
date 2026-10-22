@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
+import subprocess
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'scripts'))
 import source_runtime as runtime
@@ -16,6 +17,28 @@ import electron_source as electron
 
 
 class SourceBuildTests(unittest.TestCase):
+    def test_detached_shallow_source_has_real_release_refs_for_gn(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            origin, checkout = root / 'origin', root / 'checkout'
+            def git(*args):
+                return subprocess.check_output(['git', *map(str,args)], text=True, stderr=subprocess.DEVNULL).strip()
+            git('init','--quiet',origin)
+            (origin / 'source').write_text('source fixture')
+            git('-C',origin,'add','source')
+            git('-C',origin,'-c','user.name=Source test','-c','user.email=source@example.invalid','commit','--quiet','-m','fixture')
+            revision=git('-C',origin,'rev-parse','HEAD')
+            git('-C',origin,'tag','v44.7.0')
+            git('init','--quiet',checkout)
+            git('-C',checkout,'remote','add','origin',origin.as_uri())
+            git('-C',checkout,'fetch','--depth=1','origin',revision)
+            git('-C',checkout,'checkout','--quiet','--detach','FETCH_HEAD')
+            self.assertFalse((checkout / '.git/packed-refs').exists())
+            with patch.dict(electron.PIN,{'revision':revision}):
+                electron.materialize_release_refs(checkout)
+            self.assertTrue((checkout / '.git/packed-refs').is_file())
+            self.assertEqual(git('-C',checkout,'rev-parse','refs/tags/v44.7.0^{commit}'),revision)
+
     def test_cross_compile_configuration_uses_supported_name_assignments(self):
         with tempfile.TemporaryDirectory() as temp:
             config = Path(temp) / '.gclient'

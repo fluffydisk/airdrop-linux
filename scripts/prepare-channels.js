@@ -30,7 +30,7 @@ async function writeLocalFlatpakFixture(directory,flatpak,checksums,architecture
     }
   }
   const manifest={
-    'app-id':'io.github.fluffydisk.airdrop-linux',runtime:'org.freedesktop.Platform','runtime-version':'25.08',base:'org.electronjs.Electron2.BaseApp','base-version':'25.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
+    'app-id':'io.github.fluffydisk.airdrop-linux',runtime:'org.freedesktop.Platform','runtime-version':'26.08',base:'org.electronjs.Electron2.BaseApp','base-version':'26.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
     'finish-args':['--share=ipc','--share=network','--socket=wayland','--socket=fallback-x11','--device=dri','--talk-name=org.kde.StatusNotifierWatcher','--env=GTK_USE_PORTAL=1'],
     modules:[{name:'airdrop-linux',buildsystem:'simple','build-commands':[
         'mkdir -p /app/lib/airdrop-linux',

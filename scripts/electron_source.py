@@ -11,7 +11,7 @@ import stat
 import subprocess
 import zipfile
 
-from source_runtime import ROOT, LOCK, LOCK_PATH, digest, execute, require_offline
+from source_runtime import ROOT, LOCK, LOCK_PATH, digest, execute, require_offline, build_environment
 
 PIN = LOCK['electron']
 ARGS = ('import("//electron/build/args/release.gn") '
@@ -59,6 +59,19 @@ def enable_arm64_checkout(config_path):
     config_path.write_text(''.join(f'{name} = {value!r}\n' for name, value in values.items()))
 
 
+def materialize_release_refs(repository):
+    tag = 'refs/tags/v' + PIN['version']
+    execute(['git', '-C', repository, 'fetch', '--depth=1', 'origin', tag + ':' + tag])
+    actual = execute(['git', '-C', repository, 'rev-parse', tag + '^{commit}'], capture=True).strip()
+    if actual != PIN['revision']:
+        raise RuntimeError('Electron release tag does not resolve to the pinned commit')
+    # Electron tracks this file as a GN input. A shallow detached fetch can
+    # otherwise have no packed-refs file even though its source HEAD is correct.
+    execute(['git', '-C', repository, 'pack-refs', '--all'])
+    if not (repository / '.git/packed-refs').is_file():
+        raise RuntimeError('Electron release refs were not materialized')
+
+
 def prepare(directory, arch):
     if directory.exists():
         raise ValueError('Electron preparation directory must be new')
@@ -89,6 +102,7 @@ def prepare(directory, arch):
         raise RuntimeError('Automatic system dependency installation requires an ephemeral GitHub-hosted runner')
     execute(['sudo', directory / 'src/build/install-build-deps.sh', '--no-prompt', '--no-chromeos-fonts'], cwd=directory, env=env)
     execute(['gclient', 'runhooks'], cwd=directory, env=env)
+    materialize_release_refs(directory / 'src/electron')
     # Chromium tools may select the nested depot_tools Python shim. Warm both
     # pinned checkouts before disabling the network instead of using a fallback
     # system interpreter or downloading build tools during compilation.
@@ -154,6 +168,7 @@ def build(directory, output, jobs):
     shutil.copy2(directory / 'source-graph.txt', output / 'source-graph.txt')
     provenance = {**metadata, 'networkInterfacesDuringBuild': interfaces,
                   'applicationCommit': os.environ.get('GITHUB_SHA'), 'versionExecutedOnProducer': native,
+                  'buildEnvironment': build_environment(),
                   'buildJobs': jobs,
                   'binarySha256': digest(output / 'electron'), 'distributionSha256': digest(distribution)}
     (output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')

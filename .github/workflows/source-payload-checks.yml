@@ -101,23 +101,24 @@ jobs:
               archive.extractall('source-runtimes/electron',filter='data')
           PY
       - name: Prepare locked npm source caches
-        run: bash scripts/ci-command.sh Source-npm bash scripts/prepare-offline-npm.sh "$RUNNER_TEMP/source-npm"
-      - name: Assemble application sources and compiled runtimes without a network
-        run: bash scripts/ci-command.sh Source-assembly bash scripts/run-without-network.sh node scripts/assemble-source-payload.js source-runtimes "$RUNNER_TEMP/source-npm" "$RUNNER_TEMP/source-payload"
-      - name: Exercise compiled backend, file transfers and ZIP contents
         run: |
-          export AIRDROP_CODE_DIR="$RUNNER_TEMP/source-payload"
-          export NODE_PATH="$AIRDROP_CODE_DIR/server/node_modules"
-          bash scripts/ci-command.sh Source-backend "$AIRDROP_CODE_DIR/runtime/node" scripts/smoke-managed.js
+          mkdir -p "$RUNNER_TEMP/source-build"
+          bash scripts/ci-command.sh Source-npm bash scripts/prepare-offline-npm.sh "$RUNNER_TEMP/source-build/npm"
+      - name: Install the signed SDK for offline source assembly
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak dbus-x11 xvfb weston
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          bash scripts/ci-command.sh Source-SDK-install dbus-run-session -- flatpak install --user --noninteractive flathub org.freedesktop.Sdk//26.08 org.freedesktop.Platform//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08 org.freedesktop.Sdk.Extension.node24//26.08
+      - name: Assemble application sources and compiled runtimes without a network
+        run: bash scripts/ci-command.sh Source-assembly dbus-run-session -- bash scripts/build-in-sdk.sh "$RUNNER_TEMP/source-build" node "$PWD/scripts/assemble-source-payload.js" "$PWD/source-runtimes" "$RUNNER_TEMP/source-build/npm" "$RUNNER_TEMP/source-build/payload"
       - name: Build and test the source-built application in the private Flatpak sandbox
         env:
           TARGET_ARCH: ${{ matrix.target.arch }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak dbus-x11 xvfb weston
           mkdir -p release
           version=$(node -p 'require("./package.json").version')
-          tar -C "$RUNNER_TEMP/source-payload" -czf "release/airdrop-flatpak-$TARGET_ARCH-$version.tar.gz" .
+          tar -C "$RUNNER_TEMP/source-build/payload" -czf "release/airdrop-flatpak-$TARGET_ARCH-$version.tar.gz" .
           node -e 'require("./scripts/prepare-channels").prepareLocalFlatpak("release",process.arch).catch(error=>{console.error(error);process.exitCode=1})'
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder
@@ -132,5 +133,5 @@ jobs:
           name: source-application-${{ matrix.target.arch }}
           path: |
             Source-Airdrop.flatpak
-            ${{ runner.temp }}/source-payload/runtime/source-provenance.json
+            ${{ runner.temp }}/source-build/payload/runtime/source-provenance.json
           retention-days: 3

@@ -38,14 +38,19 @@ jobs:
       - name: Fetch pinned Electron and Chromium sources and build dependencies
         env:
           TARGET_ARCH: ${{ matrix.arch }}
-        run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-source" --arch "$TARGET_ARCH"
+        run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-build/prepared" --arch "$TARGET_ARCH"
+      - name: Install the signed target SDK and build extensions
+        run: |
+          sudo apt-get install -y flatpak dbus-x11
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          bash scripts/ci-command.sh Electron-SDK-install dbus-run-session -- flatpak install --user --noninteractive flathub org.freedesktop.Sdk//26.08 org.freedesktop.Platform//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08 org.freedesktop.Sdk.Extension.node24//26.08
       - name: Compile Electron with no external network or remote execution
         env:
           BUILD_JOBS: ${{ inputs.jobs || '3' }}
-        run: bash scripts/ci-command.sh Electron-source-build bash scripts/run-without-network.sh python3 scripts/electron_source.py build "$RUNNER_TEMP/electron-source" --output "$RUNNER_TEMP/electron-runtime" --jobs "$BUILD_JOBS"
+        run: bash scripts/ci-command.sh Electron-source-build dbus-run-session -- bash scripts/build-in-sdk.sh "$RUNNER_TEMP/electron-build" python3 "$PWD/scripts/electron_source.py" build "$RUNNER_TEMP/electron-build/prepared" --output "$RUNNER_TEMP/electron-build/runtime" --jobs "$BUILD_JOBS"
       - name: Archive executable modes and provenance
         run: |
-          tar -C "$RUNNER_TEMP/electron-runtime" -czf "$RUNNER_TEMP/electron-runtime.tar.gz" .
+          tar -C "$RUNNER_TEMP/electron-build/runtime" -czf "$RUNNER_TEMP/electron-runtime.tar.gz" .
           cd "$RUNNER_TEMP"
           sha256sum electron-runtime.tar.gz > electron-runtime.tar.gz.sha256
       - uses: actions/upload-artifact@v4
