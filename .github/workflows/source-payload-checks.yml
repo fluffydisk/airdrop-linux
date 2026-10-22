@@ -1,0 +1,134 @@
+name: Source-built application sandbox checks
+on:
+  workflow_dispatch:
+    inputs:
+      native_run:
+        description: Source runtime builds run containing Node and dufs for both architectures
+        required: true
+      electron_x64_run:
+        description: Electron source builds run containing x64 output
+        required: true
+      electron_arm64_run:
+        description: Electron source builds run containing ARM64 output
+        required: true
+  push:
+    branches: [codex/source-build-infrastructure]
+    paths: [.github/workflows/source-payload-checks.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  tools:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s tests -p test_source_build_tools.py
+  source-application:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {runner: ubuntu-24.04, arch: x64}
+          - {runner: ubuntu-24.04-arm, arch: arm64}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Verify source artifact origin and select the target architecture
+        id: inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NATIVE_RUN: ${{ inputs.native_run }}
+          ELECTRON_RUN: ${{ matrix.target.arch == 'x64' && inputs.electron_x64_run || inputs.electron_arm64_run }}
+          TARGET_ARCH: ${{ matrix.target.arch }}
+        run: |
+          python3 - <<'PY'
+          import json,os,subprocess
+          from pathlib import Path
+          repo=os.environ['GITHUB_REPOSITORY']
+          for component,variable,workflow in [('native','NATIVE_RUN','source-runtime-builds.yml'),('electron','ELECTRON_RUN','electron-source-builds.yml')]:
+              run_id=os.environ[variable]
+              assert run_id.isdigit(),'Run IDs must be numeric'
+              run=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run_id}']))
+              assert run['head_repository']['full_name']==repo,'Source run must belong to this repository'
+              assert run['event'] in ['push','workflow_dispatch'],'Fork PR artifacts are not accepted'
+              assert run['path']==f'.github/workflows/{workflow}','Unexpected producing workflow'
+              Path(os.environ['RUNNER_TEMP'],component+'-source-run.json').write_text(json.dumps(run))
+          run_id=os.environ['ELECTRON_RUN']
+          artifacts=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run_id}/artifacts']))['artifacts']
+          names={artifact['name'] for artifact in artifacts if not artifact['expired']}
+          arch=os.environ['TARGET_ARCH']
+          preferred='source-electron-'+arch
+          # The first x64 build used a runner label; its locked source provenance
+          # is still checked by the assembler, just like the canonical name.
+          legacy='source-electron-ubuntu-24.04'
+          selected=preferred if preferred in names else legacy if arch=='x64' and legacy in names else None
+          assert selected,'No completed Electron artifact for this architecture'
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write(f'electron_run={run_id}\nelectron_artifact={selected}\n')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-node-${{ matrix.target.runner }}
+          run-id: ${{ inputs.native_run }}
+          github-token: ${{ github.token }}
+          path: source-runtimes/node
+      - uses: actions/download-artifact@v4
+        with:
+          name: source-dufs-${{ matrix.target.runner }}
+          run-id: ${{ inputs.native_run }}
+          github-token: ${{ github.token }}
+          path: source-runtimes/dufs
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.inputs.outputs.electron_artifact }}
+          run-id: ${{ steps.inputs.outputs.electron_run }}
+          github-token: ${{ github.token }}
+          path: electron-input
+      - name: Verify and extract the source-built Electron archive
+        run: |
+          (cd electron-input && sha256sum -c electron-runtime.tar.gz.sha256)
+          python3 - <<'PY'
+          import tarfile
+          with tarfile.open('electron-input/electron-runtime.tar.gz') as archive:
+              archive.extractall('source-runtimes/electron',filter='data')
+          PY
+      - name: Prepare locked npm source caches
+        run: bash scripts/ci-command.sh Source-npm bash scripts/prepare-offline-npm.sh "$RUNNER_TEMP/source-npm"
+      - name: Assemble application sources and compiled runtimes without a network
+        run: bash scripts/ci-command.sh Source-assembly bash scripts/run-without-network.sh node scripts/assemble-source-payload.js source-runtimes "$RUNNER_TEMP/source-npm" "$RUNNER_TEMP/source-payload"
+      - name: Exercise compiled backend, file transfers and ZIP contents
+        run: |
+          export AIRDROP_CODE_DIR="$RUNNER_TEMP/source-payload"
+          export NODE_PATH="$AIRDROP_CODE_DIR/server/node_modules"
+          bash scripts/ci-command.sh Source-backend "$AIRDROP_CODE_DIR/runtime/node" scripts/smoke-managed.js
+      - name: Build and test the source-built application in the private Flatpak sandbox
+        env:
+          TARGET_ARCH: ${{ matrix.target.arch }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak dbus-x11 xvfb weston
+          mkdir -p release
+          version=$(node -p 'require("./package.json").version')
+          tar -C "$RUNNER_TEMP/source-payload" -czf "release/airdrop-flatpak-$TARGET_ARCH-$version.tar.gz" .
+          node -e 'require("./scripts/prepare-channels").prepareLocalFlatpak("release",process.arch).catch(error=>{console.error(error);process.exitCode=1})'
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder
+          bash scripts/ci-command.sh Source-flatpak-build dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --repo=source-flatpak-repo release/local-submissions/flatpak/io.github.fluffydisk.airdrop-linux.json
+          flatpak build-bundle source-flatpak-repo Source-Airdrop.flatpak io.github.fluffydisk.airdrop-linux
+          dbus-run-session -- flatpak install --user --noninteractive Source-Airdrop.flatpak
+          bash scripts/ci-command.sh Source-flatpak-backend dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          bash scripts/ci-command.sh Source-flatpak-X11 xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          bash scripts/ci-command.sh Source-flatpak-Wayland dbus-run-session -- bash scripts/test-flatpak-wayland.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-application-${{ matrix.target.arch }}
+          path: |
+            Source-Airdrop.flatpak
+            ${{ runner.temp }}/source-payload/runtime/source-provenance.json
+          retention-days: 3

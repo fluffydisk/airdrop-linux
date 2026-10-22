@@ -30,6 +30,11 @@ async function assemble(runtimeDirectory,offlineCache,output) {
   run(process.execPath,[path.join(root,'scripts/prepare-desktop.js'),path.join(app,'core')],{stdio:'inherit'});
   run('npm',['ci','--omit=dev','--ignore-scripts','--offline','--no-audit','--no-fund','--cache',path.join(offlineCache,'npm-cache'),'--registry=http://127.0.0.1:9'],{cwd:app,stdio:'inherit'});
   await stage(output,{source:'flatpak',desktop,sourceRuntimes:runtimeDirectory,offlineCache});
+  for(const name of ['node','dufs']) {
+   const actual=run(path.join(output,'runtime',name),['--version'],{encoding:'utf8'}).trim();
+   const expected=(name==='node'?'v':'dufs ')+inputs[name].record.version;
+   if(actual!==expected)throw new Error('Installed source runtime version mismatch: '+name);
+  }
  }finally{await fs.rm(work,{recursive:true,force:true});}
 }
 if(require.main===module){
