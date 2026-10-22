@@ -53,13 +53,13 @@ jobs:
           import json,os,subprocess
           from pathlib import Path
           repo=os.environ['GITHUB_REPOSITORY']
-          for component,variable,workflow in [('native','NATIVE_RUN','source-runtime-builds.yml'),('electron','ELECTRON_RUN','electron-source-builds.yml')]:
+          for component,variable,workflows in [('native','NATIVE_RUN',['source-runtime-builds.yml','source-sdk-runtimes.yml']),('electron','ELECTRON_RUN',['electron-source-builds.yml'])]:
               run_id=os.environ[variable]
               assert run_id.isdigit(),'Run IDs must be numeric'
               run=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run_id}']))
               assert run['head_repository']['full_name']==repo,'Source run must belong to this repository'
               assert run['event'] in ['push','workflow_dispatch'],'Fork PR artifacts are not accepted'
-              assert run['path']==f'.github/workflows/{workflow}','Unexpected producing workflow'
+              assert run['path'] in [f'.github/workflows/{workflow}' for workflow in workflows],'Unexpected producing workflow'
               Path(os.environ['RUNNER_TEMP'],component+'-source-run.json').write_text(json.dumps(run))
           run_id=os.environ['ELECTRON_RUN']
           artifacts=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run_id}/artifacts']))['artifacts']

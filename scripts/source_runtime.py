@@ -4,6 +4,7 @@
 This is application build tooling, not a Flatpak manifest or submission.
 """
 import argparse
+import configparser
 from collections import deque
 import hashlib
 import json
@@ -61,6 +62,18 @@ def require_offline():
     return interfaces
 
 
+def build_environment():
+    info = Path('/.flatpak-info')
+    if not info.exists():
+        return {'type': 'host'}
+    config = configparser.ConfigParser(interpolation=None)
+    config.read(info)
+    return {'type': 'flatpak-sdk',
+            'runtime': config.get('Application', 'runtime', fallback=''),
+            'sdk': config.get('Application', 'sdk', fallback=''),
+            'runtimeCommit': config.get('Instance', 'runtime-commit', fallback='')}
+
+
 def extract(archive, directory):
     # The data filter rejects absolute/traversal members and escaping links.
     with tarfile.open(archive) as source:
@@ -111,6 +124,7 @@ def prepare(component, directory, archive=None):
 
 def build(component, prepared, output, jobs):
     interfaces = require_offline()
+    context = build_environment()
     if output.exists():
         raise ValueError('Build output must be new')
     pin = LOCK[component]
@@ -127,9 +141,13 @@ def build(component, prepared, output, jobs):
         expected = 'v' + pin['version']
     else:
         verify(source / 'Cargo.lock', pin['cargoLockSha256'])
-        env = {**os.environ, 'RUSTUP_TOOLCHAIN': pin['rustToolchain']}
+        env = dict(os.environ)
+        if context['type'] == 'flatpak-sdk':
+            env.pop('RUSTUP_TOOLCHAIN', None)
+        else:
+            env['RUSTUP_TOOLCHAIN'] = pin['rustToolchain']
         compiler = execute(['rustc', '--version'], capture=True, env=env).strip()
-        if not compiler.startswith('rustc ' + pin['rustToolchain'] + ' '):
+        if context['type'] != 'flatpak-sdk' and not compiler.startswith('rustc ' + pin['rustToolchain'] + ' '):
             raise RuntimeError('Rust compiler does not match the pinned toolchain')
         execute(['cargo', 'build', '--release', '--locked', '--offline', '--bin', 'dufs', '-j', str(jobs)], cwd=source, env=env)
         (output / 'bin').mkdir(parents=True)
@@ -147,7 +165,7 @@ def build(component, prepared, output, jobs):
         'applicationCommit': os.environ.get('GITHUB_SHA'),
         'networkInterfacesDuringBuild': interfaces,
         'binarySha256': digest(binary), 'rustToolchain': pin.get('rustToolchain'),
-        'compilerVersion': compiler, 'buildJobs': jobs
+        'compilerVersion': compiler, 'buildJobs': jobs, 'buildEnvironment': context
     }
     (output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
     (output / 'SHA256SUMS').write_text(f'{digest(binary)}  bin/{component}\n')
