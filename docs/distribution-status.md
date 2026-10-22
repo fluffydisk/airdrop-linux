@@ -8,7 +8,7 @@ release assets or change signing keys or deployment protections.
 |---|---|---|---|---|
 | APT | VERIFIED INSTALLABLE | [Signed stable index](https://fluffydisk.github.io/airdrop-linux/apt/dists/stable/InRelease) | amd64/arm64: Debian 13, Ubuntu 24.04/26.04 | None for these targets; Mint untested |
 | RPM | VERIFIED INSTALLABLE | [x86_64 metadata](https://fluffydisk.github.io/airdrop-linux/rpm/x86_64/repodata/repomd.xml), [aarch64 metadata](https://fluffydisk.github.io/airdrop-linux/rpm/aarch64/repodata/repomd.xml) | x86_64/aarch64: Fedora 43/44 and openSUSE Tumbleweed, tested separately | Per-distribution graphical desktop acceptance remains |
-| AUR | BLOCKED | No public package listing | Public v1.5.0 recipe built/installed/removed on Arch x86_64; aarch64 untested | AUR_SSH_KEY and AUR_KNOWN_HOSTS unavailable |
+| AUR | BLOCKED | No public package listing | Public v1.5.0 recipe built/installed/removed on Arch x86_64; aarch64 untested | AUR_SSH_KEY unavailable |
 | Snap | BLOCKED | No public listing | No installation from Snap Store; earlier strict local builds are not store verification | SNAPCRAFT_STORE_CREDENTIALS unavailable; name ownership/interface review unverified |
 | Flathub | BLOCKED | No public listing | No installation from Flathub | Electron source build incomplete; independent human manifest and submission required |
 
@@ -52,9 +52,10 @@ chat. Secret administration returns HTTP 403 for this integration. Runtime check
 confirmed absence rather than inferring it from that API failure.
 
 1. **AUR:** authenticate an [AUR account](https://aur.archlinux.org/), register the
-   public half of its authorized SSH key, and set `AUR_SSH_KEY` and
-   `AUR_KNOWN_HOSTS` in `aur-publishing`. Verify server host keys against the
-   fingerprints published by Arch; see [AUR submission guidance](https://wiki.archlinux.org/title/AUR_submission_guidelines#Authentication).
+   public half of its authorized SSH key, and set `AUR_SSH_KEY` in
+   `aur-publishing`. The workflow verifies the server's scanned Ed25519 key
+   against the fingerprint published on the AUR HTTPS homepage; preparing
+   `AUR_KNOWN_HOSTS` manually is optional. See [AUR submission guidance](https://wiki.archlinux.org/title/AUR_submission_guidelines#Authentication).
 2. **Snap:** verify/reserve `airdrop-linux` in the [publisher dashboard](https://dashboard.snapcraft.io/).
    Export a Snapcraft login restricted to this snap and candidate/stable upload
    and release permissions, and set `SNAPCRAFT_STORE_CREDENTIALS` in
@@ -70,8 +71,8 @@ remain in place. No new APT/RPM deployment is necessary for this audit.
 
 ## Flathub remains independent
 
-`codex/flathub-identity-preparation` is 23 commits ahead and one behind `main`;
-it was inspected without merging. Its source-build work is preserved. The
+At the start of this audit, `codex/flathub-identity-preparation` was 23 commits
+ahead and one behind `main`; it was inspected without merging. Its source-build work is preserved. The
 [SDK Node/dufs run](https://github.com/fluffydisk/airdrop-linux/actions/runs/39788494373)
 passed. The [Electron x64 run](https://github.com/fluffydisk/airdrop-linux/actions/runs/39794823592)
 failed during compilation with a missing/unverified

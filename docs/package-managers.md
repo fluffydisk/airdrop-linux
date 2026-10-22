@@ -257,7 +257,9 @@ file/ZIP transfer and removes it. Its artifact contains `aur/PKGBUILD` and
 `aur/.SRCINFO`; an artifact is not a public AUR listing.
 
 * AUR: reserve/own `airdrop-linux-bin`; environment `aur-publishing` needs
-  `AUR_SSH_KEY` and `AUR_KNOWN_HOSTS` verified against Arch's trusted documentation.
+  `AUR_SSH_KEY`. The workflow verifies the scanned server key against Arch's
+  pinned official Ed25519 fingerprint; optional `AUR_KNOWN_HOSTS` can supply
+  previously verified host keys instead.
   Validate generated `.SRCINFO` with `makepkg --printsrcinfo`, clean installation,
   upgrades and removal before pushing.
 * Flathub: environment `flathub-publishing` needs `FLATHUB_TOKEN` and variable
@@ -269,7 +271,10 @@ file/ZIP transfer and removes it. Its artifact contains `aur/PKGBUILD` and
   rules; see [the readiness report](flathub-readiness.md). Runtime sandbox tests
   alone do not establish eligibility for Flathub.
 * Snap: reserve `airdrop-linux`; environment `snap-publishing` needs scoped
-  `SNAPCRAFT_STORE_CREDENTIALS`. Uploads go to **candidate**, not stable. Review
+  `SNAPCRAFT_STORE_CREDENTIALS`. Use `snap-validate` to build, install and exercise
+  the exact public v1.5.0 payload on both architectures without store credentials
+  or uploads. `snap` uploads these tested artifacts only after both pass.
+  Uploads go to **candidate**, not stable. Review
   strict confinement, portal interaction, user-service control and architectures
   on actual hosts before promoting the revisions to stable.
 
@@ -305,7 +310,7 @@ GitHub Actions source. The `package-publishing` environment requires reviewer
 approval and has a deployment branch policy; `github-pages` has a branch policy.
 These protections must be preserved. Secrets/Variables administration returns
 HTTP 403, but the read-only access jobs can check runtime bindings without printing
-credentials. On 2026-10-22 they confirmed that `AUR_SSH_KEY`, `AUR_KNOWN_HOSTS` and
+credentials. On 2026-10-22 they confirmed that `AUR_SSH_KEY` and
 `SNAPCRAFT_STORE_CREDENTIALS` are unavailable. Configure them in GitHub, never in
 source or chat. See the [status report](distribution-status.md) for exact links.
 

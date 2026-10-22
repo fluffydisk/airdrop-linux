@@ -18,23 +18,21 @@ jobs:
     runs-on: ubuntu-24.04
     environment: aur-publishing
     steps:
+      - uses: actions/checkout@v4
       - name: Check AUR credentials and authenticated access without publishing
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           AUR_KNOWN_HOSTS: ${{ secrets.AUR_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-          missing=0
-          for binding in AUR_SSH_KEY AUR_KNOWN_HOSTS; do
-            if [[ -z "${!binding}" ]]; then
-              echo "::error::Missing $binding in aur-publishing or repository secrets"
-              missing=1
-            fi
-          done
-          (( missing == 0 )) || exit 1
           keydir=$(mktemp -d)
           trap 'rm -rf "$keydir"' EXIT
-          (umask 077; printf '%s\n' "$AUR_SSH_KEY" > "$keydir/key"; printf '%s\n' "$AUR_KNOWN_HOSTS" > "$keydir/known_hosts")
+          bash scripts/prepare-aur-known-hosts.sh "$keydir/known_hosts"
+          if [[ -z "$AUR_SSH_KEY" ]]; then
+            echo '::error::Missing AUR_SSH_KEY in aur-publishing or repository secrets'
+            exit 1
+          fi
+          (umask 077; printf '%s\n' "$AUR_SSH_KEY" > "$keydir/key")
           ssh -i "$keydir/key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$keydir/known_hosts" aur@aur.archlinux.org list-repos
           echo 'AUR authentication passed; no package was pushed.' >> "$GITHUB_STEP_SUMMARY"
   snap-access:
@@ -106,6 +104,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: aur-publishing
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: store-submissions
@@ -117,9 +116,10 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          test -n "$AUR_SSH_KEY" && test -n "$AUR_KNOWN_HOSTS"
+          test -n "$AUR_SSH_KEY"
           mkdir -m 700 -p ~/.ssh
-          (umask 077; printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur_key; printf '%s\n' "$AUR_KNOWN_HOSTS" > ~/.ssh/known_hosts)
+          bash scripts/prepare-aur-known-hosts.sh ~/.ssh/known_hosts
+          (umask 077; printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur_key)
           export GIT_SSH_COMMAND='ssh -i /home/runner/.ssh/aur_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes'
           git clone ssh://aur@aur.archlinux.org/airdrop-linux-bin.git aur
           cp submissions/aur/PKGBUILD submissions/aur/.SRCINFO aur/
