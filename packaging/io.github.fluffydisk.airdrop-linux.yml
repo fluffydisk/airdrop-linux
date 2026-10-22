@@ -40,6 +40,7 @@ modules:
   - type: archive
     url: https://codeload.github.com/sigoden/dufs/tar.gz/b69946df232ceca5d24d0067f2beb6b5ed1c292c
     sha256: c4f9b0a2f736bde8959c5e69967652326aaed4cc60b5a89a4b2b87739c65cb3c
+    archive-type: tar-gzip
   - flatpak/generated-cargo-sources.json
 - name: airdrop-linux
   buildsystem: simple
@@ -55,6 +56,7 @@ modules:
   - type: archive
     url: https://codeload.github.com/fluffydisk/airdrop-linux/tar.gz/2a66fabc4cac57381ab5c5ddbb9d5065e274cf04
     sha256: c42fe61d3210303d6279c28c0bfc9c00e6a3faa590b8ca3ed7c3d9f31f2cd182
+    archive-type: tar-gzip
   - type: patch
     path: flatpak/application-id.patch
   - type: archive

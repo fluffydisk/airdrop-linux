@@ -26,6 +26,7 @@ async function downloadFlatpakAssets(output) {
   if(records.length!==2 || records.some(line=>!selected.expected.slice(0,2).includes(line.slice(66)) || !/^[a-f0-9]{64}  /.test(line)))throw new Error('Unexpected Flatpak checksum records');
   if(new Set(records.map(line=>line.slice(66))).size!==2)throw new Error('Duplicate Flatpak checksum records');
   run('sha256sum',['--strict','-c','FLATPAK-SHA256SUMS'],{cwd:output,stdio:'inherit'});
+  await fs.writeFile(path.join(output,'tag.txt'),selected.tag+'\n');
   console.log(`Verified both Flatpak architectures from ${selected.tag}`);
 }
 if(require.main===module)downloadFlatpakAssets(process.argv[2]||'flatpak-incoming').catch(error=>{console.error(error.message);process.exitCode=1;});

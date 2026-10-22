@@ -5,9 +5,10 @@ successful Node/dufs SDK build and the Electron sysroot failure, see the
 [distribution status report](distribution-status.md#flathub-remains-independent).
 That branch was not merged into production and no new Electron build was started.
 
-This document records preparation, not a submission or approval. Do not publish a
-release or open a Flathub submission PR as part of these checks. All development
-and testing runs in Codex Cloud and GitHub Actions.
+This document records Flathub readiness, not a submission or approval. Independent
+upstream Flatpak distribution is handled separately by the
+[GitHub Flatpak workflow](flatpak-distribution.md). All development and testing
+runs in Codex Cloud and GitHub Actions. No Flathub submission is made by an agent.
 
 ## Access verification
 
@@ -29,6 +30,13 @@ there is no reason to replace it with a broader token for the checks. The eventu
 submission must be opened manually through GitHub's web interface.
 
 ## Runtime and lint checks
+
+The separate **Build and distribute Flatpak** workflow builds the upstream YAML
+manifest from application sources and offline npm/Cargo dependencies on both
+architectures. Its Node runtime comes from the signed SDK extension and Electron
+from official checksum-pinned binaries. This is documented as upstream
+packaging, not a full source-built Flathub recipe. Its lint, bundle and signed
+repository checks must pass before upstream distribution.
 
 **Package validation** builds and installs a real Flatpak on x86_64 and ARM64. It
 tests the Node/dufs backend, HTTP file upload/download, ZIP contents, host-home
@@ -88,8 +96,9 @@ VPN daemon in the sandbox.
    native and old-ID sandbox data are not imported or deleted; migration remains
    user initiated. Future native upgrades replace package-owned desktop files;
    manually pinned dock favorites may need to be re-added under the new ID.
-   Published v1.5.0 assets and its tag are unchanged; a future source release is
-   needed to publish this identity. Runtime/Wayland CI must pass on both arches.
+   Published v1.5.0 assets and its tag are unchanged. The independent upstream
+   Flatpak uses v1.5.0 source plus an explicit patch containing the existing
+   identity fix. Runtime/Wayland CI must pass on both arches.
 3. **Generative AI policy:** the existing manifest/generator and portions of this
    packaging work were generated or assisted by an AI agent. Production channel
    generation now emits no Flatpak manifest and removes stale generated JSON

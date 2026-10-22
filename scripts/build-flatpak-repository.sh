@@ -11,6 +11,7 @@ test -d "$public"
 test ! -e "$public/flatpak"
 (cd "$input" && sha256sum --strict -c FLATPAK-SHA256SUMS)
 repo="$public/flatpak"
+ostree --repo="$repo" init --mode=archive-z2
 shopt -s nullglob
 bundles=("$input"/*.flatpak)
 test "${#bundles[@]}" = 2
