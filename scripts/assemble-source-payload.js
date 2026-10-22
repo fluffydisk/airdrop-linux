@@ -13,6 +13,8 @@ async function assemble(runtimeDirectory,offlineCache,output) {
  // Every install/build command, including npm, must be network isolated.
  run('python3',['-c','import socket; assert [name for _,name in socket.if_nameindex()] == ["lo"], "Source assembly requires an isolated network namespace"']);
  const inputs=await verifySourceRuntimes(runtimeDirectory);
+ const electronVersion=run(inputs.electron.binary,['-p','process.versions.electron'],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},encoding:'utf8'}).trim();
+ if(electronVersion!==inputs.electron.record.version)throw new Error('Source-built Electron version mismatch on the consumer architecture');
  await verifyOfflineCache(offlineCache);
  try{await fs.lstat(output);throw new Error('Source payload output must be new');}catch(error){if(error.code!=='ENOENT')throw error;}
  const work=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-source-assembly-'));

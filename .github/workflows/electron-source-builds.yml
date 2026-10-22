@@ -1,6 +1,12 @@
 name: Electron source builds
 on:
   workflow_dispatch:
+    inputs:
+      target:
+        description: Electron target architecture
+        type: choice
+        options: [both, x64, arm64]
+        default: both
   push:
     branches: [codex/source-build-infrastructure]
     paths: [scripts/electron_source.py, scripts/free-source-build-space.sh, packaging/source-runtimes.json, .github/workflows/electron-source-builds.yml]
@@ -12,8 +18,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
+        # Development pushes retry ARM64 while the original x64 build runs.
+        arch: ${{ fromJSON(inputs.target == 'x64' && '["x64"]' || inputs.target == 'arm64' && '["arm64"]' || github.event_name == 'push' && '["arm64"]' || '["x64","arm64"]') }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,7 +30,9 @@ jobs:
       - name: Install bootstrap tools
         run: sudo apt-get update && sudo apt-get install -y git python3 python3-venv curl xz-utils ninja-build
       - name: Fetch pinned Electron and Chromium sources and build dependencies
-        run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-source"
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-source" --arch "$TARGET_ARCH"
       - name: Compile Electron with no external network or remote execution
         run: bash scripts/ci-command.sh Electron-source-build bash scripts/run-without-network.sh python3 scripts/electron_source.py build "$RUNNER_TEMP/electron-source" --output "$RUNNER_TEMP/electron-runtime" --jobs 2
       - name: Archive executable modes and provenance
@@ -33,7 +42,7 @@ jobs:
           sha256sum electron-runtime.tar.gz > electron-runtime.tar.gz.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: source-electron-${{ matrix.runner }}
+          name: source-electron-${{ matrix.arch }}
           path: |
             ${{ runner.temp }}/electron-runtime.tar.gz
             ${{ runner.temp }}/electron-runtime.tar.gz.sha256

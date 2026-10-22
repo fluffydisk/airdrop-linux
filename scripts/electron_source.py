@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import platform
 from pathlib import Path
 import shutil
 import stat
@@ -36,7 +37,11 @@ def environment(directory):
             'PATH': str(directory / 'depot_tools') + os.pathsep + os.environ['PATH']}
 
 
-def prepare(directory):
+def gn_args(arch):
+    return ARGS + ' target_cpu="' + arch + '"'
+
+
+def prepare(directory, arch):
     if directory.exists():
         raise ValueError('Electron preparation directory must be new')
     directory.parent.mkdir(parents=True, exist_ok=True)
@@ -49,6 +54,9 @@ def prepare(directory):
     execute(['git', '-C', depot, 'checkout', '--detach', 'FETCH_HEAD'])
     env = environment(directory)
     execute(['gclient', 'config', '--name', 'src/electron', '--unmanaged', 'https://github.com/electron/electron'], cwd=directory, env=env)
+    if arch == 'arm64':
+        with (directory / '.gclient').open('a') as config:
+            config.write('\nsolutions[0]["custom_vars"] = {"checkout_arm64": True}\n')
     execute(['gclient', 'sync', '--no-history', '--nohooks',
              '--revision', 'src/electron@' + PIN['revision'],
              '--revision', 'src@' + PIN['chromiumRevision'],
@@ -65,14 +73,14 @@ def prepare(directory):
     execute(['gclient', 'runhooks'], cwd=directory, env=env)
     # Prime build-tool Python/CIPD caches while fetching is still allowed. No
     # application C++ compilation happens until the isolated build phase.
-    execute(['gn', 'gen', 'out/Source', '--args=' + ARGS, '--fail-on-unused-args'], cwd=directory / 'src', env=env)
+    execute(['gn', 'gen', 'out/Source', '--args=' + gn_args(arch), '--fail-on-unused-args'], cwd=directory / 'src', env=env)
     execute(['ninja', '--version'], cwd=directory / 'src', env=env)
     graph = execute(['gclient', 'revinfo', '-a'], cwd=directory, env=env, capture=True)
     (directory / 'source-graph.txt').write_text(graph)
     (directory / 'prepared.json').write_text(json.dumps({
         'component': 'electron', 'version': PIN['version'], 'lockSha256': digest(LOCK_PATH),
         'sourceGraphSha256': digest(directory / 'source-graph.txt'),
-        'revision': PIN['revision'], 'gnArgs': ARGS, 'capacityBeforeFetch': report
+        'revision': PIN['revision'], 'gnArgs': gn_args(arch), 'targetArchitecture': arch, 'capacityBeforeFetch': report
     }, indent=2) + '\n')
 
 
@@ -100,17 +108,28 @@ def build(directory, output, jobs):
         raise ValueError('Electron sources do not match this lock')
     env = environment(directory)
     env['SISO_REAPI_INSTANCE'] = ''
-    execute(['gn', 'gen', 'out/Source', '--args=' + ARGS, '--fail-on-unused-args'], cwd=directory / 'src', env=env)
+    arch = metadata['targetArchitecture']
+    if arch not in ['x64', 'arm64'] or metadata['gnArgs'] != gn_args(arch):
+        raise ValueError('Unexpected Electron build arguments')
+    execute(['gn', 'gen', 'out/Source', '--args=' + gn_args(arch), '--fail-on-unused-args'], cwd=directory / 'src', env=env)
     execute(['ninja', '-C', 'out/Source', '-j', str(jobs), 'electron:electron_dist_zip'], cwd=directory / 'src', env=env)
     distribution = directory / 'src/out/Source/dist.zip'
     output.mkdir(parents=True)
     unpack_distribution(distribution, output)
-    version = execute([output / 'electron', '-p', 'process.versions.electron'], capture=True,
-                      env={**env, 'ELECTRON_RUN_AS_NODE': '1'}).strip()
-    if version != PIN['version']:
-        raise ValueError(f'Unexpected built Electron version: {version}')
+    binary = output / 'electron'
+    with binary.open('rb') as stream:
+        header = stream.read(20)
+    if header[:6] != bytes([127, 69, 76, 70, 2, 1]) or int.from_bytes(header[18:20], 'little') != {'x64': 62, 'arm64': 183}[arch]:
+        raise ValueError('Compiled Electron target architecture mismatch')
+    native = {'x86_64': 'x64', 'aarch64': 'arm64'}.get(platform.machine()) == arch
+    if native:
+        version = execute([binary, '-p', 'process.versions.electron'], capture=True,
+                          env={**env, 'ELECTRON_RUN_AS_NODE': '1'}).strip()
+        if version != PIN['version']:
+            raise ValueError(f'Unexpected built Electron version: {version}')
     shutil.copy2(directory / 'source-graph.txt', output / 'source-graph.txt')
     provenance = {**metadata, 'networkInterfacesDuringBuild': interfaces,
+                  'applicationCommit': os.environ.get('GITHUB_SHA'), 'versionExecutedOnProducer': native,
                   'binarySha256': digest(output / 'electron'), 'distributionSha256': digest(distribution)}
     (output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
     (output / 'SHA256SUMS').write_text(f'{digest(output / "electron")}  electron\n')
@@ -123,13 +142,14 @@ def main():
     parser.add_argument('directory', type=lambda p: Path(p).resolve())
     parser.add_argument('--output', type=lambda p: Path(p).resolve())
     parser.add_argument('--jobs', type=int, default=2)
+    parser.add_argument('--arch', choices=['x64', 'arm64'], default='x64')
     args = parser.parse_args()
     if not 1 <= args.jobs <= 64:
         parser.error('jobs must be between 1 and 64')
     if args.phase == 'capacity':
         capacity(args.directory)
     elif args.phase == 'prepare':
-        prepare(args.directory)
+        prepare(args.directory, args.arch)
     else:
         if not args.output:
             parser.error('--output is required')
