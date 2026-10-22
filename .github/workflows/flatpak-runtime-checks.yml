@@ -1,0 +1,68 @@
+name: Focused Flatpak runtime checks
+on:
+  workflow_dispatch:
+    inputs:
+      package_run:
+        description: Package validation run with unchanged application code
+        required: true
+  push:
+    branches: [codex/source-build-infrastructure]
+    paths: [.github/workflows/flatpak-runtime-checks.yml, scripts/test-flatpak-wayland.sh, scripts/smoke-sandbox-desktop.cjs]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  sandbox:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {runner: ubuntu-24.04, arch: x64}
+          - {runner: ubuntu-24.04-arm, arch: arm64}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Verify cached payload application code matches this checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Development bootstrap only; manual runs always supply their run ID.
+          PACKAGE_RUN: ${{ inputs.package_run || '39778012399' }}
+        run: |
+          set -euo pipefail
+          [[ "$PACKAGE_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PACKAGE_RUN" > "$RUNNER_TEMP/package-run.json"
+          python3 - "$RUNNER_TEMP/package-run.json" <<'PY'
+          import json,os,sys
+          run=json.load(open(sys.argv[1]))
+          assert run['head_repository']['full_name']==os.environ['GITHUB_REPOSITORY']
+          assert run['path']=='.github/workflows/package-checks.yml'
+          assert run['event'] in ['push','pull_request']
+          PY
+          payload_sha=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["head_sha"])' "$RUNNER_TEMP/package-run.json")
+          git diff --exit-code "$payload_sha" HEAD -- desktop lib ui push-server.js package.json package-lock.json scripts/managed-runtime.js scripts/migrate-layout.js scripts/register-install.js
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages-${{ matrix.target.arch }}
+          path: release
+          run-id: ${{ inputs.package_run || '39778012399' }}
+          github-token: ${{ github.token }}
+      - run: npm ci
+      - name: Build, install and exercise the private sandbox fixture
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak dbus-x11 xvfb weston
+          node -e 'require("./scripts/prepare-channels").prepareLocalFlatpak("release",process.arch).catch(error=>{console.error(error);process.exitCode=1})'
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder
+          bash scripts/ci-command.sh Flatpak-build dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder --disable-rofiles-fuse --repo=flatpak-repo release/local-submissions/flatpak/io.github.fluffydisk.airdrop-linux.json
+          flatpak build-bundle flatpak-repo Airdrop.flatpak io.github.fluffydisk.airdrop-linux
+          dbus-run-session -- flatpak install --user --noninteractive Airdrop.flatpak
+          bash scripts/ci-command.sh Flatpak-backend dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          bash scripts/ci-command.sh Flatpak-X11 xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          bash scripts/ci-command.sh Flatpak-Wayland dbus-run-session -- bash scripts/test-flatpak-wayland.sh

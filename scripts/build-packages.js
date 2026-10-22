@@ -17,10 +17,18 @@ async function download(url, sha, target) {
   run('curl',['-fL','--retry','3','--proto','=https',url,'-o',target],{stdio:'inherit'});
   if(hash(await fs.readFile(target))!==sha){await fs.rm(target);throw new Error('Runtime checksum mismatch');}
 }
-async function stage(target, {source='apt', arch=process.arch, desktop=path.join(root,`desktop/out/Airdrop-linux-${arch}`)}={}) {
+async function stage(target, {source='apt', arch=process.arch, desktop=path.join(root,`desktop/out/Airdrop-linux-${arch}`), sourceRuntimes, offlineCache}={}) {
   if(!pins[arch])throw new Error('Supported architectures: x64, arm64');
   if(!['apt','aur','rpm','flatpak','snap'].includes(source))throw new Error('Invalid distribution');
   version(pkg.version);
+  let built;
+  if(sourceRuntimes) {
+    const {verifySourceRuntimes,verifyOfflineCache}=require('./source-runtime-inputs');
+    built=await verifySourceRuntimes(sourceRuntimes,arch);
+    if(!offlineCache)throw new Error('Source assembly requires a pinned offline npm cache');
+    await verifyOfflineCache(offlineCache);
+    if(hash(await fs.readFile(path.join(desktop,'Airdrop')))!==built.electron.record.binarySha256)throw new Error('Desktop does not match source-built Electron');
+  }
   if(JSON.parse(await fs.readFile(path.join(desktop,'resources/app/package.json'),'utf8')).version !== pkg.version)throw new Error('Rebuild the matching desktop first');
   await fs.mkdir(target,{recursive:true});
   const server=path.join(target,'server');await fs.mkdir(server);
@@ -28,11 +36,25 @@ async function stage(target, {source='apt', arch=process.arch, desktop=path.join
   await fs.mkdir(path.join(server,'scripts'));
   for(const name of ['migrate-layout.js','managed-runtime.js','register-install.js']) await fs.copyFile(path.join(root,'scripts',name),path.join(server,'scripts',name));
   await fs.mkdir(path.join(server,'ui'));await fs.copyFile(path.join(root,'ui/zip.js'),path.join(server,'ui/zip.js'));
-  run('npm',['ci','--omit=dev','--ignore-scripts','--no-audit','--no-fund'],{cwd:server,stdio:'inherit'});
+  run('npm',['ci','--omit=dev','--ignore-scripts','--no-audit','--no-fund',...(built?['--offline','--cache',path.join(offlineCache,'npm-cache'),'--registry=http://127.0.0.1:9']:[])],{cwd:server,stdio:'inherit'});
   await fs.cp(path.join(root,'ui'),path.join(target,'ui'),{recursive:true});
   await fs.cp(desktop,path.join(target,'desktop'),{recursive:true});
   await fs.copyFile(path.join(root,'LICENSE'),path.join(target,'LICENSE'));
   await fs.writeFile(path.join(target,'distribution.json'),JSON.stringify({source,version:pkg.version,arch}));
+  if(built) {
+    const runtime=path.join(target,'runtime');await fs.mkdir(runtime);
+    for(const component of ['node','dufs']){
+      await fs.copyFile(built[component].binary,path.join(runtime,component));await fs.chmod(path.join(runtime,component),0o755);
+      const license=path.join(built[component].root,component==='node'?'LICENSE':'LICENSE-MIT');
+      await fs.copyFile(license,path.join(runtime,component.toUpperCase()+'-LICENSE'));
+    }
+    await normalizePayload(target,arch);await deduplicatePayload(target);
+    await fs.writeFile(path.join(runtime,'source-provenance.json'),JSON.stringify({
+      inputs:Object.fromEntries(Object.entries(built).map(([name,value])=>[name,value.record])),
+      installed:{...Object.fromEntries(await Promise.all(['node','dufs'].map(async name=>[name,hash(await fs.readFile(path.join(runtime,name)))]))),electron:hash(await fs.readFile(path.join(target,'desktop/Airdrop')))}
+    },null,2)+'\n');
+    return;
+  }
   const cache=path.join(root,'.cache/package-runtime');
   const node=path.join(cache,`node-${arch}.tar.xz`),dufs=path.join(cache,`dufs-${arch}.tar.gz`);
   await download(`https://nodejs.org/dist/v${pins.nodeVersion}/node-v${pins.nodeVersion}-linux-${arch}.tar.xz`,pins[arch].node,node);

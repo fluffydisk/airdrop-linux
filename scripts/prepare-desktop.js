@@ -2,7 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const target = path.join(root, 'desktop/core');
+const target = process.argv[2] ? path.resolve(process.argv[2]) : path.join(root, 'desktop/core');
 fs.mkdirSync(path.join(target, 'lib'), { recursive: true });
 fs.mkdirSync(path.join(target, 'ui'), { recursive: true });
 for (const name of ['files.js', 'transfer.js', 'paths.js', 'explorer.js', 'maintenance.js', 'updater.js', 'installation.js', 'backend-control.js']) fs.copyFileSync(path.join(root, 'lib', name), path.join(target, 'lib', name));

@@ -29,3 +29,6 @@ release/
 
 # Flatpak builder state
 .flatpak-builder/
+
+# Python source-build tools
+__pycache__/

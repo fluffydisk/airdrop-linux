@@ -28,6 +28,8 @@ jobs:
       - name: Verify offline production npm installation
         run: bash scripts/ci-command.sh Offline-npm bash scripts/prepare-offline-npm.sh "$RUNNER_TEMP/offline-npm"
       - run: umask 022; bash scripts/ci-command.sh Node-tests npm test
+      - name: Source-build guard regressions
+        run: bash scripts/ci-command.sh Source-tool-tests python3 -m unittest discover -s tests -p test_source_build_tools.py
       - name: Real background portal responses
         run: |
           cc -Wall -Wextra -Werror packaging/flatpak/background-portal.c -o "$RUNNER_TEMP/airdrop-background-portal" $(pkg-config --cflags --libs gio-2.0)

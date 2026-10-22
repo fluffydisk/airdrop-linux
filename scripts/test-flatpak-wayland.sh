@@ -24,6 +24,16 @@ for ((i=0;i<100;i++)); do
 done
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
 status=0
-DEBUG=pw:browser node scripts/smoke-sandbox-desktop.cjs flatpak || status=$?
-if (( status )); then cat "$XDG_RUNTIME_DIR/weston.log"; fi
+DEBUG=pw:browser node scripts/smoke-sandbox-desktop.cjs flatpak > "$XDG_RUNTIME_DIR/browser.log" 2>&1 || status=$?
+cat "$XDG_RUNTIME_DIR/browser.log"
+if (( status )); then
+  python3 - "$XDG_RUNTIME_DIR/browser.log" <<'PY'
+import pathlib, sys
+lines=pathlib.Path(sys.argv[1]).read_text().splitlines()
+selected=[line for line in lines if any(word in line.lower() for word in ['error', 'failed', 'wayland', 'ozone', '[err]', 'listening', '<launching>'])]
+message='\n'.join(selected[-80:] or lines[-80:])[-40000:]
+print('::error title=Wayland browser diagnostics::'+message.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
+PY
+  tail -n 8 "$XDG_RUNTIME_DIR/weston.log"
+fi
 exit "$status"
