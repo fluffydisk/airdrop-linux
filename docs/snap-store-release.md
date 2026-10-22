@@ -38,3 +38,10 @@ The first Store upload may require review of the declared browser sandbox
 interface. A pending review is a publication blocker: do not disable Chromium's
 sandbox, relax confinement, manually grant interfaces in Store acceptance tests,
 or claim Store installation succeeded before this gate passes.
+
+For producer run `39819533208`, both local tests passed, but ARM64 processing
+required human interface review and amd64 processing waited for the prior upload
+review. After the Store approves the interface, rerun only the failed producer
+upload jobs (`gh run rerun 39819533208 --failed -R fluffydisk/airdrop-linux`).
+This downloads the retained validated artifacts without rebuilding them. Then
+dispatch `snap-store` with that run ID and `promote_stable=true`.

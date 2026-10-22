@@ -280,6 +280,11 @@ file/ZIP transfer and removes it. Its artifact contains `aur/PKGBUILD` and
   The maintainer has now registered the name. For a one-time login on Arch/Omarchy
   without installing Ubuntu or Snapcraft locally, use the
   [temporary-container credential guide](snap-store-auth.md).
+  Store authentication passed on 2026-10-22. The first uploads require human
+  sandbox-interface review; neither candidate nor stable is released yet.
+  The `snap-store` mode adds real Store installation checks on both architectures
+  and optional promotion of only the exact verified revisions. See the
+  [v1.5.0 Store acceptance procedure](snap-store-release.md).
 
 Never put signing keys or store credentials in source, command arguments or logs.
 Missing credentials, unavailable store names and reviewer approval remain external
@@ -313,9 +318,10 @@ GitHub Actions source. The `package-publishing` environment requires reviewer
 approval and has a deployment branch policy; `github-pages` has a branch policy.
 These protections must be preserved. Secrets/Variables administration returns
 HTTP 403, but the read-only access jobs can check runtime bindings without printing
-credentials. On 2026-10-22 they confirmed that `AUR_SSH_KEY` and
-`SNAPCRAFT_STORE_CREDENTIALS` are unavailable. Configure them in GitHub, never in
-source or chat. See the [status report](distribution-status.md) for exact links.
+credentials. On 2026-10-22 the Snap binding and Store account access passed;
+`AUR_SSH_KEY` remains unavailable and AUR is deferred. Configure credentials in
+GitHub, never in source or chat. See the [status report](distribution-status.md)
+for exact links.
 
 The Snap declares `browser-support` with `allow-sandbox: true` to retain Electron's
 own sandbox. Store auto-connection requires review; for a locally built test snap,
