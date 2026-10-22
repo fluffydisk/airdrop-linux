@@ -90,8 +90,13 @@ jobs:
       - name: Install test and Flatpak tools on the disposable VM
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          # The runner's Azure mirror stalled on codec dependencies. Retain the
+          # Ubuntu suites, Signed-By keys and apt verification on the main mirror.
+          if test -f /etc/apt/sources.list.d/ubuntu.sources; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          fi
           sudo apt-get update
-          sudo apt-get install -y flatpak dbus-x11 xvfb weston appstream desktop-file-utils
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk
           npm ci
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder org.freedesktop.Sdk//26.08 org.freedesktop.Platform//26.08 org.electronjs.Electron2.BaseApp//26.08 org.freedesktop.Sdk.Extension.node24//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08
