@@ -1,0 +1,11 @@
+{
+  "tag": "v1.5.0",
+  "applicationCommit": "2a66fabc4cac57381ab5c5ddbb9d5065e274cf04",
+  "applicationArchiveSha256": "c42fe61d3210303d6279c28c0bfc9c00e6a3faa590b8ca3ed7c3d9f31f2cd182",
+  "node": "signed org.freedesktop.Sdk.Extension.node24//26.08",
+  "dufs": "0.46.0",
+  "dufsCommit": "b69946df232ceca5d24d0067f2beb6b5ed1c292c",
+  "electron": "44.7.0",
+  "electronOrigin": "official prebuilt archive; not compiled Chromium",
+  "packagingOrigin": "AI-assisted"
+}
