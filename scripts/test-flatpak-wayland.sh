@@ -7,7 +7,15 @@ if [[ "${1:-}" != --session ]]; then
   # instance directory and reject Zypak's requesting PID.
   session_runtime=$(mktemp -d)
   chmod 700 "$session_runtime"
-  trap 'rm -rf "$session_runtime"' EXIT
+  cleanup_runtime() {
+    # The document portal can outlive its D-Bus session briefly. Detach its
+    # private FUSE mount before removing the temporary runtime directory.
+    if mountpoint -q "$session_runtime/doc"; then
+      fusermount3 -uz "$session_runtime/doc" || ! mountpoint -q "$session_runtime/doc"
+    fi
+    rm -rf "$session_runtime"
+  }
+  trap cleanup_runtime EXIT
   XDG_RUNTIME_DIR="$session_runtime" WAYLAND_DISPLAY=airdrop-test-wayland AIRDROP_TEST_WAYLAND=1 \
     xvfb-run -a dbus-run-session -- bash "$0" --session
   exit "$?"
