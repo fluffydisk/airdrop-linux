@@ -1,9 +1,14 @@
 # Package-manager distributions
 
-The 1.5.0 work adds native packaging and sandbox recipes. **No APT/RPM repository,
-AUR entry, Flathub app or Snap Store listing is claimed to be live.** Only use the
-commands below after the corresponding channel has passed validation and been
-published. Flathub/Snap acceptance and name availability are external requirements.
+**v1.5.0 is published in the project's signed APT and RPM repositories.**
+The [release](https://github.com/fluffydisk/airdrop-linux/releases/tag/v1.5.0)
+contains amd64/ARM64 DEB and x86_64/aarch64 RPM packages. AUR, Flathub and Snap
+Store publication remains on hold; their examples below describe future usage.
+
+Public signing fingerprint: `6513D70958397F60D3787A0CB93F4FC1E97CF3AE`.
+The [publication run](https://github.com/fluffydisk/airdrop-linux/actions/runs/39687476202)
+verified signatures before deployment; the read-only published repository workflow
+independently verifies public metadata, package hashes and original RPM payloads.
 
 ## Native packages: APT, AUR, DNF and Zypper
 
@@ -33,16 +38,23 @@ installer. Review custom manually managed services separately.
 
 ### APT (Debian 13, Ubuntu 24.04 and 26.04)
 
-Once the signed GitHub Pages repository has been published:
+Add the project repository once, then install with APT:
 
 ```sh
-curl -fsSL https://fluffydisk.github.io/airdrop-linux/airdrop-linux.gpg -o /tmp/airdrop-linux.gpg
-# Compare the key fingerprint with the maintainer's independently published fingerprint.
-gpg --show-keys --with-fingerprint /tmp/airdrop-linux.gpg
-sudo install -Dm644 /tmp/airdrop-linux.gpg /etc/apt/keyrings/airdrop-linux.gpg
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg
+(
+set -eu
+key_file=$(mktemp)
+trap 'rm -f "$key_file"' EXIT
+curl -fsSL https://fluffydisk.github.io/airdrop-linux/airdrop-linux.gpg -o "$key_file"
+fingerprint=$(gpg --batch --with-colons --show-keys "$key_file" | awk -F: '$1=="fpr" {print $10;exit}')
+test "$fingerprint" = 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+sudo install -Dm644 "$key_file" /etc/apt/keyrings/airdrop-linux.gpg
 printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/airdrop-linux.gpg] https://fluffydisk.github.io/airdrop-linux/apt stable main' | sudo tee /etc/apt/sources.list.d/airdrop-linux.list
 sudo apt update
 sudo apt install airdrop-linux
+)
 ```
 
 This is the project's repository; it is not admission into the official Debian or
@@ -57,8 +69,23 @@ Arch repository. Never run makepkg as root.
 
 ### RPM / DNF / Zypper
 
-After repository publication, import the public key, independently check its
-fingerprint, and enable both package and metadata signature verification:
+Install `curl`, GnuPG, `gawk` and CA certificates with your distribution's package manager.
+Import the fingerprint-checked public key:
+
+```sh
+(
+set -eu
+key_file=$(mktemp)
+trap 'rm -f "$key_file"' EXIT
+curl -fsSL https://fluffydisk.github.io/airdrop-linux/airdrop-linux.asc -o "$key_file"
+fingerprint=$(gpg --batch --with-colons --show-keys "$key_file" | awk -F: '$1=="fpr" {print $10;exit}')
+test "$fingerprint" = 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+sudo rpm --import "$key_file"
+)
+```
+
+Save the following as `/etc/yum.repos.d/airdrop-linux.repo` (Fedora) or
+`/etc/zypp/repos.d/airdrop-linux.repo` (openSUSE). Keep the literal `$basearch`:
 
 ```ini
 # /etc/yum.repos.d/airdrop-linux.repo (or /etc/zypp/repos.d/airdrop-linux.repo)
@@ -72,8 +99,17 @@ gpgkey=https://fluffydisk.github.io/airdrop-linux/airdrop-linux.asc
 ```
 
 Install using `sudo dnf install airdrop-linux` or `sudo zypper install airdrop-linux`.
+On openSUSE first run `sudo zypper --gpg-auto-import-keys refresh` to trust the
+repository metadata key already checked above. Both signature checks stay enabled.
 Native RPM targets require glibc 2.39 or later; Fedora and openSUSE installation
 checks must pass before documenting a distribution as supported.
+
+Updates use `sudo apt update && sudo apt upgrade`, `sudo dnf upgrade airdrop-linux`
+or `sudo zypper update airdrop-linux`. Version 1.5.0 is the first published native
+package version; same-version reinstall/update tests do not establish an upgrade
+from an earlier published DEB/RPM release. Graphical software-center discoverability
+depends on the distribution's AppStream integration; adding this repository does
+not place the app in Debian's official catalog.
 
 ## Flatpak and Snap
 

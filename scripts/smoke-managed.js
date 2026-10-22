@@ -7,7 +7,7 @@ const {spawn}=require('node:child_process');
 const assert=require('node:assert/strict');
 (async()=>{
  const code=process.env.AIRDROP_CODE_DIR || '/usr/lib/airdrop-linux';
- const root=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-managed-smoke-'));
+ const root=process.env.AIRDROP_SMOKE_HOME || await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-managed-smoke-'));
  const proc=spawn(path.join(code,'runtime/node'),[path.join(code,'server/scripts/managed-runtime.js'),'backend'],{env:{...process.env,AIRDROP_HOME:root,XDG_CONFIG_HOME:path.join(root,'xdg-config')},stdio:['ignore','pipe','pipe']});
  let log='';proc.stdout.on('data',data=>{log+=data;});proc.stderr.on('data',data=>{log+=data;});
  try{
@@ -32,6 +32,6 @@ const assert=require('node:assert/strict');
  }finally{
   proc.kill('SIGTERM');
   if(proc.exitCode===null)await new Promise(resolve=>proc.once('exit',resolve));
-  await fs.rm(root,{recursive:true,force:true});
+  if(!process.env.AIRDROP_SMOKE_HOME)await fs.rm(root,{recursive:true,force:true});
  }
 })().catch(e=>{console.error(e);process.exitCode=1;});

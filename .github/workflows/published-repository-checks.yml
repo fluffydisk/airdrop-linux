@@ -1,0 +1,38 @@
+name: Published repository validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/verify-published-repositories]
+permissions:
+  contents: read
+jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Verify public signatures and package provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci-command.sh Published-metadata python3 scripts/verify-published-repository.py
+  install:
+    needs: metadata
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        distro:
+          - {image: 'debian:13', format: apt}
+          - {image: 'ubuntu:24.04', format: apt}
+          - {image: 'ubuntu:26.04', format: apt}
+          - {image: 'fedora:43', format: dnf}
+          - {image: 'fedora:44', format: dnf}
+          - {image: 'opensuse/tumbleweed:latest', format: zypper}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install, exercise, reinstall and remove from the public repository
+        env:
+          TEST_IMAGE: ${{ matrix.distro.image }}
+          PACKAGE_FORMAT: ${{ matrix.distro.format }}
+        run: bash scripts/ci-command.sh Published-install docker run --rm -v "$PWD:/work:ro" -w /work -e PACKAGE_FORMAT "$TEST_IMAGE" bash scripts/test-published-repository.sh
