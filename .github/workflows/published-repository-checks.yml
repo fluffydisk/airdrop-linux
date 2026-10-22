@@ -2,7 +2,7 @@ name: Published repository validation
 on:
   workflow_dispatch:
   push:
-    branches: [codex/verify-published-repositories, codex/production-distribution]
+    branches: [codex/verify-published-repositories]
 permissions:
   contents: read
 jobs:

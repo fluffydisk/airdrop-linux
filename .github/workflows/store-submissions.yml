@@ -8,7 +8,7 @@ on:
       channel:
         description: Submission channel
         type: choice
-        options: [prepare, aur-access, aur, flathub-check, flathub, snap-access, snap]
+        options: [prepare, aur-access, aur, flathub-check, flathub, snap-access, snap-validate, snap]
         default: prepare
 permissions:
   contents: read
@@ -61,7 +61,7 @@ jobs:
           snapcraft status airdrop-linux
           echo 'Snap Store authentication and package access passed; nothing uploaded.' >> "$GITHUB_STEP_SUMMARY"
   prepare:
-    if: contains(fromJSON('["prepare", "aur", "snap"]'), inputs.channel)
+    if: contains(fromJSON('["prepare", "aur", "snap-validate", "snap"]'), inputs.channel)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -153,7 +153,7 @@ jobs:
           exit 1
   snap:
     needs: prepare
-    if: inputs.channel == 'snap'
+    if: inputs.channel == 'snap' || inputs.channel == 'snap-validate'
     strategy:
       matrix:
         include:
@@ -162,22 +162,84 @@ jobs:
           - runner: ubuntu-24.04-arm
             arch: arm64
     runs-on: ${{ matrix.runner }}
-    environment: snap-publishing
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
       - uses: actions/download-artifact@v4
         with:
           name: store-submissions
           path: submissions
       - name: Install supported Snapcraft
         run: sudo snap install snapcraft --classic --channel=8.x/stable
-      - name: Build and upload to candidate
+      - run: npm ci
+      - name: Build the immutable release payload
         env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
           PACKAGE_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          test -n "$SNAPCRAFT_STORE_CREDENTIALS"
           mkdir -p snap
           cp "submissions/snap/snapcraft-$PACKAGE_ARCH.yaml" snap/snapcraft.yaml
           sudo snapcraft pack --destructive-mode
+      - name: Install and exercise this exact strict Snap before upload
+        run: |
+          set -euo pipefail
+          sudo snap set system experimental.user-daemons=true
+          sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          systemctl --user start snapd.session-agent.socket
+          # This flag is only for our locally built, unsigned artifact. Store
+          # assertions and strict confinement remain enabled for store installs.
+          sudo snap install --dangerous ./*.snap
+          systemctl --user daemon-reload
+          snap run airdrop-linux.cli --help
+          # Local artifacts cannot receive store-reviewed auto-connections.
+          # Candidate installation still needs independent store verification.
+          sudo snap connect airdrop-linux:browser-sandbox
+          test -x /snap/airdrop-linux/current/lib/airdrop-linux/desktop/Airdrop
+          node scripts/smoke-sandbox.js snap
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11
+          sudo snap start --users=all airdrop-linux.backend
+          xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap background
+          xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap
+      - name: Remove the disposable local test installation
+        if: always()
+        run: |
+          if snap list airdrop-linux >/dev/null 2>&1; then
+            sudo snap remove --purge airdrop-linux
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-snap-${{ matrix.arch }}
+          path: ./*.snap
+          if-no-files-found: error
+  snap-upload:
+    needs: snap
+    if: inputs.channel == 'snap'
+    strategy:
+      matrix:
+        arch: [x64, arm64]
+    runs-on: ubuntu-24.04
+    environment: snap-publishing
+    steps:
+      - name: Check publication credentials
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: test -n "$SNAPCRAFT_STORE_CREDENTIALS"
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-snap-${{ matrix.arch }}
+      - name: Install supported Snapcraft
+        run: sudo snap install snapcraft --classic --channel=8.x/stable
+      - name: Upload the tested artifact to candidate after both architectures pass
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
           snapcraft upload ./*.snap --release candidate

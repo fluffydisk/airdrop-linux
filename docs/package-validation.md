@@ -1,16 +1,16 @@
-# Package distribution validation — 1.5.0 preparation
+# Package distribution validation — 1.5.0
 
-No store submission or public package repository deployment has been completed.
-“Hazır” below refers to the prepared artifacts and recorded automated checks;
-production signing, channel ownership, platform acceptance and the remaining
-manual acceptance tests are separate publication gates.
+APT and RPM production repositories are public. Their signed installation paths
+were rechecked on 2026-10-22, including the published DEB desktop on both
+architectures. See [distribution status and current evidence](distribution-status.md).
+The historical build checks below are distinct from store publication.
 
 | Channel | Preparation status | Publication status |
 | --- | --- | --- |
-| APT | Hazır: x86_64/ARM64 DEBs and signed repository tooling | Not published; production signing/protection verification remains |
+| APT | x86_64/ARM64 signed public repository installation verified | Published v1.5.0; Debian 13 and Ubuntu 24.04/26.04 |
 | AUR | Hazır for x86_64: checksum-pinned PKGBUILD/.SRCINFO, dependency installation and runtime checks; aarch64 recipe awaits an Arch Linux ARM host | Not submitted |
-| RPM | Hazır: x86_64/ARM64 RPMs and signed repository tooling | Not published; production signing/protection verification remains |
-| Flathub | Hazır for review: both architecture sandbox builds and lifecycle checks passed | Not submitted; prebuilt-payload policy acceptance remains |
+| RPM | x86_64/ARM64 signed public repository installation verified | Published v1.5.0; Fedora 43/44 and openSUSE Tumbleweed |
+| Flathub | Local sandbox builds/lifecycle checks passed; source build incomplete | Not submitted; source-build and independent human-authorship requirements remain |
 | Snap | Hazır for review: x86_64/ARM64 strict build/install, CLI, transfer and desktop lifecycle checks passed | Not submitted; name/credential/confinement review remains |
 
 | Check | Observed result |
@@ -71,17 +71,20 @@ is required; ASCII locales reproduce an existing Unicode file-input failure.
 After saving the network draft, GitHub, Flathub, AUR and Snap API requests worked.
 AUR returned zero matching entries; Snap/Flathub returned no existing app listing.
 These observations do not establish reservation rights or platform acceptance.
-GitHub Pages now uses the GitHub Actions source and package-publishing exists,
-but its latest observed configuration has no protection rules or branch policy.
-Secret/variable administration still returns HTTP 403, so existing signing/store
-credentials remain unverified, rather than proven absent. Configure environment
-protection and verify the existing secret/variable names securely in GitHub.
+GitHub Pages uses the GitHub Actions source. The current `package-publishing`
+environment requires reviewer approval and a deployment branch policy;
+`github-pages` also has a branch policy. Preserve these protections.
+Secret/variable administration returns HTTP 403. Read-only runtime checks now
+confirm missing AUR/Snap bindings; production signing was already verified by
+the published repository signatures. Configure missing store credentials securely
+in GitHub; see the linked status report.
 
 Remaining acceptance work includes interactive file portals and background
 permission prompts, clipboard on physical sandbox desktops, real login/session
 lifecycle, physical devices/Tailscale HTTPS, AUR on aarch64, review of retained
-RPM vendor/hardlink warnings, published-repository installation and
-production signature verification. Flathub must review the prebuilt payload
-approach and may require source-based packaging. Snap requires name ownership,
+RPM vendor/hardlink warnings and per-distribution graphical RPM launch.
+Published-repository installation and production signature verification passed.
+Flathub requires a compliant source-build manifest independently authored by a
+human; the AI-assisted prebuilt fixture cannot be submitted. Snap requires name ownership,
 store credentials and confinement/interface review. See
 [the package manager guide](package-managers.md) for those external prerequisites.
