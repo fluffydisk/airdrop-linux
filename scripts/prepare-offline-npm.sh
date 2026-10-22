@@ -9,8 +9,12 @@ mkdir -p "$output"
 output=$(realpath "$output")
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-for component in server desktop; do
-  if [[ "$component" == server ]]; then source_dir=$source_root; else source_dir=$source_root/desktop; fi
+for component in server desktop tools; do
+  case "$component" in
+    server) source_dir=$source_root ;;
+    desktop) source_dir=$source_root/desktop ;;
+    tools) source_dir=$source_root/packaging/source-tools ;;
+  esac
   mkdir -p "$work/$component" "$output/$component"
   cp "$source_dir/package.json" "$source_dir/package-lock.json" "$work/$component/"
   cp "$source_dir/package.json" "$source_dir/package-lock.json" "$output/$component/"
@@ -24,6 +28,6 @@ for component in server desktop; do
     node -e 'for(const name of Object.keys(require("./package.json").dependencies||{}))require(name); console.log("Offline production dependencies load successfully")'
   )
 done
-(cd "$output" && sha256sum server/package-lock.json desktop/package-lock.json > LOCKFILE-SHA256SUMS)
+(cd "$output" && sha256sum server/package-lock.json desktop/package-lock.json tools/package-lock.json > LOCKFILE-SHA256SUMS)
 printf 'Offline npm cache verified at %s\n' "$output"
 echo 'Electron, Node and dufs source builds are separate requirements; this cache is not a complete offline Flatpak build.'

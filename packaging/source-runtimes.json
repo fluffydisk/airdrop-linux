@@ -1,0 +1,24 @@
+{
+  "node": {
+    "version": "26.12.0",
+    "url": "https://nodejs.org/dist/v26.12.0/node-v26.12.0.tar.xz",
+    "sha256": "ce59f9038dda0e637656fb1c36cf52c07c637922fd81d419dbba2ec129afbd35"
+  },
+  "dufs": {
+    "version": "0.46.0",
+    "revision": "b69946df232ceca5d24d0067f2beb6b5ed1c292c",
+    "url": "https://codeload.github.com/sigoden/dufs/tar.gz/b69946df232ceca5d24d0067f2beb6b5ed1c292c",
+    "sha256": "c4f9b0a2f736bde8959c5e69967652326aaed4cc60b5a89a4b2b87739c65cb3c",
+    "cargoLockSha256": "ad9dd8608ba9734866aecb998ea08a124103e7d931485268124d30a9b4590517",
+    "rustToolchain": "1.91.1"
+  },
+  "electron": {
+    "version": "44.7.0",
+    "revision": "61f55c4ce540416b3e43f75f6c0f125d22e5e908",
+    "depotToolsRevision": "b1c2e86792a7f2b6576c181b7327ddd53b1a42a8",
+    "chromiumRevision": "2c592105bbcd9490a9894df48d0fe59b2c512651",
+    "embeddedNodeRevision": "955266bfdd854cd280dffd47548673914484e4c0",
+    "minimumFreeDiskGiB": 100,
+    "minimumMemoryGiB": 8
+  }
+}

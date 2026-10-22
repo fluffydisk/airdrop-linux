@@ -45,8 +45,8 @@ Lint errors are reported as acceptance blockers, not silently treated as passing
 lint. The runtime test and lint-readiness results are intentionally separate:
 successfully running a Flatpak does not establish Flathub acceptance.
 
-The manifest uses matching desktop/metadata/icon identifiers, a checksum-pinned
-512-pixel icon, Freedesktop/Electron BaseApp 25.08, Wayland/fallback-X11 and portals
+The local fixture uses matching desktop/metadata/icon identifiers, a checksum-pinned
+512-pixel icon, Freedesktop/Electron BaseApp 26.08, Wayland/fallback-X11 and portals
 without granting the entire home directory. Screenshot metadata now uses the
 immutable v1.5.0 tag. Tailscale stays on the host; local sharing operates without a
 VPN daemon in the sandbox.
@@ -59,16 +59,18 @@ VPN daemon in the sandbox.
    requires source-available application components and bundled runtime
    dependencies to build from source, with dependencies available offline.
    A compliant source-build recipe has not been completed or certified here.
-   `bash scripts/prepare-offline-npm.sh NEW_OUTPUT_DIRECTORY` now prepares an
-   integrity-checked npm cache from the existing server/desktop lockfiles. It
+   [Source-build tooling](source-builds.md) now pins runtime sources and provides
+   separate online preparation, network-isolated SDK compilation and real
+   sandbox consumer workflows. These tools are not a submission recipe.
+   `bash scripts/prepare-offline-npm.sh NEW_OUTPUT_DIRECTORY` prepares an
+   integrity-checked npm cache from server/desktop/build-tools lockfiles. It
    reinstalls production dependencies into fresh directories with `npm ci
    --offline`, lifecycle scripts disabled and an unusable registry URL, then
    loads each direct production dependency. Both architecture CI jobs run it.
-   This verifies npm dependency availability only: it neither builds Electron,
-   Node or dufs from source nor replaces a network-isolated Flatpak build.
-   The inline C portal helper must also become a separately fetched source file
-   under Flathub's prohibition on embedding application/dependency source code in
-   a manifest.
+   That command verifies npm availability only. Runtime compilation is performed
+   by the separate source workflows; success must be established from their
+   actual completed jobs. The C portal helper is a separate tracked source file
+   and is copied as a file into the private runtime fixture.
    The human packaging maintainer must select supported SDK extensions, pin app
    sources, generate npm/Cargo dependency sources from lockfiles, and build and
    test offline. Bundled runtime exceptions require explicit reviewer agreement.
@@ -103,8 +105,9 @@ VPN daemon in the sandbox.
    background-permission consent and denial, interactive Wayland clipboard behavior,
    and host Tailscale HTTPS access require additional acceptance testing. The
    headless X11 and D-Bus fixture results do not certify these interactions.
-   CI additionally attempts software-rendered native Wayland startup under headless Weston with no
-   DISPLAY fallback. That compositor has no physical input seat and does not
+   CI verifies software-rendered native Wayland startup under Weston nested in
+   a virtual X server, with a virtual input seat and no app DISPLAY fallback.
+   This does not
    establish interactive clipboard or portal consent acceptance.
 5. **Release visibility:** v1.5.0 is publicly available and APT/RPM repositories
    are published. This does not publish an app on Flathub. The source changes

@@ -1,0 +1,9 @@
+{
+  "name": "airdrop-source-build-tools",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "browserify": "17.0.1"
+  }
+}

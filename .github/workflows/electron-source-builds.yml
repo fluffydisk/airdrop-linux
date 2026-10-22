@@ -1,0 +1,62 @@
+name: Electron source builds
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Electron target architecture
+        type: choice
+        options: [both, x64, arm64]
+        default: both
+      runner:
+        description: GitHub-hosted runner label (a configured larger runner can be used)
+        default: ubuntu-24.04
+      jobs:
+        description: Parallel compiler processes
+        default: '3'
+  push:
+    branches: [codex/source-build-infrastructure]
+    paths: [scripts/electron_source.py, scripts/free-source-build-space.sh, packaging/source-runtimes.json, .github/workflows/electron-source-builds.yml]
+permissions:
+  contents: read
+jobs:
+  electron:
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        # Development pushes retry ARM64 while the original x64 build runs.
+        arch: ${{ fromJSON(inputs.target == 'x64' && '["x64"]' || inputs.target == 'arm64' && '["arm64"]' || github.event_name == 'push' && '["arm64"]' || '["x64","arm64"]') }}
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reclaim unused SDK space on the disposable runner
+        run: bash scripts/free-source-build-space.sh
+      - name: Install bootstrap tools
+        run: sudo apt-get update && sudo apt-get install -y git python3 python3-venv curl xz-utils ninja-build
+      - name: Fetch pinned Electron and Chromium sources and build dependencies
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: bash scripts/ci-command.sh Electron-source-prepare python3 scripts/electron_source.py prepare "$RUNNER_TEMP/electron-build/prepared" --arch "$TARGET_ARCH"
+      - name: Install the signed target SDK and build extensions
+        run: |
+          sudo apt-get install -y flatpak dbus-x11
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          bash scripts/ci-command.sh Electron-SDK-install dbus-run-session -- flatpak install --user --noninteractive flathub org.freedesktop.Sdk//26.08 org.freedesktop.Platform//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08 org.freedesktop.Sdk.Extension.node24//26.08
+      - name: Compile Electron with no external network or remote execution
+        env:
+          BUILD_JOBS: ${{ inputs.jobs || '3' }}
+        run: bash scripts/ci-command.sh Electron-source-build dbus-run-session -- bash scripts/build-in-sdk.sh "$RUNNER_TEMP/electron-build" python3 "$PWD/scripts/electron_source.py" build "$RUNNER_TEMP/electron-build/prepared" --output "$RUNNER_TEMP/electron-build/runtime" --jobs "$BUILD_JOBS"
+      - name: Archive executable modes and provenance
+        run: |
+          tar -C "$RUNNER_TEMP/electron-build/runtime" -czf "$RUNNER_TEMP/electron-runtime.tar.gz" .
+          cd "$RUNNER_TEMP"
+          sha256sum electron-runtime.tar.gz > electron-runtime.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-electron-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/electron-runtime.tar.gz
+            ${{ runner.temp }}/electron-runtime.tar.gz.sha256
+          retention-days: 3

@@ -1,0 +1,45 @@
+name: Source runtime builds in Flatpak SDK
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/source-build-infrastructure]
+    paths: [.github/workflows/source-sdk-runtimes.yml, scripts/build-in-sdk.sh]
+permissions:
+  contents: read
+jobs:
+  sdk-runtime:
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        component: [node, dufs]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install source preparation and SDK tools
+        run: sudo apt-get update && sudo apt-get install -y flatpak dbus-x11 python3 build-essential pkg-config libssl-dev cmake
+      - name: Prepare source and vendored dependencies online
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          if [[ "$COMPONENT" == dufs ]]; then
+            rustup toolchain install "$(python3 -c 'import json;print(json.load(open("packaging/source-runtimes.json"))["dufs"]["rustToolchain"])')" --profile minimal --no-self-update
+          fi
+          mkdir -p "$RUNNER_TEMP/source-build"
+          bash scripts/ci-command.sh SDK-source-prepare python3 scripts/source_runtime.py prepare "$COMPONENT" "$RUNNER_TEMP/source-build/prepared"
+      - name: Install signed SDK and compiler extensions
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          bash scripts/ci-command.sh SDK-install dbus-run-session -- flatpak install --user --noninteractive flathub org.freedesktop.Sdk//26.08 org.freedesktop.Platform//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08 org.freedesktop.Sdk.Extension.node24//26.08
+      - name: Compile inside the SDK with network access disabled
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: bash scripts/ci-command.sh SDK-source-build dbus-run-session -- bash scripts/build-in-sdk.sh "$RUNNER_TEMP/source-build" python3 "$PWD/scripts/source_runtime.py" build "$COMPONENT" "$RUNNER_TEMP/source-build/prepared" --output "$RUNNER_TEMP/source-build/runtime" --jobs 3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ matrix.component }}-${{ matrix.runner }}
+          path: ${{ runner.temp }}/source-build/runtime
+          retention-days: 3

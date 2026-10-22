@@ -8,6 +8,54 @@ const { version } = require('./build-packages');
 const pkg = require('../package.json');
 const root=path.resolve(__dirname,'..');
 const sha=file=>crypto.createHash('sha256').update(file).digest('hex');
+async function writeLocalFlatpakFixture(directory,flatpak,checksums,architectures) {
+  const base=`https://github.com/fluffydisk/airdrop-linux/releases/download/v${pkg.version}`;
+  const sources=[
+    ...architectures.map(arch=>({type:'archive',url:base+`/airdrop-flatpak-${arch}-${pkg.version}.tar.gz`,sha256:checksums[`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`],'only-arches':[arch==='x64'?'x86_64':'aarch64']})),
+    {type:'inline','dest-filename':'airdrop-desktop',contents:'#!/bin/sh\nexport GTK_USE_PORTAL=1\nexec /app/lib/airdrop-linux/runtime/node /app/lib/airdrop-linux/server/scripts/managed-runtime.js desktop "$@"\n'},
+    {type:'file',path:'background-portal.c',sha256:sha(await fs.readFile(path.join(root,'packaging/flatpak/background-portal.c')))},
+    ...await Promise.all(['io.github.fluffydisk.airdrop-linux.desktop','io.github.fluffydisk.airdrop-linux.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
+    {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-512.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-512.png'))),'dest-filename':'icon.png'}
+  ];
+  for(const source of sources) {
+    // flathub-build --sandbox only permits local files within the manifest's
+    // directory. Keep this test bundle self-contained, including both arches.
+    if(source.type==='archive'){
+      const name=path.basename(source.url);
+      await fs.copyFile(path.join(directory,name),path.join(flatpak,name));
+      source.path=name;delete source.url;
+    } else if(source.type==='file' && source.path==='background-portal.c'){
+      await fs.copyFile(path.join(root,'packaging/flatpak/background-portal.c'),path.join(flatpak,'background-portal.c'));
+    } else if(source.type==='file'){
+      await fs.copyFile(path.join(root,'ui/icon-512.png'),path.join(flatpak,'icon.png'));
+      source.path='icon.png';delete source.url;
+    }
+  }
+  const manifest={
+    'app-id':'io.github.fluffydisk.airdrop-linux',runtime:'org.freedesktop.Platform','runtime-version':'26.08',base:'org.electronjs.Electron2.BaseApp','base-version':'26.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
+    'finish-args':['--share=ipc','--share=network','--socket=wayland','--socket=fallback-x11','--device=dri','--talk-name=org.kde.StatusNotifierWatcher','--env=GTK_USE_PORTAL=1'],
+    modules:[{name:'airdrop-linux',buildsystem:'simple','build-commands':[
+        'mkdir -p /app/lib/airdrop-linux',
+        'cp -a server ui desktop runtime distribution.json LICENSE /app/lib/airdrop-linux/',
+        'install -Dm755 airdrop-desktop /app/bin/airdrop-desktop',
+        'cc -Wall -Wextra -Werror background-portal.c -o /app/bin/airdrop-background-portal $(pkg-config --cflags --libs gio-2.0)',
+        'install -Dm644 io.github.fluffydisk.airdrop-linux.desktop /app/share/applications/io.github.fluffydisk.airdrop-linux.desktop',
+        'install -Dm644 io.github.fluffydisk.airdrop-linux.metainfo.xml /app/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml',
+        'install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/io.github.fluffydisk.airdrop-linux.png'
+      ],sources}]
+  };
+  await fs.writeFile(path.join(flatpak,'io.github.fluffydisk.airdrop-linux.json'),JSON.stringify(manifest,null,2)+'\n');
+}
+async function prepareLocalFlatpak(directory,arch) {
+  if(!['x64','arm64'].includes(arch))throw new Error('Unsupported local fixture architecture');
+  directory=path.resolve(directory);
+  const flatpak=path.join(directory,'local-submissions/flatpak');await fs.mkdir(flatpak,{recursive:true});
+  const name=`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`;
+  const checksums={[name]:sha(await fs.readFile(path.join(directory,name)))};
+  await fs.writeFile(path.join(flatpak,'README.md'),'AI-assisted runtime fixture only. Do not submit to Flathub.\n');
+  await writeLocalFlatpakFixture(directory,flatpak,checksums,[arch]);
+  return path.join(flatpak,'io.github.fluffydisk.airdrop-linux.json');
+}
 async function generate(directory=path.join(root,'release'), { local = false } = {}) {
   directory = path.resolve(directory);
   version(pkg.version);
@@ -37,41 +85,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   for(const id of ['io.github.fluffydisk.Airdrop','io.github.fluffydisk.airdrop-linux'])
     await fs.rm(path.join(flatpak,id+'.json'),{force:true});
   await fs.writeFile(path.join(flatpak,'README.md'),'No Flathub submission manifest is generated. A human must independently author it under Flathub policy. --local only produces an AI-assisted runtime test fixture, which must not be submitted.\n');
-  if(local) {
-  const sources=[
-    ...['x64','arm64'].map(arch=>({type:'archive',url:base+`/airdrop-flatpak-${arch}-${pkg.version}.tar.gz`,sha256:checksums[`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`],'only-arches':[arch==='x64'?'x86_64':'aarch64']})),
-    {type:'inline','dest-filename':'airdrop-desktop',contents:'#!/bin/sh\nexport GTK_USE_PORTAL=1\nexec /app/lib/airdrop-linux/runtime/node /app/lib/airdrop-linux/server/scripts/managed-runtime.js desktop "$@"\n'},
-    {type:'inline','dest-filename':'background-portal.c',contents:await fs.readFile(path.join(root,'packaging/flatpak/background-portal.c'),'utf8')},
-    ...await Promise.all(['io.github.fluffydisk.airdrop-linux.desktop','io.github.fluffydisk.airdrop-linux.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
-    {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-512.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-512.png'))),'dest-filename':'icon.png'}
-  ];
-  if(local) for(const source of sources) {
-    // flathub-build --sandbox only permits local files within the manifest's
-    // directory. Keep this test bundle self-contained, including both arches.
-    if(source.type==='archive'){
-      const name=path.basename(source.url);
-      await fs.copyFile(path.join(directory,name),path.join(flatpak,name));
-      source.path=name;delete source.url;
-    } else if(source.type==='file'){
-      await fs.copyFile(path.join(root,'ui/icon-512.png'),path.join(flatpak,'icon.png'));
-      source.path='icon.png';delete source.url;
-    }
-  }
-  const manifest={
-    'app-id':'io.github.fluffydisk.airdrop-linux',runtime:'org.freedesktop.Platform','runtime-version':'25.08',base:'org.electronjs.Electron2.BaseApp','base-version':'25.08',sdk:'org.freedesktop.Sdk',command:'airdrop-desktop',
-    'finish-args':['--share=ipc','--share=network','--socket=wayland','--socket=fallback-x11','--device=dri','--talk-name=org.kde.StatusNotifierWatcher','--env=GTK_USE_PORTAL=1'],
-    modules:[{name:'airdrop-linux',buildsystem:'simple','build-commands':[
-        'mkdir -p /app/lib/airdrop-linux',
-        'cp -a server ui desktop runtime distribution.json LICENSE /app/lib/airdrop-linux/',
-        'install -Dm755 airdrop-desktop /app/bin/airdrop-desktop',
-        'cc -Wall -Wextra -Werror background-portal.c -o /app/bin/airdrop-background-portal $(pkg-config --cflags --libs gio-2.0)',
-        'install -Dm644 io.github.fluffydisk.airdrop-linux.desktop /app/share/applications/io.github.fluffydisk.airdrop-linux.desktop',
-        'install -Dm644 io.github.fluffydisk.airdrop-linux.metainfo.xml /app/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml',
-        'install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/io.github.fluffydisk.airdrop-linux.png'
-      ],sources}]
-  };
-  await fs.writeFile(path.join(flatpak,'io.github.fluffydisk.airdrop-linux.json'),JSON.stringify(manifest,null,2)+'\n');
-  }
+  if(local)await writeLocalFlatpakFixture(directory,flatpak,checksums,['x64','arm64']);
   const snap=path.join(out,'snap');await fs.mkdir(snap,{recursive:true});
   // Separate native architecture recipes prevent accidental cross-architecture payload reuse.
   for(const arch of ['x64','arm64']){
@@ -84,4 +98,4 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   return out;
 }
 if(require.main===module)generate(process.argv.slice(2).find(arg=>arg!=='--local'),{local:process.argv.includes('--local')}).then(console.log).catch(e=>{console.error(e);process.exitCode=1;});
-module.exports={generate};
+module.exports={generate,prepareLocalFlatpak};
