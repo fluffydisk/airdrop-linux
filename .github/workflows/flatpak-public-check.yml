@@ -44,7 +44,8 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak remote-add --user airdrop-linux airdrop-linux.flatpakrepo
           dbus-run-session -- flatpak install --user --noninteractive airdrop-linux io.github.fluffydisk.airdrop-linux
-          version=$(flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux -p 'require("/app/lib/airdrop-linux/server/package.json").version')
+          runtime=$(mktemp -d)
+          version=$(XDG_RUNTIME_DIR="$runtime" dbus-run-session -- flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux -p 'require("/app/lib/airdrop-linux/server/package.json").version')
           test "$version" = "${RELEASE_TAG#v}"
           runtime=$(mktemp -d)
           XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak

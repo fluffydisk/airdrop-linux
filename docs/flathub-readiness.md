@@ -121,9 +121,10 @@ VPN daemon in the sandbox.
    DISPLAY fallback. That compositor has no physical input seat and does not
    establish interactive clipboard or portal consent acceptance.
 5. **Release visibility:** v1.5.0 is publicly available and APT/RPM repositories
-   are published. This does not publish an app on Flathub. The source changes
-   described here are newer than that immutable release and need a future source
-   release before submission. No store submission is performed by these checks.
+   are published. Independent upstream Flatpak bundles do not publish an app on
+   Flathub. Packaging patches can accompany the immutable application source;
+   they do not replace the source-build, authorship or submission requirements.
+   No store submission is performed by these checks.
 
 The final reviewer decides inclusion, including desktop usefulness, development
 history, host-dependency requirements, licensing, screenshots and metadata quality.

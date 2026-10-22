@@ -34,6 +34,11 @@ verified; the first tested amd64/ARM64 uploads await Store sandbox-interface rev
 Flathub remains blocked by source-build and human-authorship requirements.
 See the [distribution status and evidence](docs/distribution-status.md).
 
+Independent [upstream Flatpak packaging](docs/flatpak-distribution.md) uses its
+own build, lint, installation and release workflow. Bundles are added to
+[GitHub Releases](https://github.com/fluffydisk/airdrop-linux/releases) after
+both architecture checks pass; Flathub availability is a separate process.
+
 For an installation made by the updated installer, quit the desktop and run
 `airdrop uninstall` to remove the app; it asks whether to retain shared files and
 settings (the default). `airdrop uninstall --yes` keeps data without prompting;
