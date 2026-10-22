@@ -13,7 +13,7 @@ async function writeLocalFlatpakFixture(directory,flatpak,checksums,architecture
   const sources=[
     ...architectures.map(arch=>({type:'archive',url:base+`/airdrop-flatpak-${arch}-${pkg.version}.tar.gz`,sha256:checksums[`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`],'only-arches':[arch==='x64'?'x86_64':'aarch64']})),
     {type:'inline','dest-filename':'airdrop-desktop',contents:'#!/bin/sh\nexport GTK_USE_PORTAL=1\nexec /app/lib/airdrop-linux/runtime/node /app/lib/airdrop-linux/server/scripts/managed-runtime.js desktop "$@"\n'},
-    {type:'inline','dest-filename':'background-portal.c',contents:await fs.readFile(path.join(root,'packaging/flatpak/background-portal.c'),'utf8')},
+    {type:'file',path:'background-portal.c'},
     ...await Promise.all(['io.github.fluffydisk.airdrop-linux.desktop','io.github.fluffydisk.airdrop-linux.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
     {type:'file',url:`https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v${pkg.version}/ui/icon-512.png`,sha256:sha(await fs.readFile(path.join(root,'ui/icon-512.png'))),'dest-filename':'icon.png'}
   ];
@@ -24,6 +24,8 @@ async function writeLocalFlatpakFixture(directory,flatpak,checksums,architecture
       const name=path.basename(source.url);
       await fs.copyFile(path.join(directory,name),path.join(flatpak,name));
       source.path=name;delete source.url;
+    } else if(source.type==='file' && source.path==='background-portal.c'){
+      await fs.copyFile(path.join(root,'packaging/flatpak/background-portal.c'),path.join(flatpak,'background-portal.c'));
     } else if(source.type==='file'){
       await fs.copyFile(path.join(root,'ui/icon-512.png'),path.join(flatpak,'icon.png'));
       source.path='icon.png';delete source.url;

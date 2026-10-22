@@ -42,6 +42,14 @@ async function stage(target, {source='apt', arch=process.arch, desktop=path.join
   await fs.copyFile(path.join(root,'LICENSE'),path.join(target,'LICENSE'));
   await fs.writeFile(path.join(target,'distribution.json'),JSON.stringify({source,version:pkg.version,arch}));
   if(built) {
+    const tools=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-source-web-tools-'));
+    try {
+      for(const name of ['package.json','package-lock.json'])await fs.copyFile(path.join(root,'packaging/source-tools',name),path.join(tools,name));
+      run('npm',['ci','--omit=dev','--ignore-scripts','--offline','--no-audit','--no-fund','--cache',path.join(offlineCache,'npm-cache'),'--registry=http://127.0.0.1:9'],{cwd:tools,stdio:'inherit'});
+      await require('./build-source-web-ui').buildSourceWebUI(path.join(server,'node_modules/jszip/lib/index.js'),tools,path.join(target,'ui/vendor'));
+    } finally {await fs.rm(tools,{recursive:true,force:true});}
+    for(const modules of [path.join(server,'node_modules'),path.join(target,'desktop/resources/app/node_modules')])
+      await require('./source-dependencies').prepareSourceDependencies(modules);
     const runtime=path.join(target,'runtime');await fs.mkdir(runtime);
     for(const component of ['node','dufs']){
       await fs.copyFile(built[component].binary,path.join(runtime,component));await fs.chmod(path.join(runtime,component),0o755);

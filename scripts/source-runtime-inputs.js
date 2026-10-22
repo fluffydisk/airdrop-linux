@@ -29,7 +29,7 @@ async function verifySourceRuntimes(directory, arch=process.arch) {
 }
 
 async function verifyOfflineCache(directory) {
- for(const [component,relative] of [['server','..'],['desktop','../desktop']]) {
+ for(const [component,relative] of [['server','..'],['desktop','../desktop'],['tools','../packaging/source-tools']]) {
   const expected=await fs.readFile(path.join(__dirname,relative,'package-lock.json'));
   const actual=await fs.readFile(path.join(directory,component,'package-lock.json'));
   if(hash(expected)!==hash(actual))throw new Error('Offline npm cache lock mismatch: '+component);

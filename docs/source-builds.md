@@ -10,13 +10,15 @@ their provenance must not be omitted in a future human-led Flathub review.
 `packaging/source-runtimes.json` records Node 26.12.0's source archive SHA-256,
 dufs 0.46.0's exact Git revision/archive/Cargo.lock hashes and Rust toolchain,
 and Electron 44.7.0's exact Electron/Chromium/embedded-Node/depot_tools revisions.
-The application's two npm lockfiles pin its server and desktop dependencies.
+The application's server/desktop lockfiles and `packaging/source-tools/package-lock.json`
+pin npm inputs. The last lockfile contains build-only Browserify dependencies.
 
 Preparation downloads and verifies source archives, vendors Cargo dependencies,
 fetches Chromium's dependency graph and primes build-tool caches. Electron's
-tool caches live under the preparation directory. Compilation runs in a new
-network namespace with only loopback, as the original unprivileged runner user.
-The namespace launcher also enables no-new-privileges. Node/Cargo/Yarn do not
+tool caches live under the preparation directory. Compilation runs with only
+loopback, as the original unprivileged runner user. SDK builds use Flatpak's
+network namespace; the host baseline launcher also enables no-new-privileges.
+Node/Cargo/Yarn do not
 receive an online fallback during their offline build/install phase.
 
 Node and dufs are compiled natively on x86_64 and ARM64. Electron's ARM64 target
@@ -38,24 +40,32 @@ not provision or purchase a runner.
    architectures. Every successful output includes the original source hash,
    source-lock hash, architecture, version check, network-interface record and
    binary SHA-256. New builds also record compiler version and parallel job count.
-2. **Electron source builds** accepts target `x64`, `arm64` or `both`. It fetches
+2. **Source runtime builds in Flatpak SDK** compiles both native runtimes inside
+   Freedesktop SDK 26.08 with signed Rust/node24 extensions, matching the test
+   application's runtime ABI. Prefer these outputs for source application tests.
+   The Rust pin controls online Cargo vendoring and host builds; SDK builds use
+   the extension compiler and record its actual version and SDK commit.
+3. **Electron source builds** accepts target `x64`, `arm64` or `both`. It fetches
    the exact source graph, generates the local build without remote execution,
-   and compiles Electron inside the network namespace. Its artifact contains
+   and compiles Electron inside the network-isolated SDK. Its artifact contains
    source-graph provenance and a checksum-verified tar archive preserving modes.
-3. **Source-built application sandbox checks** accepts the native source-run ID
+4. **Source-built application sandbox checks** accepts the native source-run ID
    and Electron run IDs for each architecture. It verifies artifact origin,
    version/source-lock/checksum/architecture records, prepares locked npm caches,
-   and assembles the application's JS/HTML/CSS and source-built runtimes offline.
+   and assembles the application's JS/HTML/CSS and source-built runtimes offline
+   inside the same SDK. It rebuilds the browser ZIP library from JSZip's `lib/`
+   sources, retaining input hashes and licenses. Unused Bare-runtime native
+   addons are excluded; any unexpected npm native binary fails the assembly.
    It then checks backend upload/download/ZIP operations and installs a private
    Flatpak runtime fixture for desktop/clipboard/lifecycle/Wayland tests.
-4. **Focused Flatpak runtime checks** can reuse a package validation run only if
+5. **Focused Flatpak runtime checks** can reuse a package validation run only if
    its installed application code matches the current checkout. This lets test
    harness changes be debugged without recompiling an unchanged application.
 
 Use GitHub's Actions UI, or the already-authenticated CLI in the cloud environment:
 
 ```sh
-gh workflow run source-runtime-builds.yml --ref main
+gh workflow run source-sdk-runtimes.yml --ref main
 gh workflow run electron-source-builds.yml --ref main -f target=both
 # Substitute the successful producing run IDs below:
 gh workflow run source-payload-checks.yml --ref main \
