@@ -103,7 +103,7 @@ VPN daemon in the sandbox.
    background-permission consent and denial, interactive Wayland clipboard behavior,
    and host Tailscale HTTPS access require additional acceptance testing. The
    headless X11 and D-Bus fixture results do not certify these interactions.
-   CI additionally attempts native Wayland startup under headless Weston with no
+   CI additionally attempts software-rendered native Wayland startup under headless Weston with no
    DISPLAY fallback. That compositor has no physical input seat and does not
    establish interactive clipboard or portal consent acceptance.
 5. **Release visibility:** v1.5.0 is publicly available and APT/RPM repositories

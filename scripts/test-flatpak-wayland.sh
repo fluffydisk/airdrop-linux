@@ -23,4 +23,7 @@ for ((i=0;i<100;i++)); do
   sleep 0.1
 done
 test -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
-node scripts/smoke-sandbox-desktop.cjs flatpak
+status=0
+DEBUG=pw:browser node scripts/smoke-sandbox-desktop.cjs flatpak || status=$?
+if (( status )); then cat "$XDG_RUNTIME_DIR/weston.log"; fi
+exit "$status"
