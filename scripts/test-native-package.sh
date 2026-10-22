@@ -8,7 +8,9 @@ case "${PACKAGE_ARCH:-x64}" in
 esac
 case "${PACKAGE_FORMAT:?}" in
   apt) apt-get update; DEBIAN_FRONTEND=noninteractive apt-get install -y ./release/*_"$deb_arch".deb ;;
-  dnf) dnf install -y ./release/*."$rpm_arch".rpm ;;
+  # Fetch full metadata instead of fragile zchunk range downloads from mirrors.
+  # Repository checksums and package verification retain their normal settings.
+  dnf) dnf --setopt=zchunk=False install -y ./release/*."$rpm_arch".rpm ;;
   zypper) zypper --non-interactive install --allow-unsigned-rpm ./release/*."$rpm_arch".rpm ;;
   pacman) pacman -U --noconfirm ./release/airdrop-linux-bin-*.pkg.tar.zst ;;
   *) exit 1 ;;

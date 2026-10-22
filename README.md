@@ -17,14 +17,22 @@ A self-hosted file and clipboard sharing system that runs over Tailscale. It is 
 
 GitHub releases provide a stand-alone `install-prebuilt.sh` and native x64/arm64 bundles, plus one-file desktop AppImages. The download script needs no checkout and installs the complete local setup without compiling Electron or installing npm dependencies. The AppImage contains the desktop companion; its local server and Tailscale setup remain separate.
 
-See the [distribution guide](docs/distribution.md) for download commands, prerequisites, release preparation, portable updates and the AUR / Debian / RPM / Flathub roadmap. These downloads become available once the v1.4.0 draft is published.
+See the [distribution guide](docs/distribution.md) for download commands, prerequisites, release preparation and portable updates. [v1.5.0 downloads](https://github.com/fluffydisk/airdrop-linux/releases/tag/v1.5.0) are public.
 
 ## Package-manager builds and removal
 
-APT, AUR, RPM, Flatpak and Snap packaging is being prepared for 1.5.0. See the
-[package-manager guide](docs/package-managers.md) for current publication status,
-repository setup, sandbox behavior and maintainer instructions. These instructions
-do not imply that a store entry or package repository is already live.
+**v1.5.0 is available from the project's signed APT and RPM repositories.**
+Follow the [package-manager guide](docs/package-managers.md) to add the
+fingerprint-checked repository, then install with `sudo apt install airdrop-linux`,
+`sudo dnf install airdrop-linux` or `sudo zypper install airdrop-linux`.
+Public-repository installation and removal passed on amd64/ARM64 with Debian 13,
+Ubuntu 24.04/26.04, Fedora 43/44 and openSUSE Tumbleweed. The published DEB desktop
+also passed sandbox-enabled launch and functional tests on both architectures.
+
+AUR is deferred while account registration is unavailable. Snap Store publication
+awaits a scoped credential for the maintainer's registered `airdrop-linux` name.
+Flathub remains blocked by source-build and human-authorship requirements.
+See the [distribution status and evidence](docs/distribution-status.md).
 
 For an installation made by the updated installer, quit the desktop and run
 `airdrop uninstall` to remove the app; it asks whether to retain shared files and

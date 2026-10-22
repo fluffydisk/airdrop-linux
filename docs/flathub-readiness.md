@@ -1,5 +1,10 @@
 # Flathub technical readiness
 
+For the 2026-10-22 inspection of the preserved source-build branch, including the
+successful Node/dufs SDK build and the Electron sysroot failure, see the
+[distribution status report](distribution-status.md#flathub-remains-independent).
+That branch was not merged into production and no new Electron build was started.
+
 This document records preparation, not a submission or approval. Do not publish a
 release or open a Flathub submission PR as part of these checks. All development
 and testing runs in Codex Cloud and GitHub Actions.

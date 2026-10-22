@@ -9,6 +9,9 @@ Public signing fingerprint: `6513D70958397F60D3787A0CB93F4FC1E97CF3AE`.
 The [publication run](https://github.com/fluffydisk/airdrop-linux/actions/runs/39687476202)
 verified signatures before deployment; the read-only published repository workflow
 independently verifies public metadata, package hashes and original RPM payloads.
+The [2026-10-22 installation and desktop checks](https://github.com/fluffydisk/airdrop-linux/actions/runs/39809722343)
+verified the live repositories on both architectures. See the
+[channel status report](distribution-status.md) for evidence and remaining blockers.
 
 ## Native packages: APT, AUR, DNF and Zypper
 
@@ -37,6 +40,10 @@ Older installations without ownership records must first rerun the updated scrip
 installer. Review custom manually managed services separately.
 
 ### APT (Debian 13, Ubuntu 24.04 and 26.04)
+
+The same repository may work on Mint releases based on supported Ubuntu versions,
+but Mint has not been tested separately. Debian 12 / Ubuntu 22.04 and older do not
+meet the package's glibc 2.39 requirement.
 
 Add the project repository once, then install with APT:
 
@@ -102,7 +109,10 @@ Install using `sudo dnf install airdrop-linux` or `sudo zypper install airdrop-l
 On openSUSE first run `sudo zypper --gpg-auto-import-keys refresh` to trust the
 repository metadata key already checked above. Both signature checks stay enabled.
 Native RPM targets require glibc 2.39 or later; Fedora and openSUSE installation
-checks must pass before documenting a distribution as supported.
+checks passed independently on Fedora 43/44 and openSUSE Tumbleweed, on both
+x86_64 and aarch64. Other RPM distributions have not been verified. Graphical
+launch of the published RPM on each distribution remains a separate desktop check;
+the published DEB desktop was exercised on Ubuntu 24.04 on both architectures.
 
 Updates use `sudo apt update && sudo apt upgrade`, `sudo dnf upgrade airdrop-linux`
 or `sudo zypper update airdrop-linux`. Version 1.5.0 is the first published native
@@ -239,8 +249,17 @@ Only older releases containing neither DEB nor RPM packages may be skipped.
 
 `store-submissions.yml` defaults to preparation only. To submit after validation:
 
+Use the `aur-access` or `snap-access` channel first to check the corresponding
+protected environment's credential bindings and account access without publishing.
+The `prepare` channel now also builds the generated **public-URL** AUR recipe in
+Arch's base-devel container, checks canonical `.SRCINFO`, installs it, exercises
+file/ZIP transfer and removes it. Its artifact contains `aur/PKGBUILD` and
+`aur/.SRCINFO`; an artifact is not a public AUR listing.
+
 * AUR: reserve/own `airdrop-linux-bin`; environment `aur-publishing` needs
-  `AUR_SSH_KEY` and `AUR_KNOWN_HOSTS` verified against Arch's trusted documentation.
+  `AUR_SSH_KEY`. The workflow verifies the scanned server key against Arch's
+  pinned official Ed25519 fingerprint; optional `AUR_KNOWN_HOSTS` can supply
+  previously verified host keys instead.
   Validate generated `.SRCINFO` with `makepkg --printsrcinfo`, clean installation,
   upgrades and removal before pushing.
 * Flathub: environment `flathub-publishing` needs `FLATHUB_TOKEN` and variable
@@ -252,9 +271,15 @@ Only older releases containing neither DEB nor RPM packages may be skipped.
   rules; see [the readiness report](flathub-readiness.md). Runtime sandbox tests
   alone do not establish eligibility for Flathub.
 * Snap: reserve `airdrop-linux`; environment `snap-publishing` needs scoped
-  `SNAPCRAFT_STORE_CREDENTIALS`. Uploads go to **candidate**, not stable. Review
+  `SNAPCRAFT_STORE_CREDENTIALS`. Use `snap-validate` to build, install and exercise
+  the exact public v1.5.0 payload on both architectures without store credentials
+  or uploads. `snap` uploads these tested artifacts only after both pass.
+  Uploads go to **candidate**, not stable. Review
   strict confinement, portal interaction, user-service control and architectures
   on actual hosts before promoting the revisions to stable.
+  The maintainer has now registered the name. For a one-time login on Arch/Omarchy
+  without installing Ubuntu or Snapcraft locally, use the
+  [temporary-container credential guide](snap-store-auth.md).
 
 Never put signing keys or store credentials in source, command arguments or logs.
 Missing credentials, unavailable store names and reviewer approval remain external
@@ -283,14 +308,14 @@ For local sandbox build checks before publishing a version tag, use
 the local icon. It never replaces the production submission manifests or removes
 checksum verification. Do not submit these local-path recipes to a store.
 
-The current GitHub integration can push code and open PRs. Pages now uses the
-GitHub Actions source, but Secrets/Variables administration returned HTTP 403.
-Verify the existing credential names directly in GitHub; the integration cannot
-read their configuration through the administration API. The latest environment
-metadata shows no protection rules or branch restrictions; configure these before
-production publication. Existing keys can be reused under the documented names;
-do not paste private keys or store
-credentials into chat.
+The current GitHub integration can push code and open PRs. Pages uses the
+GitHub Actions source. The `package-publishing` environment requires reviewer
+approval and has a deployment branch policy; `github-pages` has a branch policy.
+These protections must be preserved. Secrets/Variables administration returns
+HTTP 403, but the read-only access jobs can check runtime bindings without printing
+credentials. On 2026-10-22 they confirmed that `AUR_SSH_KEY` and
+`SNAPCRAFT_STORE_CREDENTIALS` are unavailable. Configure them in GitHub, never in
+source or chat. See the [status report](distribution-status.md) for exact links.
 
 The Snap declares `browser-support` with `allow-sandbox: true` to retain Electron's
 own sandbox. Store auto-connection requires review; for a locally built test snap,
