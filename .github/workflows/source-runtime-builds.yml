@@ -20,3 +20,33 @@ jobs:
           ram_kib=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
           depot_revision=$(git ls-remote https://chromium.googlesource.com/chromium/tools/depot_tools.git HEAD | cut -f1)
           printf '::notice title=Source build preflight::arch=%s availableDiskGiB=%s ramKiB=%s depotToolsRevision=%s\n' "$(uname -m)" "$disk_gib" "$ram_kib" "$depot_revision"
+  native-runtime:
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        component: [node, dufs]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install source-build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential python3 pkg-config libssl-dev cmake libclang-dev zlib1g-dev liblzma-dev
+      - name: Install pinned Rust compiler
+        if: matrix.component == 'dufs'
+        run: rustup toolchain install "$(python3 -c 'import json;print(json.load(open("packaging/source-runtimes.json"))["dufs"]["rustToolchain"])')" --profile minimal --no-self-update
+      - name: Prepare checksum-pinned source and offline dependencies
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: bash scripts/ci-command.sh Source-prepare python3 scripts/source_runtime.py prepare "$COMPONENT" "$RUNNER_TEMP/prepared"
+      - name: Compile with no external network interfaces
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: bash scripts/ci-command.sh Source-build bash scripts/run-without-network.sh python3 scripts/source_runtime.py build "$COMPONENT" "$RUNNER_TEMP/prepared" --output "$RUNNER_TEMP/runtime" --jobs 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ matrix.component }}-${{ matrix.runner }}
+          path: ${{ runner.temp }}/runtime
+          retention-days: 3
