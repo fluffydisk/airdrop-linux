@@ -25,6 +25,8 @@ jobs:
       - name: Install test and package tools
         run: sudo apt-get update && sudo apt-get install -y rpm rpmlint lintian appstream desktop-file-utils xvfb dbus-x11 apt-utils createrepo-c gnupg gpgv libglib2.0-dev python3-gi
       - run: npm ci
+      - name: Verify offline production npm installation
+        run: bash scripts/ci-command.sh Offline-npm bash scripts/prepare-offline-npm.sh "$RUNNER_TEMP/offline-npm"
       - run: umask 022; bash scripts/ci-command.sh Node-tests npm test
       - name: Real background portal responses
         run: |

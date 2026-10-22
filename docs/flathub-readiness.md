@@ -59,6 +59,13 @@ VPN daemon in the sandbox.
    requires source-available application components and bundled runtime
    dependencies to build from source, with dependencies available offline.
    A compliant source-build recipe has not been completed or certified here.
+   `bash scripts/prepare-offline-npm.sh NEW_OUTPUT_DIRECTORY` now prepares an
+   integrity-checked npm cache from the existing server/desktop lockfiles. It
+   reinstalls production dependencies into fresh directories with `npm ci
+   --offline`, lifecycle scripts disabled and an unusable registry URL, then
+   loads each direct production dependency. Both architecture CI jobs run it.
+   This verifies npm dependency availability only: it neither builds Electron,
+   Node or dufs from source nor replaces a network-isolated Flatpak build.
    The inline C portal helper must also become a separately fetched source file
    under Flathub's prohibition on embedding application/dependency source code in
    a manifest.
@@ -121,3 +128,5 @@ Requirements documentation revision: `b1f0539de6aed7aa26e097ede5de936510ab1df0`
   especially application ID, offline/source builds and generative AI policy
 * [Flathub submission procedure](https://docs.flathub.org/docs/for-app-authors/submission/)
 * [Official metadata guidelines](https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/)
+
+For a first-time human maintainer, see [the learning path](flathub-first-steps.md).
