@@ -26,6 +26,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y flatpak gnupg xvfb dbus-x11
           npm ci
