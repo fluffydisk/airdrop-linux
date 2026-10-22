@@ -15,8 +15,8 @@ mv "$app/desktop/electron" "$app/desktop/Airdrop"
 rm -f "$app/desktop/chrome-sandbox" "$app/desktop/resources/default_app.asar"
 desktop="$app/desktop/resources/app"
 mkdir -p "$desktop"
-cp desktop/{main.js,preload.js,renderer.js,index.html,style.css,clipboard.js,background.js,package.json,package-lock.json} "$desktop/"
-node scripts/prepare-desktop.js "$desktop/core"
+node scripts/prepare-desktop.js
+cp -a desktop/. "$desktop/"
 for component in "$app/server" "$desktop" "$PWD/build-tools"; do
   npm ci --prefix "$component" --offline --omit=dev --ignore-scripts --no-audit --no-fund --registry=http://127.0.0.1:9
 done
@@ -36,6 +36,7 @@ const fs=require('node:fs'),path=require('node:path');
 const base=process.argv[2],version=require(path.join(base,'server/package.json')).version;
 fs.writeFileSync(path.join(base,'distribution.json'),JSON.stringify({source:'flatpak',version,arch:process.arch}));
 for(const name of Object.keys(require(path.join(base,'server/package.json')).dependencies))require(path.join(base,'server/node_modules',name));
+require(path.join(base,'desktop/resources/app/core/lib/explorer'));
 JS
 cc -Wall -Wextra -Werror packaging/flatpak/background-portal.c -o /app/bin/airdrop-background-portal $(pkg-config --cflags --libs gio-2.0)
 install -Dm644 io.github.fluffydisk.airdrop-linux.desktop /app/share/applications/$FLATPAK_ID.desktop

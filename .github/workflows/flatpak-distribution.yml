@@ -285,8 +285,10 @@ jobs:
           sha256sum --strict --ignore-missing -c FLATPAK-SHA256SUMS
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           dbus-run-session -- flatpak install --user --noninteractive "$bundle"
-          dbus-run-session -- node scripts/smoke-sandbox.js flatpak
-          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
           flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
           printf 'Public GitHub asset %s: verified download, install, transfer and sandboxed desktop passed.\n' "$bundle" >> "$GITHUB_STEP_SUMMARY"
   repository-publication:

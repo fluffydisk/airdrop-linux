@@ -39,13 +39,16 @@ jobs:
           pathlib.Path('remote.gpg').write_bytes(base64.b64decode(section['GPGKey'],validate=True))
           PY
           fingerprint=$(gpg --batch --with-colons --show-keys remote.gpg | awk -F: '$1=="fpr" {print $10;exit}')
+          test "$(gpg --batch --with-colons --show-keys remote.gpg | awk -F: '$1=="pub" {n++} END {print n}')" = 1
           test "$fingerprint" = "$EXPECTED_FINGERPRINT"
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak remote-add --user airdrop-linux airdrop-linux.flatpakrepo
           dbus-run-session -- flatpak install --user --noninteractive airdrop-linux io.github.fluffydisk.airdrop-linux
           version=$(flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux -p 'require("/app/lib/airdrop-linux/server/package.json").version')
           test "$version" = "${RELEASE_TAG#v}"
-          dbus-run-session -- node scripts/smoke-sandbox.js flatpak
-          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
           flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
           printf 'Public signed Flatpak remote: %s install, file/ZIP transfer and sandboxed desktop passed on %s.\n' "$RELEASE_TAG" "$(uname -m)" >> "$GITHUB_STEP_SUMMARY"
