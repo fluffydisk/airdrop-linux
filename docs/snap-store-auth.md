@@ -20,7 +20,10 @@ The requested credential is limited to:
 
 ## Generate the credential
 
-Run this from an ordinary terminal on Omarchy. Docker must be running. The
+Run this from an ordinary terminal on Omarchy. Docker must be running. Current
+Omarchy includes Docker and normally accesses its daemon through `sudo`; no
+Docker-group or other security setting needs changing. Container processes still
+use your original user ID through the explicit `--user` argument. The
 directory is private; on a desktop session `XDG_RUNTIME_DIR` normally stores it
 in memory. Only this new directory is mounted into the container.
 
@@ -28,7 +31,7 @@ in memory. Only this new directory is mounted into the container.
 umask 077
 snap_auth_dir=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/airdrop-snap-auth.XXXXXX")
 snap_auth_expiry=$(date -u -d '+90 days' '+%Y-%m-%dT%H:%M:%S')
-docker run --rm -it --log-driver=none \
+sudo docker run --rm -it --log-driver=none \
   --read-only --tmpfs /tmp:rw,nosuid,nodev,mode=1777 \
   --cap-drop=ALL --security-opt no-new-privileges \
   --user "$(id -u):$(id -g)" -e HOME=/tmp -e USER=snap-auth \

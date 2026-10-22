@@ -66,11 +66,25 @@ test('failed and aborted writes clean staging and never publish', async t => {
   async function* broken() { yield 'half'; throw new Error('connection lost'); }
   await assert.rejects(publishStream(share, 'broken.txt', Readable.from(broken())));
   assert.deepEqual(await fs.readdir(share), []);
-  await new Promise(resolve => {
-    const req = http.request(url + '/files/aborted.txt', { method: 'PUT', headers: { 'Content-Length': 100000 } });
-    req.on('error', resolve); req.write('half'); setTimeout(() => req.destroy(), 30);
-  });
-  await new Promise(resolve => setTimeout(resolve, 60));
+  const waitForFiles = async predicate => {
+    const deadline = Date.now() + 5000;
+    do {
+      if (predicate(await fs.readdir(share))) return;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    } while (Date.now() < deadline);
+    assert.fail('Timed out waiting for upload staging state');
+  };
+  const req = http.request(url + '/files/aborted.txt', { method: 'PUT', headers: { 'Content-Length': 100000 } });
+  const closed = new Promise(resolve => req.once('close', resolve));
+  req.on('error', () => {});
+  t.after(() => req.destroy());
+  req.write('half');
+  // Observe a real partial upload before disconnecting, then wait for the
+  // server's asynchronous cleanup rather than assuming it finishes in 60 ms.
+  await waitForFiles(entries => entries.some(name => name.startsWith('.airdrop-')));
+  req.destroy();
+  await closed;
+  await waitForFiles(entries => entries.length === 0);
   assert.deepEqual(await fs.readdir(share), []);
 });
 test('health and cross-origin writes', async t => {
