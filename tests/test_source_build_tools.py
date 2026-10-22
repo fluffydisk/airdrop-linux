@@ -1,4 +1,5 @@
 import hashlib
+import ast
 import io
 import json
 from pathlib import Path
@@ -15,6 +16,16 @@ import electron_source as electron
 
 
 class SourceBuildTests(unittest.TestCase):
+    def test_cross_compile_configuration_uses_supported_name_assignments(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config = Path(temp) / '.gclient'
+            config.write_text('solutions = [{"name": "src/electron", "custom_vars": {}}]\ncache_dir = None\n')
+            electron.enable_arm64_checkout(config)
+            assignments = ast.parse(config.read_text()).body
+            self.assertTrue(all(isinstance(node.targets[0], ast.Name) for node in assignments))
+            solutions = ast.literal_eval(assignments[0].value)
+            self.assertTrue(solutions[0]['custom_vars']['checkout_arm64'])
+
     def test_corrupt_archive_is_rejected_before_extraction(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fetch the pinned Electron source graph online, then build offline locally."""
 import argparse
+import ast
 import json
 import os
 import platform
@@ -41,6 +42,17 @@ def gn_args(arch):
     return ARGS + ' target_cpu="' + arch + '"'
 
 
+def enable_arm64_checkout(config_path):
+    # gclient's restricted parser allows name assignments, not indexed writes.
+    values = {}
+    for node in ast.parse(config_path.read_text()).body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            raise ValueError('Unexpected gclient configuration syntax')
+        values[node.targets[0].id] = ast.literal_eval(node.value)
+    values['solutions'][0].setdefault('custom_vars', {})['checkout_arm64'] = True
+    config_path.write_text(''.join(f'{name} = {value!r}\n' for name, value in values.items()))
+
+
 def prepare(directory, arch):
     if directory.exists():
         raise ValueError('Electron preparation directory must be new')
@@ -55,8 +67,7 @@ def prepare(directory, arch):
     env = environment(directory)
     execute(['gclient', 'config', '--name', 'src/electron', '--unmanaged', 'https://github.com/electron/electron'], cwd=directory, env=env)
     if arch == 'arm64':
-        with (directory / '.gclient').open('a') as config:
-            config.write('\nsolutions[0]["custom_vars"] = {"checkout_arm64": True}\n')
+        enable_arm64_checkout(directory / '.gclient')
     execute(['gclient', 'sync', '--no-history', '--nohooks',
              '--revision', 'src/electron@' + PIN['revision'],
              '--revision', 'src@' + PIN['chromiumRevision'],

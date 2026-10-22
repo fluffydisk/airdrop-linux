@@ -4,6 +4,7 @@
 This is application build tooling, not a Flatpak manifest or submission.
 """
 import argparse
+from collections import deque
 import hashlib
 import json
 import os
@@ -12,6 +13,7 @@ import platform
 import shutil
 import socket
 import subprocess
+import sys
 import tarfile
 import urllib.request
 
@@ -33,9 +35,23 @@ def verify(path, expected):
 
 def execute(args, cwd=None, capture=False, env=None):
     print('+', ' '.join(map(str, args)), flush=True)
-    return subprocess.run(list(map(str, args)), cwd=cwd, check=True,
-                          text=True, stdout=subprocess.PIPE if capture else None,
-                          env=env).stdout
+    if capture:
+        result = subprocess.run(list(map(str, args)), cwd=cwd, text=True,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, flush=True)
+        if result.returncode:
+            raise RuntimeError(f'Command failed ({result.returncode}): {args[0]}\n' + (result.stderr or result.stdout)[-1800:])
+        return result.stdout
+    tail = deque(maxlen=25)
+    with subprocess.Popen(list(map(str, args)), cwd=cwd, text=True,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env) as process:
+        for line in process.stdout:
+            print(line, end='', flush=True)
+            tail.append(line)
+        status = process.wait()
+    if status:
+        raise RuntimeError(f'Command failed ({status}): {args[0]}\n' + ''.join(tail)[-1800:])
 
 
 def require_offline():
