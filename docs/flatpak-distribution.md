@@ -27,6 +27,7 @@ It uses Freedesktop 26.08 and Electron2 BaseApp 26.08 on x86_64 and aarch64.
   by the official `flatpak-builder-tools`. Install scripts are disabled.
 - JSZip's browser bundle is rebuilt from its JavaScript sources. Licenses are
   retained, including npm licenses and the bundler's runtime/shim licenses.
+  Vendored Cargo dependency and Rust runtime license files are retained too.
 - **Electron 44.7.0 is the official prebuilt runtime**, with a separate pinned
   SHA-256 per architecture. Chromium/Electron itself is not compiled from source
   by this manifest. Zypak integrates its process sandbox with Flatpak; Chromium's

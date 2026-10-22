@@ -36,6 +36,11 @@ modules:
   - cargo build --offline --locked --release --bin dufs -j$FLATPAK_BUILDER_N_JOBS
   - install -Dm755 target/release/dufs /app/lib/airdrop-linux/runtime/dufs
   - install -Dm644 LICENSE-MIT /app/share/licenses/$FLATPAK_ID/dufs/LICENSE-MIT
+  - mkdir -p /app/share/licenses/$FLATPAK_ID/dufs-dependencies /app/share/licenses/$FLATPAK_ID/rust-runtime
+  - find cargo/vendor -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'copyright*'
+    \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/dufs-dependencies/ \;
+  - find /usr/lib/sdk/rust-stable -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname
+    'copyright*' \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/rust-runtime/ \;
   sources:
   - type: archive
     url: https://codeload.github.com/sigoden/dufs/tar.gz/b69946df232ceca5d24d0067f2beb6b5ed1c292c

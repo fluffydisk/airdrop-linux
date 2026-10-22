@@ -45,7 +45,7 @@ dufs['sources'][0].update(url=dufs_url,sha256=digest(dufs_archive))
 app['sources'][0].update(url=url,sha256=digest(archive))
 main=(source/'desktop/main.js').read_text()
 if "app.setDesktopName('io.github.fluffydisk.airdrop-linux.desktop')" in main:
-    app['sources']=[s for s in app['sources'] if not isinstance(s,dict) or s.get('type')!='patch']
+    app['sources']=[s for s in app['sources'] if not isinstance(s,dict) or s.get('path')!='flatpak/application-id.patch']
 else:
     assert tag=='v1.5.0', 'A new release must include the upstream desktop identity fix'
 electron=json.loads((source/'desktop/package-lock.json').read_text())['packages']['node_modules/electron']['version']
