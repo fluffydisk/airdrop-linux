@@ -1,5 +1,9 @@
 name: Verify public signed Flatpak repository
 on:
+  workflow_dispatch:
+    inputs:
+      tag: {description: Expected application release, type: string, required: true, default: v1.5.0}
+      fingerprint: {description: Expected public repository signing fingerprint, type: string, required: true, default: 6513D70958397F60D3787A0CB93F4FC1E97CF3AE}
   workflow_call:
     inputs:
       tag: {type: string, required: true}
@@ -44,7 +48,7 @@ jobs:
           test "$fingerprint" = "$EXPECTED_FINGERPRINT"
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak remote-add --user airdrop-linux airdrop-linux.flatpakrepo
-          dbus-run-session -- flatpak install --user --noninteractive airdrop-linux io.github.fluffydisk.airdrop-linux
+          dbus-run-session -- flatpak --ostree-verbose install --user --noninteractive airdrop-linux io.github.fluffydisk.airdrop-linux
           runtime=$(mktemp -d)
           version=$(XDG_RUNTIME_DIR="$runtime" dbus-run-session -- flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux -p 'require("/app/lib/airdrop-linux/server/package.json").version')
           test "$version" = "${RELEASE_TAG#v}"
