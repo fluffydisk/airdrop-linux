@@ -1,0 +1,102 @@
+name: Validate standalone Flathub draft
+on:
+  pull_request:
+    paths:
+      - packaging/flathub-draft/**
+      - scripts/smoke-sandbox*
+      - scripts/test-flatpak-wayland.sh
+      - .github/workflows/flathub-draft-checks.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x86_64}
+          - {runner: ubuntu-24.04-arm, arch: aarch64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prepare disposable validation tools
+        run: |
+          set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk
+          npm ci --ignore-scripts
+          mkdir -p "$RUNNER_TEMP/draft-logs"
+          cp -a packaging/flathub-draft "$RUNNER_TEMP/submission"
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder \
+            org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 \
+            org.electronjs.Electron2.BaseApp//26.08 \
+            org.freedesktop.Sdk.Extension.node24//26.08 \
+            org.freedesktop.Sdk.Extension.rust-stable//26.08
+      - name: Lint the independent manifest
+        run: |
+          set -euo pipefail
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest \
+            "$RUNNER_TEMP/submission/io.github.fluffydisk.airdrop-linux.yml" \
+            2>&1 | tee "$RUNNER_TEMP/draft-logs/manifest-lint.txt"
+      - name: Fetch checksum-pinned inputs
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/submission"
+          dbus-run-session -- flatpak run --command=flatpak-builder org.flatpak.Builder \
+            --download-only --disable-rofiles-fuse fetch-build io.github.fluffydisk.airdrop-linux.yml \
+            2>&1 | tee "$RUNNER_TEMP/draft-logs/download.txt"
+      - name: Clean build with downloads disabled
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/submission"
+          dbus-run-session -- flatpak run --command=flathub-build org.flatpak.Builder \
+            --disable-download --disable-rofiles-fuse --jobs=2 --default-branch=stable \
+            --repo="$RUNNER_TEMP/draft-repo" io.github.fluffydisk.airdrop-linux.yml \
+            2>&1 | tee "$RUNNER_TEMP/draft-logs/build.txt"
+      - name: Lint the built repository
+        run: |
+          set -euo pipefail
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo "$RUNNER_TEMP/draft-repo" \
+            2>&1 | tee "$RUNNER_TEMP/draft-logs/repo-lint.txt"
+      - name: Install and inspect the actual package
+        run: |
+          set -euo pipefail
+          flatpak install --user --noninteractive "$RUNNER_TEMP/draft-repo" io.github.fluffydisk.airdrop-linux
+          flatpak info --user --show-permissions io.github.fluffydisk.airdrop-linux > "$RUNNER_TEMP/draft-logs/permissions.txt"
+          flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux --version
+          flatpak run --command=sh io.github.fluffydisk.airdrop-linux -c 'if command -v tailscale; then exit 1; fi; test ! -S /run/tailscale/tailscaled.sock'
+          flatpak run --command=cat io.github.fluffydisk.airdrop-linux /app/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml > "$RUNNER_TEMP/io.github.fluffydisk.airdrop-linux.metainfo.xml"
+          flatpak run --command=cat io.github.fluffydisk.airdrop-linux /app/share/applications/io.github.fluffydisk.airdrop-linux.desktop > "$RUNNER_TEMP/io.github.fluffydisk.airdrop-linux.desktop"
+          flatpak run --command=flatpak-builder-lint org.flatpak.Builder appstream "$RUNNER_TEMP/io.github.fluffydisk.airdrop-linux.metainfo.xml"
+          desktop-file-validate "$RUNNER_TEMP/io.github.fluffydisk.airdrop-linux.desktop"
+      - name: Backend, isolation and transfers without host Tailscale
+        run: |
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
+      - name: X11 desktop and Chromium sandbox
+        run: |
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+      - name: Native Wayland startup
+        run: dbus-run-session -- bash scripts/test-flatpak-wayland.sh
+      - name: Remove disposable installation
+        if: always()
+        run: |
+          if flatpak info --user io.github.fluffydisk.airdrop-linux >/dev/null 2>&1; then
+            flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flathub-draft-${{ matrix.arch }}
+          path: ${{ runner.temp }}/draft-logs
+          if-no-files-found: ignore
