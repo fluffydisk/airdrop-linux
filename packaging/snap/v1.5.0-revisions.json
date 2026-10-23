@@ -1,0 +1,9 @@
+{
+  "version": "1.5.0",
+  "producer_run": "39819533208",
+  "producer_commit": "891dffac7036816534a2c5c5dddc21589e0a9b47",
+  "revisions": {
+    "amd64": {"revision": 2, "size": 149708800, "sha3_384": "2df09c82a34d639815a5c4fa0957cfbdeef233a773cb11d1c4af67b52f2eeff19e2d7bd75290a14a22510965ac57c510"},
+    "arm64": {"revision": 1, "size": 142741504, "sha3_384": "e14a5be9d9d3f579ade336de357b7b3be5c019413a5aa1f5d147ec0eed98074bd67ae1377cd107e50a3e45c9adfc5abc"}
+  }
+}

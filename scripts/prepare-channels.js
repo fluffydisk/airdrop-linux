@@ -73,10 +73,12 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   await fs.writeFile(path.join(flatpak,'io.github.fluffydisk.airdrop-linux.json'),JSON.stringify(manifest,null,2)+'\n');
   }
   const snap=path.join(out,'snap');await fs.mkdir(snap,{recursive:true});
+  const listing=JSON.parse(await fs.readFile(path.join(root,'packaging/snap/store-listing.json'),'utf8'));
   // Separate native architecture recipes prevent accidental cross-architecture payload reuse.
   for(const arch of ['x64','arm64']){
     const name=`airdrop-snap-${arch}-${pkg.version}.tar.gz`;
     const recipe=(await fs.readFile(path.join(root,'packaging/snap/snapcraft.yaml.in'),'utf8'))
+      .replaceAll('@SUMMARY@',JSON.stringify(listing.summary)).replaceAll('@DESCRIPTION@',listing.description.split('\n').map(line=>'  '+line).join('\n'))
       .replaceAll('@VERSION@',pkg.version).replaceAll('@ARCH@',arch==='x64'?'amd64':'arm64').replaceAll('@TRIPLET@',arch==='x64'?'x86_64-linux-gnu':'aarch64-linux-gnu').replaceAll('@URL@',local?path.join(directory,name):base+'/'+name).replaceAll('@SHA512@',crypto.createHash('sha512').update(await fs.readFile(path.join(directory,name))).digest('hex'));
     await fs.writeFile(path.join(snap,`snapcraft-${arch}.yaml`),recipe);
   }

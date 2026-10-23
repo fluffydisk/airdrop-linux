@@ -8,7 +8,7 @@ on:
       channel:
         description: Submission channel
         type: choice
-        options: [prepare, aur-access, aur, flathub-check, flathub, snap-access, snap-validate, snap, snap-store]
+        options: [prepare, aur-access, aur, flathub-check, flathub, snap-access, snap-validate, snap, snap-store, snap-listing]
         default: prepare
       candidate_run:
         description: Locally validated v1.5.0 candidate producer run (snap-store only)
@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   snap-provenance:
-    if: inputs.channel == 'snap-store'
+    if: inputs.channel == 'snap-store' || inputs.channel == 'snap-listing'
     runs-on: ubuntu-24.04
     steps:
       - name: Require the reviewed v1.5.0 producer and both local acceptance gates
@@ -45,6 +45,64 @@ jobs:
           jq -e '.status == "completed" and (.conclusion == "success" or .conclusion == "failure") and .event == "workflow_dispatch" and .path == ".github/workflows/store-submissions.yml" and .head_sha == "891dffac7036816534a2c5c5dddc21589e0a9b47"' producer.json
           gh api "repos/$GH_REPO/actions/runs/$PRODUCER_RUN/jobs?per_page=100" > jobs.json
           jq -e '[.jobs[] | select(.name == "snap (ubuntu-24.04, x64)" or .name == "snap (ubuntu-24.04-arm, arm64)") | select(.conclusion == "success")] | length == 2' jobs.json
+  snap-listing:
+    if: inputs.channel == 'snap-listing'
+    needs: snap-provenance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-snap-x64
+          run-id: ${{ inputs.candidate_run }}
+          github-token: ${{ github.token }}
+          path: validated
+      - name: Prepare a disposable desktop session
+        run: |
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y xvfb dbus-x11
+          npm ci
+          sudo snap set system experimental.user-daemons=true
+          sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/bus"
+          systemctl --user start snapd.session-agent.socket
+          # The local artifact is unsigned; Store installation checks remain separate.
+          sudo snap install --dangerous validated/*.snap
+          sudo snap connect airdrop-linux:browser-sandbox
+          systemctl --user daemon-reload
+          xvfb-run -a --server-args='-screen 0 1600x1000x24' node scripts/capture-snap-listing.cjs
+          cp docs/snap-store-listing.md snap-store-listing/README.md
+          (cd snap-store-listing && sha256sum *.png *.json *.txt README.md > SHA256SUMS)
+      - name: Remove the disposable local installation
+        if: always()
+        run: |
+          if snap list airdrop-linux >/dev/null 2>&1; then sudo snap remove --purge airdrop-linux; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap-store-listing
+          path: snap-store-listing/
+          if-no-files-found: error
+      - name: Publish the prepared listing bundle without replacing any existing asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          bundle="snap-store-listing-1.5.0-$GITHUB_RUN_ID.zip"
+          (cd snap-store-listing && zip -q "../$bundle" ./*)
+          gh release upload v1.5.0 "$bundle"
   snap-candidate-check:
     needs: snap-provenance
     uses: ./.github/workflows/snap-store-check.yml

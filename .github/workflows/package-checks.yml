@@ -229,6 +229,8 @@ jobs:
         run: |
           node scripts/prepare-channels.js --local
           mkdir -p snap-build/snap
+          mkdir -p snap-build/snap/gui
+          cp ui/icon-512.png snap-build/snap/gui/icon.png
           cp "release/local-submissions/snap/snapcraft-$PACKAGE_ARCH.yaml" snap-build/snap/snapcraft.yaml
           (cd snap-build && bash ../scripts/ci-command.sh Snap-build sudo snapcraft pack --destructive-mode)
           # This is our locally built, unsigned test artifact; store content snaps

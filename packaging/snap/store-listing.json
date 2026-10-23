@@ -1,0 +1,12 @@
+{
+  "title": "Airdrop Linux",
+  "primary_category": "productivity",
+  "secondary_category": "utilities",
+  "summary": "Share files and clipboard across your devices",
+  "description": "Airdrop Linux is a self-hosted workspace for sharing files and clipboard text between your Linux computer, phone and tablet. Use the Linux desktop application or open the web interface on your other devices.\n\nFeatures:\n- Browse and manage shared files and folders.\n- Upload and download files, including ZIP transfers.\n- Share clipboard text between your devices.\n- Keep sharing active in the background, and stop it with Stop sharing and quit.\n\nThe Snap includes the desktop application and its local file-sharing backend. Local operations run on your Linux computer. Private connectivity between devices uses Tailscale, which must be installed, signed in and configured separately on the host and participating devices. Tailscale is not bundled with this Snap.\n\nAirdrop Linux is open source and released under the MIT license.",
+  "website": "https://github.com/fluffydisk/airdrop-linux",
+  "source_code": "https://github.com/fluffydisk/airdrop-linux",
+  "issues": "https://github.com/fluffydisk/airdrop-linux/issues",
+  "contact": "https://github.com/fluffydisk/airdrop-linux/issues",
+  "license": "MIT"
+}

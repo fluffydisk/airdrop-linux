@@ -1,10 +1,13 @@
 name: airdrop-linux
 version: '@VERSION@'
-summary: Private file and clipboard sharing across your devices
+summary: @SUMMARY@
 description: |
-  Desktop file manager, local Node gateway and file server for file and
-  clipboard sharing. Tailscale is installed and configured separately on
-  the host. Stop sharing and quit stops the user background service.
+@DESCRIPTION@
+website: https://github.com/fluffydisk/airdrop-linux
+source-code: https://github.com/fluffydisk/airdrop-linux
+issues: https://github.com/fluffydisk/airdrop-linux/issues
+contact: https://github.com/fluffydisk/airdrop-linux/issues
+icon: snap/gui/icon.png
 base: core24
 grade: stable
 confinement: strict
