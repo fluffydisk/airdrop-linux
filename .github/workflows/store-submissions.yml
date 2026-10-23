@@ -113,6 +113,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment: snap-publishing
     steps:
+      - uses: actions/checkout@v4
       - name: Check Snap Store credential binding before installing tools
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
@@ -132,6 +133,19 @@ jobs:
           snapcraft status airdrop-linux
           snapcraft revisions airdrop-linux
           echo 'Snap Store authentication and package access passed; nothing uploaded.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install the pinned official Store API client
+        run: |
+          python3 -m venv "$RUNNER_TEMP/snap-store-api"
+          "$RUNNER_TEMP/snap-store-api/bin/pip" install craft-store==3.4.0
+      - name: Inspect review status and revision digests without uploading
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: '"$RUNNER_TEMP/snap-store-api/bin/python" scripts/snap-store-state.py'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap-store-state
+          path: snap-store-state.json
+          if-no-files-found: error
   prepare:
     if: contains(fromJSON('["prepare", "aur", "snap-validate", "snap"]'), inputs.channel)
     runs-on: ubuntu-24.04
