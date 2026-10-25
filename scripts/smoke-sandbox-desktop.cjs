@@ -96,6 +96,21 @@ const {_electron:electron}=require('playwright-core');
    await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
    assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).url,'');
    console.log('flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)');
+   if(process.env.AIRDROP_TEST_TAILSCALE_BOOTSTRAP==='1'){
+    await page.locator('#connectTailnet').click();
+    await page.waitForFunction(async()=>{
+     const state=await window.airdrop.devices('state');
+     if(['error','disconnected'].includes(state.status))throw Error(state.message);
+     return !!state.authURL;
+    },{},{timeout:75000});
+    const tailnet=await page.evaluate(()=>window.airdrop.devices('state'));
+    assert.equal(new URL(tailnet.authURL).hostname,'login.tailscale.com');
+    assert.equal(new URL(tailnet.authURL).protocol,'https:');
+    assert.equal(tailnet.url,'');assert.equal(tailnet.qr,'');
+    await page.locator('#deviceLogin').waitFor({state:'visible'});
+    await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
+    console.log('flatpak: installed Electron controller started the real bundled tsnet helper and received a real browser login URL (redacted); no authenticated tailnet/HTTPS transfer claimed');
+   }
   }
   if(process.env.AIRDROP_TEST_SCREENSHOT)await page.screenshot({path:process.env.AIRDROP_TEST_SCREENSHOT,fullPage:true});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
