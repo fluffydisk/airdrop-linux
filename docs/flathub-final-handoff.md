@@ -2,7 +2,7 @@
 
 This is the preserved pre-publication Flathub audit. The maintainer subsequently
 authorized independent GitHub distribution of the tested x86_64 bundle; see
-the README's Flatpak instructions. That publication does not change the Flathub
+the [publication record](flatpak-github-release.md) and README instructions. That publication does not change the Flathub
 source-build or host-dependency verdict below.
 
 **Not Flathub-ready.** The x86_64 reference has a clean offline build and executable
