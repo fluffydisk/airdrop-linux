@@ -2,7 +2,7 @@ name: Build signed Flatpak update candidate
 on:
   push:
     branches: [main]
-    paths: ['packaging/flatpak-channel/channel.json']
+    paths: ['packaging/flatpak-channel/**', 'scripts/*flatpak*', 'tests/*flatpak*', '.github/workflows/flatpak-update-repository.yml', '.github/workflows/package-publishing.yml']
   workflow_dispatch:
     inputs:
       source_commit:

@@ -89,12 +89,15 @@ def exercise(candidate,r2,output,system=False):
    with wrong_public.open('wb') as stream:subprocess.run(['gpg','--homedir',str(wrong_home),'--export',wrong_key],stdout=stream,check=True)
    for file in ['summary.sig', 'objects/'+published['commit'][:2]+'/'+published['commit'][2:]+'.commitmeta']:
     target=next_dir/'flatpak'/file;backup=target.read_bytes();target.unlink()
-    if file=='summary.sig':run('ostree',f'--repo={next_dir/"flatpak"}','summary',f'--gpg-homedir={wrong_home}',f'--gpg-sign={wrong_key}')
+    summary_backup=(next_dir/'flatpak/summary').read_bytes()
+    if file=='summary.sig':run('ostree',f'--repo={next_dir/"flatpak"}','summary','--update',f'--gpg-homedir={wrong_home}',f'--gpg-sign={wrong_key}')
     else:run('ostree',f'--repo={next_dir/"flatpak"}','gpg-sign',f'--gpg-homedir={wrong_home}',published['commit'],wrong_key)
     try:
      rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),f'Wrong-key {file.rsplit("/",1)[-1]} signature rejected before installation','gpg')
      assert state('user')==before and run('flatpak','info','--user','--show-commit',APP,'stable',capture=True)==published['commit']
-    finally:target.write_bytes(backup)
+    finally:
+     target.write_bytes(backup)
+     if file=='summary.sig':(next_dir/'flatpak/summary').write_bytes(summary_backup)
    run('flatpak','remote-modify','--user','--no-gpg-verify','airdrop-linux')
    rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),'Existing remote with disabled GPG verification is rejected, never repaired silently','disabled verification')
    run('flatpak','remote-modify','--user','--gpg-verify','airdrop-linux')
