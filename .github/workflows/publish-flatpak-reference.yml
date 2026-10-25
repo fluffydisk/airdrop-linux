@@ -22,7 +22,7 @@ jobs:
           set -euo pipefail
           sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose
           npm ci --ignore-scripts
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder \
@@ -36,7 +36,7 @@ jobs:
           runtime=$(mktemp -d "$RUNNER_TEMP/flatpak-runtime.XXXXXX")
           status=0
           XDG_RUNTIME_DIR="$runtime" python3 scripts/validate-flatpak-reference.py \
-            --arch x86_64 --builder sdk --output "$RUNNER_TEMP/validated" || status=$?
+            --arch x86_64 --builder native --output "$RUNNER_TEMP/validated" || status=$?
           if (( status )); then tail -n 20 "$RUNNER_TEMP"/validated/*.log; fi
           exit "$status"
       - name: Export and test the installable bundle
