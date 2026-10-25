@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 import struct
+import subprocess
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from flatpak_reference_inputs import inspect_manifest
@@ -70,6 +71,17 @@ def main():
                   'portal_helper':'C compiled in the SDK','node':'signed Node 24 SDK extension','electron':'official prebuilt archive; source-build requirement unresolved'},
               'human_review':['Host-dependent inclusion','Trademark/name/icon rights','Complete Electron source-build or explicitly granted exception'],
               'sources':['https://docs.flathub.org/docs/for-app-authors/requirements','https://docs.flatpak.org/en/latest/sandbox-permissions.html']}
+    if any(module.get('name') == 'embedded-tsnet' for module in data['modules'] if isinstance(module,dict)):
+        helper = files/'lib/airdrop-linux/runtime/airdrop-tsnet'
+        info = json.loads(subprocess.check_output([helper,'--version'],text=True))
+        assert info['tailscale.com'] == 'v1.104.2' and info['go'] == 'go1.27.3', info
+        assert any('/tsnet-dependencies/' in entry['path'] for entry in licenses), 'Missing vendored Go licenses'
+        report['embedded_tsnet'] = {'build_info':info,'sha256':hashlib.sha256(helper.read_bytes()).hexdigest(),
+            'network':'userspace; normal system routing/proxies; no host routes/TUN/daemon/Funnel',
+            'authentication':'interactive browser login; account and same-tailnet peer required',
+            'sharing':'TLS certificate and paired backend probe required before advertising URL'}
+        report['component_origins']['embedded_tsnet'] = 'offline Go compilation from pinned application and checksum-pinned vendored module sources'
+        report['human_review'] = ['Trademark/name/icon rights','Flathub inclusion and Electron source-build requirement (not a GitHub distribution blocker)']
     args.output.write_text(json.dumps(report,indent=2)+'\n')
     print(f'Package audit passed: {len(binaries)} ELF files, {len(licenses)} license files, {len(npm)} production npm entries')
 

@@ -37,7 +37,7 @@ function theme(value) {
 try { theme(localStorage.getItem('airdrop-theme') === 'dark' ? 'dark' : 'light'); } catch { theme('light'); }
 function navigate(view) {
   activeView = view;
-  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
+  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings', 'connect']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();

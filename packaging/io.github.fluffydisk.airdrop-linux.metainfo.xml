@@ -13,7 +13,7 @@
       <li>Browse shared files, organize folders and restore items from the workspace trash</li>
       <li>Share clipboard text and save clipboard images as files</li>
     </ul>
-    <p>Local file management and clipboard features work without Tailscale. Access from other devices requires Tailscale installed and signed in on the host, HTTPS enabled for your tailnet, and Tailscale Serve configured separately. See the setup instructions on the project website.</p>
+    <p>Local files and clipboard work without Tailscale. Connect other devices through app-managed Tailscale or explicit trusted-LAN sharing. Tailscale mode requires signing in through your browser, the same tailnet on the other device, and tailnet HTTPS certificates. LAN mode uses unencrypted HTTP and a private pairing link. No host VPN daemon or terminal setup is required.</p>
     <p>Background sharing requires desktop portal permission. Without permission, sharing stops when the window closes. Choose Stop sharing and quit to stop the bundled server.</p>
   </description>
   <categories><category>Network</category><category>FileTransfer</category></categories>

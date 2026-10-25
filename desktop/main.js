@@ -35,6 +35,8 @@ async function checkUpdate() {
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
+const devices = new (require('./devices').Devices)({directory:path.join(desktopData,'connections'),helper:process.env.AIRDROP_TSNET_HELPER||path.join(paths.app,'runtime/airdrop-tsnet'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`});
+let devicesReady;
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
 let window, tray, timer, quitting = false, sending = false, backgroundGranted = false;
 let state = { status: 'offline', label: 'Checking services…' };
@@ -70,6 +72,7 @@ async function readSettings() {
   return { pwaUrl, deviceName: os.hostname() };
 }
 async function openPwa() {
+  if(devices.state.mode !== 'local')return shell.openExternal(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`);
   let { pwaUrl: url } = await readSettings();
   if (!url) {
     const response = await dialog.showMessageBox(window, { type: 'question', buttons: ['Open local web app', 'Cancel'], defaultId: 0,
@@ -85,6 +88,15 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.handle('airdrop:devices',async(event,action,payload)=>{
+    ownWindow(event);await devicesReady;
+    if(action==='state')return devices.snapshot();
+    if(action==='mode')return devices.action(payload?.mode,payload?.address);
+    if(action==='copy'){if(!devices.state.url)throw Error('No verified sharing link');clipboard.writeText(devices.state.url);return;}
+    if(action==='login'){const url=new URL(devices.state.authURL);if(url.protocol!=='https:'||url.hostname!=='login.tailscale.com')throw Error('No verified Tailscale login URL');return shell.openExternal(url.href);}
+    if(action==='https-settings')return shell.openExternal('https://login.tailscale.com/admin/dns');
+    throw Error('Unknown connection action');
+  });
   ipcMain.handle('airdrop:quit', event => { ownWindow(event); app.quit(); });
   ipcMain.handle('airdrop:update', async (event, action) => {
     ownWindow(event);
@@ -230,8 +242,10 @@ else {
         });
       return;
     }
+    if(!quitting){event.preventDefault();quitting=true;devices.stop().finally(()=>app.quit());return;}
     quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
+    devicesReady = devices.initialize();
     Menu.setApplicationMenu(null);
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
       icon: path.join(__dirname, 'core/ui/icon-192.png'),

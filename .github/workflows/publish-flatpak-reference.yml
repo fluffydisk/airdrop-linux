@@ -4,7 +4,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: publish-flatpak-reference-r1
+  group: publish-flatpak-reference-r2
   cancel-in-progress: false
 jobs:
   publish:
@@ -17,6 +17,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
       - name: Install validation tools and signed runtimes
         run: |
           set -euo pipefail
@@ -30,27 +34,36 @@ jobs:
             org.electronjs.Electron2.BaseApp//26.08 \
             org.freedesktop.Sdk.Extension.node24//26.08 \
             org.freedesktop.Sdk.Extension.rust-stable//26.08
+      - name: Prepare immutable device-sharing recipe
+        run: python3 scripts/prepare-device-flatpak.py --commit "$GITHUB_SHA" --output "$RUNNER_TEMP/device-source"
       - name: Validate reference and build repository
         run: |
           set -euo pipefail
           runtime=$(mktemp -d "$RUNNER_TEMP/flatpak-runtime.XXXXXX")
           status=0
           XDG_RUNTIME_DIR="$runtime" python3 scripts/validate-flatpak-reference.py \
+            --manifest "$RUNNER_TEMP/device-source/io.github.fluffydisk.airdrop-linux.yml" \
             --arch x86_64 --builder native --output "$RUNNER_TEMP/validated" || status=$?
           if (( status )); then tail -n 20 "$RUNNER_TEMP"/validated/*.log; fi
           exit "$status"
+      - name: Test real unauthenticated Tailscale bootstrap
+        run: |
+          set -euo pipefail
+          helper="$RUNNER_TEMP/validated/build/files/lib/airdrop-linux/runtime/airdrop-tsnet"
+          "$helper" --version
+          node scripts/test-tsnet-bootstrap.cjs "$helper" | tee "$RUNNER_TEMP/validated/real-tsnet-bootstrap.log"
       - name: Export and test the installable bundle
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/publish"
-          bundle="$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak"
+          bundle="$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak"
           flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
             "$RUNNER_TEMP/validated/repo" "$bundle" io.github.fluffydisk.airdrop-linux stable
           flatpak install --user --noninteractive "$bundle"
           runtime=$(mktemp -d "$RUNNER_TEMP/flatpak-runtime.XXXXXX")
-          export XDG_RUNTIME_DIR="$runtime" AIRDROP_TEST_HOME=/var/data/airdrop-release-r1-test AIRDROP_TEST_ELECTRON_VERSION=44.9.3
+          export XDG_RUNTIME_DIR="$runtime" AIRDROP_TEST_HOME=/var/data/airdrop-release-r2-test AIRDROP_TEST_ELECTRON_VERSION=44.9.3
           dbus-run-session -- node scripts/smoke-sandbox.js flatpak
-          AIRDROP_TEST_CONNECTION=1 xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
+          AIRDROP_TEST_CONNECTION=1 AIRDROP_TEST_DEVICES=1 xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
           flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
           cd "$RUNNER_TEMP/publish"
           sha256sum "$(basename "$bundle")" > "$(basename "$bundle").sha256"
@@ -63,8 +76,8 @@ jobs:
           test "$GITHUB_REF" = refs/heads/main
           gh release view v1.5.0 --json assets > "$RUNNER_TEMP/assets-before.json"
           gh release upload v1.5.0 \
-            "$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak" \
-            "$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak.sha256"
+            "$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak" \
+            "$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak.sha256"
           gh release view v1.5.0 --json assets > "$RUNNER_TEMP/assets-after.json"
           python3 - "$RUNNER_TEMP/assets-before.json" "$RUNNER_TEMP/assets-after.json" <<'PY'
           import json,sys
@@ -80,15 +93,17 @@ jobs:
           mkdir "$RUNNER_TEMP/download"
           cd "$RUNNER_TEMP/download"
           base=https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0
-          curl --retry 3 -fLO "$base/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak"
-          curl --retry 3 -fLO "$base/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak.sha256"
-          sha256sum -c airdrop-linux-1.5.0-x86_64-reference-r1.flatpak.sha256
-          cmp airdrop-linux-1.5.0-x86_64-reference-r1.flatpak "$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak"
+          curl --retry 3 -fLO "$base/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak"
+          curl --retry 3 -fLO "$base/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak.sha256"
+          sha256sum -c airdrop-linux-1.5.0-x86_64-reference-r2.flatpak.sha256
+          cmp airdrop-linux-1.5.0-x86_64-reference-r2.flatpak "$RUNNER_TEMP/publish/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: flatpak-reference-publication-evidence
+          name: flatpak-device-sharing-publication-evidence
           path: |
+            ${{ runner.temp }}/device-source/preparation.json
+            ${{ runner.temp }}/device-source/io.github.fluffydisk.airdrop-linux.yml
             ${{ runner.temp }}/validated/*.log
             ${{ runner.temp }}/validated/*.json
             ${{ runner.temp }}/validated/*.md

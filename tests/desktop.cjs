@@ -23,6 +23,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   let app;
   t.after(async () => { if (app) await app.close().catch(() => {}); await fileServer.close(); await apiServer.close(); await fs.rm(root, { recursive: true, force: true }); });
   app = await launch(); const page = await app.firstWindow();
+  if(await page.locator('#connectionWizard').count())await page.evaluate(()=>document.getElementById('wizardLocal').click());
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
   assert.equal(await page.evaluate(() => typeof require), 'undefined');

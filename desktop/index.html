@@ -24,6 +24,7 @@
   <a class="brand" href="#transfer" aria-label="Airdrop home"><span class="brand-mark"><svg><use href="#i-send"/></svg></span><span>Airdrop<span class="brand-caption">FILES. SIMPLY SHARED.</span></span></a>
   <div class="nav-label">WORKSPACE</div>
   <nav aria-label="Main navigation">
+    <button class="nav-item" data-view="connect"><svg><use href="#i-monitor"/></svg>Connect device</button>
     <button class="nav-item selected" data-view="transfer" aria-current="page"><svg><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
     <button class="nav-item" data-view="files"><svg><use href="#i-folder"/></svg>Files</button>
     <button class="nav-item" data-view="clipboard"><svg><use href="#i-file"/></svg>Clipboard</button>
@@ -39,6 +40,19 @@
 <div class="workspace">
   <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
   <main><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
+    <section id="view-connect" class="view" hidden>
+      <div class="page-heading"><h1>Connect another device</h1><p>Keep local work private, share on your LAN, or connect securely through your tailnet.</p></div>
+      <section class="settings-card">
+        <div class="clipboard-actions"><button class="button" id="connectTailnet">Connect Tailscale</button><button class="button" id="connectLan">Start LAN sharing</button><button class="button" id="disconnectDevices">Local only / disconnect</button></div>
+        <p>Tailscale runs inside Airdrop; no host installation or terminal commands are needed. Your phone/tablet must sign in to the same tailnet. Public Funnel access is never enabled.</p>
+        <label for="lanInterface">LAN interface</label><select id="lanInterface" aria-label="LAN interface"></select>
+        <p>LAN mode uses unencrypted HTTP. Choose it only on a trusted network, with your devices on the same Wi-Fi/LAN. Guest Wi-Fi isolation and firewalls can prevent connections.</p>
+        <p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p>
+        <button class="button button-primary" id="deviceLogin" hidden>Open Tailscale sign-in</button>
+        <button class="button" id="deviceHttps" hidden>Enable tailnet HTTPS in browser</button>
+        <div id="deviceLink" hidden><label for="deviceAddress">Pairing address — treat this link like a password</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan to open Airdrop. Stopping sharing revokes this link. Readiness is checked from this computer; a second device can still be blocked by network rules.</p></div>
+      </section>
+    </section>
     <section id="view-transfer" class="view">
       <div class="page-heading"><div class="eyebrow">PRIVATE FILE SHARING</div><h1>Your files, <span>within reach.</span></h1><p>Send from this computer. Pick up on your other devices.</p></div>
       <p id="transferDestination">Destination: Airdrop/</p>
@@ -79,7 +93,7 @@
     </section>
     <section id="view-settings" class="view" hidden>
       <div class="page-heading"><div class="eyebrow">MAKE YOURSELF AT HOME</div><h1>Your workspace.</h1><p>A few thoughtful details, just the way you like them.</p></div>
-      <section class="settings-card"><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>Connect your web app</h2><p>Local files and clipboard work on this computer. Access from other devices requires Tailscale installed and signed in on the host, tailnet HTTPS and Tailscale Serve.</p><label class="field-label" for="url">Workspace address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></section>
+      <section class="settings-card"><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>Connect your web app</h2><p>Use Connect device for app-managed Tailscale or trusted LAN sharing. No host Tailscale installation is needed. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">Workspace address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></section>
       <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
       <section class="settings-card"><h2>Updates</h2><button id="stopSharing" type="button">Quit desktop</button>
           <p id="portableNote" hidden>AppImage desktop companion: the local server and Tailscale must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
@@ -88,4 +102,5 @@
   </main>
   <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>
 </div></div>
-<script src="core/ui/explorer.js"></script><script src="renderer.js"></script></body></html>
+<dialog id="connectionWizard" aria-labelledby="wizardTitle"><h1 id="wizardTitle">Connect your devices</h1><p>Airdrop is ready for local files and clipboard. Choose how to connect your phone or tablet; you can change this later in Connect device.</p><p>Tailscale uses an app-managed userspace connection. Sign in through your browser. Install and sign in to Tailscale on your phone/tablet to join the same tailnet. LAN mode needs the same trusted Wi-Fi/LAN and uses HTTP.</p><div class="clipboard-actions"><button class="button button-primary" id="wizardTailnet">Connect with Tailscale</button><button class="button" id="wizardLan">Use trusted LAN</button><button class="button" id="wizardLocal">Continue on this computer</button></div></dialog>
+<script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="devices-ui.js"></script></body></html>

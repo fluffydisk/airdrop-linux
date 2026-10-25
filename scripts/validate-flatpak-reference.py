@@ -118,8 +118,14 @@ def main():
         note('Electron offline source build', 'BLOCKED', REQ+'#building-from-source',
              'Keep checksum-pinned binary reference; no source-build exception assumed',
              'Verified complete offline Electron build or explicit exception required; see technical review')
-        note('Host-dependent inclusion', 'BLOCKED', REQ+'#host-dependent-applications',
-             'Local operation independent; cross-device use requires host Tailscale/HTTPS/Serve', 'No inclusion decision or exception')
+        embedded = any(module.get('name') == 'embedded-tsnet' for module in data['modules'] if isinstance(module, dict))
+        if embedded:
+            note('External Tailscale service', 'NOT TESTED', 'https://tailscale.com/kb/1244/tsnet',
+                 'Source-built private userspace tsnet node; no host Tailscale installation or Serve command',
+                 'Authenticated tailnet and HTTPS certificate provisioning require a real account; no reviewer approval implied')
+        else:
+            note('Host-dependent inclusion', 'BLOCKED', REQ+'#host-dependent-applications',
+                 'Local operation independent; cross-device use requires host Tailscale/HTTPS/Serve', 'No inclusion decision or exception')
         note('Real second-device Tailscale', 'NOT TESTED', REQ+'#host-dependent-applications',
              'Separate real-device procedure; controlled transport tests do not count', 'Authenticated tailnet and second device unavailable')
         note('Interactive GNOME/KDE portals and Wayland clipboard', 'NOT TESTED', PERMS,
@@ -211,7 +217,8 @@ def main():
             '-c', 'if command -v tailscale; then exit 1; fi; test ! -S /run/tailscale/tailscaled.sock'], source=PERMS)
         run('Backend transfers and isolation', ['dbus-run-session', '--', 'node', 'scripts/smoke-sandbox.js', 'flatpak'], source=PERMS)
         run('X11 clipboard sandbox and connection UI', ['xvfb-run', '-a', 'dbus-run-session', '--', 'node', 'scripts/smoke-sandbox-desktop.cjs', 'flatpak'],
-            source=PERMS, extra={'AIRDROP_TEST_CONNECTION': '1', 'AIRDROP_TEST_SCREENSHOT': str(out/'desktop.png')})
+            source=PERMS, extra={'AIRDROP_TEST_CONNECTION': '1', 'AIRDROP_TEST_SCREENSHOT': str(out/'desktop.png'),
+            'AIRDROP_TEST_DEVICES': '1' if any(m.get('name')=='embedded-tsnet' for m in data['modules'] if isinstance(m,dict)) else ''})
         run('Icon screenshot integrity and actual metadata URL', [sys.executable, 'scripts/check-flatpak-images.py',
             '--metainfo', files/f'share/metainfo/{APP}.metainfo.xml', '--capture', out/'desktop.png',
             '--icon', files/f'share/icons/hicolor/512x512/apps/{APP}.png'], source=META)

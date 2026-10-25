@@ -22,6 +22,41 @@ const {_electron:electron}=require('playwright-core');
   app=await electron.launch({executablePath:executable,chromiumSandbox:true,args,env:launchEnv,timeout:60000});
   const page=await app.firstWindow();
   await page.waitForFunction(()=>document.getElementById('health').dataset.status==='ready',{},{timeout:30000});
+  if(process.env.AIRDROP_TEST_DEVICES==='1' && !(await page.evaluate(()=>window.airdrop.devices('state'))).configured){
+   await page.locator('#connectionWizard').waitFor({state:'visible'});
+   console.log('flatpak: real first-launch device wizard is visible');
+  }
+  if(await page.locator('#connectionWizard').count()) {
+   if(await page.locator('#connectionWizard').isVisible())await page.evaluate(()=>document.getElementById('wizardLocal').click());
+  }
+  if(process.env.AIRDROP_TEST_DEVICES==='1' && !wayland){
+   await page.locator('[data-view="connect"]').click();
+   await page.locator('#connectLan').click();
+   await page.waitForFunction(async()=>(await window.airdrop.devices('state')).status==='ready');
+   const state=await page.evaluate(()=>window.airdrop.devices('state'));
+   assert.equal(state.status,'ready',state.message);
+   assert.ok(!state.url.includes('127.0.0.1'));
+   await page.waitForFunction(url=>document.getElementById('deviceAddress').value===url,state.url);
+   await page.locator('#copyDeviceAddress').click();
+   assert.equal(await app.evaluate(({clipboard})=>clipboard.readText()),state.url);
+   const {PNG}=require('pngjs'),decode=require('jsqr');
+   const image=PNG.sync.read(Buffer.from(state.qr.split(',')[1],'base64'));
+   assert.equal(decode(new Uint8ClampedArray(image.data),image.width,image.height).data,state.url);
+   const url=new URL(state.url),token=url.hash.slice(1);
+   const pair=await fetch(url.origin+'/pair/',{method:'POST',headers:{Origin:url.origin},body:JSON.stringify({token})});
+   assert.equal(pair.status,204);const headers={Cookie:pair.headers.get('set-cookie').split(';')[0]};
+   assert.equal((await fetch(url.origin+'/push/health',{headers})).status,200);
+   assert.equal((await fetch(url.origin+'/ui/',{headers})).status,200);
+   assert.equal((await fetch(url.origin+'/push/health')).status,401);
+   const name='paired-flatpak-'+Date.now()+'.txt';
+   assert.equal((await fetch(url.origin+'/push/files/'+name,{method:'PUT',headers,body:'paired device payload'})).status,201);
+   assert.equal(await(await fetch(url.origin+'/'+name,{headers})).text(),'paired device payload');
+   const archive=await fetch(url.origin+'/push/archive',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({files:[name]})});
+   const JSZip=require('jszip');assert.equal(await(await JSZip.loadAsync(Buffer.from(await archive.arrayBuffer()))).file(name).async('string'),'paired device payload');
+   await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
+   assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).url,'');
+   console.log('flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)');
+  }
   if(process.env.AIRDROP_TEST_SCREENSHOT)await page.screenshot({path:process.env.AIRDROP_TEST_SCREENSHOT,fullPage:true});
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().contextIsolation),true);
