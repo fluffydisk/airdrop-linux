@@ -1,0 +1,61 @@
+name: Accept published Flatpak device sharing
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  accept:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install desktop test tools
+        run: |
+          set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston xdg-desktop-portal-gtk
+          npm ci --ignore-scripts
+      - name: Install exact public r2 bytes
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/acceptance"
+          cd "$RUNNER_TEMP/acceptance"
+          base=https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0
+          curl --retry 3 -fLO "$base/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak"
+          curl --retry 3 -fLO "$base/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak.sha256"
+          sha256sum -c airdrop-linux-1.5.0-x86_64-reference-r2.flatpak.sha256
+          echo '9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df  airdrop-linux-1.5.0-x86_64-reference-r2.flatpak' | sha256sum -c -
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive ./airdrop-linux-1.5.0-x86_64-reference-r2.flatpak
+      - name: Verify embedded Tailscale from inside the installed sandbox
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/tsnet-runtime.XXXXXX")
+          cat > "$RUNNER_TEMP/tsnet-in-flatpak" <<'SH'
+          #!/bin/sh
+          exec flatpak run --user --command=/app/lib/airdrop-linux/runtime/airdrop-tsnet io.github.fluffydisk.airdrop-linux "$@"
+          SH
+          chmod 755 "$RUNNER_TEMP/tsnet-in-flatpak"
+          dbus-run-session -- "$RUNNER_TEMP/tsnet-in-flatpak" --version | tee "$RUNNER_TEMP/acceptance/embedded-version.log"
+          dbus-run-session -- node scripts/test-tsnet-bootstrap.cjs "$RUNNER_TEMP/tsnet-in-flatpak" | tee "$RUNNER_TEMP/acceptance/embedded-bootstrap.log"
+      - name: Test the public bundle and actual browser pairing
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/ui-runtime.XXXXXX")
+          export AIRDROP_TEST_HOME=/var/data/published-r2-acceptance AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_DEVICES=1 AIRDROP_TEST_CONNECTION=1
+          dbus-run-session -- node scripts/smoke-sandbox.js flatpak | tee "$RUNNER_TEMP/acceptance/backend.log"
+          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak | tee "$RUNNER_TEMP/acceptance/x11-browser-pairing.log"
+          bash scripts/test-flatpak-wayland.sh | tee "$RUNNER_TEMP/acceptance/wayland.log"
+          flatpak info --user --show-permissions io.github.fluffydisk.airdrop-linux > "$RUNNER_TEMP/acceptance/permissions.log"
+          flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: published-flatpak-r2-device-acceptance
+          path: ${{ runner.temp }}/acceptance/*.log

@@ -31,6 +31,7 @@ const {_electron:electron}=require('playwright-core');
   }
   if(process.env.AIRDROP_TEST_DEVICES==='1' && !wayland){
    await page.locator('[data-view="connect"]').click();
+   if(process.env.AIRDROP_TEST_LAN_ADDRESS)await page.locator('#lanInterface').selectOption(process.env.AIRDROP_TEST_LAN_ADDRESS);
    await page.locator('#connectLan').click();
    await page.waitForFunction(async()=>(await window.airdrop.devices('state')).status==='ready');
    const state=await page.evaluate(()=>window.airdrop.devices('state'));
@@ -53,6 +54,45 @@ const {_electron:electron}=require('playwright-core');
    assert.equal(await(await fetch(url.origin+'/'+name,{headers})).text(),'paired device payload');
    const archive=await fetch(url.origin+'/push/archive',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({files:[name]})});
    const JSZip=require('jszip');assert.equal(await(await JSZip.loadAsync(Buffer.from(await archive.arrayBuffer()))).file(name).async('string'),'paired device payload');
+   if(process.env.AIRDROP_TEST_LAN_CLIENT){
+    const {spawn}=require('node:child_process');
+    const env={...process.env};for(const name of ['DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH'])delete env[name];
+    const client=spawn('docker',['--host=unix:///var/run/docker.sock','exec','-i',process.env.AIRDROP_TEST_LAN_CLIENT,'python3','/workspace/airdrop-linux/scripts/test-lan-client.py'],{env,stdio:['pipe','pipe','pipe']});
+    client.stdin.end(state.url+'\n');let output='',errors='';client.stdout.on('data',data=>output+=data);client.stderr.on('data',data=>errors+=data);
+    assert.equal(await new Promise((resolve,reject)=>{client.once('error',reject);client.once('exit',resolve);}),0,errors);
+    console.log(output.trim());
+   }
+   // Exercise the real fragment -> pairing script -> cookie -> web UI flow in
+   // another sandboxed Chromium window. This remains one worker, not a phone.
+   const pairedWindow=app.waitForEvent('window');
+   await app.evaluate(async({BrowserWindow,session},options)=>{
+    const clientSession=session.fromPartition('airdrop-paired-test-'+Date.now());
+    // Optional managed-cloud test accommodation: retain its configured proxy
+    // for every external destination, except this exact owned LAN endpoint.
+    // This affects only this disposable test window, never the product.
+    if(options.localException)await clientSession.setProxy({mode:'fixed_servers',proxyRules:options.proxy,proxyBypassRules:new URL(options.address).host});
+    clientSession.setPermissionRequestHandler((contents,permission,callback)=>callback(false));
+    globalThis.pairedTestWindow=new BrowserWindow({show:true,webPreferences:{session:clientSession,sandbox:true,contextIsolation:true,nodeIntegration:false}});
+    globalThis.pairedTestWindow.loadURL(options.address);
+   },{address:state.url,localException:process.env.AIRDROP_TEST_BYPASS_OWNED_LAN==='1',proxy:process.env.HTTPS_PROXY||process.env.HTTP_PROXY||''});
+   const pairedPage=await pairedWindow;
+   pairedPage.on('requestfailed',request=>console.log('Pairing browser request failure: '+JSON.stringify({path:new URL(request.url()).pathname,error:request.failure()?.errorText})));
+   try{
+    await pairedPage.waitForURL(url.origin+'/ui/');
+    assert.equal(await pairedPage.evaluate(()=>location.hash),'');
+    assert.equal(await pairedPage.evaluate(()=>typeof require),'undefined');
+    await pairedPage.locator('#clipPaste').click();
+    await pairedPage.locator('#clipManual').waitFor({state:'visible'});
+    const shared='Paired browser clipboard '+Date.now();
+    await pairedPage.locator('#clipText').fill(shared);
+    await pairedPage.locator('#clipSendText').click();
+    await pairedPage.waitForFunction(()=>document.getElementById('clipSub').textContent==='Text sent');
+    assert.equal(await(await fetch('http://127.0.0.1:6001/.clipboard.txt')).text(),shared);
+    await pairedPage.locator('#clipText').fill('');await pairedPage.locator('#clipCopy').click();
+    await pairedPage.waitForFunction(value=>document.getElementById('clipText').value===value,shared);
+    console.log('flatpak: real browser pairing redirect, session cookie, web UI and manual LAN clipboard passed (same worker)');
+   }catch(error){console.log('Pairing browser diagnostics: '+JSON.stringify(await pairedPage.evaluate(()=>({path:location.pathname,title:document.title,text:document.body.innerText.slice(0,400)}))));throw error;}
+   finally{await pairedPage.close();}
    await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
    assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).url,'');
    console.log('flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)');
