@@ -1,0 +1,3 @@
+{"state":"starting","hasAuthURL":false,"hasSharingURL":false,"ready":false}
+{"state":"NeedsLogin","hasAuthURL":false,"hasSharingURL":false,"ready":false}
+No browser authentication URL from the real control plane within 75 seconds

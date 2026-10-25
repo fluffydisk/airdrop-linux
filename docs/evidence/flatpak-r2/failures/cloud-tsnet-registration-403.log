@@ -1,0 +1,3 @@
+2026/10/25 20:17:21 control: control server key from https://controlplane.tailscale.com: ts2021=[fSeS+], legacy=[nlFWp]
+2026/10/25 20:17:21 control: [v1] TryLogin: register request: Post "https://controlplane.tailscale.com/machine/register": all connection attempts failed (HTTP: unexpected HTTP response: 403 Forbidden, HTTPS: unexpected HTTP response: 403 Forbidden)
+2026/10/25 20:17:21 Received error: register request: Post "https://controlplane.tailscale.com/machine/register": all connection attempts failed (HTTP: unexpected HTTP response: 403 Forbidden, HTTPS: unexpected HTTP response: 403 Forbidden)

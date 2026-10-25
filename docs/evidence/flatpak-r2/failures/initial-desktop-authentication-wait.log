@@ -1,0 +1,83 @@
+accept	Test the public bundle and actual browser pairing	﻿2026-10-25T20:37:08.3761144Z ##[group]Run set -euo pipefail
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3761504Z [36;1mset -euo pipefail[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3762242Z [36;1mexport XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/ui-runtime.XXXXXX")[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3763172Z [36;1mexport AIRDROP_TEST_HOME=/var/data/published-r2-acceptance AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_DEVICES=1 AIRDROP_TEST_CONNECTION=1 AIRDROP_TEST_TAILSCALE_BOOTSTRAP=1[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3764194Z [36;1mdbus-run-session -- node scripts/smoke-sandbox.js flatpak | tee "$RUNNER_TEMP/acceptance/backend.log"[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3765048Z [36;1mxvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak | tee "$RUNNER_TEMP/acceptance/x11-browser-pairing.log"[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3765830Z [36;1mbash scripts/test-flatpak-wayland.sh | tee "$RUNNER_TEMP/acceptance/wayland.log"[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3766564Z [36;1mflatpak info --user --show-permissions io.github.fluffydisk.airdrop-linux > "$RUNNER_TEMP/acceptance/permissions.log"[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3767330Z [36;1mflatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux[0m
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3832500Z shell: /usr/bin/bash -e {0}
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.3832762Z ##[endgroup]
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4680540Z dbus-daemon[4162]: [session uid=1001 pid=4162] Activating service name='org.freedesktop.Flatpak' requested by ':1.0' (uid=1001 pid=4170 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="flatpak (unconfined)")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4755983Z dbus-daemon[4162]: [session uid=1001 pid=4162] Successfully activated service 'org.freedesktop.Flatpak'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4773120Z dbus-daemon[4162]: [session uid=1001 pid=4162] Activating service name='org.freedesktop.portal.Documents' requested by ':1.0' (uid=1001 pid=4170 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="flatpak (unconfined)")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4844412Z dbus-daemon[4162]: [session uid=1001 pid=4162] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.2' (uid=1001 pid=4183 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4859086Z dbus-daemon[4162]: [session uid=1001 pid=4162] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4874809Z dbus-daemon[4162]: [session uid=1001 pid=4162] Successfully activated service 'org.freedesktop.portal.Documents'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:08.4904063Z Ignoring invalid max threads value 4294967295 > max (100000).
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:09.2693983Z flatpak: host home access denied, private data path and safe port conflict verified
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:09.2812479Z flatpak: both backend listeners restricted to loopback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:09.4015191Z flatpak: GHSA-27r3-jxmh-p828 malformed compressed-body regression passed
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:09.4306590Z flatpak: real sandbox UI/API upload, dufs download and ZIP contents passed
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:09.4572193Z flatpak: backend stopped
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3476886Z dbus-daemon[4295]: [session uid=1001 pid=4295] Activating service name='org.freedesktop.Flatpak' requested by ':1.0' (uid=1001 pid=4309 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="flatpak (unconfined)")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3585577Z dbus-daemon[4295]: [session uid=1001 pid=4295] Successfully activated service 'org.freedesktop.Flatpak'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3605186Z dbus-daemon[4295]: [session uid=1001 pid=4295] Activating service name='org.freedesktop.portal.Documents' requested by ':1.0' (uid=1001 pid=4309 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="flatpak (unconfined)")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3651065Z dbus-daemon[4295]: [session uid=1001 pid=4295] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.2' (uid=1001 pid=4322 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3685816Z dbus-daemon[4295]: [session uid=1001 pid=4295] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3698715Z dbus-daemon[4295]: [session uid=1001 pid=4295] Successfully activated service 'org.freedesktop.portal.Documents'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.3724087Z Ignoring invalid max threads value 4294967295 > max (100000).
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.5102533Z dbus-daemon[4295]: [session uid=1001 pid=4295] Activating service name='org.freedesktop.portal.Flatpak' requested by ':1.4' (uid=1001 pid=4339 comm="xdg-dbus-proxy --args=39" label="flatpak (unconfined)")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:12.5294271Z dbus-daemon[4295]: [session uid=1001 pid=4295] Successfully activated service 'org.freedesktop.portal.Flatpak'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:13.8134378Z dbus-daemon[4295]: [session uid=1001 pid=4295] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.8' (uid=1001 pid=4339 comm="xdg-dbus-proxy --args=39" label="flatpak (unconfined)")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:13.8385301Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:13.8387716Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:13.838: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:13.8389316Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:13.8391415Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:13.838: The preferred method to match portal implementations to desktop environments is to use the portals.conf(5) configuration file
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:13.8395015Z dbus-daemon[4295]: [session uid=1001 pid=4295] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.10' (uid=1001 pid=4471 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.1387124Z flatpak: real first-launch device wizard is visible
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.5087999Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.5090925Z (xdg-desktop-portal-gtk:4478): dbind-WARNING **: 20:37:14.507: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6006672Z dbus-daemon[4295]: [session uid=1001 pid=4295] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6096022Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6099435Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.608: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6101945Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6104431Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.609: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6106780Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6109148Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.609: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6111471Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6112673Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.609: No skeleton to export
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6113660Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6114608Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.609: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6115655Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6116665Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.611: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6142535Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6153067Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.613: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6154202Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6155369Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.614: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6156301Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6157554Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.615: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6160846Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6162055Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.616: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6213829Z [W][00135.549842] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client.conf: No such file or directory
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6216234Z [E][00135.549914] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client.conf: No such file or directory
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6217460Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6219704Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.621: Failed connect to PipeWire: Couldn't create PipeWire context
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6222258Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6223729Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.621: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6230781Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6271613Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.623: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6273692Z 
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6294631Z (/usr/libexec/xdg-desktop-portal:4471): xdg-desktop-portal-WARNING **: 20:37:14.624: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.6296865Z dbus-daemon[4295]: [session uid=1001 pid=4295] Successfully activated service 'org.freedesktop.portal.Desktop'
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.8539103Z Pairing browser request failure: {"path":"/.clipboard.txt","error":"net::ERR_ABORTED"}
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.9796210Z flatpak: real browser pairing redirect, session cookie, web UI and manual LAN clipboard passed (same worker)
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:14.9965343Z flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.0994386Z TypeError: Invalid URL
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.0994988Z     at new URL (node:internal/url:895:25)
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.0995626Z     at /home/runner/work/airdrop-linux/airdrop-linux/scripts/smoke-sandbox-desktop.cjs:107:18 {
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.0996163Z   code: 'ERR_INVALID_URL',
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.0996415Z   input: ''
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.0996642Z }
+accept	Test the public bundle and actual browser pairing	2026-10-25T20:37:15.6216897Z ##[error]Process completed with exit code 1.

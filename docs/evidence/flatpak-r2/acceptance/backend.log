@@ -1,0 +1,5 @@
+flatpak: host home access denied, private data path and safe port conflict verified
+flatpak: both backend listeners restricted to loopback
+flatpak: GHSA-27r3-jxmh-p828 malformed compressed-body regression passed
+flatpak: real sandbox UI/API upload, dufs download and ZIP contents passed
+flatpak: backend stopped

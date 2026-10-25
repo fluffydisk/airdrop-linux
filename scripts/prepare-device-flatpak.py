@@ -55,7 +55,7 @@ vendor=out/'tsnet-vendor.tar.gz'
 with vendor.open('wb') as compressed, gzip.GzipFile(filename='',mode='wb',fileobj=compressed,mtime=0) as zipped, tarfile.open(fileobj=zipped,mode='w') as tar:
  for file in sorted((app/'network/tsnet/vendor').rglob('*')):
   if file.is_file():
-   info=tar.gettarinfo(file,arcname=file.relative_to(app/'network/tsnet/vendor').as_posix());info.uid=info.gid=0;info.uname=info.gname='';info.mtime=0
+   info=tar.gettarinfo(file,arcname=file.relative_to(app/'network/tsnet/vendor').as_posix());info.uid=info.gid=0;info.uname=info.gname='';info.mtime=0;info.mode=0o644
    with file.open('rb') as stream:tar.addfile(info,stream)
 go_module={'name':'embedded-tsnet','buildsystem':'simple','build-options':{'append-path':'/run/build/embedded-tsnet/go-toolchain/bin','env':{'CGO_ENABLED':'0','GOTOOLCHAIN':'local','GOCACHE':'/run/build/embedded-tsnet/go-cache'}},
  'build-commands':['cd network/tsnet && go build -mod=vendor -buildvcs=false -trimpath -ldflags="-s -w -X tailscale.com/version.longStamp=1.104.2-airdrop -X tailscale.com/version.shortStamp=1.104.2" -o /app/lib/airdrop-linux/runtime/airdrop-tsnet .',

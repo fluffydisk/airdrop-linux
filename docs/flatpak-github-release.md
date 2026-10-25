@@ -1,5 +1,7 @@
 # GitHub Flatpak v1.5.0 revision r1
 
+Historical pre-device-sharing r1 record. See [the published r2 device-sharing report](flatpak-device-sharing-r2.md) for current GitHub Flatpak behavior and evidence. Earlier logs and Flathub policy findings remain preserved.
+
 The x86_64 bundle is published as an additional asset on the existing v1.5.0
 GitHub Release. This is independent upstream distribution, not a Flathub listing.
 The 23 pre-existing assets retained their IDs, sizes and update timestamps.

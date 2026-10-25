@@ -1,5 +1,7 @@
 # Final Flathub technical handoff
 
+Historical pre-device-sharing r1 record. See [the published r2 device-sharing report](flatpak-device-sharing-r2.md) for current GitHub Flatpak behavior and evidence. Earlier logs and Flathub policy findings remain preserved.
+
 This is the preserved pre-publication Flathub audit. The maintainer subsequently
 authorized independent GitHub distribution of the tested x86_64 bundle; see
 the [publication record](flatpak-github-release.md) and README instructions. That publication does not change the Flathub

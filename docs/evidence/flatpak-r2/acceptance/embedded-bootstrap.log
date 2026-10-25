@@ -1,0 +1,4 @@
+{"state":"starting","hasAuthURL":false,"hasSharingURL":false,"ready":false}
+{"state":"NeedsLogin","hasAuthURL":false,"hasSharingURL":false,"ready":false}
+{"state":"NeedsLogin","hasAuthURL":true,"hasSharingURL":false,"ready":false}
+VERIFIED: real Tailscale browser authentication URL received; URL intentionally redacted. No authenticated device/HTTPS transfer claimed.

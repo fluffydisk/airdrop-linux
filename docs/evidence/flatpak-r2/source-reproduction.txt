@@ -1,0 +1,3 @@
+VERIFIED: regenerated preparation.json and parsed manifest match the published CI inputs.
+Vendor archive SHA-256: c302179bf3ab2fb78a33a1e9ae0bb902e7f5e61ce61b941ae79cdcf2ced03eca
+Initial local umask 077 changed vendor file modes to 0600. The preparer now normalizes source file modes to 0644, reproducing the original CI archive bytes under either umask.

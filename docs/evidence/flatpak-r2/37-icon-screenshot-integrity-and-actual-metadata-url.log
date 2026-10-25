@@ -1,0 +1,21 @@
+{
+  "icon": {
+    "width": 512,
+    "height": 512,
+    "bytes": 3596,
+    "sha256": "ad177aac103b10b697cf043eca8bf8eb842bd0531da5d2f429ba80fed679aeb3"
+  },
+  "real_capture": {
+    "width": 1065,
+    "height": 1102,
+    "bytes": 103298,
+    "sha256": "66610d00a11c1764babc213fba4a8467471578cc45acab7bdfff2a24ba5a02be"
+  },
+  "store_screenshot": {
+    "width": 1080,
+    "height": 840,
+    "bytes": 68254,
+    "sha256": "cc2653e95ae69fc2ee4a3037680a8c84257e2b0920807e32dc704a3fd469b10a",
+    "url": "https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.5.0/assets/airdrop-desktop.png"
+  }
+}

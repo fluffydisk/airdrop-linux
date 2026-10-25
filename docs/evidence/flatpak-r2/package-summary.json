@@ -1,0 +1,48 @@
+{
+  "status": "VERIFIED",
+  "scope": "x86_64 package structure/grants/inventory; not Flathub inclusion approval",
+  "finish_args": [
+    "--share=ipc",
+    "--share=network",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--talk-name=org.kde.StatusNotifierWatcher",
+    "--env=GTK_USE_PORTAL=1"
+  ],
+  "runtime": "org.freedesktop.Platform",
+  "runtime_version": "26.08",
+  "base": "org.electronjs.Electron2.BaseApp",
+  "base_version": "26.08",
+  "sdk_extensions": [
+    "org.freedesktop.Sdk.Extension.node24",
+    "org.freedesktop.Sdk.Extension.rust-stable"
+  ],
+  "only_arches": [
+    "x86_64"
+  ],
+  "declared_source_count": 1328,
+  "installed_icon": {
+    "width": 512,
+    "height": 512,
+    "sha256": "ad177aac103b10b697cf043eca8bf8eb842bd0531da5d2f429ba80fed679aeb3"
+  },
+  "component_origins": {
+    "application": "pinned source archive plus reviewed patches",
+    "dufs": "offline locked Cargo compilation",
+    "portal_helper": "C compiled in the SDK",
+    "node": "signed Node 24 SDK extension",
+    "electron": "official prebuilt archive; source-build requirement unresolved",
+    "embedded_tsnet": "offline Go compilation from pinned application and checksum-pinned vendored module sources"
+  },
+  "embedded_tsnet": {
+    "build_info": {
+      "go": "go1.27.3",
+      "tailscale.com": "v1.104.2"
+    },
+    "sha256": "963601d3d64bfdf7c7324f2bf030cd7c58bcc1f1aa41cc423b969df7d18353f9",
+    "network": "userspace; normal system routing/proxies; no host routes/TUN/daemon/Funnel",
+    "authentication": "interactive browser login; account and same-tailnet peer required",
+    "sharing": "TLS certificate and paired backend probe required before advertising URL"
+  }
+}

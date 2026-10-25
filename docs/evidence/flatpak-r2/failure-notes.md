@@ -1,0 +1,9 @@
+# Preserved failed attempts
+
+- Inherited umask 077 made the existing portable-updater permission test expect 0755 but observe 0700. Re-run with documented umask 022 and real dufs passed all 102 tests. No updater code/assertion was weakened.
+- An initial gateway Host-header test used fetch, which replaces the supplied Host header; the assertion was corrected to use a real http.request.
+- The managed cloud proxy rejected actual Tailscale registration with HTTP 403. No login URL or QR was fabricated. A separate native GitHub runner received a real provider login URL.
+- The cloud Chromium test sent its own private LAN request through the configured proxy, which returned an upstream connection error. A disposable test window retains the proxy for external destinations and excepts only the exact owned local listener; product proxy behavior is unchanged.
+- One local preparation invocation used an invalid commit argument and returned 404. It was discarded; the successful recipe uses the actual immutable commit recorded in preparation.json. No source or checksum was accepted from that failed invocation.
+- Publication run 40230036416 was cancelled before publication to move the controller into the normal shared source layout and add HTTP clipboard regression coverage. Acceptance run 40231388967 was superseded to include the real desktop IPC-to-helper authentication test. These cancellations are not reported as test successes.
+- Acceptance run 40231501349 passed real Tailscale bootstrap inside the installed Flatpak and real browser LAN pairing, then its new desktop authentication assertion ran before the asynchronous IPC condition was ready. The test used an async waitForFunction predicate, whose pending Promise was treated as truthy. It now waits for the actual rendered sign-in button before validating the real URL; assertions and product binaries are unchanged.
