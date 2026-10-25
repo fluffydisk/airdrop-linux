@@ -15,11 +15,11 @@ receipt=installer.install('user');before=tests.state('user',True)
 print('VERIFIED: public HTTPS repository summary, commit and descriptor identity; fresh signed installation',flush=True)
 # Deploy the real signed r2 ancestor to test a forward update from old code.
 run('flatpak','update','--user','--noninteractive','--commit='+receipt['baseline_commit'],APP+'//stable')
-assert run('flatpak','info','--user','--show-commit',APP,'stable',capture=True)==R2
+assert run('flatpak','info','--user','--show-commit',APP,'stable',capture=True)==receipt['baseline_commit']
 run('flatpak','update','--user','--noninteractive',APP+'//stable')
 assert run('flatpak','info','--user','--show-commit',APP,'stable',capture=True)==receipt['commit']
 assert tests.state('user')==before
-print('VERIFIED: ordinary flatpak update advanced actual public signed r2 to the current repository payload; data/identity fixtures preserved',flush=True)
+print('VERIFIED: ordinary flatpak update advanced the actual public signed previous revision to the current payload; data/identity fixtures preserved',flush=True)
 run('flatpak','uninstall','--user','--noninteractive',APP)
 bundle=Path(os.environ['RUNNER_TEMP'])/'migration-r2.flatpak'
 with urllib.request.urlopen('https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak') as response:bundle.write_bytes(response.read())

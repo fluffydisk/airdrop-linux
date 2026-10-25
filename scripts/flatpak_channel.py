@@ -77,10 +77,15 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
    if prior and (version(receipt['version']),receipt['revision']) <= (version(prior['version']),prior['revision']):
     raise ValueError('Refusing repeated or older repository version/revision')
    run('ostree',f'--repo={repo}','remote','add',f'--gpg-import={previous_key}','--set=gpg-verify-summary=true','previous',previous+'flatpak/')
-   run('ostree',f'--repo={repo}','pull','--mirror','--depth=-1','previous')
+   available=run('ostree',f'--repo={repo}','remote','refs','previous',capture=True).splitlines()
+   selected=[ref.split(':',1)[-1] for ref in available if ref.split(':',1)[-1]==REF or ref.split(':',1)[-1] in ['appstream/x86_64','appstream2/x86_64','screenshots/x86_64']]
+   assert REF in selected
+   # The modern channel advertises only the tested architecture. Native ARM
+   # repositories and historical release bundles are independent and untouched.
+   run('ostree',f'--repo={repo}','pull','--mirror','--depth=0','previous',*selected)
    # Keep the previous head addressable while old summaries are cached by CDNs.
    old=run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)
-   run('ostree',f'--repo={repo}','refs',f'--create=history/airdrop-linux/{old}',old)
+   if not prior:run('ostree',f'--repo={repo}','refs',f'--create=history/airdrop-linux/{old}',old)
    run('ostree',f'--repo={repo}','remote','delete','previous')
   if not prior:
    if not r2:raise ValueError('The first signed channel requires the verified actual r2 bundle')
@@ -88,7 +93,6 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
    if hashlib.sha256(r2.read_bytes()).hexdigest()!=expected:raise ValueError('r2 bundle checksum mismatch')
    run('flatpak','build-import-bundle','--no-update-summary',f'--gpg-sign={fingerprint}',f'--gpg-homedir={os.environ["GNUPGHOME"]}',repo,r2)
    assert run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)==R2
-   run('ostree',f'--repo={repo}','refs','--create=history/airdrop-linux/r2',R2)
   run('flatpak','build-commit-from',f'--src-repo={source}',f'--src-ref={REF}','--no-update-summary','--force','--timestamp=NOW',f'--gpg-sign={fingerprint}',f'--gpg-homedir={os.environ["GNUPGHOME"]}',repo,REF)
   for media in run('ostree',f'--repo={source}','refs',capture=True).splitlines():
    if media.startswith('screenshots/'):
@@ -96,8 +100,11 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
     media_commit=run('ostree',f'--repo={repo}','rev-parse',media,capture=True)
     run('ostree',f'--repo={repo}','gpg-sign',f'--gpg-homedir={os.environ["GNUPGHOME"]}',media_commit,fingerprint)
   run('flatpak','build-update-repo','--generate-static-deltas','--static-delta-jobs=2','--title=Airdrop Linux',f'--gpg-sign={fingerprint}',f'--gpg-homedir={os.environ["GNUPGHOME"]}',repo)
+  # Keep current and previous payloads for real updates/cache overlap without
+  # growing the combined Pages site indefinitely. Prune only this staged repo.
+  run('ostree',f'--repo={repo}','prune','--refs-only','--depth=1')
   current=run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)
-  published={**receipt,'schema':1,'commit':current,'baseline_commit':prior['baseline_commit'] if prior else R2,'fingerprint':fingerprint,'repository_url':base+'flatpak/'}
+  published={**receipt,'schema':1,'commit':current,'baseline_commit':prior['commit'] if prior else R2,'fingerprint':fingerprint,'repository_url':base+'flatpak/'}
   channel=public/'flatpak-channel.json';channel.write_text(json.dumps(published,sort_keys=True,indent=2)+'\n')
   run('gpg','--batch','--yes','--local-user',fingerprint,'--armor','--detach-sign',channel)
   run('gpgv','--keyring',key,str(channel)+'.asc',channel)

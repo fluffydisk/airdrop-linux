@@ -4,7 +4,9 @@
 Never approves a deployment or changes environment protection. Modern pending
 requests and newer native releases are never cancelled automatically.
 """
-import base64,json,re,subprocess,sys
+import base64,json,os,re,subprocess,sys,tempfile
+from pathlib import Path
+from flatpak_channel import PRODUCTION,FINGERPRINT,fetch,verify_public_key,signed_json
 repo='fluffydisk/airdrop-linux';run_id,tag=sys.argv[1:]
 assert re.fullmatch(r'\d+',run_id) and re.fullmatch(r'v\d+\.\d+\.\d+',tag)
 def api(path):return subprocess.run(['gh','api',f'repos/{repo}/'+path],capture_output=True,text=True)
@@ -21,5 +23,11 @@ for waiting in json.loads(response.stdout)['workflow_runs']:
  if version(package_version)>version(tag):continue
  print('Retiring superseded pre-channel publication request',waiting['id'],source,flush=True)
  subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/{waiting["id"]}/cancel'],check=True)
+with tempfile.TemporaryDirectory() as directory:
+ temp=Path(directory);key=temp/'key.gpg';fetch(PRODUCTION+'airdrop-linux.gpg',key);verify_public_key(key,FINGERPRINT)
+ live=signed_json(PRODUCTION,key,temp,optional=True)
+ if live and (version(live['version']),live['revision']) >= (version(tag),int(os.environ['TARGET_REVISION'])):
+  print('Signed public channel already has this version/revision or newer; no duplicate approval requested.',flush=True)
+  raise SystemExit(0)
 subprocess.run(['gh','workflow','run','package-publishing.yml','--repo',repo,'--ref','main','-f','tag='+tag,'-F','publish=true','-f','flatpak_run='+run_id],check=True)
 print('Requested protected publication; required human review remains enforced.',flush=True)

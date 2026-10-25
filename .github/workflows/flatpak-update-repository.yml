@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       tag: ${{ steps.candidate.outputs.tag }}
+      revision: ${{ steps.source.outputs.revision }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,6 +119,9 @@ jobs:
             --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 "$RUNNER_TEMP/r2.flatpak" > "$RUNNER_TEMP/complete-tree.log" 2>&1
           cat "$RUNNER_TEMP/complete-tree.log"
           python3 scripts/check-pages-tree.py "$RUNNER_TEMP/native-public"
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/signed-lint-runtime.XXXXXX")
+          dbus-run-session -- flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder repo \
+            --ref=app/io.github.fluffydisk.airdrop-linux/x86_64/stable "$RUNNER_TEMP/native-public/flatpak"
       - name: Archive the tested unsigned candidate for protected signing
         run: |
           set -euo pipefail
@@ -153,10 +157,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Install public signature verification tools
+        run: |
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gnupg gpgv
       - name: Request the existing protected combined Pages deployment
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           CANDIDATE_RUN: ${{ github.run_id }}
           RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          TARGET_REVISION: ${{ needs.build.outputs.revision }}
         run: python3 scripts/request-flatpak-publication.py "$CANDIDATE_RUN" "$RELEASE_TAG"

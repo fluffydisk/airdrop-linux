@@ -93,7 +93,7 @@ def exercise(candidate,r2,output,system=False):
     if file=='summary.sig':run('ostree',f'--repo={next_dir/"flatpak"}','summary','--update',f'--gpg-homedir={wrong_home}',f'--gpg-sign={wrong_key}')
     else:run('ostree',f'--repo={next_dir/"flatpak"}','gpg-sign',f'--gpg-homedir={wrong_home}',published['commit'],wrong_key)
     try:
-     rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),f'Wrong-key {file.rsplit("/",1)[-1]} signature rejected before installation','gpg')
+     rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),f'Wrong-key {file.rsplit("/",1)[-1]} signature rejected before installation','signature')
      assert state('user')==before and run('flatpak','info','--user','--show-commit',APP,'stable',capture=True)==published['commit']
     finally:
      target.write_bytes(backup)
@@ -101,14 +101,17 @@ def exercise(candidate,r2,output,system=False):
    run('flatpak','remote-modify','--user','--no-gpg-verify','airdrop-linux')
    rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),'Existing remote with disabled GPG verification is rejected, never repaired silently','disabled verification')
    run('flatpak','remote-modify','--user','--gpg-verify','airdrop-linux')
-   run('flatpak','remote-modify','--user','--url=http://127.0.0.1:9/untrusted','airdrop-linux')
+   run('ostree','--repo='+str(installer.repo_path('user')),'config','set','remote "airdrop-linux".url','http://127.0.0.1:9/untrusted')
    rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),'Existing remote with a different URL is rejected, never replaced silently','different URL')
-   run('flatpak','remote-modify','--user','--url='+base+'flatpak/','airdrop-linux')
+   run('ostree','--repo='+str(installer.repo_path('user')),'config','set','remote "airdrop-linux".url',base+'flatpak/')
    # Explicitly reset this disposable app to the user's actual standalone r2.
    # No --delete-data is used. Production installer never permits a downgrade.
    run('flatpak','uninstall','--user','--noninteractive',APP)
+   run('flatpak','remote-delete','--user','airdrop-linux')
    run('flatpak','install','--user','--noninteractive',r2)
    assert run('flatpak','info','--user','--show-commit',APP,'stable',capture=True)==R2
+   assert run('flatpak','info','--user','--show-origin',APP,'stable',capture=True)!='airdrop-linux'
+   run('flatpak','remote-add','--user','airdrop-linux',next_dir/'airdrop-linux.flatpakrepo')
    run('ostree','--repo='+str(installer.repo_path('user')),'remote','gpg-import','--keyring='+str(wrong_public),'airdrop-linux')
    rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),'Existing remote with an additional untrusted signing key is rejected','different key set')
    run('flatpak','remote-delete','--user','airdrop-linux')

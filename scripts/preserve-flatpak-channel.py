@@ -14,9 +14,10 @@ with tempfile.TemporaryDirectory() as directory:
  if prior is None:raise SystemExit(2)
  repo=a.public/'flatpak';assert not repo.exists();run('ostree',f'--repo={repo}','init','--mode=archive-z2')
  run('ostree',f'--repo={repo}','remote','add',f'--gpg-import={key}','--set=gpg-verify-summary=true','previous',PRODUCTION+'flatpak/')
- run('ostree',f'--repo={repo}','pull','--mirror','--depth=-1','previous');run('ostree',f'--repo={repo}','remote','delete','previous')
+ run('ostree',f'--repo={repo}','pull','--mirror','--depth=1','previous');run('ostree',f'--repo={repo}','remote','delete','previous')
  assert run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)==prior['commit']
  run('flatpak','build-update-repo','--generate-static-deltas','--static-delta-jobs=2',f'--gpg-sign={a.fingerprint}',f'--gpg-homedir={os.environ["GNUPGHOME"]}',repo)
+ run('ostree',f'--repo={repo}','prune','--refs-only','--depth=1')
  for source,name in [('previous-channel.json','flatpak-channel.json'),('previous-channel.json.asc','flatpak-channel.json.asc')]:shutil.copyfile(temp/source,a.public/name)
  descriptors(a.public,PRODUCTION,key)
  shutil.copyfile('scripts/install-flatpak.py',a.public/'install-flatpak.py')

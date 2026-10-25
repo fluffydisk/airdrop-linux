@@ -172,6 +172,10 @@ jobs:
           sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
           sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv flatpak ostree
+      - name: Install official signed repository linter before accessing keys
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder
       - name: Import protected signing key
         id: signing
         env:
@@ -213,6 +217,9 @@ jobs:
             elif (( status )); then exit "$status"; fi
           fi
           python3 scripts/check-pages-tree.py public
+          runtime=$(mktemp -d "$RUNNER_TEMP/signed-lint-runtime.XXXXXX")
+          XDG_RUNTIME_DIR="$runtime" dbus-run-session -- flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder repo \
+            --ref=app/io.github.fluffydisk.airdrop-linux/x86_64/stable "$PWD/public/flatpak"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
