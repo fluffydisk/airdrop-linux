@@ -1,5 +1,8 @@
 name: Build signed Flatpak update candidate
 on:
+  push:
+    branches: [main]
+    paths: ['packaging/flatpak-channel/channel.json']
   workflow_dispatch:
     inputs:
       source_commit:
@@ -18,11 +21,13 @@ permissions:
   contents: read
 concurrency:
   group: flatpak-update-candidate
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    outputs:
+      tag: ${{ steps.candidate.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,21 +41,25 @@ jobs:
           go-version: '1.27.3'
           cache: false
       - name: Check immutable production inputs
+        id: source
         env:
           SOURCE: ${{ inputs.source_commit }}
           REVISION: ${{ inputs.revision }}
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/main
+          if test -z "$SOURCE"; then SOURCE=$(python3 -c 'import json;print(json.load(open("packaging/flatpak-channel/channel.json"))["source_commit"])'); fi
+          if test -z "$REVISION"; then REVISION=$(python3 -c 'import json;print(json.load(open("packaging/flatpak-channel/channel.json"))["revision"])'); fi
           [[ "$SOURCE" =~ ^[0-9a-f]{40}$ ]]
           [[ "$REVISION" =~ ^[1-9][0-9]*$ ]]
           git merge-base --is-ancestor "$SOURCE" HEAD
+          printf "source=%s\nrevision=%s\n" "$SOURCE" "$REVISION" >> "$GITHUB_OUTPUT"
       - name: Install validation tools and signed runtimes
         run: |
           set -euo pipefail
           sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg apt-utils rpm createrepo-c
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg gpgv apt-utils rpm createrepo-c
           npm ci --ignore-scripts
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder \
@@ -59,8 +68,8 @@ jobs:
             org.freedesktop.Sdk.Extension.node24//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08
       - name: Recreate pinned source recipe and clean offline build
         env:
-          SOURCE: ${{ inputs.source_commit }}
-          REVISION: ${{ inputs.revision }}
+          SOURCE: ${{ steps.source.outputs.source }}
+          REVISION: ${{ steps.source.outputs.revision }}
         run: |
           set -euo pipefail
           python3 scripts/prepare-flatpak-channel.py --source "$SOURCE" --revision "$REVISION" --output "$RUNNER_TEMP/prepared"
@@ -71,9 +80,11 @@ jobs:
           if (( status )); then tail -n 25 "$RUNNER_TEMP"/validated/*.log; fi
           exit "$status"
       - name: Package verified candidate and download actual r2 baseline
+        id: candidate
         run: |
           set -euo pipefail
           python3 scripts/prepare-flatpak-candidate.py --validated "$RUNNER_TEMP/validated" --prepared "$RUNNER_TEMP/prepared" --output "$RUNNER_TEMP/candidate"
+          python3 -c 'import json,os;d=json.load(open(os.environ["RUNNER_TEMP"]+"/candidate/candidate.json"));print("tag=v"+d["version"])' >> "$GITHUB_OUTPUT"
           curl --retry 3 -fL https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak -o "$RUNNER_TEMP/r2.flatpak"
           echo "9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df  $RUNNER_TEMP/r2.flatpak" | sha256sum -c -
       - name: Real signing, update, migration and negative-signature tests
@@ -87,7 +98,7 @@ jobs:
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/update-runtime.XXXXXX")
           export AIRDROP_TEST_DISPOSABLE=1 AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_TAILSCALE_BOOTSTRAP=1
           status=0
-          python3 scripts/test-signed-flatpak.py --candidate "$RUNNER_TEMP/candidate" --r2 "$RUNNER_TEMP/r2.flatpak" --output "$RUNNER_TEMP/signed-tests" --system-cases > "$RUNNER_TEMP/signed-tests.log" 2>&1 || status=$?
+          dbus-run-session -- python3 scripts/test-signed-flatpak.py --candidate "$RUNNER_TEMP/candidate" --r2 "$RUNNER_TEMP/r2.flatpak" --output "$RUNNER_TEMP/signed-tests" --system-cases > "$RUNNER_TEMP/signed-tests.log" 2>&1 || status=$?
           cat "$RUNNER_TEMP/signed-tests.log"
           exit "$status"
       - name: Rehearse existing APT/RPM publisher without production keys
@@ -106,6 +117,7 @@ jobs:
           python3 scripts/flatpak_channel.py --candidate "$RUNNER_TEMP/candidate" --public "$RUNNER_TEMP/native-public" \
             --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 "$RUNNER_TEMP/r2.flatpak" > "$RUNNER_TEMP/complete-tree.log" 2>&1
           cat "$RUNNER_TEMP/complete-tree.log"
+          python3 scripts/check-pages-tree.py "$RUNNER_TEMP/native-public"
       - name: Archive the tested unsigned candidate for protected signing
         run: |
           set -euo pipefail
@@ -132,15 +144,19 @@ jobs:
             ${{ runner.temp }}/prepared/preparation.json
   request-publication:
     needs: build
-    if: inputs.publish
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-24.04
     permissions:
       actions: write
       contents: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Request the existing protected combined Pages deployment
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           CANDIDATE_RUN: ${{ github.run_id }}
-        run: gh workflow run package-publishing.yml --ref main -f tag=v1.5.0 -F publish=true -f "flatpak_run=$CANDIDATE_RUN"
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: python3 scripts/request-flatpak-publication.py "$CANDIDATE_RUN" "$RELEASE_TAG"

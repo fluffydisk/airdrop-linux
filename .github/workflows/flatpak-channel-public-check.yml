@@ -1,0 +1,49 @@
+name: Verify public Flatpak update channel
+on:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  install-update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install signed-client test prerequisites
+        run: |
+          set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree gnupg gpgv rpm xvfb dbus-x11 weston xdg-desktop-portal-gtk
+          npm ci --ignore-scripts
+      - name: Real public install, standard update and existing-bundle migration
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/public-flatpak-runtime.XXXXXX")
+          export AIRDROP_TEST_DISPOSABLE=1
+          dbus-run-session -- python3 scripts/test-public-flatpak-channel.py | tee "$RUNNER_TEMP/public-channel.log"
+      - name: Exercise the app downloaded from the signed public repository
+        run: |
+          set -euo pipefail
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/public-ui-runtime.XXXXXX")
+          export AIRDROP_TEST_HOME=/var/data/public-signed-acceptance AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_DEVICES=1 AIRDROP_TEST_CONNECTION=1 AIRDROP_TEST_TAILSCALE_BOOTSTRAP=1
+          dbus-run-session -- node scripts/smoke-sandbox.js flatpak | tee "$RUNNER_TEMP/public-backend.log"
+          xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak | tee "$RUNNER_TEMP/public-desktop.log"
+          bash scripts/test-flatpak-wayland.sh | tee "$RUNNER_TEMP/public-wayland.log"
+          flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux
+      - name: Verify unchanged public APT/RPM signatures and release payloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/verify-published-repository.py | tee "$RUNNER_TEMP/public-native.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-signed-flatpak-evidence
+          path: ${{ runner.temp }}/public-*.log

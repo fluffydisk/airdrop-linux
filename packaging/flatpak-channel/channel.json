@@ -9,5 +9,6 @@
   "base_url": "https://fluffydisk.github.io/airdrop-linux/",
   "fingerprint": "6513D70958397F60D3787A0CB93F4FC1E97CF3AE",
   "r2_commit": "f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75",
-  "r2_sha256": "9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df"
+  "r2_sha256": "9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df",
+  "publication": "protected-pages"
 }

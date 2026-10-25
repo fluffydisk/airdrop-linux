@@ -16,3 +16,11 @@ test('draft and prerelease Flatpaks cannot become the stable remote',()=>{
  assert.equal(selectFlatpakRelease([draft,prerelease,release('v1.5.0',names)]).tag,'v1.5.0');
  assert.equal(selectFlatpakRelease([release('v1.4.0',['app.deb'])]),null);
 });
+test('the tested x86_64 reference r2 supersedes older dual-architecture assets',()=>{
+ const reference='airdrop-linux-1.5.0-x86_64-reference-r2.flatpak';
+ const selected=selectFlatpakRelease([release('v1.5.0',[...names,reference,reference+'.sha256'])]);
+ assert.equal(selected.reference,true);assert.deepEqual(selected.expected,[reference,reference+'.sha256']);
+});
+test('a reference bundle without its checksum cannot fall back to an older package',()=>{
+ assert.throws(()=>selectFlatpakRelease([release('v1.5.0',[...names,'airdrop-linux-1.5.0-x86_64-reference-r2.flatpak'])]),/Incomplete Flatpak release/);
+});

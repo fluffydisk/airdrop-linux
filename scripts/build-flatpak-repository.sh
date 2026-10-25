@@ -14,13 +14,16 @@ repo="$public/flatpak"
 ostree --repo="$repo" init --mode=archive-z2
 shopt -s nullglob
 bundles=("$input"/*.flatpak)
-test "${#bundles[@]}" = 2
+(( ${#bundles[@]} >= 1 && ${#bundles[@]} <= 2 ))
 for bundle in "${bundles[@]}"; do
   flatpak build-import-bundle --no-update-summary --gpg-sign="$SIGNING_KEY_FINGERPRINT" --gpg-homedir="$GNUPGHOME" "$repo" "$bundle"
 done
-for arch in x86_64 aarch64; do
-  ostree --repo="$repo" rev-parse "app/io.github.fluffydisk.airdrop-linux/$arch/stable"
-done
+refs=$(ostree --repo="$repo" refs)
+printf '%s\n' "$refs" | grep -Fx app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+if printf '%s\n' "$refs" | grep -vE '^app/io\.github\.fluffydisk\.airdrop-linux/(x86_64|aarch64)/stable$'; then
+  echo 'Unexpected bundle application/ref' >&2
+  exit 1
+fi
 # Publish standard deltas so static hosting serves a few transfer parts instead
 # of thousands of individual npm/Electron objects per installation.
 flatpak build-update-repo --generate-static-deltas --static-delta-jobs=2 --title='Airdrop Linux' --gpg-sign="$SIGNING_KEY_FINGERPRINT" --gpg-homedir="$GNUPGHOME" "$repo"

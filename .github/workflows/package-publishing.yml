@@ -8,12 +8,17 @@ on:
         description: Published stable release to include
         required: true
         default: v1.5.0
+      flatpak_run:
+        description: Successful main-branch Flatpak update candidate run (optional)
+        type: string
+        default: ''
       publish:
         description: Deploy production repository (requires main and environment approval)
         type: boolean
         default: false
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: package-repositories
   cancel-in-progress: false
@@ -24,6 +29,7 @@ jobs:
     outputs:
       flatpak: ${{ steps.flatpak.outputs.available }}
       flatpak_tag: ${{ steps.flatpak.outputs.tag }}
+      candidate: ${{ steps.flatpak.outputs.candidate }}
     steps:
       - name: Check production source ref
         env:
@@ -55,13 +61,25 @@ jobs:
           bash scripts/ci-command.sh Repository-download node scripts/download-repository-assets.js "$RELEASE_TAG" incoming downloads
           printf '### Repository inputs verified\n\nSource commit: `%s`\n\nRequested release: `%s`\n\n' "$GITHUB_SHA" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
           cat incoming/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
-      - name: Preserve the newest complete public Flatpak release
+      - name: Select verified candidate or newest complete public Flatpak release
         id: flatpak
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          FLATPAK_RUN: ${{ inputs.flatpak_run }}
+          EXPECTED_RELEASE: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
-          node scripts/download-flatpak-assets.js flatpak-incoming
+          set -euo pipefail
+          if test -n "$FLATPAK_RUN"; then
+            python3 scripts/download-flatpak-candidate.py "$FLATPAK_RUN" flatpak-incoming
+            curl --retry 3 -fL https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak -o flatpak-incoming/r2.flatpak
+            echo '9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df  flatpak-incoming/r2.flatpak' | sha256sum -c -
+            echo candidate=true >> "$GITHUB_OUTPUT"
+            python3 -c 'import json;print("v"+json.load(open("flatpak-incoming/candidate.json"))["version"])' > flatpak-incoming/tag.txt
+            test "$(cat flatpak-incoming/tag.txt)" = "$EXPECTED_RELEASE"
+          else
+            node scripts/download-flatpak-assets.js flatpak-incoming
+          fi
           if test -d flatpak-incoming; then
             echo available=true >> "$GITHUB_OUTPUT"
             printf 'tag=%s\n' "$(cat flatpak-incoming/tag.txt)" >> "$GITHUB_OUTPUT"
@@ -113,7 +131,11 @@ jobs:
           export SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"
           bash scripts/ci-command.sh Repository-test-signing scripts/build-repository.sh incoming verified-repository
           if test -d flatpak-incoming; then
-            bash scripts/build-flatpak-repository.sh flatpak-incoming verified-repository
+            if test -f flatpak-incoming/candidate.json; then
+              python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public verified-repository --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 flatpak-incoming/r2.flatpak
+            else
+              bash scripts/build-flatpak-repository.sh flatpak-incoming verified-repository
+            fi
           fi
           echo '### Validation passed with real release assets and a disposable key; nothing deployed.' >> "$GITHUB_STEP_SUMMARY"
   repository:
@@ -166,7 +188,7 @@ jobs:
           printf '%s' "$REPOSITORY_SIGNING_KEY" | gpg --batch --import
           passfile="$GNUPGHOME/passphrase"
           (umask 077; printf '%s' "$REPOSITORY_SIGNING_PASSPHRASE" > "$passfile")
-          printf 'allow-preset-passphrase\n' > "$GNUPGHOME/gpg-agent.conf"
+          printf 'allow-preset-passphrase\ndefault-cache-ttl 7200\nmax-cache-ttl 7200\n' > "$GNUPGHOME/gpg-agent.conf"
           gpgconf --kill gpg-agent
           printf 'probe' | gpg --batch --yes --pinentry-mode loopback --passphrase-file "$passfile" --local-user "$SIGNING_KEY_FINGERPRINT" --sign > "$GNUPGHOME/probe.gpg"
           rm "$passfile"
@@ -180,7 +202,17 @@ jobs:
         if: needs.prepare.outputs.flatpak == 'true'
         env:
           SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
-        run: bash scripts/build-flatpak-repository.sh flatpak-incoming public
+        run: |
+          set -euo pipefail
+          if test -f flatpak-incoming/candidate.json; then
+            python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public public --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 flatpak-incoming/r2.flatpak
+          else
+            status=0
+            python3 scripts/preserve-flatpak-channel.py --public public --fingerprint "$SIGNING_KEY_FINGERPRINT" || status=$?
+            if (( status == 2 )); then bash scripts/build-flatpak-repository.sh flatpak-incoming public
+            elif (( status )); then exit "$status"; fi
+          fi
+          python3 scripts/check-pages-tree.py public
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
@@ -193,8 +225,12 @@ jobs:
           rm -rf "$GNUPGHOME"
   flatpak-install:
     needs: [prepare, repository]
-    if: needs.prepare.outputs.flatpak == 'true'
+    if: needs.prepare.outputs.flatpak == 'true' && needs.prepare.outputs.candidate != 'true'
     uses: ./.github/workflows/flatpak-public-check.yml
     with:
       tag: ${{ needs.prepare.outputs.flatpak_tag }}
       fingerprint: ${{ needs.repository.outputs.fingerprint }}
+  signed-flatpak-install:
+    needs: [prepare, repository]
+    if: needs.prepare.outputs.candidate == 'true'
+    uses: ./.github/workflows/flatpak-channel-public-check.yml

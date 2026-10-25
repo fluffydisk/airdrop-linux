@@ -4,7 +4,7 @@
 CLI trust is pinned below. No user data, permissions, existing keys or remote URLs
 are rewritten. Run as the desktop user; system changes use Flatpak authorization.
 """
-import argparse,base64,configparser,json,os,platform,re,subprocess,sys,tempfile
+import argparse,base64,configparser,json,os,platform,re,subprocess,sys,tempfile,time
 from dataclasses import dataclass
 from pathlib import Path
 import urllib.request
@@ -98,7 +98,11 @@ def install(scope=None,dry_run=False,trust=Trust()):
  if existing:
   current=command('flatpak','info','--'+selected,'--show-commit',APP,'stable').stdout.strip()
   if origin!=REMOTE and current!=R2:raise ValueError('Existing app is neither the known r2 bundle nor this remote; review its provenance before changing origin')
- if APP in command('flatpak','ps','--columns=application').stdout.splitlines():raise ValueError('Quit Airdrop completely before migrating/updating; no running process was killed')
+ # Exited CLI sandboxes can remain visible briefly while Flatpak cleans up.
+ for attempt in range(21):
+  if APP not in command('flatpak','ps','--columns=application').stdout.splitlines():break
+  if attempt==20:raise ValueError('Quit Airdrop completely before migrating/updating; no running process was killed')
+  time.sleep(0.25)
  with tempfile.TemporaryDirectory(prefix='airdrop-flatpak-trust-') as directory:
   temp=Path(directory);descriptor,receipt=verify_channel(trust,temp)
   trusted=check_named_remote(selected,REMOTE,trust.base+'flatpak/',trust.fingerprint)

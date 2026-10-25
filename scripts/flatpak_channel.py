@@ -59,6 +59,7 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
  assert receipt['app_id']==APP and receipt['arch']=='x86_64' and receipt['branch']=='stable'
  assert re.fullmatch('[0-9a-f]{40}',receipt['source_commit']) and int(receipt['revision'])>=3
  version(receipt['version']);source=candidate/'repo'
+ native_before={str(p.relative_to(public)):hashlib.sha256(p.read_bytes()).hexdigest() for tree in ['apt','rpm'] for p in (public/tree).rglob('*') if p.is_file()}
  assert run('ostree',f'--repo={source}','rev-parse',REF,capture=True)==receipt['commit']
  run('ostree',f'--repo={source}','fsck')
  marker=json.loads(run('ostree',f'--repo={source}','cat',receipt['commit'],'/files/share/airdrop-linux/distribution.json',capture=True))
@@ -89,6 +90,11 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
    assert run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)==R2
    run('ostree',f'--repo={repo}','refs','--create=history/airdrop-linux/r2',R2)
   run('flatpak','build-commit-from',f'--src-repo={source}',f'--src-ref={REF}','--no-update-summary','--force','--timestamp=NOW',f'--gpg-sign={fingerprint}',f'--gpg-homedir={os.environ["GNUPGHOME"]}',repo,REF)
+  for media in run('ostree',f'--repo={source}','refs',capture=True).splitlines():
+   if media.startswith('screenshots/'):
+    run('ostree',f'--repo={repo}','pull-local','--untrusted',source,media)
+    media_commit=run('ostree',f'--repo={repo}','rev-parse',media,capture=True)
+    run('ostree',f'--repo={repo}','gpg-sign',f'--gpg-homedir={os.environ["GNUPGHOME"]}',media_commit,fingerprint)
   run('flatpak','build-update-repo','--generate-static-deltas','--static-delta-jobs=2','--title=Airdrop Linux',f'--gpg-sign={fingerprint}',f'--gpg-homedir={os.environ["GNUPGHOME"]}',repo)
   current=run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)
   published={**receipt,'schema':1,'commit':current,'baseline_commit':prior['baseline_commit'] if prior else R2,'fingerprint':fingerprint,'repository_url':base+'flatpak/'}
@@ -102,6 +108,7 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
   shutil.copyfile('scripts/install-flatpak.py',public/'install-flatpak.py')
   run('gpg','--batch','--yes','--local-user',fingerprint,'--armor','--detach-sign',public/'install-flatpak.py')
   with (public/'index.md').open('a') as index:index.write('\nFlatpak: [verified installer](install-flatpak.py) · [remote](airdrop-linux.flatpakrepo) · [install reference](airdrop-linux.flatpakref)\n')
+ assert all((public/name).is_file() and hashlib.sha256((public/name).read_bytes()).hexdigest()==digest for name,digest in native_before.items()), 'Native repository bytes changed during Flatpak publication'
  print(json.dumps({'signed_commit':current,'source_commit':receipt['source_commit'],'revision':receipt['revision'],'public_bytes':sum(p.stat().st_size for p in public.rglob('*') if p.is_file())}))
  return published
 if __name__=='__main__':
