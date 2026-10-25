@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),http=require('node:http');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const {ShareGateway,lanAddresses}=require('../lib/device-share');
-const {Devices}=require('../desktop/devices');
+const {Devices}=require('../lib/devices');
 const jsQR=require('jsqr'),{PNG}=require('pngjs');
 async function backend(t){
  const server=http.createServer((req,res)=>{

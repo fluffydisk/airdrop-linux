@@ -89,3 +89,24 @@ test('worker Share Target stages files and redirects without uploading', async (
   let response; handler({ request, respondWith(promise) { response = promise; } });
   const result = await response; assert.equal(staged, true); assert.equal(result.status, 303); assert.match(result.headers.get('location'), /pending=id/);
 });
+
+test('LAN HTTP clipboard fallback sends manually pasted text without a clipboard API', async t => {
+  let sent;
+  const w = page(t, async (url, options) => {
+    if (url === '/.clipboard.txt' && options?.method === 'PUT') sent = options.body;
+    return { ok: true, json: async () => ({ entries: [] }) };
+  }, 'http://192.168.1.2:4567/ui/');
+  w.document.getElementById('clipPaste').click(); await tick();
+  assert.equal(w.document.getElementById('clipManual').hidden, false);
+  w.document.getElementById('clipText').value = 'manual LAN clipboard';
+  w.document.getElementById('clipSendText').click(); await tick();
+  assert.equal(sent, 'manual LAN clipboard');
+  assert.equal(w.document.getElementById('clipSub').textContent, 'Text sent');
+});
+test('LAN clipboard load preserves shared text for manual copy when the API is unavailable', async t => {
+  const w = page(t, async url => ({ ok: true, json: async () => ({ entries: [] }), text: async () => 'shared <text>' }), 'http://192.168.1.2:4567/ui/');
+  w.document.getElementById('clipCopy').click(); await tick();
+  assert.equal(w.document.getElementById('clipManual').hidden, false);
+  assert.equal(w.document.getElementById('clipText').value, 'shared <text>');
+  assert.match(w.document.getElementById('clipSub').textContent, /Select and copy/);
+});

@@ -35,7 +35,7 @@ async function checkUpdate() {
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
-const devices = new (require('./devices').Devices)({directory:path.join(desktopData,'connections'),helper:process.env.AIRDROP_TSNET_HELPER||path.join(paths.app,'runtime/airdrop-tsnet'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`});
+const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),helper:process.env.AIRDROP_TSNET_HELPER||path.join(paths.app,'runtime/airdrop-tsnet'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`});
 let devicesReady;
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
 let window, tray, timer, quitting = false, sending = false, backgroundGranted = false;

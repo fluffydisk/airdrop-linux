@@ -99,6 +99,20 @@ checkVersion(); setInterval(checkVersion, 30000);
 // --- Shared clipboard ---
 const clipSub = document.getElementById('clipSub');
 const CLIP_FILE = '/.clipboard.txt';
+const clipText = document.getElementById('clipText');
+function manualClipboard(message, text) {
+  document.getElementById('clipManual').hidden = false;
+  if (text !== undefined) clipText.value = text;
+  clipSub.textContent = message; clipSub.className = 'status';
+  clipText.focus(); clipText.select();
+}
+document.getElementById('clipSendText').addEventListener('click', async () => {
+  try {
+    const response = await fetch(CLIP_FILE, { method: 'PUT', body: clipText.value });
+    if (!response.ok) throw Error();
+    clipSub.textContent = 'Text sent'; clipSub.className = 'status ok';
+  } catch { clipSub.textContent = 'Text could not be sent'; clipSub.className = 'status err'; }
+});
 
 document.getElementById('clipPaste').addEventListener('click', async () => {
   clipSub.textContent = 'Sending...';
@@ -108,8 +122,7 @@ document.getElementById('clipPaste').addEventListener('click', async () => {
     clipSub.textContent = res.ok ? 'Clipboard sent' : 'Send failed (' + res.status + ')';
     clipSub.className = 'status ' + (res.ok ? 'ok' : 'err');
   } catch (e) {
-    clipSub.textContent = 'Could not read the clipboard. Try again.';
-    clipSub.className = 'status err';
+    manualClipboard('Automatic clipboard access is unavailable. Paste below, then choose Send text.');
   }
 });
 
@@ -119,7 +132,8 @@ document.getElementById('clipCopy').addEventListener('click', async () => {
     const res = await fetch(CLIP_FILE + '?t=' + Date.now());
     if (!res.ok) { clipSub.textContent = 'Clipboard is still empty'; clipSub.className = 'status'; return; }
     const text = await res.text();
-    await navigator.clipboard.writeText(text);
+    try { await navigator.clipboard.writeText(text); }
+    catch { manualClipboard('Shared text loaded. Select and copy the text below.', text); return; }
     clipSub.textContent = 'Copied to clipboard';
     clipSub.className = 'status ok';
   } catch (e) {

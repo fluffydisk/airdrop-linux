@@ -417,6 +417,11 @@
       </div>
       <div class="status" id="status"></div>
       <div class="status" id="clipSub"></div>
+      <div id="clipManual" hidden>
+        <label for="clipText">Shared text (manual copy/paste on HTTP or when clipboard permission is unavailable)</label>
+        <textarea id="clipText" rows="4" style="width:100%;box-sizing:border-box" spellcheck="false"></textarea>
+        <button class="quick-btn" id="clipSendText">Send text</button>
+      </div>
     </div>
 
     <input type="file" id="fileInput" multiple>
