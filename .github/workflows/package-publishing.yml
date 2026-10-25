@@ -185,8 +185,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$REPOSITORY_SIGNING_KEY"
-          test -n "$SIGNING_KEY_FINGERPRINT"
+          test -n "$REPOSITORY_SIGNING_KEY" || { echo '::error::Missing protected REPOSITORY_SIGNING_KEY'; exit 1; }
+          test -n "$SIGNING_KEY_FINGERPRINT" || { echo '::error::Missing public SIGNING_KEY_FINGERPRINT variable'; exit 1; }
           export GNUPGHOME="$RUNNER_TEMP/airdrop-signing"
           mkdir -m 700 "$GNUPGHOME"
           printf '%s' "$REPOSITORY_SIGNING_KEY" | gpg --batch --import
