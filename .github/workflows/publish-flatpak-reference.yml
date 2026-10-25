@@ -33,9 +33,12 @@ jobs:
       - name: Validate reference and build repository
         run: |
           set -euo pipefail
-          runtime=$(mktemp -d)
+          runtime=$(mktemp -d "$RUNNER_TEMP/flatpak-runtime.XXXXXX")
+          status=0
           XDG_RUNTIME_DIR="$runtime" python3 scripts/validate-flatpak-reference.py \
-            --arch x86_64 --builder sdk --output "$RUNNER_TEMP/validated"
+            --arch x86_64 --builder sdk --output "$RUNNER_TEMP/validated" || status=$?
+          if (( status )); then tail -n 20 "$RUNNER_TEMP"/validated/*.log; fi
+          exit "$status"
       - name: Export and test the installable bundle
         run: |
           set -euo pipefail
@@ -44,7 +47,7 @@ jobs:
           flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
             "$RUNNER_TEMP/validated/repo" "$bundle" io.github.fluffydisk.airdrop-linux stable
           flatpak install --user --noninteractive "$bundle"
-          runtime=$(mktemp -d)
+          runtime=$(mktemp -d "$RUNNER_TEMP/flatpak-runtime.XXXXXX")
           export XDG_RUNTIME_DIR="$runtime" AIRDROP_TEST_HOME=/var/data/airdrop-release-r1-test AIRDROP_TEST_ELECTRON_VERSION=44.9.3
           dbus-run-session -- node scripts/smoke-sandbox.js flatpak
           AIRDROP_TEST_CONNECTION=1 xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak
