@@ -1,0 +1,146 @@
+name: Build signed Flatpak update candidate
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Immutable application commit reachable from main
+        required: true
+        default: '91363da43c2cd28173201f397c5b9f1ea8cde132'
+      revision:
+        description: Monotonically increasing upstream repository revision
+        required: true
+        default: '3'
+      publish:
+        description: Request the existing protected Pages publication after tests
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: flatpak-update-candidate
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.3'
+          cache: false
+      - name: Check immutable production inputs
+        env:
+          SOURCE: ${{ inputs.source_commit }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$SOURCE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$REVISION" =~ ^[1-9][0-9]*$ ]]
+          git merge-base --is-ancestor "$SOURCE" HEAD
+      - name: Install validation tools and signed runtimes
+        run: |
+          set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg apt-utils rpm createrepo-c
+          npm ci --ignore-scripts
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder \
+            org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 \
+            org.electronjs.Electron2.BaseApp//26.08 \
+            org.freedesktop.Sdk.Extension.node24//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08
+      - name: Recreate pinned source recipe and clean offline build
+        env:
+          SOURCE: ${{ inputs.source_commit }}
+          REVISION: ${{ inputs.revision }}
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-flatpak-channel.py --source "$SOURCE" --revision "$REVISION" --output "$RUNNER_TEMP/prepared"
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/build-runtime.XXXXXX")
+          status=0
+          python3 scripts/validate-flatpak-reference.py --manifest "$RUNNER_TEMP/prepared/io.github.fluffydisk.airdrop-linux.yml" \
+            --arch x86_64 --builder native --output "$RUNNER_TEMP/validated" || status=$?
+          if (( status )); then tail -n 25 "$RUNNER_TEMP"/validated/*.log; fi
+          exit "$status"
+      - name: Package verified candidate and download actual r2 baseline
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-flatpak-candidate.py --validated "$RUNNER_TEMP/validated" --prepared "$RUNNER_TEMP/prepared" --output "$RUNNER_TEMP/candidate"
+          curl --retry 3 -fL https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak -o "$RUNNER_TEMP/r2.flatpak"
+          echo "9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df  $RUNNER_TEMP/r2.flatpak" | sha256sum -c -
+      - name: Real signing, update, migration and negative-signature tests
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/disposable-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Flatpak update CI <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT=$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/update-runtime.XXXXXX")
+          export AIRDROP_TEST_DISPOSABLE=1 AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_TAILSCALE_BOOTSTRAP=1
+          status=0
+          python3 scripts/test-signed-flatpak.py --candidate "$RUNNER_TEMP/candidate" --r2 "$RUNNER_TEMP/r2.flatpak" --output "$RUNNER_TEMP/signed-tests" --system-cases > "$RUNNER_TEMP/signed-tests.log" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/signed-tests.log"
+          exit "$status"
+      - name: Rehearse existing APT/RPM publisher without production keys
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node scripts/download-repository-assets.js v1.5.0 "$RUNNER_TEMP/native-input" "$RUNNER_TEMP/native-downloads"
+          export GNUPGHOME="$RUNNER_TEMP/native-test-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Repository CI <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT=$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')
+          scripts/build-repository.sh "$RUNNER_TEMP/native-input" "$RUNNER_TEMP/native-public" > "$RUNNER_TEMP/native-signing.log" 2>&1
+          python3 scripts/flatpak_channel.py --candidate "$RUNNER_TEMP/candidate" --public "$RUNNER_TEMP/native-public" \
+            --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 "$RUNNER_TEMP/r2.flatpak" > "$RUNNER_TEMP/complete-tree.log" 2>&1
+          cat "$RUNNER_TEMP/complete-tree.log"
+      - name: Archive the tested unsigned candidate for protected signing
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/candidate-artifact"
+          tar -C "$RUNNER_TEMP/candidate" -cf "$RUNNER_TEMP/candidate-artifact/candidate.tar" .
+          cd "$RUNNER_TEMP/candidate-artifact"
+          sha256sum candidate.tar > candidate.tar.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-flatpak-candidate
+          path: ${{ runner.temp }}/candidate-artifact/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signed-flatpak-validation-evidence
+          path: |
+            ${{ runner.temp }}/validated/*.log
+            ${{ runner.temp }}/validated/*.json
+            ${{ runner.temp }}/validated/*.md
+            ${{ runner.temp }}/signed-tests.log
+            ${{ runner.temp }}/signed-tests/
+            ${{ runner.temp }}/native-signing.log
+            ${{ runner.temp }}/complete-tree.log
+            ${{ runner.temp }}/prepared/preparation.json
+  request-publication:
+    needs: build
+    if: inputs.publish
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Request the existing protected combined Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE_RUN: ${{ github.run_id }}
+        run: gh workflow run package-publishing.yml --ref main -f tag=v1.5.0 -F publish=true -f "flatpak_run=$CANDIDATE_RUN"
