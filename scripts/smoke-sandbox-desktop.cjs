@@ -33,7 +33,7 @@ const {_electron:electron}=require('playwright-core');
    await page.locator('[data-view="connect"]').click();
    if(process.env.AIRDROP_TEST_LAN_ADDRESS)await page.locator('#lanInterface').selectOption(process.env.AIRDROP_TEST_LAN_ADDRESS);
    await page.locator('#connectLan').click();
-   await page.waitForFunction(async()=>(await window.airdrop.devices('state')).status==='ready');
+   await page.waitForFunction(()=>document.getElementById('deviceStatus').dataset.status==='ready');
    const state=await page.evaluate(()=>window.airdrop.devices('state'));
    assert.equal(state.status,'ready',state.message);
    assert.ok(!state.url.includes('127.0.0.1'));
@@ -98,11 +98,9 @@ const {_electron:electron}=require('playwright-core');
    console.log('flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)');
    if(process.env.AIRDROP_TEST_TAILSCALE_BOOTSTRAP==='1'){
     await page.locator('#connectTailnet').click();
-    await page.waitForFunction(async()=>{
-     const state=await window.airdrop.devices('state');
-     if(['error','disconnected'].includes(state.status))throw Error(state.message);
-     return !!state.authURL;
-    },{},{timeout:75000});
+    // Poll a synchronous DOM condition. A promise is truthy before an async
+    // IPC predicate resolves, so it must not be used as the polling predicate.
+    await page.locator('#deviceLogin').waitFor({state:'visible',timeout:75000});
     const tailnet=await page.evaluate(()=>window.airdrop.devices('state'));
     assert.equal(new URL(tailnet.authURL).hostname,'login.tailscale.com');
     assert.equal(new URL(tailnet.authURL).protocol,'https:');
