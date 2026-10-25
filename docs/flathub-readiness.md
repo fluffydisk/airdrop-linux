@@ -1,5 +1,11 @@
 # Flathub technical readiness
 
+For the current manifest analysis, repeatable local commands and remaining
+submission blockers, see [the submission runbook](flathub-submission.md).
+The older audit results below are historical evidence, not results from this checkout.
+The [follow-up technical review](flathub-technical-review.md) covers the standalone
+draft, exact Electron source inputs, host dependence and current test evidence.
+
 For the 2026-10-22 inspection of the preserved source-build branch, including the
 successful Node/dufs SDK build and the Electron sysroot failure, see the
 [distribution status report](distribution-status.md#flathub-remains-independent).
@@ -59,32 +65,23 @@ lint. The runtime test and lint-readiness results are intentionally separate:
 successfully running a Flatpak does not establish Flathub acceptance.
 
 The manifest uses matching desktop/metadata/icon identifiers, a checksum-pinned
-512-pixel icon, Freedesktop/Electron BaseApp 25.08, Wayland/fallback-X11 and portals
+512-pixel icon, Freedesktop/Electron BaseApp 26.08, Wayland/fallback-X11 and portals
 without granting the entire home directory. Screenshot metadata now uses the
 immutable v1.5.0 tag. Tailscale stays on the host; local sharing operates without a
 VPN daemon in the sandbox.
 
 ## Acceptance blockers
 
-1. **Source build:** the existing manifest unpacks the prebuilt
-   `airdrop-flatpak-*.tar.gz` payload, including Electron, Node, dufs and installed
-   npm modules. Pinning a binary payload's SHA-256 is not a source build. Flathub
-   requires source-available application components and bundled runtime
-   dependencies to build from source, with dependencies available offline.
-   A compliant source-build recipe has not been completed or certified here.
-   `bash scripts/prepare-offline-npm.sh NEW_OUTPUT_DIRECTORY` now prepares an
-   integrity-checked npm cache from the existing server/desktop lockfiles. It
-   reinstalls production dependencies into fresh directories with `npm ci
-   --offline`, lifecycle scripts disabled and an unusable registry URL, then
-   loads each direct production dependency. Both architecture CI jobs run it.
-   This verifies npm dependency availability only: it neither builds Electron,
-   Node or dufs from source nor replaces a network-isolated Flatpak build.
-   The inline C portal helper must also become a separately fetched source file
-   under Flathub's prohibition on embedding application/dependency source code in
-   a manifest.
-   The human packaging maintainer must select supported SDK extensions, pin app
-   sources, generate npm/Cargo dependency sources from lockfiles, and build and
-   test offline. Bundled runtime exceptions require explicit reviewer agreement.
+1. **Source build:** the upstream YAML now assembles the pinned application
+   source, builds dufs offline from source and uses generated npm/Cargo sources.
+   Node comes from the signed SDK extension. The background portal helper is a
+   C file in the application source archive. The separate `--local` payload
+   fixture in Package validation still exists and is not this YAML recipe.
+   **Electron is still a precompiled official archive.** The entirely-from-source
+   requirement also covers bundled source-available runtime dependencies; a
+   checksum does not establish compliance and no exception has been granted.
+   An accepted, verified offline Electron build remains necessary. The previous
+   source-build branch's incomplete work is historical evidence only.
 2. **Application ID preparation:** the source now uses
    `io.github.fluffydisk.airdrop-linux`, mapping exactly to the reachable
    `https://github.com/fluffydisk/airdrop-linux`. It has four components and the

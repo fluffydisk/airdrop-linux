@@ -59,7 +59,11 @@ for s in app['sources']:
 shutil.copytree('packaging/flatpak/build-tools',source/'build-tools')
 subprocess.run(['flatpak-node-generator','--no-devel','-r','--max-parallel','12','-o','packaging/flatpak/generated-npm-sources.json','npm',str(source/'package-lock.json')],check=True)
 subprocess.run([sys.executable,os.environ['FLATPAK_BUILDER_TOOLS']+'/cargo/flatpak-cargo-generator.py',str(dufs_source/'Cargo.lock'),'-o','packaging/flatpak/generated-cargo-sources.json'],check=True)
-manifest_path.write_text('# AI-assisted upstream packaging; not a Flathub submission.\n'+yaml.safe_dump(manifest,sort_keys=False,width=110))
+class IndentedDumper(yaml.SafeDumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super().increase_indent(flow, False)
+manifest_text=yaml.dump(manifest,Dumper=IndentedDumper,sort_keys=False,width=110)
+manifest_path.write_text('# AI-assisted upstream packaging; not a Flathub submission.\n'+manifest_text.replace('  - name:', '\n  - name:'))
 import xml.etree.ElementTree as ET
 metadata=pathlib.Path('packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml')
 tree=ET.parse(metadata)
@@ -69,4 +73,5 @@ if not any(r.get('version')==tag[1:] for r in releases):
     releases.insert(0,ET.Element('release',{'version':tag[1:],'date':date}))
     tree.write(metadata,encoding='utf-8',xml_declaration=True)
 pathlib.Path('packaging/flatpak/source-provenance.json').write_text(json.dumps({'tag':tag,'applicationCommit':commit,'applicationArchiveSha256':digest(archive),'node':'signed org.freedesktop.Sdk.Extension.node24//26.08','dufs':dufs_version,'dufsCommit':dufs_commit,'electron':electron,'electronOrigin':'official prebuilt archive; not compiled Chromium','packagingOrigin':'AI-assisted'},indent=2)+'\n')
+subprocess.run([sys.executable,'scripts/check-flatpak-inputs.py','--application-source',str(source)],check=True)
 PY

@@ -6,4 +6,5 @@ Exec=airdrop-desktop
 Icon=io.github.fluffydisk.airdrop-linux
 Terminal=false
 Categories=Network;FileTransfer;
+Keywords=files;transfer;clipboard;sharing;Tailscale;
 StartupWMClass=io.github.fluffydisk.airdrop-linux

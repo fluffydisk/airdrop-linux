@@ -26,7 +26,7 @@ function icon(id, className) {
 }
 function status(value) {
   const node = document.getElementById('health'); node.textContent = value.label; node.dataset.status = value.status;
-  node.title = value.status === 'ready' ? 'Your workspace is ready for your other devices.' : 'Start the Airdrop services to make files available across your devices.';
+  node.title = value.status === 'ready' ? 'Local files and clipboard are available. Check the saved address in Settings for remote access.' : 'Start the local Airdrop services. Cross-device access also requires host Tailscale, HTTPS and Serve.';
 }
 function theme(value) {
   document.documentElement.dataset.theme = value;
@@ -173,8 +173,16 @@ document.getElementById('folder').onclick = () => navigate('files');
 document.getElementById('pwa').onclick = () => window.airdrop.pwa().catch(report);
 document.getElementById('saveUrl').onclick = async () => {
   const button = document.getElementById('saveUrl'); button.disabled = true;
-  try { const url = await window.airdrop.saveUrl(document.getElementById('url').value.trim()); document.getElementById('url').value = url; message(`Saved: ${url}`, 'success', document.getElementById('settingsResult')); }
+  try { const url = await window.airdrop.saveUrl(document.getElementById('url').value.trim()); document.getElementById('url').value = url; message(`Saved: ${url}. Connection has not been checked.`, 'success', document.getElementById('settingsResult')); document.getElementById('connectionResult').hidden = true; }
   catch (error) { report(error); }
+  finally { button.disabled = false; }
+};
+document.getElementById('checkConnection').onclick = async () => {
+  const button = document.getElementById('checkConnection'); button.disabled = true;
+  const target = document.getElementById('connectionResult');
+  message('Checking the saved address…', 'pending', target);
+  try { const connection = await window.airdrop.checkConnection(); message(connection.message, connection.status === 'reachable' ? 'success' : 'error', target); }
+  catch (error) { message(error.message, 'error', target); }
   finally { button.disabled = false; }
 };
 renderQueue();

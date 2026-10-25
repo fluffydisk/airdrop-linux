@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard, net } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -11,6 +11,7 @@ const { validName, rootDirectory } = require('./core/lib/files');
 const { sendFiles } = require('./core/lib/transfer');
 const { getPaths } = require('./core/lib/paths');
 const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
+const { workspaceUrl, checkConnection } = require('./connection');
 const paths = getPaths();
 const distribution = require('./core/lib/installation').distribution();
 if (process.platform === 'linux' && distribution.managed) {
@@ -48,7 +49,7 @@ async function health() {
   };
   const [files, api] = await Promise.all([check(`http://127.0.0.1:${process.env.AIRDROP_FILE_PORT || 5000}/?json`), check(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/push/health`)]);
   state = { status: files && api ? 'ready' : files || api ? 'partial' : 'offline',
-    label: files && api ? 'Ready to share' : files || api ? 'Needs attention' : 'Server unavailable' };
+    label: files && api ? 'Local workspace ready' : files || api ? 'Needs attention' : 'Local server unavailable' };
   if (window && !window.isDestroyed()) window.webContents.send('airdrop:status', state);
   if (tray) {
     tray.setToolTip(`Airdrop: ${state.label}`);
@@ -64,8 +65,7 @@ async function readSettings() {
   let pwaUrl = '';
   try {
     const saved = JSON.parse(await fs.promises.readFile(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
-    const url = new URL(saved.pwaUrl);
-    if (url.protocol === 'https:' && url.hostname.endsWith('.ts.net') && !url.username && !url.password && !url.port) pwaUrl = url.href;
+    pwaUrl = workspaceUrl(saved.pwaUrl);
   } catch {}
   return { pwaUrl, deviceName: os.hostname() };
 }
@@ -76,6 +76,11 @@ async function openPwa() {
       message: 'Connect your workspace', detail: 'Add your Tailscale HTTPS address in Settings for access across devices. You can also open the local web app on this computer.' });
     if (response.response !== 0) return;
     url = `http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`;
+  } else if ((await checkConnection(url, net.fetch)).status !== 'reachable') {
+    const response = await dialog.showMessageBox(window, { type: 'warning', buttons: ['Open local web app', 'Open saved address', 'Cancel'], defaultId: 0, cancelId: 2,
+      message: 'Workspace address unavailable', detail: 'Check host Tailscale sign-in, tailnet HTTPS and Tailscale Serve. You can keep using the local workspace or try the saved address in your browser.' });
+    if (response.response === 2) return;
+    if (response.response === 0) url = `http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`;
   }
   await shell.openExternal(url);
 }
@@ -196,17 +201,16 @@ function registerIpc() {
     return files.filter(Boolean).sort((a, b) => b.modified - a.modified).slice(0, 50);
   });
   ipcMain.handle('airdrop:settings', event => { ownWindow(event); return readSettings(); });
+  ipcMain.handle('airdrop:connection', async event => { ownWindow(event); return checkConnection((await readSettings()).pwaUrl, net.fetch); });
   ipcMain.handle('airdrop:status', event => { ownWindow(event); return state; });
   ipcMain.handle('airdrop:folder', event => { ownWindow(event); window.webContents.send('airdrop:show-files'); });
   ipcMain.handle('airdrop:pwa', event => { ownWindow(event); return openPwa(); });
   ipcMain.handle('airdrop:save-url', async (event, input) => {
     ownWindow(event);
-    const url = new URL(input);
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.ts.net') || url.username || url.password || url.port) throw new Error('Enter a Tailscale HTTPS URL ending in .ts.net');
-    url.pathname = '/ui/'; url.search = ''; url.hash = '';
+    const url = workspaceUrl(input);
     await fs.promises.mkdir(app.getPath('userData'), { recursive: true });
-    await fs.promises.writeFile(path.join(app.getPath('userData'), 'settings.json'), JSON.stringify({ pwaUrl: url.href }), { mode: 0o600 });
-    return url.href;
+    await fs.promises.writeFile(path.join(app.getPath('userData'), 'settings.json'), JSON.stringify({ pwaUrl: url }), { mode: 0o600 });
+    return url;
   });
 }
 if (!app.requestSingleInstanceLock()) app.quit();

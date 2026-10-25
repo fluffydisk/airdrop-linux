@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('airdrop', {
   describe: files => ipcRenderer.invoke('airdrop:describe', files),
   recent: () => ipcRenderer.invoke('airdrop:recent'),
   settings: () => ipcRenderer.invoke('airdrop:settings'),
+  checkConnection: () => ipcRenderer.invoke('airdrop:connection'),
   send: (files, zip, directory) => ipcRenderer.invoke('airdrop:send', files, zip, directory),
   explore: (action, payload) => ipcRenderer.invoke('airdrop:explorer', action, payload),
   onShowFiles: callback => ipcRenderer.on('airdrop:show-files', callback),

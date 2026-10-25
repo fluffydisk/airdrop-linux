@@ -1,0 +1,133 @@
+# TECHNICAL REFERENCE — AI-assisted; not a Flathub submission.
+# Based on the existing upstream v1.5.0 recipe. All source pins are real;
+# no guessed Electron source-build commands or placeholder hashes are included.
+#
+# Review items:
+# 1. Replace the prebuilt Electron inputs with a verified offline source build,
+#    or obtain an explicit exception from Flathub; none has been granted.
+# 2. Complete clean builds, repository lint and installed desktop acceptance
+#    on x86_64, including portals, X11/Wayland and real Tailscale access.
+#    flathub.json restricts this reference to the validated x86_64 architecture.
+# 3. Ship final metadata/build helpers upstream, refresh the real screenshot,
+#    and revisit host Tailscale setup under the inclusion requirements.
+# 4. This draft retains its AI-assisted provenance. Human review alone does not
+#    establish compliance with Flathub's manifest authorship restriction.
+#
+# This directory is self-contained: generated dependency lists and patches
+# live beside this manifest. Build helpers and metadata are fetched from an
+# immutable upstream packaging commit with verified SHA-256 checksums.
+# See README.md and upstream docs/flatpak-reference.md for validation evidence.
+app-id: io.github.fluffydisk.airdrop-linux
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node24
+  - org.freedesktop.Sdk.Extension.rust-stable
+base: org.electronjs.Electron2.BaseApp
+base-version: '26.08'
+command: airdrop-desktop
+separate-locales: false
+# REVIEW: local files/clipboard do not require Tailscale. Cross-device use
+# depends on separately configured host Tailscale Serve and needs inclusion review.
+# Network supports loopback services, transfers and Web Push.
+# Filesystem selection/open/export and background consent use portals.
+# No whole-host/home filesystem, unrestricted bus or host-execution grant.
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --env=GTK_USE_PORTAL=1
+modules:
+
+  # Node comes from the signed SDK extension, not a workstation binary.
+  - name: node
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 /usr/lib/sdk/node24/bin/node /app/lib/airdrop-linux/runtime/node
+      - mkdir -p /app/share/licenses/$FLATPAK_ID/node
+      - cp -a /usr/lib/sdk/node24/share/licenses/. /app/share/licenses/$FLATPAK_ID/node/
+
+  # dufs and its lockfile-derived Cargo dependencies compile offline.
+  - name: dufs
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/dufs/cargo
+        CARGO_NET_OFFLINE: 'true'
+    build-commands:
+      - cargo build --offline --locked --release --bin dufs -j$FLATPAK_BUILDER_N_JOBS
+      - install -Dm755 target/release/dufs /app/lib/airdrop-linux/runtime/dufs
+      - install -Dm644 LICENSE-MIT /app/share/licenses/$FLATPAK_ID/dufs/LICENSE-MIT
+      - mkdir -p /app/share/licenses/$FLATPAK_ID/dufs-dependencies /app/share/licenses/$FLATPAK_ID/rust-runtime
+      - find cargo/vendor -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'copyright*'
+        \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/dufs-dependencies/ \;
+      - find /usr/lib/sdk/rust-stable -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname
+        'copyright*' \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/rust-runtime/ \;
+    sources:
+      - type: archive
+        url: https://codeload.github.com/sigoden/dufs/tar.gz/b69946df232ceca5d24d0067f2beb6b5ed1c292c
+        sha256: c4f9b0a2f736bde8959c5e69967652326aaed4cc60b5a89a4b2b87739c65cb3c
+        archive-type: tar-gzip
+      - generated-cargo-sources.json
+
+  # REVIEW: pinned v1.5.0 plus its explicit desktop-identity patch.
+  # A future release containing that fix must omit the compatibility patch.
+  - name: airdrop-linux
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node24/bin
+      env:
+        npm_config_cache: /run/build/airdrop-linux/flatpak-node/npm-cache
+        npm_config_offline: 'true'
+        npm_config_ignore_scripts: 'true'
+    build-commands:
+      - bash install-flatpak.sh
+    sources:
+      - type: archive
+        url: https://codeload.github.com/fluffydisk/airdrop-linux/tar.gz/2a66fabc4cac57381ab5c5ddbb9d5065e274cf04
+        sha256: c42fe61d3210303d6279c28c0bfc9c00e6a3faa590b8ca3ed7c3d9f31f2cd182
+        archive-type: tar-gzip
+      - type: patch
+        path: application-id.patch
+      - type: patch
+        path: connection.patch
+      - type: patch
+        path: dependency-security.patch
+      # BLOCKER: this Electron archive is a precompiled binary.
+      # Checksums establish integrity, not an entirely-from-source build.
+      # The current installer expects electron-runtime/; a replacement source
+      # build must provide the equivalent runtime layout or update the installer.
+      - type: archive
+        url: https://github.com/electron/electron/releases/download/v44.9.3/electron-v44.9.3-linux-x64.zip
+        sha256: 6e7fd2d450d442507b846ace4ae6e2bd17e1b1653e86a033b5231abfc23e6df4
+        dest: electron-runtime
+        strip-components: 0
+        only-arches:
+          - x86_64
+      - generated-npm-sources.json
+      # Packaging inputs are fetched from immutable upstream commit 54382392.
+      # metadata.patch applies the reviewed desktop keywords and store text.
+      - type: file
+        url: https://raw.githubusercontent.com/fluffydisk/airdrop-linux/54382392a6897eda9629de7ba4a48926d0a774fd/packaging/flatpak/install-flatpak.sh
+        sha256: f16eb031cfbc06cf6679ebccdec0f9913048c4da3b9f51f05f4ff3bb3ead4bd2
+      - type: file
+        url: https://raw.githubusercontent.com/fluffydisk/airdrop-linux/54382392a6897eda9629de7ba4a48926d0a774fd/packaging/flatpak/build-tools/package.json
+        sha256: a91a9ee01cf3e7cec945a6ba2392906fe78fd981cd765017bed673ca57931850
+        dest: build-tools
+      - type: file
+        url: https://raw.githubusercontent.com/fluffydisk/airdrop-linux/54382392a6897eda9629de7ba4a48926d0a774fd/packaging/flatpak/build-tools/package-lock.json
+        sha256: e0eab24b00762d6aaee0486651b96552b1ffd4821353d7860eefb3d924c0b913
+        dest: build-tools
+      - type: file
+        url: https://raw.githubusercontent.com/fluffydisk/airdrop-linux/54382392a6897eda9629de7ba4a48926d0a774fd/packaging/io.github.fluffydisk.airdrop-linux.desktop
+        sha256: 3497b1ef9ce2092c11f30cf6d611b95de3cab324ebf3adc4e3aceea56d297558
+      - type: file
+        url: https://raw.githubusercontent.com/fluffydisk/airdrop-linux/54382392a6897eda9629de7ba4a48926d0a774fd/packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml
+        sha256: 4c21a484fbf7c3d39efcc4f13ffa3275fdcca064303865ffd56291f2610a8e9b
+      - type: patch
+        path: metadata.patch

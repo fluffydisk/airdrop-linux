@@ -16,6 +16,20 @@ async function fixture(t) {
   t.after(() => fs.rm(home, { recursive: true, force: true }));
   return getPaths({ home, dataHome: path.join(home, '.local/share'), root: path.join(home, 'airdrop') });
 }
+test('malformed compressed request bodies return an error without stopping the service', async t => {
+  const p = await fixture(t); await prepare(p);
+  const service = createServer({ watchDir: p.files, stateDir: p.pushState, watch: false });
+  const server = service.app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(async () => { service.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const compressed = require('node:zlib').gzipSync(Buffer.from('{"files":[]}'));
+  const response = await fetch(base+'/archive', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+    body: Buffer.concat([compressed, Buffer.from('trailing compressed-body bytes')]) });
+  assert.equal(response.status, 400);
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal((await fetch(base+'/health')).status, 200);
+});
 test('unified layout migrates files, collisions, clipboard, credentials and desktop preferences without losing originals', async t => {
   const p = await fixture(t);
   for (const directory of [p.legacyShare, p.legacyServer, p.legacyDesktop, p.legacyDesktopData, p.files]) await fs.mkdir(directory, { recursive: true });

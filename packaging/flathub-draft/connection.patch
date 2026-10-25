@@ -1,0 +1,152 @@
+--- a/desktop/main.js
++++ b/desktop/main.js
+@@ -1,5 +1,5 @@
+ 'use strict';
+-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard } = require('electron');
++const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard, net } = require('electron');
+ const fs = require('node:fs');
+ const path = require('node:path');
+ const os = require('node:os');
+@@ -11,6 +11,7 @@
+ const { sendFiles } = require('./core/lib/transfer');
+ const { getPaths } = require('./core/lib/paths');
+ const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
++const { workspaceUrl, checkConnection } = require('./connection');
+ const paths = getPaths();
+ const distribution = require('./core/lib/installation').distribution();
+ if (process.platform === 'linux' && distribution.managed) {
+@@ -48,7 +49,7 @@
+   };
+   const [files, api] = await Promise.all([check(`http://127.0.0.1:${process.env.AIRDROP_FILE_PORT || 5000}/?json`), check(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/push/health`)]);
+   state = { status: files && api ? 'ready' : files || api ? 'partial' : 'offline',
+-    label: files && api ? 'Ready to share' : files || api ? 'Needs attention' : 'Server unavailable' };
++    label: files && api ? 'Local workspace ready' : files || api ? 'Needs attention' : 'Local server unavailable' };
+   if (window && !window.isDestroyed()) window.webContents.send('airdrop:status', state);
+   if (tray) {
+     tray.setToolTip(`Airdrop: ${state.label}`);
+@@ -64,8 +65,7 @@
+   let pwaUrl = '';
+   try {
+     const saved = JSON.parse(await fs.promises.readFile(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
+-    const url = new URL(saved.pwaUrl);
+-    if (url.protocol === 'https:' && url.hostname.endsWith('.ts.net') && !url.username && !url.password && !url.port) pwaUrl = url.href;
++    pwaUrl = workspaceUrl(saved.pwaUrl);
+   } catch {}
+   return { pwaUrl, deviceName: os.hostname() };
+ }
+@@ -76,6 +76,11 @@
+       message: 'Connect your workspace', detail: 'Add your Tailscale HTTPS address in Settings for access across devices. You can also open the local web app on this computer.' });
+     if (response.response !== 0) return;
+     url = `http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`;
++  } else if ((await checkConnection(url, net.fetch)).status !== 'reachable') {
++    const response = await dialog.showMessageBox(window, { type: 'warning', buttons: ['Open local web app', 'Open saved address', 'Cancel'], defaultId: 0, cancelId: 2,
++      message: 'Workspace address unavailable', detail: 'Check host Tailscale sign-in, tailnet HTTPS and Tailscale Serve. You can keep using the local workspace or try the saved address in your browser.' });
++    if (response.response === 2) return;
++    if (response.response === 0) url = `http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`;
+   }
+   await shell.openExternal(url);
+ }
+@@ -196,17 +201,16 @@
+     return files.filter(Boolean).sort((a, b) => b.modified - a.modified).slice(0, 50);
+   });
+   ipcMain.handle('airdrop:settings', event => { ownWindow(event); return readSettings(); });
++  ipcMain.handle('airdrop:connection', async event => { ownWindow(event); return checkConnection((await readSettings()).pwaUrl, net.fetch); });
+   ipcMain.handle('airdrop:status', event => { ownWindow(event); return state; });
+   ipcMain.handle('airdrop:folder', event => { ownWindow(event); window.webContents.send('airdrop:show-files'); });
+   ipcMain.handle('airdrop:pwa', event => { ownWindow(event); return openPwa(); });
+   ipcMain.handle('airdrop:save-url', async (event, input) => {
+     ownWindow(event);
+-    const url = new URL(input);
+-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.ts.net') || url.username || url.password || url.port) throw new Error('Enter a Tailscale HTTPS URL ending in .ts.net');
+-    url.pathname = '/ui/'; url.search = ''; url.hash = '';
++    const url = workspaceUrl(input);
+     await fs.promises.mkdir(app.getPath('userData'), { recursive: true });
+-    await fs.promises.writeFile(path.join(app.getPath('userData'), 'settings.json'), JSON.stringify({ pwaUrl: url.href }), { mode: 0o600 });
+-    return url.href;
++    await fs.promises.writeFile(path.join(app.getPath('userData'), 'settings.json'), JSON.stringify({ pwaUrl: url }), { mode: 0o600 });
++    return url;
+   });
+ }
+ if (!app.requestSingleInstanceLock()) app.quit();
+--- a/desktop/index.html
++++ b/desktop/index.html
+@@ -79,7 +79,7 @@
+     </section>
+     <section id="view-settings" class="view" hidden>
+       <div class="page-heading"><div class="eyebrow">MAKE YOURSELF AT HOME</div><h1>Your workspace.</h1><p>A few thoughtful details, just the way you like them.</p></div>
+-      <section class="settings-card"><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>Connect your web app</h2><p>Add your Tailscale address to open Airdrop on this computer and your other devices.</p><label class="field-label" for="url">Workspace address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Use the HTTPS address shown after installing Airdrop.</p><div id="settingsResult" class="result" role="status" hidden></div></section>
++      <section class="settings-card"><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>Connect your web app</h2><p>Local files and clipboard work on this computer. Access from other devices requires Tailscale installed and signed in on the host, tailnet HTTPS and Tailscale Serve.</p><label class="field-label" for="url">Workspace address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></section>
+       <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
+       <section class="settings-card"><h2>Updates</h2><button id="stopSharing" type="button">Quit desktop</button>
+           <p id="portableNote" hidden>AppImage desktop companion: the local server and Tailscale must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
+--- a/desktop/renderer.js
++++ b/desktop/renderer.js
+@@ -26,7 +26,7 @@
+ }
+ function status(value) {
+   const node = document.getElementById('health'); node.textContent = value.label; node.dataset.status = value.status;
+-  node.title = value.status === 'ready' ? 'Your workspace is ready for your other devices.' : 'Start the Airdrop services to make files available across your devices.';
++  node.title = value.status === 'ready' ? 'Local files and clipboard are available. Check the saved address in Settings for remote access.' : 'Start the local Airdrop services. Cross-device access also requires host Tailscale, HTTPS and Serve.';
+ }
+ function theme(value) {
+   document.documentElement.dataset.theme = value;
+@@ -173,8 +173,16 @@
+ document.getElementById('pwa').onclick = () => window.airdrop.pwa().catch(report);
+ document.getElementById('saveUrl').onclick = async () => {
+   const button = document.getElementById('saveUrl'); button.disabled = true;
+-  try { const url = await window.airdrop.saveUrl(document.getElementById('url').value.trim()); document.getElementById('url').value = url; message(`Saved: ${url}`, 'success', document.getElementById('settingsResult')); }
++  try { const url = await window.airdrop.saveUrl(document.getElementById('url').value.trim()); document.getElementById('url').value = url; message(`Saved: ${url}. Connection has not been checked.`, 'success', document.getElementById('settingsResult')); document.getElementById('connectionResult').hidden = true; }
+   catch (error) { report(error); }
++  finally { button.disabled = false; }
++};
++document.getElementById('checkConnection').onclick = async () => {
++  const button = document.getElementById('checkConnection'); button.disabled = true;
++  const target = document.getElementById('connectionResult');
++  message('Checking the saved address…', 'pending', target);
++  try { const connection = await window.airdrop.checkConnection(); message(connection.message, connection.status === 'reachable' ? 'success' : 'error', target); }
++  catch (error) { message(error.message, 'error', target); }
+   finally { button.disabled = false; }
+ };
+ renderQueue();
+--- a/desktop/preload.js
++++ b/desktop/preload.js
+@@ -11,6 +11,7 @@
+   describe: files => ipcRenderer.invoke('airdrop:describe', files),
+   recent: () => ipcRenderer.invoke('airdrop:recent'),
+   settings: () => ipcRenderer.invoke('airdrop:settings'),
++  checkConnection: () => ipcRenderer.invoke('airdrop:connection'),
+   send: (files, zip, directory) => ipcRenderer.invoke('airdrop:send', files, zip, directory),
+   explore: (action, payload) => ipcRenderer.invoke('airdrop:explorer', action, payload),
+   onShowFiles: callback => ipcRenderer.on('airdrop:show-files', callback),
+--- /dev/null
++++ b/desktop/connection.js
+@@ -0,0 +1,29 @@
++'use strict';
++
++function workspaceUrl(input) {
++  let url;
++  try { url = new URL(input); } catch { throw new Error('Enter a Tailscale HTTPS URL ending in .ts.net'); }
++  if (url.protocol !== 'https:' || !url.hostname.endsWith('.ts.net') || url.username || url.password || url.port) {
++    throw new Error('Enter a Tailscale HTTPS URL ending in .ts.net');
++  }
++  url.pathname = '/ui/'; url.search = ''; url.hash = '';
++  return url.href;
++}
++
++// Checks application reachability, not the host VPN daemon or another device.
++async function checkConnection(input, request = fetch) {
++  const checkedAt = new Date().toISOString();
++  if (!input) return { status: 'not-configured', checkedAt, message: 'No workspace address is saved. Local files and clipboard are still available.' };
++  try {
++    const url = new URL('/push/health', workspaceUrl(input));
++    const response = await request(url.href, { signal: AbortSignal.timeout(5000), redirect: 'error', credentials: 'omit' });
++    if (!response.ok) throw new Error('Workspace health request failed');
++    const health = await response.json();
++    if (health?.push !== true || health?.share !== true) throw new Error('Workspace services are not ready');
++    return { status: 'reachable', checkedAt, message: 'The saved workspace address is reachable from this computer. Access from another device is not verified.' };
++  } catch {
++    return { status: 'unreachable', checkedAt, message: 'The saved workspace address could not be reached securely. Check host Tailscale sign-in, tailnet HTTPS and Tailscale Serve. Local files and clipboard are still available.' };
++  }
++}
++
++module.exports = { workspaceUrl, checkConnection };

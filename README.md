@@ -34,10 +34,36 @@ verified; the first tested amd64/ARM64 uploads await Store sandbox-interface rev
 Flathub remains blocked by source-build and human-authorship requirements.
 See the [distribution status and evidence](docs/distribution-status.md).
 
-Independent [upstream Flatpak packaging](docs/flatpak-distribution.md) uses its
-own build, lint, installation and release workflow. Bundles are added to
-[GitHub Releases](https://github.com/fluffydisk/airdrop-linux/releases) after
-both architecture checks pass; Flathub availability is a separate process.
+### Flatpak on Omarchy / Arch Linux (x86_64)
+
+Download the tested [v1.5.0 x86_64 Flatpak revision r1](https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak).
+This is an independent upstream bundle, not a Flathub listing. Existing release
+assets are retained; use the filename below to select this tested revision.
+
+```sh
+sudo pacman -S --needed flatpak
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+curl -fLO https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak
+curl -fLO https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r1.flatpak.sha256
+sha256sum -c airdrop-linux-1.5.0-x86_64-reference-r1.flatpak.sha256
+flatpak install --user ./airdrop-linux-1.5.0-x86_64-reference-r1.flatpak
+flatpak run --user io.github.fluffydisk.airdrop-linux
+```
+
+Flatpak downloads the required Freedesktop 26.08 runtime from Flathub. Quit any
+native Airdrop desktop/backend before launching: ports 5000/6001 must be free.
+If the same Flatpak ID is already installed, quit it and use `flatpak install
+--user --reinstall ./airdrop-linux-1.5.0-x86_64-reference-r1.flatpak`.
+To uninstall while retaining data, run `flatpak uninstall --user
+io.github.fluffydisk.airdrop-linux`; do not add `--delete-data` unless intended.
+
+This revision includes Electron 44.9.3 and the body-parser 1.20.9 security fix.
+Local files/clipboard work without Tailscale; cross-device sharing requires
+host Tailscale sign-in, tailnet HTTPS and Serve (see setup below). Electron is
+an official precompiled runtime, so Flathub source-build compliance remains
+unresolved; this does not prevent independent GitHub distribution. The package
+uses the Chromium sandbox. See the [technical evidence](docs/flathub-final-handoff.md)
+and [upstream distribution guide](docs/flatpak-distribution.md).
 
 For an installation made by the updated installer, quit the desktop and run
 `airdrop uninstall` to remove the app; it asks whether to retain shared files and

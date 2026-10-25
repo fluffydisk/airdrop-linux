@@ -1,0 +1,67 @@
+name: Validate standalone Flathub draft
+on:
+  pull_request:
+    paths:
+      - packaging/flathub-draft/**
+      - scripts/smoke-sandbox*
+      - scripts/test-flatpak-wayland.sh
+      - scripts/validate-flatpak-reference.py
+      - scripts/flatpak_reference_inputs.py
+      - scripts/stage-flatpak-reference.py
+      - scripts/audit-flatpak-reference.py
+      - scripts/test-flatpak-persistence.cjs
+      - scripts/check-flatpak-images.py
+      - scripts/test-background-portal.cjs
+      - tests/fixtures/background-portal.py
+      - desktop/**
+      - tests/desktop-connection.test.js
+      - tests/flatpak-reference.test.js
+      - .github/workflows/flathub-draft-checks.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x86_64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prepare disposable validation tools
+        run: |
+          set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml
+          npm ci --ignore-scripts
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder \
+            org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 \
+            org.electronjs.Electron2.BaseApp//26.08 \
+            org.freedesktop.Sdk.Extension.node24//26.08 \
+            org.freedesktop.Sdk.Extension.rust-stable//26.08
+      - name: Build and validate the independent reference
+        run: |
+          set -euo pipefail
+          runtime=$(mktemp -d)
+          XDG_RUNTIME_DIR="$runtime" python3 scripts/validate-flatpak-reference.py \
+            --arch "${{ matrix.arch }}" --builder sdk --output "$RUNNER_TEMP/draft-logs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flathub-reference-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/draft-logs/*.log
+            ${{ runner.temp }}/draft-logs/*.json
+            ${{ runner.temp }}/draft-logs/*.md
+            ${{ runner.temp }}/draft-logs/*.png
+          if-no-files-found: ignore

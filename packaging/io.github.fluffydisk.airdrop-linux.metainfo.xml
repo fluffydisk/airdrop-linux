@@ -6,11 +6,23 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <developer id="io.github.fluffydisk"><name>Airdrop Linux contributors</name></developer>
-  <description><p>Share files, ZIP archives and clipboard text between your Linux computer and mobile devices. Includes a local file server, a desktop file manager and a web app.</p><p>Sharing across devices requires Tailscale installed and configured separately on the host. Closing the window can keep sharing active with background permission. Stop sharing and quit ends the bundled server.</p></description>
+  <description>
+    <p>Share files and clipboard text through a local workspace with a desktop companion and a web app for your other devices.</p>
+    <ul>
+      <li>Add files individually or combine them into a ZIP archive</li>
+      <li>Browse shared files, organize folders and restore items from the workspace trash</li>
+      <li>Share clipboard text and save clipboard images as files</li>
+    </ul>
+    <p>Local file management and clipboard features work without Tailscale. Access from other devices requires Tailscale installed and signed in on the host, HTTPS enabled for your tailnet, and Tailscale Serve configured separately. See the setup instructions on the project website.</p>
+    <p>Background sharing requires desktop portal permission. Without permission, sharing stops when the window closes. Choose Stop sharing and quit to stop the bundled server.</p>
+  </description>
+  <categories><category>Network</category><category>FileTransfer</category></categories>
+  <keywords><keyword>files</keyword><keyword>transfer</keyword><keyword>clipboard</keyword><keyword>Tailscale</keyword></keywords>
   <launchable type="desktop-id">io.github.fluffydisk.airdrop-linux.desktop</launchable>
   <url type="homepage">https://github.com/fluffydisk/airdrop-linux</url>
   <url type="bugtracker">https://github.com/fluffydisk/airdrop-linux/issues</url>
-  <screenshots><screenshot type="default"><caption>File transfer and clipboard sharing</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.5.0/assets/airdrop-desktop.png</image></screenshot></screenshots>
+  <url type="help">https://github.com/fluffydisk/airdrop-linux#3-tailscale-and-https</url>
+  <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.5.0/assets/airdrop-desktop.png</image></screenshot></screenshots>
   <content_rating type="oars-1.1"/>
   <releases><release version="1.5.0" date="2026-10-21"/></releases>
 </component>

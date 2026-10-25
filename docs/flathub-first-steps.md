@@ -17,9 +17,11 @@ teknik öğrenme rehberidir; başvuruya kopyalanacak bir şablon içermez.
    oku. Özellikle kaynak koddan derleme, derleme sırasında ağ erişiminin olmaması,
    uygulama kimliği, portallar ve Generative AI policy bölümleri bu proje için
    belirleyici. Flatpak olarak çalışan her paket Flathub'a kabul edilmez.
-3. Uygulamanın teknik hazırlığının tamamlanmasını bekle. Mevcut test tarifi,
-   önceden derlenmiş Electron/Node/dufs paketlerini kullanıyor. Bu tarifin
-   çalışması, kaynak koddan çevrimdışı derlemenin hazır olduğu anlamına gelmez.
+3. [Güncel teknik durumu](flathub-submission.md) incele. Upstream YAML tarifi
+   uygulama kaynaklarını, SDK Node uzantısını ve kaynak koddan derlenen dufs'ı
+   kullanıyor; Electron hâlâ önceden derlenmiş arşivden geliyor. Ayrı yerel test
+   fixture'ının veya upstream tarifinin çalışması, Flathub için kaynak koddan
+   çevrimdışı derlemenin tamamlandığı anlamına gelmez.
 4. Teknik engeller giderildikten sonra manifesti bağımsız olarak kendin yaz.
    AI tarafından üretilmiş tarifi yeniden yazarak veya yalnızca gözden geçirerek
    bu gerekliliğin karşılandığını varsayma. Gerekirse

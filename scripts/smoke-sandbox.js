@@ -11,12 +11,13 @@ const path=require('node:path');
 const channel=process.argv[2];
 const id='io.github.fluffydisk.airdrop-linux';
 const base='http://127.0.0.1:6001';
+const flatpakRun=['run','--user',...(process.env.AIRDROP_TEST_HOME?['--env=AIRDROP_HOME='+process.env.AIRDROP_TEST_HOME]:[])];
 (async()=>{
  if(!['flatpak','snap'].includes(channel))throw new Error('Usage: smoke-sandbox.js flatpak|snap');
  let proc,log='',started=false,canary;
  try {
   if(channel==='flatpak'){
-   proc=spawn('flatpak',['run','--command=/app/lib/airdrop-linux/runtime/node',id,'/app/lib/airdrop-linux/server/scripts/managed-runtime.js','backend'],{stdio:['ignore','pipe','pipe']});
+   proc=spawn('flatpak',[...flatpakRun,'--command=/app/lib/airdrop-linux/runtime/node',id,'/app/lib/airdrop-linux/server/scripts/managed-runtime.js','backend'],{stdio:['ignore','pipe','pipe']});
    proc.stdout.on('data',chunk=>{log+=chunk;});proc.stderr.on('data',chunk=>{log+=chunk;});
    proc.on('error',error=>{log+=error.message;});started=true;
   }else{await run('sudo',['snap','start','--users=all','airdrop-linux.backend']);started=true;}
@@ -34,13 +35,28 @@ const base='http://127.0.0.1:6001';
   if(channel==='flatpak') {
    canary=path.join(os.homedir(),'.airdrop-sandbox-canary-'+require('node:crypto').randomUUID());
    await fs.writeFile(canary,'host-only canary',{flag:'wx',mode:0o600});
-   await run('flatpak',['run','--command=/app/lib/airdrop-linux/runtime/node',id,'-e',
+   await run('flatpak',['run','--user','--command=/app/lib/airdrop-linux/runtime/node',id,'-e',
     'const fs=require("node:fs"),assert=require("node:assert/strict"); assert.throws(()=>fs.readFileSync(process.argv[1]),e=>["ENOENT","EACCES"].includes(e.code)); assert.ok(process.env.XDG_DATA_HOME.includes("/.var/app/"+process.env.FLATPAK_ID+"/"));',canary]);
-   await assert.rejects(run('flatpak',['run','--command=/app/lib/airdrop-linux/runtime/node',id,'/app/lib/airdrop-linux/server/scripts/managed-runtime.js','backend']),error=>/Port 5000 is already in use/.test(error.stderr));
+   await assert.rejects(run('flatpak',[...flatpakRun,'--command=/app/lib/airdrop-linux/runtime/node',id,'/app/lib/airdrop-linux/server/scripts/managed-runtime.js','backend']),error=>/Port 5000 is already in use/.test(error.stderr));
    assert.equal((await fetch(base+'/push/health')).status,200,'A conflicting instance must not stop the original backend');
    console.log('flatpak: host home access denied, private data path and safe port conflict verified');
   }
   assert.equal((await fetch(base+'/ui/')).status,200);
+  if(channel==='flatpak') {
+   const listeners=(await Promise.all(['tcp','tcp6'].map(file=>fs.readFile('/proc/net/'+file,'utf8'))))
+    .flatMap(table=>table.trim().split('\n').slice(1).map(line=>line.trim().split(/\s+/)))
+    .filter(fields=>fields[3]==='0A'&&['1388','1771'].includes(fields[1].split(':')[1]));
+   assert.equal(listeners.length,2,'Both backend ports must have one listener each');
+   assert.ok(listeners.every(fields=>['0100007F','00000000000000000000000001000000'].includes(fields[1].split(':')[0])),
+    'Backend must never listen on LAN/wildcard addresses');
+   console.log(channel+': both backend listeners restricted to loopback');
+   const malformed=require('node:zlib').gzipSync(Buffer.from('{"files":[]}'));
+   const response=await fetch(base+'/push/archive',{method:'POST',headers:{'Content-Type':'application/json','Content-Encoding':'gzip'},body:Buffer.concat([malformed,Buffer.from('trailing compressed-body bytes')])});
+   assert.equal(response.status,400);
+   await new Promise(resolve=>setTimeout(resolve,100));
+   assert.equal((await fetch(base+'/push/health')).status,200,'Malformed compressed input must not crash the backend');
+   console.log('flatpak: GHSA-27r3-jxmh-p828 malformed compressed-body regression passed');
+  }
   const name=`sandbox-smoke-${Date.now()}.txt`;
   const uploaded=await fetch(base+'/push/files/'+name,{method:'PUT',body:'sandbox payload'});assert.equal(uploaded.status,201);
   assert.equal(await(await fetch(base+'/'+name)).text(),'sandbox payload');
