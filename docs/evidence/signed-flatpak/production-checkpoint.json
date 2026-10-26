@@ -1,0 +1,19 @@
+{
+  "candidate_run": 40245958434,
+  "candidate_conclusion": "success",
+  "publication_run": 40246905953,
+  "publication_status": "waiting",
+  "environment": "package-publishing",
+  "required_reviewer": "fluffydisk",
+  "production_signing_fingerprint": "6513D70958397F60D3787A0CB93F4FC1E97CF3AE",
+  "public_check": {
+    "url": "https://fluffydisk.github.io/airdrop-linux/flatpak-channel.json",
+    "status": 404,
+    "meaning": "Modern channel not deployed; legacy Flatpak remains public"
+  },
+  "existing_package_checks": {
+    "run": 40245958485,
+    "conclusion": "success",
+    "passed_jobs": 19
+  }
+}

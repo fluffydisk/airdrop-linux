@@ -15,7 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        # The current reference r2 and modern update channel are x86_64 only.
+        # Historical ARM release assets and native APT/RPM checks are unchanged.
+        runner: [ubuntu-24.04]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4

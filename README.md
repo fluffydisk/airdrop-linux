@@ -34,6 +34,16 @@ verified; the first tested amd64/ARM64 uploads await Store sandbox-interface rev
 Flathub remains blocked by source-build and human-authorship requirements.
 See the [distribution status and evidence](docs/distribution-status.md).
 
+### Signed Flatpak updates (x86_64)
+
+The new upstream update channel uses the existing protected GPG signer and GitHub
+Pages publisher. First activation requires the repository's existing deployment
+review. Until the signed channel receipt is published, the Pages URL still serves
+the older legacy Flatpak; the migration installer refuses to downgrade r2 to it.
+See [fresh installation, safe r2 migration and standard update commands](docs/signed-flatpak-updates.md)
+and [test evidence and activation status](docs/signed-flatpak-evidence.md).
+The standalone bundle below remains available for manual installation.
+
 ### Flatpak on Omarchy / Arch Linux (x86_64)
 
 Download the tested [v1.5.0 x86_64 Flatpak revision r2](https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak).

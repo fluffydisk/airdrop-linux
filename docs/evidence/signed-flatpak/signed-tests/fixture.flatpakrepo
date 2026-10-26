@@ -1,0 +1,6 @@
+[Flatpak Repo]
+Title=Airdrop Linux
+Url=http://127.0.0.1:43427/channel/flatpak/
+Homepage=https://github.com/fluffydisk/airdrop-linux
+Description=Signed upstream stable Flatpak updates (x86_64)
+GPGKey=mDMEat6V1BYJKwYBBAHaRw8BAQdA0nVr3QGe/oNJy3mTUvHBSCnZO9METSEIhc3O2Nzs2CG0KEZsYXRwYWsgdXBkYXRlIENJIDx0ZXN0QGV4YW1wbGUuaW52YWxpZD6ImQQTFgoAQRYhBPvZCuKW5SvsY6OFIiWY8vlugvFTBQJq3pXUAhsDBQkAAVGABQsJCAcCAiICBhUKCQgLAgQWAgMBAh4HAheAAAoJECWY8vlugvFTUEwBAJtvUoA19mHKJ1RTwqYJ1D2tUd5WjrbrJwVghQsX3R9uAP0bfj1rKI4WwMM4hXzascahiPHncGfkzCOeyzoE/ZpMBg==

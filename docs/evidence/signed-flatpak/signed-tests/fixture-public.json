@@ -1,0 +1,16 @@
+{
+  "app_id": "io.github.fluffydisk.airdrop-linux",
+  "arch": "x86_64",
+  "branch": "stable",
+  "build_run": "40245958434",
+  "channel": "stable",
+  "commit": "39a0dd6161148afcef9c6fcb1a1a9edc29a87f00fa493260ef347843c93ca464",
+  "revision": 3,
+  "schema": 1,
+  "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132",
+  "version": "1.5.0",
+  "workflow_commit": "7615fea6f53ee9ae5a784e1759d1f562120bf1f8",
+  "baseline_commit": "f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75",
+  "fingerprint": "FBD90AE296E52BEC63A385222598F2F96E82F153",
+  "repository_url": "http://127.0.0.1:43427/channel/flatpak/"
+}

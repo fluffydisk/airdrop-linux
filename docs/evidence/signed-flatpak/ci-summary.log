@@ -1,0 +1,20 @@
+2026-10-25T23:53:23.5509393Z VERIFIED: Clean GPG-verified installation of actual r2 application from HTTP repository
+2026-10-25T23:53:23.5543354Z {"signed_commit": "39a0dd6161148afcef9c6fcb1a1a9edc29a87f00fa493260ef347843c93ca464", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 173190127}
+2026-10-25T23:53:23.5545006Z VERIFIED: Real flatpak update fetched a newer signed commit and its new distribution payload; private data and Tailscale-state fixtures unchanged
+2026-10-25T23:53:23.5548867Z VERIFIED: Idempotent trusted-remote install/update
+2026-10-25T23:53:23.5555673Z VERIFIED: Wrong-key summary.sig signature rejected before installation
+2026-10-25T23:53:23.5556400Z VERIFIED: Wrong-key a0dd6161148afcef9c6fcb1a1a9edc29a87f00fa493260ef347843c93ca464.commitmeta signature rejected before installation
+2026-10-25T23:53:23.5557179Z VERIFIED: Existing remote with disabled GPG verification is rejected, never repaired silently
+2026-10-25T23:53:23.5557700Z VERIFIED: Existing remote with a different URL is rejected, never replaced silently
+2026-10-25T23:53:23.5559340Z VERIFIED: Existing remote with an additional untrusted signing key is rejected
+2026-10-25T23:53:23.5562711Z VERIFIED: Actual standalone r2 -> signed remote migration changed origin without duplicate app or data/identity fixture loss
+2026-10-25T23:53:23.5563565Z VERIFIED: User installation cannot be shadowed by --system
+2026-10-25T23:53:23.5564289Z VERIFIED: Signed repository older than the safe migration revision is rejected
+2026-10-25T23:53:23.5569393Z VERIFIED: Actual duplicate user/system installation is detected and left untouched
+2026-10-25T23:53:23.5571542Z VERIFIED: System installation cannot be shadowed by --user
+2026-10-25T23:53:23.5575103Z VERIFIED: Actual system r2 migration uses system remote and preserves the desktop user data/identity fixtures
+2026-10-25T23:53:23.5579558Z VERIFIED: Actual signed app backend transfer/LAN/QR/clipboard/lifecycle checks
+2026-10-25T23:53:23.5580693Z VERIFIED: Actual signed app desktop transfer/LAN/QR/clipboard/lifecycle checks
+2026-10-25T23:53:23.5581572Z VERIFIED: Application remains installed once with both summary/commit GPG checks enabled
+2026-10-25T23:54:54.4290248Z {"signed_commit": "31a0353d557b06b79166b03d01e31d54bebbba254b1da09e5c53a69c0bdd26bf", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 887811972}
+2026-10-25T23:54:54.5809231Z {"bytes": 887811972, "components": {"apt": 260635732, "rpm": 342171270, "flatpak": 284973688}, "official_limit": "https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits"}

@@ -1,0 +1,13 @@
+[Application]
+name=org.electronjs.Electron2.BaseApp
+runtime=org.freedesktop.Platform/x86_64/26.08
+sdk=org.freedesktop.Sdk/x86_64/26.08
+command=gvfs-trash
+
+[Extension org.electronjs.Electron2.BaseApp.Debug]
+directory=lib/debug
+autodelete=true
+no-autodownload=true
+
+[Build]
+built-extensions=org.electronjs.Electron2.BaseApp.Debug;org.electronjs.Electron2.BaseApp.Sources;

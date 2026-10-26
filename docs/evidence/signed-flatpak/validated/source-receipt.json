@@ -1,0 +1,16 @@
+{
+  "manifest": "io.github.fluffydisk.airdrop-linux.yml",
+  "expanded_sources": 1329,
+  "sha256": {
+    "io.github.fluffydisk.airdrop-linux.yml": "6ba165e5d768266998073757c48538979497b52f5851cf4efdf178e26d592f8f",
+    "generated-cargo-sources.json": "33d94164a2d7981da3f185e3270d97a8ef846960049d88bba8009d9e5b9cbbba",
+    "tsnet-vendor.tar.gz": "c302179bf3ab2fb78a33a1e9ae0bb902e7f5e61ce61b941ae79cdcf2ced03eca",
+    "generated-npm-sources.json": "f79f09179aaffee673e32e4f162d94bf26c9afdaf66259bf798099443c9611cc",
+    "metadata.patch": "18a1e2738aff7b98b6bc064861b4121f9f61e6ca14329ad322ea49aa7b2d4440",
+    "flathub.json": "ea3244674cae077059e8edc0ba1e3c6b386c897b6a834587eb203e29ed525617",
+    "README.md": "41bd8f45387bf0b1f451742a95496b79ccf8a4bede1b3d44a6cd5cafa6a70cc5"
+  },
+  "only_arches": [
+    "x86_64"
+  ]
+}

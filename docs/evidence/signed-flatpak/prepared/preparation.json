@@ -1,0 +1,8 @@
+{
+  "application_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132",
+  "application_archive_sha256": "e31e6294e14381b066918ee8bac0e1fd95bf8a8f71577780e95dea70526382e3",
+  "extra_verified_npm_archives": 21,
+  "vendor_sha256": "c302179bf3ab2fb78a33a1e9ae0bb902e7f5e61ce61b941ae79cdcf2ced03eca",
+  "tailscale_module": "v1.104.2",
+  "go_toolchain": "1.27.3"
+}

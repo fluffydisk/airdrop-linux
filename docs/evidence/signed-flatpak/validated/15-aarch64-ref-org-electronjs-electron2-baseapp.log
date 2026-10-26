@@ -1,0 +1,13 @@
+[Application]
+name=org.electronjs.Electron2.BaseApp
+runtime=org.freedesktop.Platform/aarch64/26.08
+sdk=org.freedesktop.Sdk/aarch64/26.08
+command=patch-electron-desktop-filename
+
+[Extension org.electronjs.Electron2.BaseApp.Debug]
+directory=lib/debug
+autodelete=true
+no-autodownload=true
+
+[Build]
+built-extensions=org.electronjs.Electron2.BaseApp.Debug;

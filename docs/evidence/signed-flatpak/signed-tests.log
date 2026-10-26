@@ -1,0 +1,92 @@
+Importing app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75)
+
+(flatpak build-import-bundle:14632): GLib-CRITICAL **: 23:50:44.589: g_str_has_prefix: assertion 'str != NULL' failed
+
+(flatpak build-import-bundle:14632): OSTree-CRITICAL **: 23:50:44.589: _ostree_repo_get_remote: assertion 'name != NULL' failed
+
+(flatpak build-import-bundle:14632): GLib-CRITICAL **: 23:50:44.589: g_propagate_error: assertion 'src != NULL' failed
+Updating appstream branch
+Updating summary
+Verified signing identity FBD90AE296E52BEC63A385222598F2F96E82F153; target 1.5.0 revision 2; scope --user
+dbus-daemon[14620]: [session uid=1001 pid=14620] Activating service name='org.freedesktop.Flatpak' requested by ':1.1' (uid=1001 pid=18790 comm="flatpak run --user --command=/app/lib/airdrop-linu" label="flatpak (unconfined)")
+dbus-daemon[14620]: [session uid=1001 pid=14620] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[14620]: [session uid=1001 pid=14620] Activating service name='org.freedesktop.portal.Documents' requested by ':1.1' (uid=1001 pid=18790 comm="flatpak run --user --command=/app/lib/airdrop-linu" label="flatpak (unconfined)")
+dbus-daemon[14620]: [session uid=1001 pid=14620] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.3' (uid=1001 pid=18806 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+dbus-daemon[14620]: [session uid=1001 pid=14620] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[14620]: [session uid=1001 pid=14620] Successfully activated service 'org.freedesktop.portal.Documents'
+Ignoring invalid max threads value 4294967295 > max (100000).
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: Clean GPG-verified installation of actual r2 application from HTTP repository
+Validating refs...
+Validating refs in collections...
+Enumerating commits...
+Verifying content integrity of 5 commit objects...
+fsck objects (1/4565) 0%
+fsck objects (1506/4565) 32%
+fsck objects (4565/4565) 100%
+object fsck of 5 commits completed successfully - no errors found.
+Importing app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75)
+
+(flatpak build-import-bundle:18859): GLib-CRITICAL **: 23:51:18.534: g_str_has_prefix: assertion 'str != NULL' failed
+
+(flatpak build-import-bundle:18859): OSTree-CRITICAL **: 23:51:18.534: _ostree_repo_get_remote: assertion 'name != NULL' failed
+
+(flatpak build-import-bundle:18859): GLib-CRITICAL **: 23:51:18.534: g_propagate_error: assertion 'src != NULL' failed
+app/io.github.fluffydisk.airdrop-linux/x86_64/stable: 39a0dd6161148afcef9c6fcb1a1a9edc29a87f00fa493260ef347843c93ca464
+10 metadata, 5 content objects imported; 0 bytes content written
+Updating appstream branch
+Generating static deltas
+Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (39a0dd6161)
+Generating delta: appstream2/x86_64 (e3dea6346f)
+Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19c-39a0dd6161)
+Updating summary
+Total objects: 4561
+Deleted 1 objects, 1.1 kB freed
+gpgv: Signature made Sun Oct 25 23:51:51 2026 UTC
+gpgv:                using EDDSA key FBD90AE296E52BEC63A385222598F2F96E82F153
+gpgv: Good signature from "Flatpak update CI <test@example.invalid>"
+Updating app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+{"signed_commit": "39a0dd6161148afcef9c6fcb1a1a9edc29a87f00fa493260ef347843c93ca464", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 173190127}
+VERIFIED: Real flatpak update fetched a newer signed commit and its new distribution payload; private data and Tailscale-state fixtures unchanged
+Verified signing identity FBD90AE296E52BEC63A385222598F2F96E82F153; target 1.5.0 revision 3; scope --user
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: Idempotent trusted-remote install/update
+gpg: keybox '/tmp/airdrop-signed-test-f4vv3wzc/wrong-keyring/pubring.kbx' created
+gpg: /tmp/airdrop-signed-test-f4vv3wzc/wrong-keyring/trustdb.gpg: trustdb created
+gpg: directory '/tmp/airdrop-signed-test-f4vv3wzc/wrong-keyring/openpgp-revocs.d' created
+gpg: revocation certificate stored as '/tmp/airdrop-signed-test-f4vv3wzc/wrong-keyring/openpgp-revocs.d/80D82C1EC45A314D36B197BAB212F0A6C0014D33.rev'
+gpg: checking the trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+gpg: next trustdb check due at 2026-10-26
+VERIFIED: Wrong-key summary.sig signature rejected before installation
+VERIFIED: Wrong-key a0dd6161148afcef9c6fcb1a1a9edc29a87f00fa493260ef347843c93ca464.commitmeta signature rejected before installation
+VERIFIED: Existing remote with disabled GPG verification is rejected, never repaired silently
+VERIFIED: Existing remote with a different URL is rejected, never replaced silently
+Uninstalling app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+Installing app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+Imported 1 GPG key to remote "airdrop-linux"
+VERIFIED: Existing remote with an additional untrusted signing key is rejected
+Verified signing identity FBD90AE296E52BEC63A385222598F2F96E82F153; target 1.5.0 revision 3; scope --user
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: Actual standalone r2 -> signed remote migration changed origin without duplicate app or data/identity fixture loss
+VERIFIED: User installation cannot be shadowed by --system
+VERIFIED: Signed repository older than the safe migration revision is rejected
+Installing runtime/org.freedesktop.Platform.GL.default/x86_64/26.08
+Installing runtime/org.freedesktop.Platform.GL.default/x86_64/26.08-extra
+Installing runtime/org.freedesktop.Platform.Locale/x86_64/26.08
+Installing runtime/org.freedesktop.Platform.codecs-extra/x86_64/26.08-extra
+Installing runtime/org.freedesktop.Platform/x86_64/26.08
+Installing app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+VERIFIED: Actual duplicate user/system installation is detected and left untouched
+Uninstalling app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+VERIFIED: System installation cannot be shadowed by --user
+Verified signing identity FBD90AE296E52BEC63A385222598F2F96E82F153; target 1.5.0 revision 3; scope --system
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: Actual system r2 migration uses system remote and preserves the desktop user data/identity fixtures
+Uninstalling app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+Verified signing identity FBD90AE296E52BEC63A385222598F2F96E82F153; target 1.5.0 revision 3; scope --user
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: Actual signed app backend transfer/LAN/QR/clipboard/lifecycle checks
+VERIFIED: Actual signed app desktop transfer/LAN/QR/clipboard/lifecycle checks
+VERIFIED: Application remains installed once with both summary/commit GPG checks enabled

@@ -1,0 +1,56 @@
+dbus-daemon[14036]: [session uid=1001 pid=14036] Activating service name='org.freedesktop.Flatpak' requested by ':1.0' (uid=1001 pid=14049 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/ai" label="flatpak (unconfined)")
+dbus-daemon[14036]: [session uid=1001 pid=14036] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[14036]: [session uid=1001 pid=14036] Activating service name='org.freedesktop.portal.Documents' requested by ':1.0' (uid=1001 pid=14049 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/ai" label="flatpak (unconfined)")
+dbus-daemon[14036]: [session uid=1001 pid=14036] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.2' (uid=1001 pid=14062 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+dbus-daemon[14036]: [session uid=1001 pid=14036] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[14036]: [session uid=1001 pid=14036] Successfully activated service 'org.freedesktop.portal.Documents'
+Ignoring invalid max threads value 4294967295 > max (100000).
+dbus-daemon[14036]: [session uid=1001 pid=14036] Activating service name='org.freedesktop.portal.Flatpak' requested by ':1.4' (uid=1001 pid=14079 comm="xdg-dbus-proxy --args=39" label="flatpak (unconfined)")
+dbus-daemon[14036]: [session uid=1001 pid=14036] Successfully activated service 'org.freedesktop.portal.Flatpak'
+dbus-daemon[14036]: [session uid=1001 pid=14036] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.8' (uid=1001 pid=14079 comm="xdg-dbus-proxy --args=39" label="flatpak (unconfined)")
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.111: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.111: The preferred method to match portal implementations to desktop environments is to use the portals.conf(5) configuration file
+dbus-daemon[14036]: [session uid=1001 pid=14036] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.10' (uid=1001 pid=14203 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+
+(xdg-desktop-portal-gtk:14209): dbind-WARNING **: 23:50:36.372: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+flatpak: real first-launch device wizard is visible
+dbus-daemon[14036]: [session uid=1001 pid=14036] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.453: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.453: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.454: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.454: No skeleton to export
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.454: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.454: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.455: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.455: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.456: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.457: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+[W][00435.077583] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client.conf: No such file or directory
+[E][00435.077634] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client.conf: No such file or directory
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.460: Failed connect to PipeWire: Couldn't create PipeWire context
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.460: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.461: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:14203): xdg-desktop-portal-WARNING **: 23:50:36.462: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[14036]: [session uid=1001 pid=14036] Successfully activated service 'org.freedesktop.portal.Desktop'
+Pairing browser request failure: {"path":"/.clipboard.txt","error":"net::ERR_ABORTED"}
+flatpak: real browser pairing redirect, session cookie, web UI and manual LAN clipboard passed (same worker)
+flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)
+Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+flatpak: real shared clipboard/HTTP contents passed; controlled connection UI, failure isolation and local fallback passed (not a real Tailscale test)
+flatpak: sandboxed desktop ready, managed updates and quit lifecycle passed

@@ -1,0 +1,60 @@
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40240987648
+2026-10-25T22:54:35.8108021Z Traceback (most recent call last):
+2026-10-25T22:54:35.8109394Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 131, in <module>
+2026-10-25T22:54:35.8110299Z     exercise(a.candidate,a.r2,a.output,a.system_cases)
+2026-10-25T22:54:35.8111182Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 80, in exercise
+2026-10-25T22:54:35.8111968Z     installer.install('user',trust=installer.Trust(base,key));passed('Idempotent trusted-remote install/update')
+2026-10-25T22:54:35.8112983Z     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T22:54:35.8113486Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 101, in install
+2026-10-25T22:54:35.8114446Z     if APP in command('flatpak','ps','--columns=application').stdout.splitlines():raise ValueError('Quit Airdrop completely before migrating/updating; no running process was killed')
+2026-10-25T22:54:35.8117023Z                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T22:54:35.8117584Z ValueError: Quit Airdrop completely before migrating/updating; no running process was killed
+2026-10-25T22:54:35.8148076Z ##[error]Process completed with exit code 1.
+
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40242889597
+2026-10-25T23:09:47.1358302Z Traceback (most recent call last):
+2026-10-25T23:09:47.1358933Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 148, in <module>
+2026-10-25T23:09:47.1359622Z     exercise(a.candidate,a.r2,a.output,a.system_cases)
+2026-10-25T23:09:47.1360223Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 92, in exercise
+2026-10-25T23:09:47.1361508Z     if file=='summary.sig':run('ostree',f'--repo={next_dir/"flatpak"}','summary',f'--gpg-homedir={wrong_home}',f'--gpg-sign={wrong_key}')
+2026-10-25T23:09:47.1363328Z                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T23:09:47.1363871Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 15, in run
+2026-10-25T23:09:47.1364886Z     return subprocess.check_output(list(map(str,args)),text=True).strip() if capture else subprocess.run(list(map(str,args)),check=True)
+2026-10-25T23:09:47.1366842Z                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T23:09:47.1367256Z   File "/usr/lib/python3.12/subprocess.py", line 571, in run
+2026-10-25T23:09:47.1367614Z     raise CalledProcessError(retcode, process.args,
+2026-10-25T23:09:47.1368743Z subprocess.CalledProcessError: Command '['ostree', '--repo=/tmp/airdrop-signed-test-wla4196a/next/flatpak', 'summary', '--gpg-homedir=/tmp/airdrop-signed-test-wla4196a/wrong-keyring', '--gpg-sign=8067AA9004979D622744B4D64BC7CF2F645A0B0F']' returned non-zero exit status 1.
+2026-10-25T23:09:47.1390088Z ##[error]Process completed with exit code 1.
+
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40243950139
+2026-10-25T23:33:12.6212779Z Traceback (most recent call last):
+2026-10-25T23:33:12.6213377Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 59, in rejected
+2026-10-25T23:33:12.6213876Z     try:action()
+2026-10-25T23:33:12.6214086Z         ^^^^^^^^
+2026-10-25T23:33:12.6214593Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 96, in <lambda>
+2026-10-25T23:33:12.6215700Z     rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),f'Wrong-key {file.rsplit("/",1)[-1]} signature rejected before installation','gpg')
+2026-10-25T23:33:12.6216637Z                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T23:33:12.6217194Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 107, in install
+2026-10-25T23:33:12.6217861Z     temp=Path(directory);descriptor,receipt=verify_channel(trust,temp)
+2026-10-25T23:33:12.6218701Z                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T23:33:12.6219287Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 54, in verify_channel
+2026-10-25T23:33:12.6220679Z     command('ostree',f'--repo={repo}','pull','--commit-metadata-only','channel',REF)
+2026-10-25T23:33:12.6229144Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 22, in command
+2026-10-25T23:33:12.6230140Z     if check and result.returncode:raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'Command failed')
+2026-10-25T23:33:12.6231505Z                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T23:33:12.6232100Z RuntimeError: error: Signature made Sun Oct 25 23:33:10 2026 using EdDSA key ID 35E1C642CF6A8644
+2026-10-25T23:33:12.6232561Z Can't check signature: public key not found
+2026-10-25T23:33:12.6232740Z
+2026-10-25T23:33:12.6232991Z The above exception was the direct cause of the following exception:
+2026-10-25T23:33:12.6233232Z
+2026-10-25T23:33:12.6233369Z Traceback (most recent call last):
+2026-10-25T23:33:12.6233911Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 151, in <module>
+2026-10-25T23:33:12.6234460Z     exercise(a.candidate,a.r2,a.output,a.system_cases)
+2026-10-25T23:33:12.6235019Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 96, in exercise
+2026-10-25T23:33:12.6235636Z     rejected(lambda:installer.install('user',trust=installer.Trust(base,key)),f'Wrong-key {file.rsplit("/",1)[-1]} signature rejected before installation','gpg')
+2026-10-25T23:33:12.6236173Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-signed-flatpak.py", line 61, in rejected
+2026-10-25T23:33:12.6236716Z     if reason and reason.lower() not in str(error).lower():raise AssertionError('Unexpected rejection reason: '+str(error)) from error
+2026-10-25T23:33:12.6237748Z                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-25T23:33:12.6238187Z AssertionError: Unexpected rejection reason: error: Signature made Sun Oct 25 23:33:10 2026 using EdDSA key ID 35E1C642CF6A8644
+2026-10-25T23:33:12.6238675Z Can't check signature: public key not found
+2026-10-25T23:33:12.6247574Z ##[error]Process completed with exit code 1.

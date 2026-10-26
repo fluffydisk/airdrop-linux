@@ -1,0 +1,21 @@
+dbus-daemon[21165]: [session uid=1001 pid=21165] Activating service name='org.freedesktop.Flatpak' requested by ':1.0' (uid=1001 pid=21173 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/si" label="flatpak (unconfined)")
+dbus-daemon[21165]: [session uid=1001 pid=21165] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[21165]: [session uid=1001 pid=21165] Activating service name='org.freedesktop.portal.Documents' requested by ':1.0' (uid=1001 pid=21173 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/si" label="flatpak (unconfined)")
+dbus-daemon[21165]: [session uid=1001 pid=21165] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.2' (uid=1001 pid=21187 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+dbus-daemon[21165]: [session uid=1001 pid=21165] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[21165]: [session uid=1001 pid=21165] Successfully activated service 'org.freedesktop.portal.Documents'
+fusermount3: failed to access mountpoint /home/runner/work/_temp/update-runtime.z4omY2/doc: Permission denied
+error: fuse init failed: Can't mount path /home/runner/work/_temp/update-runtime.z4omY2/doc
+dbus-daemon[21165]: [session uid=1001 pid=21165] Activating service name='org.freedesktop.portal.Documents' requested by ':1.5' (uid=1001 pid=21239 comm="flatpak run --user --command=/app/lib/airdrop-linu" label="flatpak (unconfined)")
+dbus-daemon[21165]: [session uid=1001 pid=21165] Successfully activated service 'org.freedesktop.portal.Documents'
+fusermount3: failed to access mountpoint /home/runner/work/_temp/update-runtime.z4omY2/doc: Permission denied
+error: fuse init failed: Can't mount path /home/runner/work/_temp/update-runtime.z4omY2/doc
+dbus-daemon[21165]: [session uid=1001 pid=21165] Activating service name='org.freedesktop.portal.Documents' requested by ':1.9' (uid=1001 pid=21265 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/si" label="flatpak (unconfined)")
+dbus-daemon[21165]: [session uid=1001 pid=21165] Successfully activated service 'org.freedesktop.portal.Documents'
+fusermount3: failed to access mountpoint /home/runner/work/_temp/update-runtime.z4omY2/doc: Permission denied
+error: fuse init failed: Can't mount path /home/runner/work/_temp/update-runtime.z4omY2/doc
+flatpak: host home access denied, private data path and safe port conflict verified
+flatpak: both backend listeners restricted to loopback
+flatpak: GHSA-27r3-jxmh-p828 malformed compressed-body regression passed
+flatpak: real sandbox UI/API upload, dufs download and ZIP contents passed
+flatpak: backend stopped

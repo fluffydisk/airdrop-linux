@@ -1,0 +1,28 @@
+Package input: /home/runner/work/_temp/native-input; DEB=2 RPM=2
+warning: Could not set GPG_TTY to stdin: Inappropriate ioctl for device
+/home/runner/work/_temp/native-public/rpm/aarch64/airdrop-linux-1.5.0-1.aarch64.rpm:
+warning: Could not set GPG_TTY to stdin: Inappropriate ioctl for device
+/home/runner/work/_temp/native-public/rpm/x86_64/airdrop-linux-1.5.0-1.x86_64.rpm:
+/home/runner/work/_temp/native-public/rpm/aarch64/airdrop-linux-1.5.0-1.aarch64.rpm: digests signatures OK
+/home/runner/work/_temp/native-public/rpm/x86_64/airdrop-linux-1.5.0-1.x86_64.rpm: digests signatures OK
+Directory walk started
+Directory walk done - 1 packages
+Temporary output repo path: /home/runner/work/_temp/native-public/rpm/x86_64/.repodata/
+Preparing sqlite DBs
+Pool started (with 5 workers)
+Pool finished
+gpgv: Signature made Sun Oct 25 23:53:49 2026 UTC
+gpgv:                using EDDSA key 2A10ACE4D27B0D6E09652F82D84C79A7E6652D3F
+gpgv: Good signature from "Repository CI <test@example.invalid>"
+Directory walk started
+Directory walk done - 1 packages
+Temporary output repo path: /home/runner/work/_temp/native-public/rpm/aarch64/.repodata/
+Preparing sqlite DBs
+Pool started (with 5 workers)
+Pool finished
+gpgv: Signature made Sun Oct 25 23:53:49 2026 UTC
+gpgv:                using EDDSA key 2A10ACE4D27B0D6E09652F82D84C79A7E6652D3F
+gpgv: Good signature from "Repository CI <test@example.invalid>"
+gpgv: Signature made Sun Oct 25 23:53:48 2026 UTC
+gpgv:                using EDDSA key 2A10ACE4D27B0D6E09652F82D84C79A7E6652D3F
+gpgv: Good signature from "Repository CI <test@example.invalid>"
