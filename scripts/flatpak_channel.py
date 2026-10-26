@@ -4,25 +4,42 @@
 The native Pages tree must already exist. Never edits release assets or key
 protection. Test callers can select a disposable key/local HTTP origin explicitly.
 """
-import argparse,base64,configparser,hashlib,json,os,re,shutil,subprocess,tempfile
+import argparse,base64,configparser,hashlib,json,os,re,shutil,subprocess,tempfile,time
 from pathlib import Path
 import urllib.request,urllib.error
 APP='io.github.fluffydisk.airdrop-linux';REF=f'app/{APP}/x86_64/stable'
 PRODUCTION='https://fluffydisk.github.io/airdrop-linux/'
 FINGERPRINT='6513D70958397F60D3787A0CB93F4FC1E97CF3AE'
 R2='f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75'
+TRANSIENT_HTTP=(429,500,502,503,504)
 def run(*args,capture=False):
  return subprocess.check_output(list(map(str,args)),text=True).strip() if capture else subprocess.run(list(map(str,args)),check=True)
+def pull_repository(repo,*args,attempts=3,delay=5):
+ # Resume verified objects in the same staging repo after a transient HTTP
+ # response. Never fall back to unverified pulls or retry integrity failures.
+ command=['ostree',f'--repo={repo}','pull',*map(str,args)]
+ for attempt in range(attempts):
+  result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,env={**os.environ,'LC_ALL':'C'})
+  print(result.stdout,end='',flush=True)
+  if result.returncode==0:return result
+  transient=re.search(r'(?m)^error: (?:While fetching [^\r\n]+: )?Server returned HTTP (429|500|502|503|504)\b',result.stdout)
+  integrity=re.search(r'signature|checksum|certificate|corrupt',result.stdout,re.I)
+  if not transient or integrity or attempt+1==attempts:result.check_returncode()
+  print(f'Transient HTTP {transient[1]}; retrying verified repository pull ({attempt+2}/{attempts})',flush=True)
+  time.sleep(delay*(attempt+1))
 def version(value):
  if not re.fullmatch(r'\d+\.\d+\.\d+',value):raise ValueError('Invalid stable version')
  return tuple(map(int,value.split('.')))
 def fetch(url,dest,optional=False):
- try:
-  with urllib.request.urlopen(url,timeout=120) as response:dest.write_bytes(response.read())
- except urllib.error.HTTPError as error:
-  if optional and error.code==404:return False
-  raise
- return True
+ for attempt in range(3):
+  try:
+   with urllib.request.urlopen(url,timeout=120) as response:dest.write_bytes(response.read())
+   return True
+  except urllib.error.HTTPError as error:
+   if optional and error.code==404:return False
+   if error.code not in TRANSIENT_HTTP or attempt==2:raise
+   print(f'Transient HTTP {error.code}; retrying metadata download ({attempt+2}/3)',flush=True)
+   time.sleep(5*(attempt+1))
 def verify_public_key(key,fingerprint):
  records=run('gpg','--batch','--with-colons','--show-keys',key,capture=True).splitlines()
  primary=[records[i+1].split(':')[9] for i,row in enumerate(records) if row.startswith('pub:')]
@@ -90,7 +107,7 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
    assert REF in selected
    # The modern channel advertises only the tested architecture. Native ARM
    # repositories and historical release bundles are independent and untouched.
-   run('ostree',f'--repo={repo}','pull','--mirror','--depth=0','previous',*selected)
+   pull_repository(repo,'--mirror','--depth=0','previous',*selected)
    # Keep the previous head addressable while old summaries are cached by CDNs.
    old=run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)
    if not prior:run('ostree',f'--repo={repo}','refs',f'--create=history/airdrop-linux/{old}',old)

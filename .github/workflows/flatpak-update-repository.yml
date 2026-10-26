@@ -74,6 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/test-flatpak-artifact-layout.py
+          python3 scripts/test-flatpak-network-retry.py
           python3 scripts/prepare-flatpak-channel.py --source "$SOURCE" --revision "$REVISION" --output "$RUNNER_TEMP/prepared"
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/build-runtime.XXXXXX")
           status=0
