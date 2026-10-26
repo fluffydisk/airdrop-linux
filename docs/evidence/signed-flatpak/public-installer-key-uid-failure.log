@@ -1,0 +1,28 @@
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40415276558
+Job: signed-flatpak-install / install-update (121900254008)
+2026-10-26T23:00:06.3332049Z Traceback (most recent call last):
+2026-10-26T23:00:06.3333198Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-public-flatpak-channel.py", line 14, in <module>
+2026-10-26T23:00:06.3334251Z     receipt=installer.install('user');before=tests.state('user',True)
+2026-10-26T23:00:06.3334911Z             ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3335889Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 107, in install
+2026-10-26T23:00:06.3336843Z     temp=Path(directory);descriptor,receipt=verify_channel(trust,temp)
+2026-10-26T23:00:06.3337697Z                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3338647Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 46, in verify_channel
+2026-10-26T23:00:06.3339515Z     command('gpgv','--keyring',key,signature,metadata)
+2026-10-26T23:00:06.3340378Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/install-flatpak.py", line 21, in command
+2026-10-26T23:00:06.3341531Z     result=subprocess.run(list(map(str,args)),capture_output=True,text=True,env={**os.environ,'LC_ALL':'C'})
+2026-10-26T23:00:06.3342354Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3343236Z   File "/usr/lib/python3.12/subprocess.py", line 550, in run
+2026-10-26T23:00:06.3344142Z     stdout, stderr = process.communicate(input, timeout=timeout)
+2026-10-26T23:00:06.3345063Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3345913Z   File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+2026-10-26T23:00:06.3346848Z     stdout, stderr = self._communicate(input, endtime, timeout)
+2026-10-26T23:00:06.3347887Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3348735Z   File "/usr/lib/python3.12/subprocess.py", line 2157, in _communicate
+2026-10-26T23:00:06.3349523Z     stderr = self._translate_newlines(stderr,
+2026-10-26T23:00:06.3349991Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3350534Z   File "/usr/lib/python3.12/subprocess.py", line 1086, in _translate_newlines
+2026-10-26T23:00:06.3351168Z     data = data.decode(encoding, errors)
+2026-10-26T23:00:06.3351617Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T23:00:06.3352390Z UnicodeDecodeError: 'utf-8' codec can't decode byte 0xd6 in position 153: invalid continuation byte
+2026-10-26T23:00:06.3551823Z ##[error]Process completed with exit code 1.

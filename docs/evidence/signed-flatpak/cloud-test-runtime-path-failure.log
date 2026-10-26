@@ -1,0 +1,27 @@
+Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 3; scope --user
+dbus-daemon[10357]: [session uid=1000 pid=10357 pidfd=5] Reloaded configuration
+dbus-daemon[10357]: [session uid=1000 pid=10357 pidfd=5] Activating service name='org.freedesktop.Flatpak' requested by ':1.1' (uid=1000 pid=10524 comm="flatpak run --user --env=AIRDROP_REPO_TEST_ROOT=/v" label="kernel")
+dbus-daemon[10357]: [session uid=1000 pid=10357 pidfd=5] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[10357]: [session uid=1000 pid=10357 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=10524 comm="flatpak run --user --env=AIRDROP_REPO_TEST_ROOT=/v" label="kernel")
+dbus-daemon[10357]: [session uid=1000 pid=10357 pidfd=5] Successfully activated service 'org.a11y.Bus'
+bwrap: Can't find source path /workspace/.airdrop-tools/signed-flatpak-work/cloud-client-runtime.0PAsdc/.dbus-proxy/session-bus-proxy-H4J9W3: No such file or directory
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+Traceback (most recent call last):
+  File "/workspace/airdrop-linux/scripts/test-public-flatpak-channel.py", line 14, in <module>
+    receipt=installer.install('user');before=tests.state('user',True)
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/airdrop-linux/scripts/test-signed-flatpak.py", line 31, in state
+    return json.loads(node(scope,code))
+                      ^^^^^^^^^^^^^^^^
+  File "/workspace/airdrop-linux/scripts/test-signed-flatpak.py", line 21, in node
+    return run('flatpak','run','--'+scope,*extra,'--command=/app/lib/airdrop-linux/runtime/node',APP,'-e',code,capture=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/airdrop-linux/scripts/flatpak_channel.py", line 16, in run
+    return subprocess.check_output(list(map(str,args)),text=True).strip() if capture else subprocess.run(list(map(str,args)),check=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['flatpak', 'run', '--user', '--env=AIRDROP_REPO_TEST_ROOT=/var/data/public-channel-cloud-proof-20261026', '--command=/app/lib/airdrop-linux/runtime/node', 'io.github.fluffydisk.airdrop-linux', '-e', "const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');\nconst root=process.env.AIRDROP_REPO_TEST_ROOT||path.join(process.env.XDG_DATA_HOME,'airdrop');\nconst relative=['files/repository-update-sentinel.txt','config/repository-test.env','state/desktop/connections/devices.json','state/desktop/connections/tsnet/credential-retention-fixture'];\nfor(const name of relative){const file=path.join(root,name);fs.mkdirSync(path.dirname(file),{recursive:true,mode:0o700});if(fs.existsSync(file))throw Error('Refusing to overwrite existing data');fs.writeFileSync(file,name.endsWith('devices.json')?JSON.stringify({mode:'local',configured:true}):crypto.randomBytes(64),{mode:0o600});}console.log(JSON.stringify(Object.fromEntries(relative.map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')]))));"]' returned non-zero exit status 1.

@@ -1,0 +1,13 @@
+dbus-daemon[11633]: [session uid=1000 pid=11633 pidfd=5] Activating service name='org.freedesktop.Flatpak' requested by ':1.0' (uid=1000 pid=11647 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="kernel")
+dbus-daemon[11633]: [session uid=1000 pid=11633 pidfd=5] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[11633]: [session uid=1000 pid=11633 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.0' (uid=1000 pid=11647 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="kernel")
+dbus-daemon[11633]: [session uid=1000 pid=11633 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[11633]: [session uid=1000 pid=11633 pidfd=5] Activating service name='org.freedesktop.portal.Flatpak' requested by ':1.3' (uid=1000 pid=11667 comm="/workspace/.airdrop-tools/flathub-audit/tools/usr/" label="kernel")
+dbus-daemon[11633]: [session uid=1000 pid=11633 pidfd=5] Successfully activated service 'org.freedesktop.portal.Flatpak'
+flatpak: real first-launch device wizard is visible
+Pairing browser request failure: {"path":"/.clipboard.txt","error":"net::ERR_ABORTED"}
+flatpak: real browser pairing redirect, session cookie, web UI and manual LAN clipboard passed (same worker)
+flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)
+Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+flatpak: real shared clipboard/HTTP contents passed; controlled connection UI, failure isolation and local fallback passed (not a real Tailscale test)
+flatpak: sandboxed desktop ready, managed updates and quit lifecycle passed

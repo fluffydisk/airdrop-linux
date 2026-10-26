@@ -1,9 +1,10 @@
 # Signed Flatpak channel validation evidence
 
-Production activation is gated by the existing required reviewer of the
-`package-publishing` environment. This report distinguishes disposable-key tests
-from actual production publication. Public installation/update checks cannot be
-reported as passed before the approved Pages deployment runs them.
+The signed application repository is **LIVE and verified over public HTTPS**.
+This report distinguishes production tests from disposable-key tests and retains
+the earlier failures. Updating the corrected Pages bootstrap copy still requires
+the existing protected deployment review; the immutable fixed installer linked
+in the installation guide is usable now.
 
 The application source is pinned to
 `91363da43c2cd28173201f397c5b9f1ea8cde132`, application version 1.5.0, repository
@@ -12,6 +13,86 @@ revision 3. The actual r2 baseline commit is
 bundle SHA-256 is
 `9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df`.
 No tag or release asset is moved/replaced.
+
+## Live production verification
+
+Owner-approved [publication 40415276558](https://github.com/fluffydisk/airdrop-linux/actions/runs/40415276558)
+successfully signed and deployed the repository. Its production job recovered
+from a real HTTP 503 on the second verified pull attempt, then passed full
+repository lint and the Pages size guard: **887,823,649 bytes**. The overall run
+was red because its first client check discovered the GPG diagnostic decoding bug
+below, not because deployment failed.
+
+Production head:
+`d4d7c59d7caa9819b6db2425d9204f4be3e18e45d5c714030dcedd93f903cfe9`.
+Signed r2 baseline:
+`f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75`.
+The signed receipt and the full public-client log are retained in
+[`live-production-receipt.json`](evidence/signed-flatpak/live-production-receipt.json),
+[`live-publication-summary.log`](evidence/signed-flatpak/live-publication-summary.log)
+and [`public-https-acceptance-actions.log`](evidence/signed-flatpak/public-https-acceptance-actions.log).
+
+[Public acceptance run 40419140503](https://github.com/fluffydisk/airdrop-linux/actions/runs/40419140503)
+**PASSED**, using a disposable Ubuntu 24.04 account and the real public URLs:
+
+| Public requirement | Result | Actual evidence |
+| --- | --- | --- |
+| Production primary key, receipt, summary and commit signatures | VERIFIED | Pinned `6513D70958397F60D3787A0CB93F4FC1E97CF3AE`; installer verifies signatures before changing the app |
+| Clean HTTPS app installation | VERIFIED | New account/store, actual production commit installed |
+| Public `.flatpakref` installation | VERIFIED | Native Flatpak CLI independently installed the public reference and reported production head; `public-flatpakref-install.log` |
+| Standard forward `flatpak update` | VERIFIED | Real signed r2 baseline prepared explicitly in the disposable account, ordinary forward update returns to production head |
+| Original standalone r2 migration | VERIFIED | Public release bundle SHA-256 checked, origin migrated, exactly one app installed |
+| Files/config/node-state retention | VERIFIED | Exact fixture-file hashes unchanged across update/migration; no authenticated account claim |
+| Backend, upload/download, ZIP, clipboard, service lifecycle | VERIFIED | Real installed public application; payload and archive contents checked |
+| Wizard, LAN pairing, copied address, decoded QR | VERIFIED | Real browser/session and authenticated transfers on one runner; not two physical devices |
+| Embedded Tailscale login bootstrap | VERIFIED | Actual public package helper returned a real HTTPS login URL (redacted); account login/HTTPS tailnet transfer NOT TESTED |
+| X11 startup and clipboard | VERIFIED | Xvfb, real sandboxed Electron 44.9.3, context isolation and Chromium sandbox retained |
+| Native Wayland startup | VERIFIED | Weston session, app uses Wayland with DISPLAY removed; physical clipboard/portal consent NOT TESTED |
+| Uninstallation | VERIFIED | App removed after the real public acceptance checks |
+| APT/RPM repositories and release provenance | VERIFIED | Both APT architectures, both RPM signatures and original release payloads checked successfully |
+
+Cloud independently passed public HTTPS installation, ordinary update, original
+r2 migration, backend, Electron/X11, LAN/QR and clipboard checks using the cached
+signed runtimes. Supplemental Cloud fixtures initially had a stopped private
+system D-Bus and an XDG runtime outside the test container's bind mount; restoring
+the original owned test environment resolved them. Those failures are retained
+as `cloud-test-*-failure.log`. The private Cloud Weston extraction lacked its
+loader/module paths; those initialization failures are retained separately.
+The successful native Wayland result above is the clean Ubuntu Actions result.
+`live-sandbox-permissions.log` records the real installed public package's
+permissions; the deployment did not add permissions or disable Chromium's sandbox.
+
+## Corrected bootstrap copy and CI environment
+
+The first production client failed decoding the non-ASCII UID of the real
+signing key: `UnicodeDecodeError` on GPG's C-locale diagnostics. Commit `bb5e690`
+decodes diagnostics with escaped invalid bytes while preserving subprocess exit
+status and all GPG verification checks. Real GPG valid/tampered signature tests
+and undecodable success/failure diagnostics are covered. The private Cloud GPG
+build emitted UTF8 for the fixture UID; the original Actions traceback records
+the actual production failure. See `public-installer-key-uid-failure.log` and
+`installer-encoding-regression.log`.
+
+The corrected installer is available at immutable commit
+`bb5e6903562476702cbc4b8b70296a75643b6b2b`, SHA-256
+`9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3`.
+The installation guide uses that verified GitHub source while its Pages copy is
+refreshed. [Publication 40419422199](https://github.com/fluffydisk/airdrop-linux/actions/runs/40419422199)
+has prepared its inputs and is **waiting for the existing `package-publishing`
+required reviewer, `fluffydisk`**. It preserves the current signed app head and
+updates the signed bootstrap/site. Modern-channel public checks now also run
+after such native-only/preservation deployments, rather than using the legacy
+bundle-only verifier.
+
+Two earlier clean public-check runs were cancelled **before application tests**
+because the runner's external `/etc/apt/apt-mirrors.txt` still selected the slow
+Azure mirror. The existing mirror helper handled source files but not that
+external list. Commit `0912a38` fixes the list while retaining suites, priorities,
+keys and other mirrors; an actual disposable-container fixture proved those
+properties. The successful public run used the corrected helper. Exact slow
+download/cancellation evidence is retained in `public-ci-slow-mirror.log`.
+
+Earlier checkpoints below are historical and do not override the live results.
 
 ## Latest production transport retry
 

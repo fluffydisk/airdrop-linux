@@ -1,0 +1,3 @@
+VERIFIED: undecodable diagnostic bytes preserve both successful and failed subprocess exit status
+VERIFIED: real GPG signature with non-ASCII key UID accepted; non-UTF8 C-locale diagnostics reproduced=False
+VERIFIED: tampered metadata with the same non-ASCII key UID is rejected; decoding does not change signature validity

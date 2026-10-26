@@ -1,0 +1,36 @@
+Date: 2026-10-26 UTC
+[23:21:56.829] weston 14.0.2
+               https://wayland.freedesktop.org
+               Bug reports to: https://gitlab.freedesktop.org/wayland/weston/issues/
+               Build: 14.0.2
+[23:21:56.829] Command line: weston --backend=x11 --renderer=pixman --width=1280 --height=960 --socket=airdrop-test-wayland --idle-time=0
+[23:21:56.829] OS: Linux, 6.18.55, #1 SMP Wed Oct 14 19:45:18 UTC 2026, x86_64
+[23:21:56.829] Flight recorder: enabled
+[23:21:56.835] Starting with no config file.
+[23:21:56.835] Output repaint window is 7 ms maximum.
+[23:21:56.836] Loading module '/workspace/.airdrop-tools/flathub-audit/tools/usr/lib/x86_64-linux-gnu/libweston-14/x11-backend.so'
+[23:21:56.841] Using Pixman renderer
+[23:21:56.847] Registered plugin API 'weston_windowed_output_api_x11_v2' of size 16
+[23:21:56.847] Color manager: no-op
+                 protocol support: no
+[23:21:56.847] Output 'screen0' attempts EOTF mode SDR and colorimetry mode default.
+[23:21:56.847] Output 'screen0' using color profile: stock sRGB color profile
+/usr/share/weston/wayland.png: No such file or directory
+[23:21:56.848] Found visual, bits per value: 8, red_mask: 00ff0000, green_mask: 0000ff00, blue_mask: 000000ff
+[23:21:56.848] Visual depth is 24
+[23:21:56.848] Found format for depth 24, bpp: 32
+[23:21:56.848] Will use x8r8g8b8 format for SHM surfaces
+[23:21:56.848] x11 output 1280x960, window id 2097157
+[23:21:56.848] Output 'screen0' enabled with head(s) screen0
+[23:21:56.848] Compositor capabilities:
+               arbitrary surface rotation: yes
+               screen capture uses y-flip: no
+               cursor planes: no
+               arbitrary resolutions: no
+               view mask clipping: yes
+               explicit sync: no
+               color operations: no
+               presentation clock: CLOCK_MONOTONIC_RAW, id 4
+               presentation clock resolution: 0.000000001 s
+[23:21:56.848] Loading module '/usr/lib/x86_64-linux-gnu/weston/desktop-shell.so'
+[23:21:56.848] Failed to load module: /usr/lib/x86_64-linux-gnu/weston/desktop-shell.so: cannot open shared object file: No such file or directory

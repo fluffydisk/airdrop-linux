@@ -1,0 +1,8 @@
+repository	Build and verify signed APT and RPM repositories	2026-10-26T22:57:10.4218230Z gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+repository	Build and verify signed APT and RPM repositories	2026-10-26T22:57:10.4227327Z gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+repository	Build and verify signed APT and RPM repositories	2026-10-26T22:57:10.4230599Z gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:57:14.4446324Z object fsck of 5 commits completed successfully - no errors found.
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:57:30.6336201Z Transient HTTP 503; retrying verified repository pull (2/3)
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:58:25.6311422Z gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:58:26.4842211Z {"signed_commit": "d4d7c59d7caa9819b6db2425d9204f4be3e18e45d5c714030dcedd93f903cfe9", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 887823649}
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:58:26.6713135Z {"bytes": 887823649, "components": {"apt": 260636942, "rpm": 342172415, "flatpak": 284971573}, "official_limit": "https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits"}

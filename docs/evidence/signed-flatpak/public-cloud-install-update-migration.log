@@ -1,0 +1,21 @@
+Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 3; scope --user
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Reloaded configuration
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Activating service name='org.freedesktop.Flatpak' requested by ':1.1' (uid=1000 pid=10934 comm="flatpak run --user --env=AIRDROP_REPO_TEST_ROOT=/v" label="kernel")
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=10934 comm="flatpak run --user --env=AIRDROP_REPO_TEST_ROOT=/v" label="kernel")
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Successfully activated service 'org.a11y.Bus'
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: public HTTPS repository summary, commit and descriptor identity; fresh signed installation
+Updating app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Reloaded configuration
+Updating app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Reloaded configuration
+VERIFIED: ordinary flatpak update advanced the actual public signed previous revision to the current payload; data/identity fixtures preserved
+Uninstalling app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Reloaded configuration
+Installing app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Reloaded configuration
+Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 3; scope --user
+dbus-daemon[10750]: [session uid=1000 pid=10750 pidfd=5] Reloaded configuration
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: original public r2 bundle migrated to signed origin without duplicate installation or data loss

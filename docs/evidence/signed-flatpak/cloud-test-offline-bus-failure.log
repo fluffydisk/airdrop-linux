@@ -1,0 +1,12 @@
+Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 3; scope --user
+Traceback (most recent call last):
+  File "/workspace/airdrop-linux/scripts/test-public-flatpak-channel.py", line 14, in <module>
+    receipt=installer.install('user');before=tests.state('user',True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/airdrop-linux/scripts/install-flatpak.py", line 134, in install
+    else:command('flatpak','install','--'+selected,'--noninteractive',*(['--reinstall'] if existing else []),REMOTE,APP+'//stable')
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/airdrop-linux/scripts/install-flatpak.py", line 25, in command
+    if check and result.returncode:raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'Command failed')
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: Error: Failed to install io.github.fluffydisk.airdrop-linux: Could not connect: Connection refused

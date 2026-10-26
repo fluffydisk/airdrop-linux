@@ -1,5 +1,13 @@
 # Signed Flatpak validation evidence
 
+The public signed application repository is now live and verified. Current
+production/public-acceptance results are in `public-verification.json`, the raw
+`live-flatpak-channel.json` / `.asc` pair, and
+`public-https-acceptance-actions.log` (successful run 40419140503).
+The fixed bootstrap is checksum-pinned in the installation guide while its
+Pages copy awaits the existing protected review in run 40419422199.
+The original candidate evidence and failed attempts below remain historical.
+
 Downloaded from the successful run:
 https://github.com/fluffydisk/airdrop-linux/actions/runs/40245958434
 

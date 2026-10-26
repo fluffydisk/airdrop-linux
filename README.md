@@ -36,10 +36,9 @@ See the [distribution status and evidence](docs/distribution-status.md).
 
 ### Signed Flatpak updates (x86_64)
 
-The new upstream update channel uses the existing protected GPG signer and GitHub
-Pages publisher. First activation requires the repository's existing deployment
-review. Until the signed channel receipt is published, the Pages URL still serves
-the older legacy Flatpak; the migration installer refuses to downgrade r2 to it.
+The signed upstream update channel is live on GitHub Pages. Real public HTTPS
+installation, standard `flatpak update`, r2 migration and application acceptance
+tests passed. The application ID and private data directory are preserved.
 See [fresh installation, safe r2 migration and standard update commands](docs/signed-flatpak-updates.md)
 and [test evidence and activation status](docs/signed-flatpak-evidence.md).
 The standalone bundle below remains available for manual installation.
