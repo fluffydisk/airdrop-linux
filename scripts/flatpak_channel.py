@@ -52,6 +52,13 @@ GPGKey={encoded}
 RuntimeRepo=https://dl.flathub.org/repo/flathub.flatpakrepo
 SuggestRemoteName=airdrop-linux
 ''')
+def restore_artifact_layout(repo):
+ # upload-artifact stores files, not empty directories. The prepare -> signer
+ # hop therefore drops these empty OSTree directories even though all objects
+ # and refs survived. Restore structure only; never regenerate objects, refs,
+ # config or summaries. The full fsck below remains mandatory.
+ for name in ['refs/remotes','refs/mirrors','extensions','state','tmp']:
+  (repo/name).mkdir(parents=True,exist_ok=True)
 def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=None):
  assert public.is_dir() and not (public/'flatpak').exists(),'Use a complete native Pages tree and a new Flatpak subdirectory'
  assert re.fullmatch('[A-F0-9]{40,64}',fingerprint)
@@ -61,6 +68,7 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
  version(receipt['version']);source=candidate/'repo'
  native_before={str(p.relative_to(public)):hashlib.sha256(p.read_bytes()).hexdigest() for tree in ['apt','rpm'] for p in (public/tree).rglob('*') if p.is_file()}
  assert run('ostree',f'--repo={source}','rev-parse',REF,capture=True)==receipt['commit']
+ restore_artifact_layout(source)
  run('ostree',f'--repo={source}','fsck')
  marker=json.loads(run('ostree',f'--repo={source}','cat',receipt['commit'],'/files/share/airdrop-linux/distribution.json',capture=True))
  assert all(marker[k]==receipt[k] for k in ['source_commit','version','revision'])

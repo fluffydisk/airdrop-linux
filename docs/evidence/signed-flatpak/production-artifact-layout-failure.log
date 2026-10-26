@@ -1,0 +1,18 @@
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40246905953
+Job: repository (121330480757)
+Step: Include the signed Flatpak remote without changing native package inputs
+2026-10-26T09:59:54.5089902Z Validating refs...
+2026-10-26T09:59:54.5091519Z error: Listing refs: opendir(refs/remotes): No such file or directory
+2026-10-26T09:59:54.5685836Z Traceback (most recent call last):
+2026-10-26T09:59:54.5686890Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 123, in <module>
+2026-10-26T09:59:54.5688016Z     a=p.parse_args();promote(a.candidate,a.public,a.fingerprint,a.base_url,a.previous_url or None,a.r2)
+2026-10-26T09:59:54.5688966Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T09:59:54.5689861Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 64, in promote
+2026-10-26T09:59:54.5690642Z     run('ostree',f'--repo={source}','fsck')
+2026-10-26T09:59:54.5691450Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 15, in run
+2026-10-26T09:59:54.5692854Z     return subprocess.check_output(list(map(str,args)),text=True).strip() if capture else subprocess.run(list(map(str,args)),check=True)
+2026-10-26T09:59:54.5693918Z                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-26T09:59:54.5694664Z   File "/usr/lib/python3.12/subprocess.py", line 571, in run
+2026-10-26T09:59:54.5695336Z     raise CalledProcessError(retcode, process.args,
+2026-10-26T09:59:54.5696311Z subprocess.CalledProcessError: Command '['ostree', '--repo=flatpak-incoming/repo', 'fsck']' returned non-zero exit status 1.
+2026-10-26T09:59:54.5834362Z ##[error]Process completed with exit code 1.
