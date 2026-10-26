@@ -18,7 +18,10 @@ class Trust:
  minimum_revision:int=3
 
 def command(*args,check=True):
- result=subprocess.run(list(map(str,args)),capture_output=True,text=True,env={**os.environ,'LC_ALL':'C'})
+ # GPG can render a non-ASCII key UID in a legacy display charset under C.
+ # Decode diagnostics losslessly as escaped bytes; exit status still decides
+ # signature validity. Machine-readable fingerprints and refs remain ASCII.
+ result=subprocess.run(list(map(str,args)),capture_output=True,text=True,encoding='utf-8',errors='backslashreplace',env={**os.environ,'LC_ALL':'C'})
  if check and result.returncode:raise RuntimeError(result.stderr.strip() or result.stdout.strip() or 'Command failed')
  return result
 
