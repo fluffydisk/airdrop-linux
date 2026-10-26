@@ -13,6 +13,53 @@ bundle SHA-256 is
 `9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df`.
 No tag or release asset is moved/replaced.
 
+## Latest production transport retry
+
+Owner-approved production run 40409895329 attempt 1 **passed the restored
+repository's full fsck**, protected-key import, and native signing. It then
+received **HTTP 503 from the existing public Pages repository** while mirroring
+its previous signed commit. No Pages artifact was uploaded/deployed. The exact
+traceback is retained in [`production-transient-503.log`](evidence/signed-flatpak/production-transient-503.log).
+The automatically requested rerun required fresh environment review as well;
+that obsolete waiting attempt was cancelled before requesting the corrected run.
+
+Commit `9e3adfce490d581e32b6264b87855f7eff129d18` adds a three-attempt budget and
+short backoff for explicit transient HTTP 429/500/502/503/504 responses. Verified
+pulls resume their already downloaded objects in the same staging repository.
+GPG, checksum, certificate, corruption, authorization and unknown errors remain
+fatal; no verification flag or native package input is changed. Metadata fetches
+also distinguish optional 404 from real failures rather than silently falling
+back to an older repository during a service outage.
+
+`python3 scripts/test-flatpak-network-retry.py` runs a real locally hosted,
+GPG-signed repository with controlled HTTP failures. It proves successful retry
+and authenticated payload delivery after a 503, exactly three attempts for a
+persistent 503, and immediate rejection of an invalid summary signature. Real
+metadata HTTP requests also verify 503 recovery, optional 404, and fatal,
+non-retried 403. See [`network-retry-regression.log`](evidence/signed-flatpak/network-retry-regression.log).
+This is network fault injection against real OSTree/GPG, not a physical-device
+or production-availability claim.
+
+The first fault fixture emitted an HTML error body larger than the tiny commit's
+expected size; it was changed to a zero-length 503 body. The next test exposed
+libostree's `While fetching ...: Server returned HTTP 503` diagnostic prefix;
+both supported diagnostic forms are now matched. These earlier failed test
+attempts remain in `network-retry-fixture-size-failure.log` and
+`network-retry-prefix-failure.log`; the final test passes.
+
+- [Updated real artifact/native/Flatpak signing rehearsal](https://github.com/fluffydisk/airdrop-linux/actions/runs/40414899261): **PASSED**, complete site
+  **887,802,880 bytes**. Exact verification lines are retained in
+  [`network-resilient-rehearsal-summary.log`](evidence/signed-flatpak/network-resilient-rehearsal-summary.log).
+- [Corrected production publication](https://github.com/fluffydisk/airdrop-linux/actions/runs/40415276558): preparation passed; **waiting for the existing
+  `package-publishing` required reviewer `fluffydisk`**. The previously approved
+  run's review did not carry over; no protection was changed. The already tested
+  immutable application candidate from run 40408382425 is reused; only the
+  publication transport changed.
+
+Public installation and r2 update remain blocked until this production job is
+approved and deployed. The post-deployment public HTTPS verification workflow is
+configured to run automatically. Earlier checkpoints below are historical.
+
 ## Production retry: artifact layout failure (2026-10-26)
 
 The owner approved run 40246905953. Protected-key import and APT/RPM signing both

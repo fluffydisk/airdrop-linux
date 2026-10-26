@@ -1,0 +1,24 @@
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40409895329/attempts/1
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:27.0300477Z Validating refs...
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:27.0303356Z Validating refs in collections...
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:27.0303875Z Enumerating commits...
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:27.0341600Z Verifying content integrity of 5 commit objects...
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:27.0901634Z fsck objects (1/4565) 0%
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:28.4883619Z fsck objects (1508/4565) 33%
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:29.1763280Z fsck objects (4565/4565) 100%
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:29.1768160Z object fsck of 5 commits completed successfully - no errors found.
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:29.4966826Z Imported 1 GPG key to remote "previous"
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9093058Z error: Server returned HTTP 503
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9530339Z Traceback (most recent call last):
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9530925Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 131, in <module>
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9531658Z     a=p.parse_args();promote(a.candidate,a.public,a.fingerprint,a.base_url,a.previous_url or None,a.r2)
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9532253Z                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9532859Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 93, in promote
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9533458Z     run('ostree',f'--repo={repo}','pull','--mirror','--depth=0','previous',*selected)
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9534061Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 15, in run
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9535083Z     return subprocess.check_output(list(map(str,args)),text=True).strip() if capture else subprocess.run(list(map(str,args)),check=True)
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9536012Z                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9536477Z   File "/usr/lib/python3.12/subprocess.py", line 571, in run
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9536894Z     raise CalledProcessError(retcode, process.args,
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9537793Z subprocess.CalledProcessError: Command '['ostree', '--repo=public/flatpak', 'pull', '--mirror', '--depth=0', 'previous', 'app/io.github.fluffydisk.airdrop-linux/x86_64/stable', 'appstream/x86_64', 'appstream2/x86_64']' returned non-zero exit status 1.
+repository	Include the signed Flatpak remote without changing native package inputs	2026-10-26T22:40:42.9647823Z ##[error]Process completed with exit code 1.

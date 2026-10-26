@@ -1,0 +1,18 @@
+{
+  "publication_fix": "9e3adfce490d581e32b6264b87855f7eff129d18",
+  "candidate_run": 40408382425,
+  "rehearsal_run": 40414899261,
+  "rehearsal_conclusion": "success",
+  "production_run": 40415276558,
+  "production_status": "waiting",
+  "required_environment_review": [
+    {
+      "environment": "package-publishing",
+      "reviewers": [
+        "fluffydisk"
+      ]
+    }
+  ],
+  "failed_previous_production_attempt": "https://github.com/fluffydisk/airdrop-linux/actions/runs/40409895329/attempts/1",
+  "failure": "Existing public Pages repository returned HTTP 503 after successful full fsck; no deployment"
+}

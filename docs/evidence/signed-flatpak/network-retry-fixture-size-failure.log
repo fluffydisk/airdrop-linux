@@ -1,0 +1,15 @@
+gpg: checking the trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+gpg: next trustdb check due at 2026-10-27
+Imported 1 GPG key to remote "fixture"
+error: URI http://127.0.0.1:45021/objects/9d/c376351cce89daad6540de1ec235e9be1e5c26f72dffbd137e3bf2b5379c95.commit exceeded maximum size of 182 bytes
+Traceback (most recent call last):
+  File "/workspace/airdrop-linux/scripts/test-flatpak-network-retry.py", line 41, in <module>
+    pull_repository(dest,'--network-retries=0','fixture',REF,delay=0)
+  File "/workspace/airdrop-linux/scripts/flatpak_channel.py", line 27, in pull_repository
+    if not transient or integrity or attempt+1==attempts:result.check_returncode()
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 502, in check_returncode
+    raise CalledProcessError(self.returncode, self.args, self.stdout,
+subprocess.CalledProcessError: Command '['ostree', '--repo=/tmp/airdrop-http-retry-4ssyyz87/client', 'pull', '--network-retries=0', 'fixture', 'app/io.github.fluffydisk.airdrop-linux/x86_64/stable']' returned non-zero exit status 1.

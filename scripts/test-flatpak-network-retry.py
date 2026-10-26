@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Real signed HTTP repository: retry a 503, never retry a bad signature."""
-import functools,http.server,os,subprocess,tempfile,threading
+import functools,http.server,os,subprocess,tempfile,threading,urllib.error
 from pathlib import Path
-from flatpak_channel import REF,pull_repository,run
+from flatpak_channel import REF,pull_repository,run,fetch
 
 with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
  root=Path(directory);keyring=root/'keys';keyring.mkdir(mode=0o700)
@@ -18,10 +18,17 @@ with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
   run('ostree',f'--repo={source}','init','--mode=archive-z2')
   commit=subprocess.check_output(['ostree',f'--repo={source}','commit','--branch='+REF,'--subject=HTTP retry fixture','--tree=dir='+str(tree),f'--gpg-homedir={keyring}',f'--gpg-sign={key}'],text=True).strip()
   run('ostree',f'--repo={source}','summary','--update',f'--gpg-homedir={keyring}',f'--gpg-sign={key}')
+  (source/'retry-metadata.json').write_text('{"fixture":"real HTTP metadata"}\n')
   class Handler(http.server.SimpleHTTPRequestHandler):
-   failures=1;commit_requests=0;summary_requests=0
+   failures=1;commit_requests=0;summary_requests=0;metadata_requests=0;denied_requests=0
    def log_message(self,*args):pass
    def do_GET(self):
+    if self.path=='/retry-metadata.json':
+     Handler.metadata_requests+=1
+     if Handler.metadata_requests==1:
+      self.send_response(503);self.send_header('Content-Length','0');self.end_headers();return
+    if self.path=='/denied':
+     Handler.denied_requests+=1;self.send_response(403);self.send_header('Content-Length','0');self.end_headers();return
     if self.path=='/summary':Handler.summary_requests+=1
     if self.path.endswith('.commit'):
      Handler.commit_requests+=1
@@ -31,6 +38,15 @@ with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
   server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Handler,directory=str(source)))
   thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
   try:
+   address=f'http://127.0.0.1:{server.server_port}/'
+   assert fetch(address+'retry-metadata.json',root/'metadata.json',optional=True)
+   assert Handler.metadata_requests==2 and (root/'metadata.json').read_bytes()==(source/'retry-metadata.json').read_bytes()
+   assert fetch(address+'absent.json',root/'absent.json',optional=True) is False
+   try:fetch(address+'denied',root/'denied',optional=True)
+   except urllib.error.HTTPError as error:assert error.code==403
+   else:raise AssertionError('HTTP 403 was ignored')
+   assert Handler.denied_requests==1
+   print('VERIFIED: metadata retries HTTP 503 without false legacy fallback; optional 404 and fatal non-retried 403 stay distinct')
    def remote(name):
     dest=root/name;run('ostree',f'--repo={dest}','init','--mode=bare-user')
     run('ostree',f'--repo={dest}','remote','add',f'--gpg-import={public}','--set=gpg-verify-summary=true','fixture',f'http://127.0.0.1:{server.server_port}/')

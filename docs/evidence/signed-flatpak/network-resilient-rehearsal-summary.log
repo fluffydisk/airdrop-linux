@@ -1,0 +1,9 @@
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:29.3829166Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:29.3831256Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:29.3832024Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:29.8495576Z fsck objects (1/4565) 0%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:31.3347476Z fsck objects (1508/4565) 33%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:32.0658932Z fsck objects (4565/4565) 100%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:47:32.0671332Z object fsck of 5 commits completed successfully - no errors found.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:48:26.6588281Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T22:48:27.0487524Z {"signed_commit": "b45200dfc73ea439ed711a2d599d8e254eb4e9ba422b859ec9d008af2b09483f", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 887802880}

@@ -1,0 +1,21 @@
+gpg: checking the trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+gpg: next trustdb check due at 2026-10-27
+Transient HTTP 503; retrying metadata download (2/3)
+Imported 1 GPG key to remote "fixture"
+VERIFIED: metadata retries HTTP 503 without false legacy fallback; optional 404 and fatal non-retried 403 stay distinct
+error: While fetching http://127.0.0.1:38277/objects/72/c7ac021f9d76ba7e18f0b03399d6fa33f11e07a23555db6c9c53c2022211d5.commit: Server returned HTTP 503
+Transient HTTP 503; retrying verified repository pull (2/3)
+5 metadata, 1 content objects fetched; 783 B transferred in 0 seconds; 29 bytes content written
+Imported 1 GPG key to remote "fixture"
+VERIFIED: real signed repository recovered from an injected object HTTP 503; authenticated payload is correct
+error: While fetching http://127.0.0.1:38277/objects/72/c7ac021f9d76ba7e18f0b03399d6fa33f11e07a23555db6c9c53c2022211d5.commit: Server returned HTTP 503
+Transient HTTP 503; retrying verified repository pull (2/3)
+error: While fetching http://127.0.0.1:38277/objects/72/c7ac021f9d76ba7e18f0b03399d6fa33f11e07a23555db6c9c53c2022211d5.commit: Server returned HTTP 503
+Transient HTTP 503; retrying verified repository pull (3/3)
+error: While fetching http://127.0.0.1:38277/objects/72/c7ac021f9d76ba7e18f0b03399d6fa33f11e07a23555db6c9c53c2022211d5.commit: Server returned HTTP 503
+Imported 1 GPG key to remote "fixture"
+VERIFIED: persistent HTTP 503 fails after exactly three attempts
+error: GPG verification enabled, but no signatures found (use gpg-verify=false in remote config to disable)
+VERIFIED: invalid signed summary is fatal on the first attempt; no signature bypass or integrity retry
