@@ -145,6 +145,7 @@ jobs:
     environment: package-publishing
     outputs:
       fingerprint: ${{ steps.signing.outputs.fingerprint }}
+      modern_channel: ${{ steps.flatpak_channel.outputs.modern }}
     permissions:
       contents: read
       pages: write
@@ -203,6 +204,7 @@ jobs:
           SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
         run: bash scripts/ci-command.sh Repository-build scripts/build-repository.sh incoming public
       - name: Include the signed Flatpak remote without changing native package inputs
+        id: flatpak_channel
         if: needs.prepare.outputs.flatpak == 'true'
         env:
           SIGNING_KEY_FINGERPRINT: ${{ vars.SIGNING_KEY_FINGERPRINT }}
@@ -210,11 +212,13 @@ jobs:
           set -euo pipefail
           if test -f flatpak-incoming/candidate.json; then
             python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public public --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 flatpak-incoming/r2.flatpak
+            echo modern=true >> "$GITHUB_OUTPUT"
           else
             status=0
             python3 scripts/preserve-flatpak-channel.py --public public --fingerprint "$SIGNING_KEY_FINGERPRINT" || status=$?
             if (( status == 2 )); then bash scripts/build-flatpak-repository.sh flatpak-incoming public
-            elif (( status )); then exit "$status"; fi
+            elif (( status )); then exit "$status"
+            else echo modern=true >> "$GITHUB_OUTPUT"; fi
           fi
           python3 scripts/check-pages-tree.py public
           runtime=$(mktemp -d "$RUNNER_TEMP/signed-lint-runtime.XXXXXX")
@@ -232,12 +236,12 @@ jobs:
           rm -rf "$GNUPGHOME"
   flatpak-install:
     needs: [prepare, repository]
-    if: needs.prepare.outputs.flatpak == 'true' && needs.prepare.outputs.candidate != 'true'
+    if: needs.prepare.outputs.flatpak == 'true' && needs.repository.outputs.modern_channel != 'true'
     uses: ./.github/workflows/flatpak-public-check.yml
     with:
       tag: ${{ needs.prepare.outputs.flatpak_tag }}
       fingerprint: ${{ needs.repository.outputs.fingerprint }}
   signed-flatpak-install:
     needs: [prepare, repository]
-    if: needs.prepare.outputs.candidate == 'true'
+    if: needs.repository.outputs.modern_channel == 'true'
     uses: ./.github/workflows/flatpak-channel-public-check.yml
