@@ -1,0 +1,27 @@
+{
+  "fix_commit": "912a577c2a87bfd09ea7e63d0f7058d6f662a7a8",
+  "artifact_rehearsal": {
+    "run": 40408447669,
+    "conclusion": "success"
+  },
+  "clean_candidate": {
+    "run": 40408382425,
+    "conclusion": "success",
+    "signed_acceptance_checks": 17,
+    "combined_site_bytes": 887805634
+  },
+  "production_run": 40409895329,
+  "production_status": "waiting",
+  "gate": [
+    {
+      "environment": "package-publishing",
+      "required_reviewers": [
+        "fluffydisk"
+      ]
+    }
+  ],
+  "public_channel": {
+    "status": 404,
+    "modern_channel_published": false
+  }
+}

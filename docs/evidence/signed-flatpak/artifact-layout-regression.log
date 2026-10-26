@@ -1,0 +1,2 @@
+VERIFIED: file-only artifact loses empty dirs; structural restoration preserves all bytes, commit and payload; full fsck passes
+VERIFIED: corrupted OSTree object still fails full fsck after layout restoration

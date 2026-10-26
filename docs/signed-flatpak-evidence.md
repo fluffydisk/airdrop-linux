@@ -13,7 +13,60 @@ bundle SHA-256 is
 `9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df`.
 No tag or release asset is moved/replaced.
 
-## Verified candidate and production gate
+## Production retry: artifact layout failure (2026-10-26)
+
+The owner approved run 40246905953. Protected-key import and APT/RPM signing both
+passed. Its Flatpak step then failed **before signing the candidate**, because
+the prepare job's second `upload-artifact` transfer retained files but omitted
+empty directories. Actual error: `Listing refs: opendir(refs/remotes): No such
+file or directory`. The exact Actions traceback is retained in
+[`production-artifact-layout-failure.log`](evidence/signed-flatpak/production-artifact-layout-failure.log).
+The failed run did not upload/deploy a Pages artifact; existing public packages
+and release assets were unaffected.
+
+Commit `912a577c2a87bfd09ea7e63d0f7058d6f662a7a8` restores only OSTree's empty
+structural directories before the mandatory full fsck. It does not alter objects,
+refs, configuration, summaries, signing identity or sandbox permissions. A real
+OSTree/ZIP regression test reproduces the missing-directory failure, asserts
+every file byte and commit remains unchanged after restoration, checks the
+application fixture payload, and confirms a deliberately corrupt commit still
+fails fsck. Run locally: `python3 scripts/test-flatpak-artifact-layout.py`.
+The current Cloud application regression run also passed **104/104, zero skips**.
+
+Current reruns:
+
+- [Exact two-hop artifact/signing rehearsal using the previously verified application](https://github.com/fluffydisk/airdrop-linux/actions/runs/40408447669): **PASSED**.
+  The real downloaded artifact now passes full fsck and produces the complete
+  signed native/Flatpak Pages tree; no production keys or deployment used.
+- [Clean candidate build, regression and signing/update tests](https://github.com/fluffydisk/airdrop-linux/actions/runs/40408382425): **PASSED**, including all 17
+  signed installation/update/migration/trust checks and the full installed-app
+  smoke tests. Complete combined Pages tree: **887,805,634 bytes**; official signed
+  repository lint passed. Selected exact log lines are retained in
+  [`fixed-candidate-summary.log`](evidence/signed-flatpak/fixed-candidate-summary.log).
+- [Corrected protected production publication](https://github.com/fluffydisk/airdrop-linux/actions/runs/40409895329)
+  was requested automatically only after the clean candidate passed. It uses the
+  new candidate run 40408382425. Preparation passed; production signing is
+  **WAITING for the existing `package-publishing` required reviewer, `fluffydisk`**.
+  GitHub's `pending_deployments` API confirms this gate. Open the corrected run
+  and select **Review deployments → package-publishing → Approve and deploy**.
+  No protection was altered or approval performed on the owner's behalf.
+
+At this retry checkpoint the modern public receipt still returns HTTP 404.
+Clean public HTTPS installation and public r2-to-current update are therefore
+**NOT TESTED / BLOCKED by production review**, not counted among the successful
+disposable-repository tests. The existing public APT/RPM paths still return 200;
+all 27 v1.5.0 release assets, including the original r2 bundle, remain present.
+The post-deployment workflow automatically performs the required public tests
+after approval; its result must be inspected before calling the channel live.
+See [`production-retry-checkpoint.json`](evidence/signed-flatpak/production-retry-checkpoint.json)
+for the exact run IDs and gate evidence.
+
+The original checkpoint below is retained as historical evidence, not a claim
+that the failed production run is still waiting for approval. Public HTTPS
+installation/update must pass after a successful corrected deployment before
+activation can be called complete.
+
+## Original verified candidate and production gate
 
 - [Successful clean build and signing/update tests, run 40245958434](https://github.com/fluffydisk/airdrop-linux/actions/runs/40245958434), workflow commit
   `7615fea6f53ee9ae5a784e1759d1f562120bf1f8`.

@@ -20,8 +20,14 @@ does not erase those attempts. The full original runs remain linked there.
 Trailing whitespace and extra blank lines at EOF are normalized in text logs;
 messages and failures are retained. `SHA256SUMS` covers all evidence files except itself.
 
-Production signing/deployment is waiting for the pre-existing required reviewer:
+Original production request (later approved and failed):
 https://github.com/fluffydisk/airdrop-linux/actions/runs/40246905953
+
+That original checkpoint later proceeded after owner approval and failed on
+missing empty OSTree directories. `production-artifact-layout-failure.log`
+retains the actual traceback. Additional artifact-layout regression, two-hop
+signing rehearsal and corrected clean candidate logs are retained alongside the
+original evidence; see the status matrix for the current production retry.
 
 These are disposable-key results, not evidence that the new public channel has
 already been published. See [the status matrix](../../signed-flatpak-evidence.md).

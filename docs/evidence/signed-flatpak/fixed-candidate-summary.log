@@ -1,0 +1,22 @@
+build	Recreate pinned source recipe and clean offline build	2026-10-26T21:57:18.3230290Z VERIFIED: file-only artifact loses empty dirs; structural restoration preserves all bytes, commit and payload; full fsck passes
+build	Recreate pinned source recipe and clean offline build	2026-10-26T21:57:18.3231314Z VERIFIED: corrupted OSTree object still fails full fsck after layout restoration
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.2992608Z VERIFIED: Clean GPG-verified installation of actual r2 application from HTTP repository
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3023843Z {"signed_commit": "93668e8724dd7e6f8b19600f7ccfc895e8ef07819bbd8af60068925831c7ab38", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 173184232}
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3026823Z VERIFIED: Real flatpak update fetched a newer signed commit and its new distribution payload; private data and Tailscale-state fixtures unchanged
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3031190Z VERIFIED: Idempotent trusted-remote install/update
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3038027Z VERIFIED: Wrong-key summary.sig signature rejected before installation
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3039506Z VERIFIED: Wrong-key 668e8724dd7e6f8b19600f7ccfc895e8ef07819bbd8af60068925831c7ab38.commitmeta signature rejected before installation
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3040493Z VERIFIED: Existing remote with disabled GPG verification is rejected, never repaired silently
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3041220Z VERIFIED: Existing remote with a different URL is rejected, never replaced silently
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3043347Z VERIFIED: Existing remote with an additional untrusted signing key is rejected
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3046226Z VERIFIED: Actual standalone r2 -> signed remote migration changed origin without duplicate app or data/identity fixture loss
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3046925Z VERIFIED: User installation cannot be shadowed by --system
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3047486Z VERIFIED: Signed repository older than the safe migration revision is rejected
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3051836Z VERIFIED: Actual duplicate user/system installation is detected and left untouched
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3052947Z VERIFIED: System installation cannot be shadowed by --user
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3055708Z VERIFIED: Actual system r2 migration uses system remote and preserves the desktop user data/identity fixtures
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3059405Z VERIFIED: Actual signed app backend transfer/LAN/QR/clipboard/lifecycle checks
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3060032Z VERIFIED: Actual signed app desktop transfer/LAN/QR/clipboard/lifecycle checks
+build	Real signing, update, migration and negative-signature tests	2026-10-26T22:05:10.3060831Z VERIFIED: Application remains installed once with both summary/commit GPG checks enabled
+build	Rehearse existing APT/RPM publisher without production keys	2026-10-26T22:06:17.4874676Z {"signed_commit": "23939cdafd16c7f10c08584eaf9638c1ca2e530faec0c285d075d2199319324d", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 887805634}
+build	Rehearse existing APT/RPM publisher without production keys	2026-10-26T22:06:17.6707277Z {"bytes": 887805634, "components": {"apt": 260635732, "rpm": 342171216, "flatpak": 284967404}, "official_limit": "https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits"}

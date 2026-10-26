@@ -1,0 +1,493 @@
+verify	Set up job	﻿2026-10-26T21:57:12.6789623Z Current runner version: '2.338.0'
+verify	Set up job	2026-10-26T21:57:12.6816970Z ##[group]Runner Image Provisioner
+verify	Set up job	2026-10-26T21:57:12.6817991Z Hosted Compute Agent
+verify	Set up job	2026-10-26T21:57:12.6818653Z Version: 20261021.618
+verify	Set up job	2026-10-26T21:57:12.6819296Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+verify	Set up job	2026-10-26T21:57:12.6820094Z Build Date: 2026-10-21T00:45:21Z
+verify	Set up job	2026-10-26T21:57:12.6820791Z Worker ID: {eea62bb8-88e8-48ad-bc8e-c34e29ac25b8}
+verify	Set up job	2026-10-26T21:57:12.6821555Z Region: westus2
+verify	Set up job	2026-10-26T21:57:12.6822119Z Cloud: Azure
+verify	Set up job	2026-10-26T21:57:12.6822685Z ##[endgroup]
+verify	Set up job	2026-10-26T21:57:12.6824397Z ##[group]Operating System
+verify	Set up job	2026-10-26T21:57:12.6825070Z Ubuntu
+verify	Set up job	2026-10-26T21:57:12.6825576Z 24.04.5
+verify	Set up job	2026-10-26T21:57:12.6826230Z LTS
+verify	Set up job	2026-10-26T21:57:12.6826767Z ##[endgroup]
+verify	Set up job	2026-10-26T21:57:12.6827368Z ##[group]Runner Image
+verify	Set up job	2026-10-26T21:57:12.6827962Z Image: ubuntu-24.04
+verify	Set up job	2026-10-26T21:57:12.6828545Z Version: 20261012.334.1
+verify	Set up job	2026-10-26T21:57:12.6829682Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md
+verify	Set up job	2026-10-26T21:57:12.6831559Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261012.334
+verify	Set up job	2026-10-26T21:57:12.6832533Z ##[endgroup]
+verify	Set up job	2026-10-26T21:57:12.6833754Z ##[group]GITHUB_TOKEN Permissions
+verify	Set up job	2026-10-26T21:57:12.6836074Z Actions: read
+verify	Set up job	2026-10-26T21:57:12.6836694Z Contents: read
+verify	Set up job	2026-10-26T21:57:12.6837363Z Metadata: read
+verify	Set up job	2026-10-26T21:57:12.6837904Z ##[endgroup]
+verify	Set up job	2026-10-26T21:57:12.6840511Z Secret source: Actions
+verify	Set up job	2026-10-26T21:57:12.6841558Z Cache mode: write
+verify	Set up job	2026-10-26T21:57:12.6842315Z Prepare workflow directory
+verify	Set up job	2026-10-26T21:57:12.7189767Z Prepare all required actions
+verify	Set up job	2026-10-26T21:57:12.7239983Z Getting action download info
+verify	Set up job	2026-10-26T21:57:13.0900832Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+verify	Set up job	2026-10-26T21:57:13.1876572Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+verify	Set up job	2026-10-26T21:57:13.2793032Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+verify	Set up job	2026-10-26T21:57:13.6231867Z Complete job name: verify
+verify	Run actions/checkout@v4	﻿2026-10-26T21:57:13.7022332Z ##[group]Run actions/checkout@v4
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7023222Z with:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7023703Z   ref: 912a577c2a87bfd09ea7e63d0f7058d6f662a7a8
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7024556Z   repository: fluffydisk/airdrop-linux
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7028306Z   token: ***
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7028793Z   ssh-strict: true
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7029285Z   ssh-user: git
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7029787Z   persist-credentials: true
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7030329Z   clean: true
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7030835Z   sparse-checkout-cone-mode: true
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7031411Z   fetch-depth: 1
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7031895Z   fetch-tags: false
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7032408Z   show-progress: true
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7032925Z   lfs: false
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7033396Z   submodules: false
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7033898Z   set-safe-directory: true
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7034634Z   allow-unsafe-pr-checkout: false
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.7035537Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8095406Z Syncing repository: fluffydisk/airdrop-linux
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8098301Z ##[group]Getting Git version info
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8099669Z Working directory is '/home/runner/work/airdrop-linux/airdrop-linux'
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8101389Z [command]/usr/bin/git version
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8222340Z git version 2.55.0
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8246914Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8266957Z Temporarily overriding HOME='/home/runner/work/_temp/9962eb1c-2cc9-4431-928e-d23902c0c95a' before making global git config changes
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8269285Z Adding repository directory to the temporary git global config as a safe directory
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8273667Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8334662Z Deleting the contents of '/home/runner/work/airdrop-linux/airdrop-linux'
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8344737Z ##[group]Initializing the repository
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8353507Z [command]/usr/bin/git init /home/runner/work/airdrop-linux/airdrop-linux
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8474626Z hint: Using 'master' as the name for the initial branch. This default branch name
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8479095Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8480621Z hint: to use in all of your new repositories, which will suppress this warning,
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8481860Z hint: call:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8482498Z hint:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8483280Z hint: 	git config --global init.defaultBranch <name>
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8484463Z hint:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8485394Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8486902Z hint: 'development'. The just-created branch can be renamed via this command:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8488097Z hint:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8488815Z hint: 	git branch -m <name>
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8489937Z hint:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8491437Z hint: Disable this message with "git config set advice.defaultBranchName false"
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8493287Z Initialized empty Git repository in /home/runner/work/airdrop-linux/airdrop-linux/.git/
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8496392Z [command]/usr/bin/git remote add origin https://github.com/fluffydisk/airdrop-linux
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8571746Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8573169Z ##[group]Disabling automatic garbage collection
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8574558Z [command]/usr/bin/git config --local gc.auto 0
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8615727Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8617013Z ##[group]Setting up auth
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8624421Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.8665933Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9061115Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9101337Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9333844Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9377410Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9614544Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9660095Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9661075Z ##[group]Fetching the repository
+verify	Run actions/checkout@v4	2026-10-26T21:57:13.9670370Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin 912a577c2a87bfd09ea7e63d0f7058d6f662a7a8
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5138885Z From https://github.com/fluffydisk/airdrop-linux
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5141124Z  * branch            912a577c2a87bfd09ea7e63d0f7058d6f662a7a8 -> FETCH_HEAD
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5146711Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5148626Z ##[group]Determining the checkout info
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5150690Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5153010Z [command]/usr/bin/git sparse-checkout disable
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5218235Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5259488Z ##[group]Checking out the ref
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5266422Z [command]/usr/bin/git checkout --progress --force 912a577c2a87bfd09ea7e63d0f7058d6f662a7a8
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5669555Z Note: switching to '912a577c2a87bfd09ea7e63d0f7058d6f662a7a8'.
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5671690Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5672814Z You are in 'detached HEAD' state. You can look around, make experimental
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5674659Z changes and commit them, and you can discard any commits you make in this
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5676047Z state without impacting any branches by switching back to a branch.
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5676805Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5677748Z If you want to create a new branch to retain commits you create, you may
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5678969Z do so (now or later) by using -c with the switch command. Example:
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5679771Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5680143Z   git switch -c <new-branch-name>
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5680689Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5681055Z Or undo this operation with:
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5681566Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5681878Z   git switch -
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5682512Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5683191Z Turn off this advice by setting config variable advice.detachedHead to false
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5684506Z
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5685451Z HEAD is now at 912a577 Restore empty OSTree directories after file-only artifact transfer
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5692581Z ##[endgroup]
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5740887Z [command]/usr/bin/git log -1 --format=%H
+verify	Run actions/checkout@v4	2026-10-26T21:57:14.5769164Z 912a577c2a87bfd09ea7e63d0f7058d6f662a7a8
+verify	Run actions/setup-node@v4	﻿2026-10-26T21:57:14.6145939Z ##[group]Run actions/setup-node@v4
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.6147404Z with:
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.6148350Z   node-version: 26
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.6149514Z   always-auth: false
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.6150527Z   check-latest: false
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.6159396Z   token: ***
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.6160350Z ##[endgroup]
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.7709339Z Attempting to download 26...
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.7822339Z (node:2579) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+verify	Run actions/setup-node@v4	2026-10-26T21:57:14.7829213Z (Use `node --trace-deprecation ...` to show where the warning was created)
+verify	Run actions/setup-node@v4	2026-10-26T21:57:15.6066963Z Acquiring 26.12.1 - x64 from https://github.com/actions/node-versions/releases/download/26.12.1-39618969937/node-26.12.1-linux-x64.tar.gz
+verify	Run actions/setup-node@v4	2026-10-26T21:57:16.1602198Z Extracting ...
+verify	Run actions/setup-node@v4	2026-10-26T21:57:16.1725285Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/4dfa6772-4ee9-41a0-b4d9-1ede313299ba -f /home/runner/work/_temp/160859f2-425a-4eea-b31d-cf5d0e3bbcb1
+verify	Run actions/setup-node@v4	2026-10-26T21:57:17.5233501Z Adding to the cache ...
+verify	Run actions/setup-node@v4	2026-10-26T21:57:19.5565295Z ##[group]Environment details
+verify	Run actions/setup-node@v4	2026-10-26T21:57:19.7782081Z node: v26.12.1
+verify	Run actions/setup-node@v4	2026-10-26T21:57:19.7784578Z npm: 11.20.0
+verify	Run actions/setup-node@v4	2026-10-26T21:57:19.7784993Z yarn: 1.22.22
+verify	Run actions/setup-node@v4	2026-10-26T21:57:19.7785826Z ##[endgroup]
+verify	Run actions/download-artifact@v4	﻿2026-10-26T21:57:19.7992316Z ##[group]Run actions/download-artifact@v4
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7992697Z with:
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7992921Z   name: repository-packages
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7993173Z   path: incoming
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7993387Z   merge-multiple: false
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7993640Z   repository: fluffydisk/airdrop-linux
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7993963Z   run-id: 40408447669
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.7994558Z ##[endgroup]
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.9507327Z Downloading single artifact
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.9651464Z (node:2617) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:19.9652516Z (Use `node --trace-deprecation ...` to show where the warning was created)
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:20.2248898Z Preparing to download the following artifacts:
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:20.2250724Z - repository-packages (ID: 12692410640, Size: 599683530, Expected Digest: sha256:ca4bb788a770c1816da069e69b2de4ac8cb6fbc58f0a8065dab308279cec9da4)
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:20.4680263Z Redirecting to blob download url: https://productionresultssa2.blob.core.windows.net/actions-results/8e8b91fa-eea2-4126-a1cd-39521e07f12d/workflow-job-run-eea2d158-0309-5797-840d-31ccc6062601/artifacts/4d70191b0dcd2062a671f1cd23b3ece8f223698074af85b3f80bdf5b79509928.zip
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:20.4683311Z Starting download of artifact to: /home/runner/work/airdrop-linux/airdrop-linux/incoming
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:20.8358695Z (node:2617) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.1900683Z SHA256 digest of downloaded artifact is ca4bb788a770c1816da069e69b2de4ac8cb6fbc58f0a8065dab308279cec9da4
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.1901964Z Artifact download completed successfully.
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.1903208Z Total of 1 artifact(s) downloaded
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.1908363Z Download artifact has finished successfully
+verify	Run actions/download-artifact@v4	﻿2026-10-26T21:57:51.2093821Z ##[group]Run actions/download-artifact@v4
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2094409Z with:
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2094641Z   name: flatpak-repository-inputs
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2094917Z   path: flatpak-incoming
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2095166Z   merge-multiple: false
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2095433Z   repository: fluffydisk/airdrop-linux
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2095716Z   run-id: 40408447669
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.2095931Z ##[endgroup]
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.3616250Z Downloading single artifact
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.3775020Z (node:2640) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.3776775Z (Use `node --trace-deprecation ...` to show where the warning was created)
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.6414517Z Preparing to download the following artifacts:
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.6417199Z - flatpak-repository-inputs (ID: 12692037061, Size: 287835903, Expected Digest: sha256:038d888db9d8e468f3e0f02dacb8d96a97875276312937125e4cc963f4f5b1de)
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.8997564Z Redirecting to blob download url: https://productionresultssa2.blob.core.windows.net/actions-results/8e8b91fa-eea2-4126-a1cd-39521e07f12d/workflow-job-run-eea2d158-0309-5797-840d-31ccc6062601/artifacts/3ae285c77aa35d625f6ba5cc4e408fdd1d365f1c32817b879812fa7f810a2e8d.zip
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:51.8999570Z Starting download of artifact to: /home/runner/work/airdrop-linux/airdrop-linux/flatpak-incoming
+verify	Run actions/download-artifact@v4	2026-10-26T21:57:52.2272864Z (node:2640) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+verify	Run actions/download-artifact@v4	2026-10-26T21:58:09.1674500Z SHA256 digest of downloaded artifact is 038d888db9d8e468f3e0f02dacb8d96a97875276312937125e4cc963f4f5b1de
+verify	Run actions/download-artifact@v4	2026-10-26T21:58:09.1675615Z Artifact download completed successfully.
+verify	Run actions/download-artifact@v4	2026-10-26T21:58:09.1676205Z Total of 1 artifact(s) downloaded
+verify	Run actions/download-artifact@v4	2026-10-26T21:58:09.1681908Z Download artifact has finished successfully
+verify	Verify complete signing flow with a disposable key (no deployment)	﻿2026-10-26T21:58:09.1987377Z ##[group]Run set -euo pipefail
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1987810Z [36;1mset -euo pipefail[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1988136Z [36;1msudo bash scripts/ci-ubuntu-mirror.sh[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1988476Z [36;1msudo apt-get update[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1988904Z [36;1msudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv flatpak ostree[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1989441Z [36;1mnode scripts/verify-release-assets.js incoming[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1989856Z [36;1mexport GNUPGHOME="$RUNNER_TEMP/test-signing"[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1990205Z [36;1mmkdir -m 700 "$GNUPGHOME"[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1990639Z [36;1mtrap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME" verified-repository' EXIT[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1991438Z [36;1mgpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop CI test <test@example.invalid>' ed25519 sign 1d[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1992359Z [36;1mexport SIGNING_KEY_FINGERPRINT="$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')"[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1993264Z [36;1mbash scripts/ci-command.sh Repository-test-signing scripts/build-repository.sh incoming verified-repository[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1993857Z [36;1mif test -d flatpak-incoming; then[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1994536Z [36;1m  if test -f flatpak-incoming/candidate.json; then[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1995399Z [36;1m    python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public verified-repository --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 flatpak-incoming/r2.flatpak[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1996187Z [36;1m  else[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1996582Z [36;1m    bash scripts/build-flatpak-repository.sh flatpak-incoming verified-repository[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1997044Z [36;1m  fi[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1997239Z [36;1mfi[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.1997725Z [36;1mecho '### Validation passed with real release assets and a disposable key; nothing deployed.' >> "$GITHUB_STEP_SUMMARY"[0m
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.2265112Z shell: /usr/bin/bash -e {0}
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.2265515Z ##[endgroup]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.3217277Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.3478900Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.3582721Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.3603690Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.3623508Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.3655345Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.4299306Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.4 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.4416479Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [598 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.4525657Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [661 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.5413977Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1401 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.5499622Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [310 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.5505658Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1706 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.5605281Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [343 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.5645925Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1805 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.5742000Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [411 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.6566222Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1146 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.6633344Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [231 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.6651209Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1223 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.6715146Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [246 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.7160571Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1713 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:09.7249149Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [392 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:12.7671761Z Fetched 12.6 MB in 1s (9876 kB/s)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:13.7307982Z Reading package lists...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:13.7614372Z Reading package lists...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:13.9882078Z Building dependency tree...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:13.9889931Z Reading state information...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1330601Z apt-utils is already the newest version (2.8.3).
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1331786Z apt-utils set to manually installed.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1332627Z rpm is already the newest version (4.18.2+dfsg-2.1build2).
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1333547Z gnupg is already the newest version (2.4.4-2ubuntu17.6).
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1334698Z gpgv is already the newest version (2.4.4-2ubuntu17.6).
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1335320Z gpgv set to manually installed.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1335933Z The following additional packages will be installed:
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1336932Z   bubblewrap desktop-file-utils gsettings-desktop-schemas libavahi-glib1
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1337877Z   libcreaterepo-c0 libdrpm0 libmalcontent-0-0 libmodulemd2 libostree-1-1
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1338743Z   libpipewire-0.3-0t64 libpipewire-0.3-common libspa-0.2-modules
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1339624Z   libwebrtc-audio-processing1 libzck1 session-migration xdg-dbus-proxy
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1340371Z   xdg-desktop-portal xdg-desktop-portal-gtk
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1343623Z Suggested packages:
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1344536Z   avahi-daemon malcontent-gui pipewire accountsservice evince
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1345016Z   xdg-desktop-portal-gnome
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1620318Z The following NEW packages will be installed:
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1621438Z   bubblewrap createrepo-c desktop-file-utils flatpak gsettings-desktop-schemas
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1623027Z   libavahi-glib1 libcreaterepo-c0 libdrpm0 libmalcontent-0-0 libmodulemd2
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1626161Z   libostree-1-1 libpipewire-0.3-0t64 libpipewire-0.3-common libspa-0.2-modules
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1629398Z   libwebrtc-audio-processing1 libzck1 ostree session-migration xdg-dbus-proxy
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1630598Z   xdg-desktop-portal xdg-desktop-portal-gtk
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1810086Z 0 upgraded, 21 newly installed, 0 to remove and 104 not upgraded.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1810970Z Need to get 4075 kB of archives.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1811795Z After this operation, 15.1 MB of additional disk space will be used.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.1812790Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.2678977Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 bubblewrap amd64 0.9.0-1ubuntu0.3 [50.4 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.3785417Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdrpm0 amd64 0.5.1-1.1build1 [47.6 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.4853835Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmodulemd2 amd64 2.14.0-3build2 [144 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.6606946Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzck1 amd64 1.3.2+ds1-1build2 [50.2 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.7440607Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcreaterepo-c0 amd64 0.17.3-2ubuntu3 [93.5 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.8371031Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 createrepo-c amd64 0.17.3-2ubuntu3 [52.6 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:14.9204595Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 desktop-file-utils amd64 0.27-2build1 [53.8 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.0072278Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 xdg-dbus-proxy amd64 0.1.5-1ubuntu0.2 [26.4 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.0796328Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmalcontent-0-0 amd64 0.11.1-1ubuntu1.3 [22.3 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.1549015Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libavahi-glib1 amd64 0.8-13ubuntu6.2 [8186 B]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.2253080Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libostree-1-1 amd64 2024.5-1build2 [373 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.3032896Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 flatpak amd64 1.14.6-1ubuntu0.1 [1350 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.4029521Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 session-migration amd64 0.3.9build1 [9034 B]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.4735454Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 gsettings-desktop-schemas all 46.1-0ubuntu1 [35.6 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.5444796Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libwebrtc-audio-processing1 amd64 0.3.1-0ubuntu6 [290 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.6211284Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libspa-0.2-modules amd64 1.0.5-1ubuntu3.3 [628 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.7044477Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpipewire-0.3-0t64 amd64 1.0.5-1ubuntu3.3 [252 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.7848242Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpipewire-0.3-common all 1.0.5-1ubuntu3.3 [19.5 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.8556247Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ostree amd64 2024.5-1build2 [181 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:15.9315274Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 xdg-desktop-portal amd64 1.18.4-1ubuntu2.24.04.3 [307 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.0128716Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xdg-desktop-portal-gtk amd64 1.15.1-1build2 [80.3 kB]
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.2735999Z Fetched 4075 kB in 2s (2209 kB/s)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.2963723Z Selecting previously unselected package bubblewrap.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3257254Z (Reading database ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3257985Z (Reading database ... 5%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3258484Z (Reading database ... 10%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3258942Z (Reading database ... 15%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3259357Z (Reading database ... 20%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3259804Z (Reading database ... 25%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3260388Z (Reading database ... 30%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3260793Z (Reading database ... 35%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3261194Z (Reading database ... 40%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3261594Z (Reading database ... 45%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3261992Z (Reading database ... 50%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.3317907Z (Reading database ... 55%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.4176271Z (Reading database ... 60%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.4812163Z (Reading database ... 65%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.6746323Z (Reading database ... 70%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:16.8656179Z (Reading database ... 75%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.0225071Z (Reading database ... 80%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.2289029Z (Reading database ... 85%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.3971160Z (Reading database ... 90%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.5855716Z (Reading database ... 95%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.5856315Z (Reading database ... 100%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.5857129Z (Reading database ... 203540 files and directories currently installed.)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.5904992Z Preparing to unpack .../00-bubblewrap_0.9.0-1ubuntu0.3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.5935031Z Unpacking bubblewrap (0.9.0-1ubuntu0.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.6213711Z Selecting previously unselected package libdrpm0:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.6347611Z Preparing to unpack .../01-libdrpm0_0.5.1-1.1build1_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.6434299Z Unpacking libdrpm0:amd64 (0.5.1-1.1build1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.6886881Z Selecting previously unselected package libmodulemd2:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7019177Z Preparing to unpack .../02-libmodulemd2_2.14.0-3build2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7027811Z Unpacking libmodulemd2:amd64 (2.14.0-3build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7256125Z Selecting previously unselected package libzck1:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7383604Z Preparing to unpack .../03-libzck1_1.3.2+ds1-1build2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7390784Z Unpacking libzck1:amd64 (1.3.2+ds1-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7594209Z Selecting previously unselected package libcreaterepo-c0:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7721417Z Preparing to unpack .../04-libcreaterepo-c0_0.17.3-2ubuntu3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7728073Z Unpacking libcreaterepo-c0:amd64 (0.17.3-2ubuntu3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.7933916Z Selecting previously unselected package createrepo-c.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8061964Z Preparing to unpack .../05-createrepo-c_0.17.3-2ubuntu3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8068313Z Unpacking createrepo-c (0.17.3-2ubuntu3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8323329Z Selecting previously unselected package desktop-file-utils.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8450935Z Preparing to unpack .../06-desktop-file-utils_0.27-2build1_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8458029Z Unpacking desktop-file-utils (0.27-2build1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8717122Z Selecting previously unselected package xdg-dbus-proxy.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8842896Z Preparing to unpack .../07-xdg-dbus-proxy_0.1.5-1ubuntu0.2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.8850709Z Unpacking xdg-dbus-proxy (0.1.5-1ubuntu0.2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9049456Z Selecting previously unselected package libmalcontent-0-0:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9175735Z Preparing to unpack .../08-libmalcontent-0-0_0.11.1-1ubuntu1.3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9196881Z Unpacking libmalcontent-0-0:amd64 (0.11.1-1ubuntu1.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9394794Z Selecting previously unselected package libavahi-glib1:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9521827Z Preparing to unpack .../09-libavahi-glib1_0.8-13ubuntu6.2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9528840Z Unpacking libavahi-glib1:amd64 (0.8-13ubuntu6.2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9726673Z Selecting previously unselected package libostree-1-1:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9852982Z Preparing to unpack .../10-libostree-1-1_2024.5-1build2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:17.9859692Z Unpacking libostree-1-1:amd64 (2024.5-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.0100477Z Selecting previously unselected package flatpak.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.0230013Z Preparing to unpack .../11-flatpak_1.14.6-1ubuntu0.1_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.0296905Z Unpacking flatpak (1.14.6-1ubuntu0.1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.1213065Z Selecting previously unselected package session-migration.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.1346894Z Preparing to unpack .../12-session-migration_0.3.9build1_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.1353140Z Unpacking session-migration (0.3.9build1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.1589539Z Selecting previously unselected package gsettings-desktop-schemas.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.1722000Z Preparing to unpack .../13-gsettings-desktop-schemas_46.1-0ubuntu1_all.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.1730311Z Unpacking gsettings-desktop-schemas (46.1-0ubuntu1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2030533Z Selecting previously unselected package libwebrtc-audio-processing1:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2165979Z Preparing to unpack .../14-libwebrtc-audio-processing1_0.3.1-0ubuntu6_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2175149Z Unpacking libwebrtc-audio-processing1:amd64 (0.3.1-0ubuntu6) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2405355Z Selecting previously unselected package libspa-0.2-modules:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2540709Z Preparing to unpack .../15-libspa-0.2-modules_1.0.5-1ubuntu3.3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2548328Z Unpacking libspa-0.2-modules:amd64 (1.0.5-1ubuntu3.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.2872726Z Selecting previously unselected package libpipewire-0.3-0t64:amd64.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3002379Z Preparing to unpack .../16-libpipewire-0.3-0t64_1.0.5-1ubuntu3.3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3010105Z Unpacking libpipewire-0.3-0t64:amd64 (1.0.5-1ubuntu3.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3252954Z Selecting previously unselected package libpipewire-0.3-common.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3383571Z Preparing to unpack .../17-libpipewire-0.3-common_1.0.5-1ubuntu3.3_all.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3390614Z Unpacking libpipewire-0.3-common (1.0.5-1ubuntu3.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3579532Z Selecting previously unselected package ostree.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3709649Z Preparing to unpack .../18-ostree_2024.5-1build2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.3716686Z Unpacking ostree (2024.5-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.4022839Z Selecting previously unselected package xdg-desktop-portal.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.4153624Z Preparing to unpack .../19-xdg-desktop-portal_1.18.4-1ubuntu2.24.04.3_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.4160989Z Unpacking xdg-desktop-portal (1.18.4-1ubuntu2.24.04.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.4431849Z Selecting previously unselected package xdg-desktop-portal-gtk.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.4565058Z Preparing to unpack .../20-xdg-desktop-portal-gtk_1.15.1-1build2_amd64.deb ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.4572493Z Unpacking xdg-desktop-portal-gtk (1.15.1-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.5024037Z Setting up libmodulemd2:amd64 (2.14.0-3build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.5044673Z Setting up libpipewire-0.3-common (1.0.5-1ubuntu3.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.5061913Z Setting up bubblewrap (0.9.0-1ubuntu0.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.5105892Z Setting up session-migration (0.3.9build1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6282281Z Created symlink /etc/systemd/user/graphical-session-pre.target.wants/session-migration.service → /usr/lib/systemd/user/session-migration.service.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6283494Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6316210Z Setting up desktop-file-utils (0.27-2build1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6503677Z Setting up libwebrtc-audio-processing1:amd64 (0.3.1-0ubuntu6) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6523030Z Setting up libzck1:amd64 (1.3.2+ds1-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6544486Z Setting up libdrpm0:amd64 (0.5.1-1.1build1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6566080Z Setting up libspa-0.2-modules:amd64 (1.0.5-1ubuntu3.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6585602Z Setting up xdg-dbus-proxy (0.1.5-1ubuntu0.2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6605209Z Setting up libavahi-glib1:amd64 (0.8-13ubuntu6.2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6626064Z Setting up libpipewire-0.3-0t64:amd64 (1.0.5-1ubuntu3.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6646387Z Setting up libcreaterepo-c0:amd64 (0.17.3-2ubuntu3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6666681Z Setting up libmalcontent-0-0:amd64 (0.11.1-1ubuntu1.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6686434Z Setting up gsettings-desktop-schemas (46.1-0ubuntu1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.6704417Z Setting up xdg-desktop-portal (1.18.4-1ubuntu2.24.04.3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.7791669Z Created symlink /etc/systemd/user/graphical-session-pre.target.wants/xdg-desktop-portal-rewrite-launchers.service → /usr/lib/systemd/user/xdg-desktop-portal-rewrite-launchers.service.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.7792777Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.7819498Z Setting up createrepo-c (0.17.3-2ubuntu3) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.7837640Z Setting up libostree-1-1:amd64 (2024.5-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.7858082Z Setting up ostree (2024.5-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.7876285Z Setting up flatpak (1.14.6-1ubuntu0.1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.9632502Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.9968782Z Processing triggers for man-db (2.12.0-4build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:18.9990904Z Not building database; man-db/auto-update is not 'true'.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.0004617Z Processing triggers for libglib2.0-0t64:amd64 (2.80.0-6ubuntu3.9) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.0256947Z Processing triggers for dbus (1.14.10-4ubuntu4.1) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.0388618Z Setting up xdg-desktop-portal-gtk (1.15.1-1build2) ...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6822397Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6823117Z Running kernel seems to be up-to-date.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6823510Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6823760Z No services need to be restarted.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6824406Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6824753Z No containers need to be restarted.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6825072Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6825370Z No user sessions are running outdated binaries.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6825741Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:19.6826235Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.2959564Z Downloaded release assets verified
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3105264Z gpg: keybox '/home/runner/work/_temp/test-signing/pubring.kbx' created
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3348186Z gpg: /home/runner/work/_temp/test-signing/trustdb.gpg: trustdb created
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3350224Z gpg: directory '/home/runner/work/_temp/test-signing/openpgp-revocs.d' created
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3368178Z gpg: revocation certificate stored as '/home/runner/work/_temp/test-signing/openpgp-revocs.d/4D175A4F6E0DF97A14E77972C811FA7DF9D8478A.rev'
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3400155Z gpg: checking the trustdb
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3409807Z gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3410775Z gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:21.3411447Z gpg: next trustdb check due at 2026-10-27
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5011099Z Package input: /home/runner/work/airdrop-linux/airdrop-linux/incoming; DEB=2 RPM=2
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5011855Z warning: Could not set GPG_TTY to stdin: Inappropriate ioctl for device
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5012455Z verified-repository/rpm/aarch64/airdrop-linux-1.5.0-1.aarch64.rpm:
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5013033Z warning: Could not set GPG_TTY to stdin: Inappropriate ioctl for device
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5013615Z verified-repository/rpm/x86_64/airdrop-linux-1.5.0-1.x86_64.rpm:
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5014449Z verified-repository/rpm/aarch64/airdrop-linux-1.5.0-1.aarch64.rpm: digests signatures OK
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5015216Z verified-repository/rpm/x86_64/airdrop-linux-1.5.0-1.x86_64.rpm: digests signatures OK
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5015681Z Directory walk started
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5015986Z Directory walk done - 1 packages
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5016442Z Temporary output repo path: verified-repository/rpm/x86_64/.repodata/
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5016846Z Preparing sqlite DBs
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5017114Z Pool started (with 5 workers)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5017368Z Pool finished
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5017689Z gpgv: Signature made Mon Oct 26 21:58:25 2026 UTC
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5018177Z gpgv:                using EDDSA key 4D175A4F6E0DF97A14E77972C811FA7DF9D8478A
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5018722Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5019107Z Directory walk started
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5019678Z Directory walk done - 1 packages
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5020142Z Temporary output repo path: verified-repository/rpm/aarch64/.repodata/
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5020573Z Preparing sqlite DBs
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5020828Z Pool started (with 5 workers)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5021083Z Pool finished
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5021396Z gpgv: Signature made Mon Oct 26 21:58:25 2026 UTC
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5021874Z gpgv:                using EDDSA key 4D175A4F6E0DF97A14E77972C811FA7DF9D8478A
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5022423Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5022885Z gpgv: Signature made Mon Oct 26 21:58:23 2026 UTC
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5023767Z gpgv:                using EDDSA key 4D175A4F6E0DF97A14E77972C811FA7DF9D8478A
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:25.5024978Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:26.0420336Z Validating refs...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:26.0424846Z Validating refs in collections...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:26.0425399Z Enumerating commits...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:26.0476963Z Verifying content integrity of 5 commit objects...
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:26.1167469Z fsck objects (1/4565) 0%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:28.3613444Z fsck objects (1506/4565) 32%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:29.3625623Z fsck objects (3331/4565) 72%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:29.4876010Z fsck objects (4565/4565) 100%
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:29.4889715Z object fsck of 5 commits completed successfully - no errors found.
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:58:29.9799664Z Imported 1 GPG key to remote "previous"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.5673649Z 919 metadata, 3225 content objects fetched; 153880 KiB transferred in 50 seconds; 408.1 MB content written
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.7586708Z Importing app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.8094392Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.8096243Z (flatpak build-import-bundle:3560): GLib-CRITICAL **: 21:59:20.809: g_str_has_prefix: assertion 'str != NULL' failed
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.8097250Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.8098386Z (flatpak build-import-bundle:3560): OSTree-CRITICAL **: 21:59:20.809: _ostree_repo_get_remote: assertion 'name != NULL' failed
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.8100035Z
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:20.8101176Z (flatpak build-import-bundle:3560): GLib-CRITICAL **: 21:59:20.809: g_propagate_error: assertion 'src != NULL' failed
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.1286993Z app/io.github.fluffydisk.airdrop-linux/x86_64/stable: 353f24ff52c5ffc823d5b61f69af70a6c375de219ee506f9877a3a3b7d9e272e
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.1947367Z 10 metadata, 5 content objects imported; 0 bytes content written
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.2538201Z Updating appstream branch
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.3087850Z Generating static deltas
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.3222441Z Generating delta: appstream2/x86_64 (939b55c3de-5f98517279)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.3223345Z Generating delta: appstream2/x86_64 (5f98517279)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.3475374Z Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19c-353f24ff52)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:40.3477848Z Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (353f24ff52)
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.1376691Z Updating summary
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.2503016Z Total objects: 4655
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.2503884Z Deleted 1 objects, 1.1 kB freed
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.2695570Z gpgv: Signature made Mon Oct 26 21:59:49 2026 UTC
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.2696324Z gpgv:                using EDDSA key 4D175A4F6E0DF97A14E77972C811FA7DF9D8478A
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.2713851Z gpgv: Good signature from "Airdrop CI test <test@example.invalid>"
+verify	Verify complete signing flow with a disposable key (no deployment)	2026-10-26T21:59:49.8043564Z {"signed_commit": "353f24ff52c5ffc823d5b61f69af70a6c375de219ee506f9877a3a3b7d9e272e", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 887814226}
+verify	Post Run actions/setup-node@v4	﻿2026-10-26T21:59:50.2816851Z Post job cleanup.
+verify	Post Run actions/setup-node@v4	2026-10-26T21:59:50.4096905Z (node:3753) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+verify	Post Run actions/setup-node@v4	2026-10-26T21:59:50.4098274Z (Use `node --trace-deprecation ...` to show where the warning was created)
+verify	Post Run actions/checkout@v4	﻿2026-10-26T21:59:50.4280443Z Post job cleanup.
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5223251Z [command]/usr/bin/git version
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5268269Z git version 2.55.0
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5308782Z Temporarily overriding HOME='/home/runner/work/_temp/b386bb0b-b3f1-438a-aeff-af4d1c704c1c' before making global git config changes
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5310364Z Adding repository directory to the temporary git global config as a safe directory
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5314674Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5359345Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5414538Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5690384Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5740551Z http.https://github.com/.extraheader
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5766127Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.5789661Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.6094882Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+verify	Post Run actions/checkout@v4	2026-10-26T21:59:50.6137480Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+verify	Complete job	﻿2026-10-26T21:59:50.6536276Z Cleaning up orphan processes
+verify	Complete job	2026-10-26T21:59:50.6906394Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
