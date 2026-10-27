@@ -1,0 +1,15 @@
+Run: https://github.com/fluffydisk/airdrop-linux/actions/runs/40419422199
+Job: repository (121910180921)
+Step: Include the signed Flatpak remote without changing native package inputs
+2026-10-27T08:46:53.7042733Z error: Commit 248a67422acbc8b464c175172e24bb50101b6f14e778ca98e279996d4285a775: Commit has no requested ref ?history/airdrop-linux/248a67422acbc8b464c175172e24bb50101b6f14e778ca98e279996d4285a775? in ref binding metadata (?app/io.github.fluffydisk.airdrop-linux/x86_64/stable?)
+2026-10-27T08:46:53.7779596Z Traceback (most recent call last):
+2026-10-27T08:46:53.7781780Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/preserve-flatpak-channel.py", line 17, in <module>
+2026-10-27T08:46:53.7783899Z     pull_repository(repo,'--mirror','--depth=1','previous');run('ostree',f'--repo={repo}','remote','delete','previous')
+2026-10-27T08:46:53.7785468Z     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-27T08:46:53.7787123Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/flatpak_channel.py", line 27, in pull_repository
+2026-10-27T08:46:53.7789139Z     if not transient or integrity or attempt+1==attempts:result.check_returncode()
+2026-10-27T08:46:53.7790611Z                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-27T08:46:53.7792035Z   File "/usr/lib/python3.12/subprocess.py", line 502, in check_returncode
+2026-10-27T08:46:53.7793559Z     raise CalledProcessError(self.returncode, self.args, self.stdout,
+2026-10-27T08:46:53.7795735Z subprocess.CalledProcessError: Command '['ostree', '--repo=public/flatpak', 'pull', '--mirror', '--depth=1', 'previous']' returned non-zero exit status 1.
+2026-10-27T08:46:53.7951291Z ##[error]Process completed with exit code 1.

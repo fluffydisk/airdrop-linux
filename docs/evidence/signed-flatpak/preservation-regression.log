@@ -1,0 +1,100 @@
+gpg: keybox '/tmp/airdrop-preservation-xsew8ne0/keys/pubring.kbx' created
+gpg: /tmp/airdrop-preservation-xsew8ne0/keys/trustdb.gpg: trustdb created
+gpg: directory '/tmp/airdrop-preservation-xsew8ne0/keys/openpgp-revocs.d' created
+gpg: revocation certificate stored as '/tmp/airdrop-preservation-xsew8ne0/keys/openpgp-revocs.d/1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757.rev'
+gpg: checking the trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+gpg: next trustdb check due at 2026-10-28
+Commit: af0f285298df34570486bbc84ace776c23115ed71bc2621fbcf534ebcce299da
+Metadata Total: 9
+Metadata Written: 6
+Content Total: 2
+Content Written: 2
+Content Bytes Written: 185 (185 bytes)
+Commit: b213c233a989beb524502133dccbd2cc93994d919d5f16d70c72651078a9fc37
+Metadata Total: 9
+Metadata Written: 4
+Content Total: 2
+Content Written: 1
+Content Bytes Written: 31 (31 bytes)
+Updating appstream branch
+No appstream data for app/io.github.fluffydisk.airdrop-linux/x86_64/stable: No such file or directory: /files/share
+Updating summary
+gpgv: Signature made Tue Oct 27 14:13:26 2026 UTC
+gpgv:                using EDDSA key 1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757
+gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+gpgv: Signature made Tue Oct 27 14:13:26 2026 UTC
+gpgv:                using EDDSA key 1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757
+gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+gpgv: Signature made Tue Oct 27 14:13:26 2026 UTC
+gpgv:                using EDDSA key 1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757
+gpgv: BAD signature from "Preservation fixture <test@example.invalid>"
+VERIFIED: authenticated stale bootstrap requests refresh, current bootstrap skips it, invalid signature is fatal
+Imported 1 GPG key to remote "fixture"
+VERIFIED: unfiltered signed mirror reproduces the historical-alias ref-binding rejection
+gpgv: Signature made Tue Oct 27 14:13:26 2026 UTC
+gpgv:                using EDDSA key 1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757
+gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+Imported 1 GPG key to remote "previous"
+20 metadata, 7 content objects fetched; 4 KiB transferred in 0 seconds; 416 bytes content written
+Validating refs...
+Validating refs in collections...
+Enumerating commits...
+Verifying content integrity of 4 commit objects...
+fsck objects (1/23) 4%
+fsck objects (23/23) 100%
+object fsck of 4 commits completed successfully - no errors found.
+commit af0f285298df34570486bbc84ace776c23115ed71bc2621fbcf534ebcce299da
+ContentChecksum:  2a3a08144f531b6f2fdab22c144504f9e5cd8769bca6f1d6b43d157a185b7f9a
+Date:  2026-10-27 14:13:25 +0000
+
+    Export io.github.fluffydisk.airdrop-linux
+
+    Name: io.github.fluffydisk.airdrop-linux
+    Arch: x86_64
+    Branch: stable
+    Built with: Flatpak 1.16.6
+
+Found 1 signature:
+
+  Signature made Tue Oct 27 14:13:25 2026 using EdDSA key ID 85AF1D6B97ACA757
+  Good signature from "Preservation fixture <test@example.invalid>"
+  Key expires Wed Oct 28 14:13:25 2026
+Updating appstream branch
+No appstream data for app/io.github.fluffydisk.airdrop-linux/x86_64/stable: No such file or directory: /files/share
+Generating static deltas
+Generating delta: appstream2/x86_64 (7967130560)
+Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (b213c233a9)
+Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (af0f285298-b213c233a9)
+Updating summary
+Total objects: 23
+No unreachable objects
+gpgv: Signature made Tue Oct 27 14:13:29 2026 UTC
+gpgv:                using EDDSA key 1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757
+gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+Validating refs...
+Validating refs in collections...
+Enumerating commits...
+Verifying content integrity of 4 commit objects...
+fsck objects (1/23) 4%
+fsck objects (23/23) 100%
+object fsck of 4 commits completed successfully - no errors found.
+Preserved published Flatpak commit and signed channel receipt b213c233a989beb524502133dccbd2cc93994d919d5f16d70c72651078a9fc37
+VERIFIED: complete signed preservation retains app/current parent, receipt bytes, native fixture inputs and valid bootstrap signature; history aliases omitted
+Commit: b1c395f00b5c72a2a800991f643bd6424ad9e3872cadfb629278ba0c3a0926c3
+Metadata Total: 9
+Metadata Written: 1
+Content Total: 2
+Content Written: 0
+Content Bytes Written: 0 (0 bytes)
+Updating appstream branch
+No appstream data for app/io.github.fluffydisk.airdrop-linux/x86_64/stable: No such file or directory: /files/share
+No appstream data for app/io.github.fluffydisk.airdrop-linux/x86_64/untrusted: No such file or directory: /files/share
+Updating summary
+gpgv: Signature made Tue Oct 27 14:13:30 2026 UTC
+gpgv:                using EDDSA key 1FB1CB0AE9D103B65A489E7485AF1D6B97ACA757
+gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+Imported 1 GPG key to remote "previous"
+error: Commit b1c395f00b5c72a2a800991f643bd6424ad9e3872cadfb629278ba0c3a0926c3: Commit has no requested ref ?app/io.github.fluffydisk.airdrop-linux/x86_64/stable? in ref binding metadata (?app/io.github.fluffydisk.airdrop-linux/x86_64/untrusted?)
+VERIFIED: canonical app ref with a wrong signed binding is still rejected; no binding or GPG bypass

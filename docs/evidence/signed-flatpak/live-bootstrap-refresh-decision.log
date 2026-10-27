@@ -1,0 +1,4 @@
+gpgv: Signature made Mon Oct 26 22:58:25 2026 UTC
+gpgv:                using RSA key 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+VERIFIED: actual production bootstrap has a valid authorized signature but differs from the fixed source; a preservation-only refresh is required

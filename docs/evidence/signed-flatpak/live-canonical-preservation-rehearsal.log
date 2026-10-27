@@ -1,0 +1,46 @@
+gpgv: Signature made Mon Oct 26 22:58:25 2026 UTC
+gpgv:                using RSA key 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+Imported 1 GPG key to remote "previous"
+Canonical signed refs: ['app/io.github.fluffydisk.airdrop-linux/x86_64/stable', 'appstream/x86_64', 'appstream2/x86_64', 'screenshots/x86_64']
+1057 metadata, 3521 content objects fetched; 163671 KiB transferred in 99 seconds; 433.4?MB content written
+Validating refs...
+Validating refs in collections...
+Enumerating commits...
+Verifying content integrity of 7 commit objects...
+fsck objects (1/4571) 0%
+fsck objects (1514/4571) 33%
+fsck objects (2164/4571) 47%
+fsck objects (4571/4571) 100%
+object fsck of 7 commits completed successfully - no errors found.
+commit f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75
+ContentChecksum:  8fb2b1f92ac4a52f0b6b2e573604dc2ff1b91fe6b490c33a4ddff06cf9e030c4
+Date:  2026-10-25 20:26:48 +0000
+
+    Export io.github.fluffydisk.airdrop-linux
+
+    Name: io.github.fluffydisk.airdrop-linux
+    Arch: x86_64
+    Branch: stable
+    Built with: Flatpak 1.14.6
+
+Found 1 signature:
+
+  Signature made Mon Oct 26 22:58:13 2026 using RSA key ID B93F4FC1E97CF3AE
+  Good signature from "Ömer Bozkurt <omerfarukbozkurt.2007@gmail.com>"
+VERIFIED: actual production app and r2 parent mirrored over HTTPS with original key, summary, commit and binding verification; full fsck passed; invalid cache alias not copied
+commit f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75
+ContentChecksum:  8fb2b1f92ac4a52f0b6b2e573604dc2ff1b91fe6b490c33a4ddff06cf9e030c4
+Date:  2026-10-25 20:26:48 +0000
+
+    Export io.github.fluffydisk.airdrop-linux
+
+    Name: io.github.fluffydisk.airdrop-linux
+    Arch: x86_64
+    Branch: stable
+    Built with: Flatpak 1.14.6
+
+Found 1 signature:
+
+  Signature made Mon Oct 26 22:58:13 2026 using RSA key ID B93F4FC1E97CF3AE
+  Good signature from "Ömer Bozkurt <omerfarukbozkurt.2007@gmail.com>"

@@ -29,8 +29,10 @@ Pinned project signing fingerprint:
 This is the existing authorized APT/RPM identity. No new production key is created.
 
 The corrected bootstrap handles non-UTF8 GPG key-UID diagnostics without changing
-signature validity. Its Pages copy is awaiting the existing required review in
-[run 40419422199](https://github.com/fluffydisk/airdrop-linux/actions/runs/40419422199).
+signature validity. Its Pages copy is being refreshed through the corrected
+preservation flow; follow
+[validation 40521818853](https://github.com/fluffydisk/airdrop-linux/actions/runs/40521818853)
+for the next protected deployment request.
 Use the immutable GitHub installer below until that copy is refreshed. The signed
 repository itself is already working; this refresh preserves its application
 commit and all user data.
@@ -127,6 +129,8 @@ not an update procedure.
    protected production key is imported only after required reviewer approval.
    Missing protected key/fingerprint variables fail explicitly without printing
    secret material. Protected environment rules are not changed.
+   A full signed preservation fixture runs in a separate prerequisite job before
+   the production environment can request review.
 5. The existing publisher builds the native repositories and adds the signed
    Flatpak tree. Flatpak publication verifies native file hashes before/after its
    addition; native package URLs, versions, key identity and payloads remain
@@ -134,8 +138,9 @@ not an update procedure.
    than rebuilding it from an older release bundle.
 6. A complete Pages artifact is deployed atomically through the existing single
    `package-repositories` concurrency group. Current/previous x86_64 payloads are
-   retained for update/cache overlap; the first transition also retains the old
-   x86_64 legacy head. Historical ARM Flatpak bundles remain release assets, but
+   retained for update/cache overlap. Only canonical app/media refs are mirrored;
+   old internal history aliases do not match the original commits' signed ref
+   bindings and are omitted. Historical ARM Flatpak bundles remain release assets, but
    the modern repository does not advertise unverified ARM builds. ARM APT/RPM
    repositories are preserved.
 7. The post-deployment public check downloads over HTTPS, verifies the production
@@ -146,8 +151,11 @@ not an update procedure.
 
 Only obsolete pre-channel publication requests for the same/older native version
 are retired automatically; current protected review requests are not approved or
-modified. If the signed live channel already contains the requested revision or
-newer, no duplicate production approval is requested.
+modified. If the signed live channel and authenticated bootstrap already match
+the requested application/revision and current installer, no duplicate approval
+is requested. An authenticated but outdated bootstrap requests a preservation-only
+refresh without republishing or downgrading the app. Invalid bootstrap signatures
+stop the request rather than being silently replaced.
 
 Do not reuse a revision for different application content. The publisher rejects
 repeated/older version-revision pairs. The receipt records both application and

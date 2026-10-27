@@ -14,6 +14,63 @@ bundle SHA-256 is
 `9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df`.
 No tag or release asset is moved/replaced.
 
+## Preservation ref-binding repair (2026-10-27)
+
+The owner-approved bootstrap refresh
+[40419422199](https://github.com/fluffydisk/airdrop-linux/actions/runs/40419422199)
+failed before deployment. Its unfiltered mirror tried to fetch
+`history/airdrop-linux/248a674...`; that internal cache alias pointed to a valid
+signed app commit whose immutable binding names the canonical stable app ref.
+OSTree correctly rejected the alias binding. The live application repository and
+original release assets were not changed. The exact traceback is retained in
+[`preservation-alias-binding-failure.log`](evidence/signed-flatpak/preservation-alias-binding-failure.log).
+
+Commit `5bdd92a24f0763fec0157e0002967205d5e9593e` selects only the canonical stable
+app, x86_64 AppStream and screenshot refs in both publication paths. It no longer
+creates or republishes the invalid cache aliases. Current and previous app
+commits remain available; signature and ref-binding verification stay enabled.
+Preservation also runs full fsck, checks the unchanged app head, verifies the
+baseline with the configured trusted remote, and asserts all native-file hashes
+are unchanged.
+
+`python3 scripts/test-flatpak-preservation.py` runs the entire preservation
+function against a small signed Flatpak **fixture, not the real Airdrop app**.
+It reproduces the unfiltered alias rejection, signs/verifies the refreshed
+bootstrap, preserves the exact app/baseline and receipt bytes, and checks native
+fixture inputs. A genuinely wrong signed binding on the canonical app ref is
+still rejected. The same fixture proves that an authenticated stale bootstrap
+requests refresh, an identical one skips it, and an invalid signature is fatal.
+See [`preservation-regression.log`](evidence/signed-flatpak/preservation-regression.log).
+
+Independently, the **actual production app and real r2 parent** were mirrored
+over public HTTPS with the original authorized key and full GPG/binding checks;
+full fsck passed. Both commit IDs match the published signed receipt and the
+invalid alias is absent from the clone. The baseline's explicit remote-key
+verification also passed; the earlier generic `show` diagnostic lacked the
+default local keyring and was not used as an authentication decision.
+See [`live-canonical-preservation-rehearsal.log`](evidence/signed-flatpak/live-canonical-preservation-rehearsal.log).
+
+The full preservation fixture now runs as an independent prerequisite **before
+production review/key access**. The coordinator also detects the authenticated
+but outdated public bootstrap even when the app revision is already current, so
+it requests a preservation-only refresh instead of incorrectly skipping the
+installer correction. That difference was checked against the actual signed
+production bootstrap; the app head is not republished or downgraded.
+
+[Validation run 40519169721](https://github.com/fluffydisk/airdrop-linux/actions/runs/40519169721)
+passed the clean build and all 17 real application/signature/migration checks.
+Its disposable combined-site rehearsal then incorrectly compared revision 3
+against the already-live revision 3; the production anti-rollback guard correctly
+refused it. The exact artifact traceback is retained in
+`disposable-rehearsal-live-guard-failure.log`. Commit `944342e` makes only the two
+disposable rehearsal calls use their verified r2 test baseline (`--previous-url ''`).
+Production comparisons against the live signed repository remain unchanged.
+
+[Validation run 40521818853](https://github.com/fluffydisk/airdrop-linux/actions/runs/40521818853)
+is exercising the isolated rehearsal and will request the existing protected
+publisher automatically after validation. The working pinned GitHub installer
+and live app/update channel remain available during this refresh.
+
 ## Live production verification
 
 Owner-approved [publication 40415276558](https://github.com/fluffydisk/airdrop-linux/actions/runs/40415276558)
