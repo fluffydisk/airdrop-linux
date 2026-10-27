@@ -138,8 +138,29 @@ jobs:
             fi
           fi
           echo '### Validation passed with real release assets and a disposable key; nothing deployed.' >> "$GITHUB_STEP_SUMMARY"
-  repository:
+  preservation-validation:
     needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Rehearse signed channel preservation before production review
+        run: |
+          set -euo pipefail
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak ostree gnupg gpgv
+          python3 scripts/test-flatpak-preservation.py 2>&1 | tee "$RUNNER_TEMP/preservation-validation.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: channel-preservation-validation
+          path: ${{ runner.temp }}/preservation-validation.log
+  repository:
+    needs: [prepare, preservation-validation]
     if: github.event_name == 'release' || inputs.publish == true
     runs-on: ubuntu-24.04
     environment: package-publishing

@@ -76,6 +76,15 @@ def restore_artifact_layout(repo):
  # config or summaries. The full fsck below remains mandatory.
  for name in ['refs/remotes','refs/mirrors','extensions','state','tmp']:
   (repo/name).mkdir(parents=True,exist_ok=True)
+def canonical_channel_refs(repo,remote):
+ # Cache aliases are not additional signed app identities. Pulling them by
+ # name violates the original commit's ostree.ref-binding. Keep canonical
+ # app/current parent and published media, with binding checks enabled.
+ available=run('ostree',f'--repo={repo}','remote','refs',remote,capture=True).splitlines()
+ allowed=[REF,'appstream/x86_64','appstream2/x86_64','screenshots/x86_64']
+ selected=[line.split(':',1)[-1] for line in available if line.split(':',1)[-1] in allowed]
+ assert REF in selected,'Signed remote is missing the stable application ref'
+ return selected
 def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=None):
  assert public.is_dir() and not (public/'flatpak').exists(),'Use a complete native Pages tree and a new Flatpak subdirectory'
  assert re.fullmatch('[A-F0-9]{40,64}',fingerprint)
@@ -102,15 +111,10 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
    if prior and (version(receipt['version']),receipt['revision']) <= (version(prior['version']),prior['revision']):
     raise ValueError('Refusing repeated or older repository version/revision')
    run('ostree',f'--repo={repo}','remote','add',f'--gpg-import={previous_key}','--set=gpg-verify-summary=true','previous',previous+'flatpak/')
-   available=run('ostree',f'--repo={repo}','remote','refs','previous',capture=True).splitlines()
-   selected=[ref.split(':',1)[-1] for ref in available if ref.split(':',1)[-1]==REF or ref.split(':',1)[-1] in ['appstream/x86_64','appstream2/x86_64','screenshots/x86_64']]
-   assert REF in selected
+   selected=canonical_channel_refs(repo,'previous')
    # The modern channel advertises only the tested architecture. Native ARM
    # repositories and historical release bundles are independent and untouched.
    pull_repository(repo,'--mirror','--depth=0','previous',*selected)
-   # Keep the previous head addressable while old summaries are cached by CDNs.
-   old=run('ostree',f'--repo={repo}','rev-parse',REF,capture=True)
-   if not prior:run('ostree',f'--repo={repo}','refs',f'--create=history/airdrop-linux/{old}',old)
    run('ostree',f'--repo={repo}','remote','delete','previous')
   if not prior:
    if not r2:raise ValueError('The first signed channel requires the verified actual r2 bundle')
