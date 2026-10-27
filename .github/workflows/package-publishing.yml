@@ -132,7 +132,7 @@ jobs:
           bash scripts/ci-command.sh Repository-test-signing scripts/build-repository.sh incoming verified-repository
           if test -d flatpak-incoming; then
             if test -f flatpak-incoming/candidate.json; then
-              python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public verified-repository --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 flatpak-incoming/r2.flatpak
+              python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public verified-repository --fingerprint "$SIGNING_KEY_FINGERPRINT" --previous-url '' --r2 flatpak-incoming/r2.flatpak
             else
               bash scripts/build-flatpak-repository.sh flatpak-incoming verified-repository
             fi

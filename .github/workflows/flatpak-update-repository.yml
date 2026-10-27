@@ -120,7 +120,7 @@ jobs:
           export SIGNING_KEY_FINGERPRINT=$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')
           scripts/build-repository.sh "$RUNNER_TEMP/native-input" "$RUNNER_TEMP/native-public" > "$RUNNER_TEMP/native-signing.log" 2>&1
           python3 scripts/flatpak_channel.py --candidate "$RUNNER_TEMP/candidate" --public "$RUNNER_TEMP/native-public" \
-            --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 "$RUNNER_TEMP/r2.flatpak" > "$RUNNER_TEMP/complete-tree.log" 2>&1
+            --fingerprint "$SIGNING_KEY_FINGERPRINT" --previous-url '' --r2 "$RUNNER_TEMP/r2.flatpak" > "$RUNNER_TEMP/complete-tree.log" 2>&1
           cat "$RUNNER_TEMP/complete-tree.log"
           python3 scripts/check-pages-tree.py "$RUNNER_TEMP/native-public"
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/signed-lint-runtime.XXXXXX")
