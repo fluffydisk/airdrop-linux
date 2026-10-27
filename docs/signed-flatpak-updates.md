@@ -47,14 +47,15 @@ Quit Airdrop completely. Download and checksum-check the fixed installer
 (no `curl | sh` and no signature bypass):
 
 ```sh
-curl --proto '=https' -fL https://fluffydisk.github.io/airdrop-linux/install-flatpak.py -o install-flatpak.py
-printf '%s  %s\n' 9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3 install-flatpak.py | sha256sum -c -
+curl --proto '=https' -fL https://fluffydisk.github.io/airdrop-linux/install-flatpak.py -o install-flatpak.py &&
+printf '%s  %s\n' 9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3 install-flatpak.py | sha256sum -c - &&
 python3 install-flatpak.py --dry-run
 ```
 
 For a fresh user installation:
 
 ```sh
+printf '%s  %s\n' 9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3 install-flatpak.py | sha256sum -c - &&
 python3 install-flatpak.py --user
 flatpak run --user io.github.fluffydisk.airdrop-linux
 ```
@@ -62,6 +63,7 @@ flatpak run --user io.github.fluffydisk.airdrop-linux
 For an existing r2 bundle installation, preserve its current scope automatically:
 
 ```sh
+printf '%s  %s\n' 9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3 install-flatpak.py | sha256sum -c - &&
 python3 install-flatpak.py
 ```
 
