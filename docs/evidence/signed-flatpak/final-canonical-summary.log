@@ -1,0 +1,7 @@
+Imported 1 GPG key to remote "published"
+published:app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+published:appstream/x86_64
+published:appstream2/x86_64
+published:screenshots/x86_64
+
+VERIFIED: published signed summary contains the canonical stable app/media refs and no invalid history alias

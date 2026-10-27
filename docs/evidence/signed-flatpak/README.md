@@ -1,11 +1,11 @@
 # Signed Flatpak validation evidence
 
-The public signed application repository is now live and verified. Current
-production/public-acceptance results are in `public-verification.json`, the raw
-`live-flatpak-channel.json` / `.asc` pair, and
-`public-https-acceptance-actions.log` (successful run 40419140503).
-The fixed bootstrap is checksum-pinned in the installation guide while its
-Pages copy awaits the existing protected review in run 40419422199.
+The public signed application repository and corrected signed Pages bootstrap
+are live and verified. Current results are in `public-verification.json`, the raw
+`live-flatpak-channel.json` / `.asc` pair, `final-public-https-acceptance.log`,
+`final-publisher-summary.log`, and `final-pages-bootstrap-*.log`.
+Production run 40523472741 and all its post-deployment public checks passed.
+No publication approval remains pending.
 The original candidate evidence and failed attempts below remain historical.
 
 Downloaded from the successful run:

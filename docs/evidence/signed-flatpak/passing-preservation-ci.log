@@ -1,0 +1,4 @@
+2026-10-27T14:42:36.8328497Z VERIFIED: authenticated stale bootstrap requests refresh, current bootstrap skips it, invalid signature is fatal
+2026-10-27T14:42:36.9452960Z VERIFIED: unfiltered signed mirror reproduces the historical-alias ref-binding rejection
+2026-10-27T14:42:37.3087014Z VERIFIED: complete signed preservation retains app/current parent, receipt bytes, native fixture inputs and valid bootstrap signature; history aliases omitted
+2026-10-27T14:42:37.5675373Z VERIFIED: canonical app ref with a wrong signed binding is still rejected; no binding or GPG bypass

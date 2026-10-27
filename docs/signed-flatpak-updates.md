@@ -11,7 +11,8 @@ The existing v1.5.0 tag and standalone release assets are not replaced.
 The signed revision 3 channel is live. Actual public HTTPS installation, forward
 update from signed r2, original-bundle migration, X11/Wayland application checks
 and APT/RPM provenance passed in
-[run 40419140503](https://github.com/fluffydisk/airdrop-linux/actions/runs/40419140503).
+[publication 40523472741](https://github.com/fluffydisk/airdrop-linux/actions/runs/40523472741),
+including its post-deployment public checks.
 Production signing and Pages deployment retain the existing **package-publishing**
 environment and its required human reviewer.
 
@@ -20,7 +21,7 @@ Addresses:
 - Repository: https://fluffydisk.github.io/airdrop-linux/flatpak/
 - Remote configuration: https://fluffydisk.github.io/airdrop-linux/airdrop-linux.flatpakrepo
 - Application reference: https://fluffydisk.github.io/airdrop-linux/airdrop-linux.flatpakref
-- Checksum-pinned installer: https://raw.githubusercontent.com/fluffydisk/airdrop-linux/bb5e6903562476702cbc4b8b70296a75643b6b2b/scripts/install-flatpak.py
+- Signed, checksum-pinned installer: https://fluffydisk.github.io/airdrop-linux/install-flatpak.py
 - Signed channel receipt: https://fluffydisk.github.io/airdrop-linux/flatpak-channel.json
 - Receipt signature: https://fluffydisk.github.io/airdrop-linux/flatpak-channel.json.asc
 
@@ -28,14 +29,11 @@ Pinned project signing fingerprint:
 `6513D70958397F60D3787A0CB93F4FC1E97CF3AE`.
 This is the existing authorized APT/RPM identity. No new production key is created.
 
-The corrected bootstrap handles non-UTF8 GPG key-UID diagnostics without changing
-signature validity. Its Pages copy is being refreshed through the corrected
-preservation flow; follow
-[validation 40521818853](https://github.com/fluffydisk/airdrop-linux/actions/runs/40521818853)
-for the next protected deployment request.
-Use the immutable GitHub installer below until that copy is refreshed. The signed
-repository itself is already working; this refresh preserves its application
-commit and all user data.
+The corrected bootstrap is deployed and its production GPG signature and checksum
+were verified. This refresh preserved the exact signed application receipt,
+application commit and r2 baseline. No deployment approval remains pending.
+The identical [immutable GitHub copy](https://raw.githubusercontent.com/fluffydisk/airdrop-linux/bb5e6903562476702cbc4b8b70296a75643b6b2b/scripts/install-flatpak.py)
+is available for source inspection.
 
 ## Fresh installation and r2 migration
 
@@ -49,7 +47,7 @@ Quit Airdrop completely. Download and checksum-check the fixed installer
 (no `curl | sh` and no signature bypass):
 
 ```sh
-curl --proto '=https' -fL https://raw.githubusercontent.com/fluffydisk/airdrop-linux/bb5e6903562476702cbc4b8b70296a75643b6b2b/scripts/install-flatpak.py -o install-flatpak.py
+curl --proto '=https' -fL https://fluffydisk.github.io/airdrop-linux/install-flatpak.py -o install-flatpak.py
 printf '%s  %s\n' 9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3 install-flatpak.py | sha256sum -c -
 python3 install-flatpak.py --dry-run
 ```

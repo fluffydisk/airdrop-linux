@@ -1,10 +1,9 @@
 # Signed Flatpak channel validation evidence
 
 The signed application repository is **LIVE and verified over public HTTPS**.
-This report distinguishes production tests from disposable-key tests and retains
-the earlier failures. Updating the corrected Pages bootstrap copy still requires
-the existing protected deployment review; the immutable fixed installer linked
-in the installation guide is usable now.
+The corrected signed bootstrap is deployed as well. This report distinguishes
+production tests from disposable-key tests and retains earlier failures. There
+are **no remaining publication blockers or pending deployment approvals**.
 
 The application source is pinned to
 `91363da43c2cd28173201f397c5b9f1ea8cde132`, application version 1.5.0, repository
@@ -13,6 +12,44 @@ revision 3. The actual r2 baseline commit is
 bundle SHA-256 is
 `9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df`.
 No tag or release asset is moved/replaced.
+
+## Final verified publication (2026-10-27)
+
+[Production run 40523472741](https://github.com/fluffydisk/airdrop-linux/actions/runs/40523472741)
+is **SUCCESS**: input preparation, pre-review preservation test, protected signing,
+atomic Pages deployment and post-deployment public acceptance all passed.
+The preceding [clean validation run 40521818853](https://github.com/fluffydisk/airdrop-linux/actions/runs/40521818853)
+also passed, including the offline app build, real app migration/signature tests,
+native signing rehearsal, combined-site check and official repository lint.
+
+Final combined Pages size: **776,039,505 bytes**, below the documented 1 GB limit.
+The current app commit and signed receipt remain byte-for-byte unchanged:
+`d4d7c59d7caa9819b6db2425d9204f4be3e18e45d5c714030dcedd93f903cfe9`, with
+signed r2 parent `f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75`.
+The published summary contains only the canonical app/AppStream/screenshots refs;
+the invalid internal history alias is absent.
+
+The actual Page-hosted `install-flatpak.py` was downloaded independently,
+SHA-256 checked against
+`9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3`, and its
+detached GPG signature verified with the pinned production key. Running that
+downloaded copy with `--dry-run` succeeded. Its authenticated content now matches
+the repository source, so a repeated validation does not request another bootstrap
+refresh.
+
+The final disposable public client **PASSED** clean HTTPS installation, ordinary
+forward update, original r2 bundle migration, exact data/state-fixture retention,
+one-installation checks, backend file/ZIP transfers, clipboard, LAN/decoded QR,
+X11 and native Wayland startup, real Tailscale login bootstrap, and uninstall.
+All public APT/RPM signatures, all four native packages and their original release
+payload provenance passed again. Physical two-device authenticated Tailscale and
+interactive portal/Wayland clipboard acceptance remain outside this CI evidence.
+
+See `final-public-https-acceptance.log`, `final-publisher-summary.log`,
+`final-pages-bootstrap-verification.log`, `final-pages-bootstrap-preflight.log`
+and `final-canonical-summary.log` in the evidence directory. The original failures
+and earlier checkpoints below remain historical; they do not override this final
+successful result.
 
 ## Preservation ref-binding repair (2026-10-27)
 
@@ -67,9 +104,8 @@ disposable rehearsal calls use their verified r2 test baseline (`--previous-url 
 Production comparisons against the live signed repository remain unchanged.
 
 [Validation run 40521818853](https://github.com/fluffydisk/airdrop-linux/actions/runs/40521818853)
-is exercising the isolated rehearsal and will request the existing protected
-publisher automatically after validation. The working pinned GitHub installer
-and live app/update channel remain available during this refresh.
+passed the isolated rehearsal and automatically requested the successful
+protected publication 40523472741. Its pre-review preservation test also passed.
 
 ## Live production verification
 

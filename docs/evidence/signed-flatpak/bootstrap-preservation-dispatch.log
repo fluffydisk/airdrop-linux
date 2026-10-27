@@ -1,0 +1,5 @@
+2026-10-27T14:41:02.3598721Z gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+2026-10-27T14:41:02.5652383Z gpgv: Good signature from "Ömer Bozkurt (airdrop-linux) <omerfarukbozkurt.2007@gmail.com>"
+2026-10-27T14:41:02.5655078Z Signed app is current but the authenticated bootstrap differs; requesting preservation-only refresh.
+2026-10-27T14:41:04.4753287Z https://github.com/fluffydisk/airdrop-linux/actions/runs/40523472741
+2026-10-27T14:41:04.4780840Z Requested protected publication; required human review remains enforced.

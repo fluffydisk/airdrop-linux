@@ -1,0 +1,33 @@
+2026-10-27T14:33:11.7090399Z VERIFIED: file-only artifact loses empty dirs; structural restoration preserves all bytes, commit and payload; full fsck passes
+2026-10-27T14:33:11.7091194Z VERIFIED: corrupted OSTree object still fails full fsck after layout restoration
+2026-10-27T14:33:16.9696661Z VERIFIED: metadata retries HTTP 503 without false legacy fallback; optional 404 and fatal non-retried 403 stay distinct
+2026-10-27T14:33:17.0989888Z VERIFIED: real signed repository recovered from an injected object HTTP 503; authenticated payload is correct
+2026-10-27T14:33:17.2159541Z VERIFIED: persistent HTTP 503 fails after exactly three attempts
+2026-10-27T14:33:17.7254121Z VERIFIED: invalid signed summary is fatal on the first attempt; no signature bypass or integrity retry
+2026-10-27T14:33:17.8404737Z VERIFIED: undecodable diagnostic bytes preserve both successful and failed subprocess exit status
+2026-10-27T14:33:17.8405538Z VERIFIED: real GPG signature with non-ASCII key UID accepted; non-UTF8 C-locale diagnostics reproduced=False
+2026-10-27T14:33:17.8406335Z VERIFIED: tampered metadata with the same non-ASCII key UID is rejected; decoding does not change signature validity
+2026-10-27T14:33:18.1546028Z VERIFIED: authenticated stale bootstrap requests refresh, current bootstrap skips it, invalid signature is fatal
+2026-10-27T14:33:18.2663374Z VERIFIED: unfiltered signed mirror reproduces the historical-alias ref-binding rejection
+2026-10-27T14:33:18.6355982Z VERIFIED: complete signed preservation retains app/current parent, receipt bytes, native fixture inputs and valid bootstrap signature; history aliases omitted
+2026-10-27T14:33:18.8968526Z VERIFIED: canonical app ref with a wrong signed binding is still rejected; no binding or GPG bypass
+2026-10-27T14:39:40.2975383Z VERIFIED: Clean GPG-verified installation of actual r2 application from HTTP repository
+2026-10-27T14:39:40.2991866Z {"signed_commit": "48ac07143eb3bf391f501bcfa21c15f32d8442c99c97de3d5e6fa3e9d75ed4c8", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 173183291}
+2026-10-27T14:39:40.2992572Z VERIFIED: Real flatpak update fetched a newer signed commit and its new distribution payload; private data and Tailscale-state fixtures unchanged
+2026-10-27T14:39:40.2994179Z VERIFIED: Idempotent trusted-remote install/update
+2026-10-27T14:39:40.2997191Z VERIFIED: Wrong-key summary.sig signature rejected before installation
+2026-10-27T14:39:40.2997649Z VERIFIED: Wrong-key ac07143eb3bf391f501bcfa21c15f32d8442c99c97de3d5e6fa3e9d75ed4c8.commitmeta signature rejected before installation
+2026-10-27T14:39:40.2998126Z VERIFIED: Existing remote with disabled GPG verification is rejected, never repaired silently
+2026-10-27T14:39:40.2998491Z VERIFIED: Existing remote with a different URL is rejected, never replaced silently
+2026-10-27T14:39:40.2999602Z VERIFIED: Existing remote with an additional untrusted signing key is rejected
+2026-10-27T14:39:40.3001152Z VERIFIED: Actual standalone r2 -> signed remote migration changed origin without duplicate app or data/identity fixture loss
+2026-10-27T14:39:40.3001520Z VERIFIED: User installation cannot be shadowed by --system
+2026-10-27T14:39:40.3001831Z VERIFIED: Signed repository older than the safe migration revision is rejected
+2026-10-27T14:39:40.3004309Z VERIFIED: Actual duplicate user/system installation is detected and left untouched
+2026-10-27T14:39:40.3005108Z VERIFIED: System installation cannot be shadowed by --user
+2026-10-27T14:39:40.3006804Z VERIFIED: Actual system r2 migration uses system remote and preserves the desktop user data/identity fixtures
+2026-10-27T14:39:40.3008487Z VERIFIED: Actual signed app backend transfer/LAN/QR/clipboard/lifecycle checks
+2026-10-27T14:39:40.3008907Z VERIFIED: Actual signed app desktop transfer/LAN/QR/clipboard/lifecycle checks
+2026-10-27T14:39:40.3009257Z VERIFIED: Application remains installed once with both summary/commit GPG checks enabled
+2026-10-27T14:40:33.5572459Z {"signed_commit": "0adfb8942c01363cda5c87445464e2eb120aefe79b1d954bfde75332244801b5", "source_commit": "91363da43c2cd28173201f397c5b9f1ea8cde132", "revision": 3, "public_bytes": 776009169}
+2026-10-27T14:40:33.6841615Z {"bytes": 776009169, "components": {"apt": 260635732, "rpm": 342171220, "flatpak": 173170664}, "official_limit": "https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits"}
