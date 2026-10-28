@@ -1,0 +1,49 @@
+2026-10-28T14:57:58.4655102Z (node:2379) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T14:58:27.4474059Z update-alternatives: using /usr/lib/x86_64-linux-gnu/blas/libblas.so.3 to provide /usr/lib/x86_64-linux-gnu/libblas.so.3 (libblas.so.3-x86_64-linux-gnu) in auto mode
+2026-10-28T14:58:27.5969327Z update-alternatives: using /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3 to provide /usr/lib/x86_64-linux-gnu/liblapack.so.3 (liblapack.so.3-x86_64-linux-gnu) in auto mode
+2026-10-28T14:58:35.7598321Z Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 4; scope --user
+2026-10-28T14:59:05.0645366Z dbus-daemon[4103]: [session uid=1001 pid=4103] Successfully activated service 'org.freedesktop.Flatpak'
+2026-10-28T14:59:05.0780451Z dbus-daemon[4103]: [session uid=1001 pid=4103] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+2026-10-28T14:59:05.0792436Z dbus-daemon[4103]: [session uid=1001 pid=4103] Successfully activated service 'org.freedesktop.portal.Documents'
+2026-10-28T14:59:05.2367594Z Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+2026-10-28T14:59:05.2369593Z VERIFIED: public HTTPS repository summary, commit and descriptor identity; fresh signed installation
+2026-10-28T14:59:08.2682880Z VERIFIED: ordinary flatpak update advanced the actual public signed previous revision to the current payload; data/identity fixtures preserved
+2026-10-28T14:59:22.9052089Z Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 4; scope --user
+2026-10-28T14:59:25.1485671Z Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+2026-10-28T14:59:25.1486739Z VERIFIED: original public r2 bundle migrated to signed origin without duplicate installation or data loss
+2026-10-28T14:59:25.2756182Z dbus-daemon[4825]: [session uid=1001 pid=4825] Successfully activated service 'org.freedesktop.Flatpak'
+2026-10-28T14:59:25.2902730Z dbus-daemon[4825]: [session uid=1001 pid=4825] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+2026-10-28T14:59:25.2916965Z dbus-daemon[4825]: [session uid=1001 pid=4825] Successfully activated service 'org.freedesktop.portal.Documents'
+2026-10-28T14:59:25.9993128Z flatpak: host home access denied, private data path and safe port conflict verified
+2026-10-28T14:59:26.0099848Z flatpak: both backend listeners restricted to loopback
+2026-10-28T14:59:26.1306016Z flatpak: GHSA-27r3-jxmh-p828 malformed compressed-body regression passed
+2026-10-28T14:59:26.1606082Z flatpak: real sandbox UI/API upload, dufs download and ZIP contents passed
+2026-10-28T14:59:26.1883152Z flatpak: backend stopped
+2026-10-28T14:59:26.9891326Z dbus-daemon[4957]: [session uid=1001 pid=4957] Successfully activated service 'org.freedesktop.Flatpak'
+2026-10-28T14:59:27.0001116Z dbus-daemon[4957]: [session uid=1001 pid=4957] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+2026-10-28T14:59:27.0013319Z dbus-daemon[4957]: [session uid=1001 pid=4957] Successfully activated service 'org.freedesktop.portal.Documents'
+2026-10-28T14:59:27.1586047Z dbus-daemon[4957]: [session uid=1001 pid=4957] Successfully activated service 'org.freedesktop.portal.Flatpak'
+2026-10-28T14:59:28.0322260Z dbus-daemon[4957]: [session uid=1001 pid=4957] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+2026-10-28T14:59:28.0641651Z dbus-daemon[4957]: [session uid=1001 pid=4957] Successfully activated service 'org.freedesktop.portal.Desktop'
+2026-10-28T14:59:28.2890771Z flatpak: real first-launch device wizard is visible
+2026-10-28T14:59:28.3078789Z First-run Tailscale gate stays closed before verified HTTPS and cannot be dismissed with Escape
+2026-10-28T14:59:29.2170095Z flatpak: real browser pairing redirect, session cookie, web UI and manual LAN clipboard passed (same worker)
+2026-10-28T14:59:29.2346066Z flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)
+2026-10-28T14:59:36.0632700Z flatpak: installed Electron controller started the real bundled tsnet helper and received a real browser login URL (redacted); no authenticated tailnet/HTTPS transfer claimed
+2026-10-28T14:59:36.0700592Z Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+2026-10-28T14:59:36.1855872Z flatpak: actual Documents portal exported an inherited validated FD; a host process read identical bytes; native drag delivery was intercepted, not a physical external-app drop
+2026-10-28T14:59:36.4224656Z flatpak: real shared clipboard/HTTP contents passed; controlled connection UI, failure isolation and local fallback passed (not a real Tailscale test)
+2026-10-28T14:59:36.4834021Z flatpak: sandboxed desktop ready, managed updates and quit lifecycle passed
+2026-10-28T14:59:37.5580739Z dbus-daemon[5228]: [session uid=1001 pid=5228] Successfully activated service 'org.freedesktop.Flatpak'
+2026-10-28T14:59:37.5681388Z dbus-daemon[5228]: [session uid=1001 pid=5228] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+2026-10-28T14:59:37.5694596Z dbus-daemon[5228]: [session uid=1001 pid=5228] Successfully activated service 'org.freedesktop.portal.Documents'
+2026-10-28T14:59:37.7269630Z dbus-daemon[5228]: [session uid=1001 pid=5228] Successfully activated service 'org.freedesktop.portal.Flatpak'
+2026-10-28T14:59:38.1590187Z dbus-daemon[5228]: [session uid=1001 pid=5228] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+2026-10-28T14:59:38.1835768Z dbus-daemon[5228]: [session uid=1001 pid=5228] Successfully activated service 'org.freedesktop.portal.Desktop'
+2026-10-28T14:59:38.8733781Z First-run Tailscale gate stays closed before verified HTTPS and cannot be dismissed with Escape
+2026-10-28T14:59:38.8735351Z Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+2026-10-28T14:59:38.8753923Z flatpak: sandboxed desktop ready, managed updates and quit lifecycle passed
+2026-10-28T14:59:40.2470381Z ##[group]Run python3 scripts/verify-published-repository.py | tee "$RUNNER_TEMP/public-native.log"
+2026-10-28T14:59:40.2471136Z [36;1mpython3 scripts/verify-published-repository.py | tee "$RUNNER_TEMP/public-native.log"[0m
+2026-10-28T15:00:00.2030012Z (node:5566) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T15:00:01.7492084Z (node:5578) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.

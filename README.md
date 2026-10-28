@@ -41,6 +41,21 @@ installation, standard `flatpak update`, r2 migration and application acceptance
 tests passed. The application ID and private data directory are preserved.
 See [fresh installation, safe r2 migration and standard update commands](docs/signed-flatpak-updates.md)
 and [test evidence and activation status](docs/signed-flatpak-evidence.md).
+Stable **1.5.0 revision 4** adds system folder opening, outbound file dragging,
+Choose/Drop/Ctrl+V transfer controls, file sorting and appearance preferences.
+First setup in this Flatpak requires a verified app-managed Tailscale HTTPS
+connection; afterward LAN and local-only modes remain available. Settings shows
+the live pairing address and QR connection state. See [features, tests and
+remaining physical-device checks](docs/workspace-improvements.md).
+
+Quit Airdrop completely, then update an existing signed-channel installation:
+
+```sh
+flatpak update io.github.fluffydisk.airdrop-linux//stable
+flatpak run io.github.fluffydisk.airdrop-linux
+```
+
+Standalone r2 users should first use the safe migration installer linked above.
 The standalone bundle below remains available for manual installation.
 
 ### Flatpak on Omarchy / Arch Linux (x86_64)

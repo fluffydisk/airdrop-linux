@@ -1,5 +1,11 @@
 # Desktop workspace integration
 
+**Revision 4 is live.** Production signing, atomic Pages deployment and all public
+HTTPS installation/update/migration/application/native-repository checks passed in
+[run 40709440609](https://github.com/fluffydisk/airdrop-linux/actions/runs/40709440609).
+No publication approval remains pending. Existing signed-channel users can quit
+Airdrop, run `flatpak update io.github.fluffydisk.airdrop-linux//stable`, and reopen.
+
 This update keeps the application ID, shared file tree, clipboard format and
 private tsnet identity directory unchanged. It adds:
 
@@ -69,7 +75,7 @@ Evidence in `evidence/workspace-improvements/`:
 | Real pointer drag to a separate Chromium process on X11 | passed, exact Unicode filename/bytes and source retained | native-drag.log |
 | Physical Omarchy default file manager and Wayland drag to external app | not tested in this worker | requires target desktop |
 | Authenticated two-device Tailscale HTTPS transfer | not tested without account/device access | no reviewer or device acceptance claim |
-| Updated clean Flatpak build, metadata/lint, startup and full signed rehearsal | passed; production publication pending | clean-flatpak-results.json, signed-flatpak-results.json, signed-flatpak-desktop.log |
+| Updated clean Flatpak build, metadata/lint, startup and full signed rehearsal | passed; production and public HTTPS acceptance passed | clean-flatpak-results.json, signed-flatpak-results.json, signed-flatpak-desktop.log |
 
 The original failing logs are retained: restrictive inherited umask caused an
 existing updater mode assertion; the standard 0022 test environment passes.
@@ -119,8 +125,8 @@ No sandbox or FUSE verification is bypassed. Full desktop failure:
   sign-in or physical phone/tablet HTTPS transfer is claimed.
 - Protected production publication was requested automatically:
   https://github.com/fluffydisk/airdrop-linux/actions/runs/40709440609 .
-  Candidate verification is complete. Publication/public HTTPS acceptance must
-  finish before advertising revision 4 as available through `flatpak update`.
+  Production publication and public HTTPS acceptance completed successfully after
+  the required human approval. Revision 4 is available through `flatpak update`.
   The existing `package-publishing` human reviewer protection remains in force.
 
 Official API references:
@@ -129,3 +135,12 @@ Official API references:
 - https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.OpenURI.html
 - https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Documents.html
 - https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileTransfer.html
+
+Final public app commit: `81265c1852139cf87ac87207262add6f2ddd5f3e7102db19e698043b5bd7ab80`;
+signed previous revision: `d4d7c59d7caa9819b6db2425d9204f4be3e18e45d5c714030dcedd93f903cfe9`.
+The public receipt and bootstrap signatures were independently verified in Cloud;
+the downloaded checksum-pinned bootstrap selected revision 4 in dry-run mode.
+Evidence: `public-https-acceptance.log`, `public-verification.json`,
+`public-flatpak-channel.json(.asc)`, `public-installer-dry-run.log`. The complete
+package matrix also passed all 19 jobs in run 40707200431. No existing v1.5.0
+release asset or tag was replaced. Previous failed attempts remain documented.

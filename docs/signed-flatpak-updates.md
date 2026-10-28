@@ -2,16 +2,16 @@
 
 This is an independent upstream GitHub Pages channel, not a Flathub submission.
 The application ID remains `io.github.fluffydisk.airdrop-linux`, branch `stable`,
-architecture **x86_64**. The initial repository revision is **1.5.0 revision 3**;
-it retains the working r2 functionality and adds a distribution provenance file.
+architecture **x86_64**. The current repository revision is **1.5.0 revision 4**;
+it preserves r2 data and adds native file integration, connection setup and workspace preferences.
 The existing v1.5.0 tag and standalone release assets are not replaced.
 
 ## Live channel and public addresses
 
-The signed revision 3 channel is live. Actual public HTTPS installation, forward
-update from signed r2, original-bundle migration, X11/Wayland application checks
+The signed revision 4 channel is live. Actual public HTTPS installation, forward
+update from the signed previous revision, original r2-bundle migration, X11/Wayland application checks
 and APT/RPM provenance passed in
-[publication 40523472741](https://github.com/fluffydisk/airdrop-linux/actions/runs/40523472741),
+[publication 40709440609](https://github.com/fluffydisk/airdrop-linux/actions/runs/40709440609),
 including its post-deployment public checks.
 Production signing and Pages deployment retain the existing **package-publishing**
 environment and its required human reviewer.
@@ -30,8 +30,9 @@ Pinned project signing fingerprint:
 This is the existing authorized APT/RPM identity. No new production key is created.
 
 The corrected bootstrap is deployed and its production GPG signature and checksum
-were verified. This refresh preserved the exact signed application receipt,
-application commit and r2 baseline. No deployment approval remains pending.
+were verified. Revision 4 advances the app commit and retains revision 3 as its
+signed parent. Data and node identity remain in the same private directory.
+No deployment approval remains pending. See [workspace integration evidence](workspace-improvements.md).
 The identical [immutable GitHub copy](https://raw.githubusercontent.com/fluffydisk/airdrop-linux/bb5e6903562476702cbc4b8b70296a75643b6b2b/scripts/install-flatpak.py)
 is available for source inspection.
 

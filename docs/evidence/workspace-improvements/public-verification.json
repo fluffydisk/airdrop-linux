@@ -1,0 +1,25 @@
+{
+  "publication_run": "https://github.com/fluffydisk/airdrop-linux/actions/runs/40709440609",
+  "publication_status": "success",
+  "public_acceptance_job": 122896417765,
+  "candidate_run": 40707200362,
+  "package_validation_run": 40707200431,
+  "package_validation_jobs_passed": 19,
+  "unit_tests_passed": 112,
+  "signed_acceptance_checks_passed": 17,
+  "public_revision": 4,
+  "source_commit": "a57b4f71ba9ca404559ffc5825eb8e85f00a0d4d",
+  "commit": "81265c1852139cf87ac87207262add6f2ddd5f3e7102db19e698043b5bd7ab80",
+  "baseline_commit": "d4d7c59d7caa9819b6db2425d9204f4be3e18e45d5c714030dcedd93f903cfe9",
+  "fingerprint": "6513D70958397F60D3787A0CB93F4FC1E97CF3AE",
+  "installer_sha256": "9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3",
+  "public_receipt_and_installer_gpg_signatures": "verified independently in cloud",
+  "public_clean_install_normal_update_and_r2_migration": "passed",
+  "public_apt_rpm_checks": "passed",
+  "remaining_manual_checks": [
+    "Physical Omarchy default file manager",
+    "Physical Wayland drag to another app",
+    "Authenticated phone/tablet Tailscale HTTPS transfer"
+  ],
+  "pending_approvals": []
+}
