@@ -1,0 +1,10 @@
+2026-10-28T18:25:37.3702401Z ℹ pass 119
+2026-10-28T18:25:37.3702568Z ℹ fail 0
+2026-10-28T18:25:38.0962714Z PASS: real FileTransfer clipboard retrieval, directory FD, matching directed response, denied response, nofollow, inherited original file FD, transient export, drag lifetime (controlled portal; no desktop/file-manager claim)
+2026-10-28T18:25:38.4147586Z PASS: official CreateUpdateMonitor/Update methods, directed progress, done, empty and failure over real D-Bus (controlled service; not an installed update)
+2026-10-28T18:25:58.4929283Z ℹ pass 1
+2026-10-28T18:25:58.4929456Z ℹ fail 0
+2026-10-28T18:30:48.7714964Z ℹ pass 1
+2026-10-28T18:30:48.7715137Z ℹ fail 0
+2026-10-28T18:30:52.4613490Z PASS: Chromium pointer input internal same-folder drop produced no duplicate; folder drop moved the original inode and exact bytes.
+2026-10-28T18:30:52.4615246Z PASS: actual Alt+X11 pointer drag from Airdrop to a separate Chromium process delivered the original Unicode filename and exact bytes; source file retained. Virtual display, not physical Omarchy/Wayland.

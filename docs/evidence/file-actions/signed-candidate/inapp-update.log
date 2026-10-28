@@ -1,0 +1,22 @@
+dbus-daemon[22919]: [session uid=1001 pid=22919] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.0' (uid=1001 pid=23032 comm="flatpak permission-set flatpak updates io.github.f" label="flatpak (unconfined)")
+dbus-daemon[22919]: [session uid=1001 pid=22919] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[22919]: [session uid=1001 pid=22919] Activating service name='org.freedesktop.Flatpak' requested by ':1.2' (uid=1001 pid=23042 comm="flatpak run --user --command=/app/bin/airdrop-upda" label="flatpak (unconfined)")
+dbus-daemon[22919]: [session uid=1001 pid=22919] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[22919]: [session uid=1001 pid=22919] Activating service name='org.freedesktop.portal.Documents' requested by ':1.2' (uid=1001 pid=23042 comm="flatpak run --user --command=/app/bin/airdrop-upda" label="flatpak (unconfined)")
+dbus-daemon[22919]: [session uid=1001 pid=22919] Successfully activated service 'org.freedesktop.portal.Documents'
+Ignoring invalid max threads value 4294967295 > max (100000).
+dbus-daemon[22919]: [session uid=1001 pid=22919] Activating service name='org.freedesktop.portal.Flatpak' requested by ':1.5' (uid=1001 pid=23067 comm="xdg-dbus-proxy --args=36" label="flatpak (unconfined)")
+dbus-daemon[22919]: [session uid=1001 pid=22919] Successfully activated service 'org.freedesktop.portal.Flatpak'
+bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted
+progress 0
+progress 0
+progress 0
+progress 99
+progress 100
+done
+
+
+(/usr/libexec/xdg-permission-store:23037): GLib-CRITICAL **: 17:14:04.155: g_variant_builder_end: assertion '!GVSB(builder)->uniform_item_types || GVSB(builder)->prev_item_type != NULL || g_variant_type_is_definite (GVSB(builder)->type)' failed
+VERIFIED: installed app helper performed a real GPG-verified portal update to a changed payload; denied consent kept the old commit; newly launched sandbox loaded the new payload. Consent is a CI fixture, not a physical-user dialog test.

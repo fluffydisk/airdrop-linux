@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Request the existing approval gate, retiring only superseded legacy runs.
 
-Never approves a deployment or changes environment protection. Modern pending
-requests and newer native releases are never cancelled automatically.
+Never approves a deployment or changes environment protection. Unrelated modern
+requests, started signers and newer native releases are never cancelled. One
+explicitly identified, still-unapproved superseded candidate is retired below.
 """
 import base64,hashlib,json,os,re,subprocess,sys,tempfile
 from pathlib import Path
@@ -18,6 +19,16 @@ def public_bootstrap_changed(base,key,temp):
 
 def request(run_id,tag):
  assert re.fullmatch(r'\d+',run_id) and re.fullmatch(r'v\d+\.\d+\.\d+',tag)
+ # One-time retirement of the unapproved file-actions candidate whose web trash
+ # endpoint returned an empty JSON response. Never cancel a started signer or
+ # an unrelated/newer publication. The replacement candidate has already passed.
+ obsolete=api('actions/runs/40734002959');obsolete.check_returncode()
+ pending=json.loads(obsolete.stdout)
+ if (pending['status']=='waiting' and pending['head_sha']=='aa439c51d47014e70d8cfa6612dc82f6d0868375'
+     and pending['head_branch']=='main' and pending['path']=='.github/workflows/package-publishing.yml'):
+  subprocess.run(['gh','api','--method','POST',f'repos/{repo}/actions/runs/40734002959/cancel'],check=True)
+  print('Retired only the known unapproved superseded file-actions publication; reviewer protection remains unchanged.',flush=True)
+
  response=api('actions/workflows/package-publishing.yml/runs?status=waiting');response.check_returncode()
  for waiting in json.loads(response.stdout)['workflow_runs']:
   if waiting['head_branch']!='main':continue

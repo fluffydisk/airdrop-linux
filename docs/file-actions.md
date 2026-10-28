@@ -39,3 +39,12 @@ from the successful Chromium pointer-input test, not a physical desktop claim.
 The unchanged application candidate passed clean signed build and all signing,
 update and migration tests in run 40731893531. Production publication remains
 pending its existing reviewer gate; package CI must also pass before approval.
+
+Final HTTP regression: the initial deleteTrash returned undefined, so Express
+sent an empty body and the web client could report a JSON parse error after
+successful deletion. The real HTTP test reproduced this (trash-http-before-failure.log).
+The operation now returns `{ok:true}`; the test consumes that JSON and verifies
+Trash is empty. The final complete local suite passed 120/120 (unit-final.log).
+The previously unapproved publication 40734002959 is superseded. The replacement
+request retires only that exact run if it is still waiting and has its expected
+source/workflow identity; started signing and unrelated runs are untouched.

@@ -96,6 +96,10 @@ test('explorer HTTP routes preserve legacy routes and return direct files or rec
   assert.equal((await fetch(base + '/files/legacy.txt', { method: 'PUT', body: 'legacy' })).status, 201);
   assert.equal((await fetch(base + '/explorer?directory=..%2Fprivate')).status, 400);
   assert.equal((await fetch(base + '/explorer?directory=missing')).status, 404);
+  const trashed = await (await post('/trash', {paths:['folder']})).json();
+  const removed = await post('/trash/delete', {ids:[trashed.results[0].id]});
+  assert.equal(removed.status,200);assert.deepEqual(await removed.json(),{ok:true});
+  assert.deepEqual((await (await fetch(base+'/explorer/trash')).json()).entries,[]);
 });
 test('nested arrivals notify their relative paths and trash is silent', async t => {
   const { root, temp } = await fixture(t); const notices = [];

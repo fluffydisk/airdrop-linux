@@ -1,0 +1,20 @@
+✖ explorer HTTP routes preserve legacy routes and return direct files or recursive ZIPs (294.069571ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 971.103545
+
+✖ failing tests:
+
+test at tests/explorer.test.js:84:1
+✖ explorer HTTP routes preserve legacy routes and return direct files or recursive ZIPs (294.069571ms)
+  SyntaxError: Unexpected end of JSON input
+      at JSON.parse (<anonymous>)
+      at parseJSONFromBytes (node:internal/deps/undici/undici:4394:19)
+      at successSteps (node:internal/deps/undici/undici:7048:27)
+      at readAllBytes (node:internal/deps/undici/undici:5965:13)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
