@@ -36,11 +36,11 @@ async function desktop(t){
  return {w,set:s=>{state={...state,...s};},get:id=>w.document.getElementById(id),tick:()=>new Promise(r=>setTimeout(r,1550))};
 }
 test('startup stays usable while Tailscale waits; Settings owns the only live address',async t=>{
- const {w,set,get,tick}=await desktop(t);w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));
- assert.equal(get('connectionWizard'),null);assert.equal(get('view-transfer').hidden,false);
- set({mode:'tailscale',status:'checking-https',message:'Checking HTTPS',url:'',qr:''});await tick();assert.equal(get('connectTailnet').disabled,true);assert.equal(get('deviceLink').hidden,true);
+ const {w,set,get,tick}=await desktop(t);w.eval(await fs.readFile('desktop/connection-progress.js','utf8'));w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));
+ assert.equal(get('connectionWizard').open,true);assert.equal(get('wizardContinue').disabled,false);assert.equal(get('view-transfer').hidden,false);
+ set({mode:'tailscale',status:'checking-https',message:'Checking HTTPS',url:'',qr:''});await tick();assert.equal(get('wizardSpinner').hidden,false);assert.match(get('wizardStatus').textContent,/Checking secure/);assert.equal(get('connectTailnet').disabled,true);assert.equal(get('deviceLink').hidden,true);
  set({mode:'tailscale',status:'ready',url:'https://device.tail.ts.net/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();assert.equal(get('deviceAddress').value,'https://device.tail.ts.net/pair/#secret');
- set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('connectTailnet').disabled,false);
+ set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('connectTailnet').disabled,false);get('wizardContinue').click();assert.equal(get('connectionWizard').open,false);assert.equal(w.localStorage.getItem('airdrop-welcome-seen'),'true');
 });
 test('only ready Tailscale persists onboarding; mode changes retain it and private state',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-onboarding-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));

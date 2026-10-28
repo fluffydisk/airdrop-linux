@@ -82,7 +82,7 @@
       <div class="connection-controls">
         <div class="clipboard-actions"><button class="button" id="connectTailnet">Connect</button><button class="button" id="disconnectDevices">Disconnect</button></div>
         <details class="lan-options"><summary>Use a trusted local network instead</summary><p>Same Wi-Fi required. LAN uses unencrypted HTTP.</p><label for="lanInterface">Network</label><select id="lanInterface" aria-label="LAN interface"></select><button class="button" id="connectLan">Start LAN sharing</button></details>
-        <p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p>
+        <div id="deviceProgress" class="connection-progress" aria-busy="false"><span id="deviceSpinner" class="connection-spinner" aria-hidden="true" hidden></span><div><p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p><p id="deviceHint" class="field-help"></p><span id="deviceElapsed" class="connection-elapsed" aria-live="off" hidden></span></div></div>
         <button class="button button-primary" id="deviceLogin" hidden>Open Tailscale sign-in</button>
         <button class="button" id="deviceHttps" hidden>Enable tailnet HTTPS in browser</button>
         <div id="deviceLink" hidden><label for="deviceAddress">Private sharing link</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan on a device in the same tailnet. Keep this link private.</p></div>
@@ -104,4 +104,19 @@
   <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>
 </div></div>
 
-<script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="devices-ui.js"></script></body></html>
+<dialog id="connectionWizard" aria-labelledby="wizardTitle">
+  <h1 id="wizardTitle">Welcome to Airdrop</h1>
+  <p>Share files with your devices, or start on this computer.</p>
+  <div id="wizardProgress" class="connection-progress" aria-busy="false">
+    <span id="wizardSpinner" class="connection-spinner" aria-hidden="true" hidden></span>
+    <div><h2 id="wizardStatus" role="status" aria-live="polite">Ready when you are</h2><p id="wizardHint">Connect with Tailscale to share securely with your phone or tablet.</p><span id="wizardElapsed" class="connection-elapsed" aria-live="off" hidden></span></div>
+  </div>
+  <div class="clipboard-actions">
+    <button class="button button-primary" id="wizardTailnet">Connect with Tailscale</button>
+    <button class="button button-primary" id="wizardLogin" hidden>Sign in through browser</button>
+    <button class="button button-primary" id="wizardHttps" hidden>Open HTTPS settings</button>
+    <button class="text-button" id="wizardCancel" hidden>Cancel connection</button>
+  </div>
+  <button class="button" id="wizardContinue">Use on this computer</button>
+</dialog>
+<script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script></body></html>

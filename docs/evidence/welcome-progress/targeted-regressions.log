@@ -1,0 +1,17 @@
+✔ progress distinguishes sign-in, certificate checks, admin approval, failure and success without invented percentages (146.09494ms)
+✔ folder integration uses a portal helper inside Flatpak and reports native failures (6.074516ms)
+✔ native drag validates every file and rejects links, traversal, folders and oversized selections (43.250973ms)
+✔ clipboard files are format-qualified local URIs; cut never deletes originals (2.18579ms)
+✔ startup stays usable while Tailscale waits; Settings owns the only live address (5043.077776ms)
+✔ only ready Tailscale persists onboarding; mode changes retain it and private state (132.584567ms)
+✔ file sorting is stable, persists and native drag exports selected files only (186.49769ms)
+✔ appearance, density, startup, file order and ZIP preferences persist; reset does not erase other state (190.629991ms)
+✔ repeated Connect preserves a running helper and its pending authentication (2.610173ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9230.14703

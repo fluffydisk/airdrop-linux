@@ -1,0 +1,12 @@
+dbus-daemon[11318]: [session uid=1000 pid=11318 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=11360 comm="/workspace/.airdrop-tools/flathub-audit/builder/bu" label="kernel")
+dbus-daemon[11318]: [session uid=1000 pid=11318 pidfd=5] Successfully activated service 'org.a11y.Bus'
+✔ Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart (20105.014891ms)
+﹣ Electron: real StatusNotifier tray keeps window accessible after close (22.374135ms) # No StatusNotifier watcher in this desktop session
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 21122.779006

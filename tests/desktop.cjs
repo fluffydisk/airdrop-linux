@@ -26,8 +26,8 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   // This suite tests local operations with controlled backend responses, not an authenticated tailnet.
   if (await page.locator('#connectionWizard').count()) {
     await page.locator('#connectionWizard').waitFor({state:'visible'});
-    assert.equal(await page.locator('#wizardContinue').isDisabled(),true);
-    await page.evaluate(()=>document.getElementById('connectionWizard').close());
+    assert.equal(await page.locator('#wizardContinue').isDisabled(),false);
+    await page.evaluate(()=>document.getElementById('wizardContinue').click());
   } else assert.equal(await page.locator('#view-transfer').isVisible(),true);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
@@ -144,7 +144,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   assert.deepEqual(errors, []);
   const closed = app.waitForEvent('close'); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await closed; app = null;
   app = await launch(); const reopened = await app.firstWindow();
-  if (await reopened.locator('#connectionWizard').count()) { await reopened.locator('#connectionWizard').waitFor({state:'visible'}); await reopened.evaluate(()=>document.getElementById('connectionWizard').close()); }
+  if (await reopened.locator('#connectionWizard').isVisible()) { await reopened.evaluate(()=>document.getElementById('wizardContinue').click()); }
   await reopened.locator('[data-view="settings"]').click();
   assert.equal(await reopened.locator('html').getAttribute('data-theme'), 'dark');
   await reopened.waitForFunction(() => document.getElementById('url').value === 'https://desktop.example.ts.net/ui/');
