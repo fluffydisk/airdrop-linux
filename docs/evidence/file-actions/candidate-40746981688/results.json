@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "requirement": "Clean GPG-verified installation of actual r2 application from HTTP repository",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Real flatpak update fetched a newer signed commit and its new distribution payload; private data and Tailscale-state fixtures unchanged",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Idempotent trusted-remote install/update",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Wrong-key summary.sig signature rejected before installation",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Wrong-key 63c97c45e77c1aac604edb7ce207703c8f4d0929eda49f5d970c984d1c593c.commitmeta signature rejected before installation",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Existing remote with disabled GPG verification is rejected, never repaired silently",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Existing remote with a different URL is rejected, never replaced silently",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Existing remote with an additional untrusted signing key is rejected",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Actual standalone r2 -> signed remote migration changed origin without duplicate app or data/identity fixture loss",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "User installation cannot be shadowed by --system",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Signed repository older than the safe migration revision is rejected",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Actual duplicate user/system installation is detected and left untouched",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "System installation cannot be shadowed by --user",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Actual system r2 migration uses system remote and preserves the desktop user data/identity fixtures",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Actual signed app backend transfer/LAN/QR/clipboard/lifecycle checks",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Actual signed app desktop transfer/LAN/QR/clipboard/lifecycle checks",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Actual installed portal self-update loaded changed signed payload and retained data/identity fixtures; denied consent prevented installation",
+      "status": "VERIFIED"
+    },
+    {
+      "requirement": "Application remains installed once with both summary/commit GPG checks enabled",
+      "status": "VERIFIED"
+    }
+  ],
+  "account_credentials": "retention fixtures only; no authenticated physical-device claim"
+}

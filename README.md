@@ -46,6 +46,10 @@ while Tailscale prepares secure sharing. You can continue using local files;
 device connection and its live pairing address/QR are in Settings. The workspace
 retains system folder opening, outbound file dragging, Choose/Drop/Ctrl+V
 transfers and file sorting. See [current update behavior and public test evidence](docs/inapp-flatpak-updates.md).
+Files and Trash now have **Select all**. Trash offers confirmed **Delete
+permanently**. Drag files onto Airdrop folders/breadcrumbs to move them; dropping
+in the same folder makes no duplicate. Hold **Alt** to copy to another app.
+See [file actions and published acceptance evidence](docs/file-actions.md).
 
 Quit Airdrop completely, then update an existing signed-channel installation:
 

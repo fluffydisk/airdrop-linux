@@ -1,0 +1,27 @@
+{
+  "publication": "https://github.com/fluffydisk/airdrop-linux/actions/runs/40748666878",
+  "conclusion": "success",
+  "public_test_job": 123034846714,
+  "artifact_id": 12842389574,
+  "artifact_zip_sha256": "aff001f8ef16f317c5cb8b1f0a9bbe07ff2cc59fe8e62d8688763bfc2f8d782f",
+  "source_commit": "25b7fa297901341e842863c082d72a60ae19969d",
+  "app_commit": "bc01a3007a9c3bad78e740514897fe6796dbf129b95e9bc1cf74e6c774af05cd",
+  "package_validation_run": 40746981983,
+  "package_jobs_passed": 19,
+  "signed_candidate_run": 40746981688,
+  "signed_checks_passed": 18,
+  "independent_cloud_checks": [
+    "HTTPS descriptor pinned key",
+    "Receipt signature",
+    "OSTree summary/commit signatures match receipt",
+    "Bootstrap signature and SHA-256"
+  ],
+  "bootstrap_sha256": "9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3",
+  "release_assets": 27,
+  "unchanged_v1_5_0_tag": "a47e8b8ee359dc2b2587674c4a465dafced8369b",
+  "limits": [
+    "Virtual X11 and headless Wayland, not a physical Omarchy session",
+    "Data and node-state retention uses fixtures, not a real authenticated Tailscale account",
+    "Public normal update and CI real portal update are distinct tests"
+  ]
+}

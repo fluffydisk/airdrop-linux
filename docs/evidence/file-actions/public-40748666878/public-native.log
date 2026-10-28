@@ -1,0 +1,8 @@
+Public signing fingerprint: 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+Verified DEB: amd64 36576fe47ceb864e591259a438240e5cb75423f04c614addfd76ff807d2741ac
+Verified DEB: arm64 92b85595ad14f418adb42c163c2277e889929887bb6e35c918c27e703d00b051
+/tmp/airdrop-public-audit-bfyttvbb/rpm/x86_64/airdrop-linux-1.5.0-1.x86_64.rpm: digests signatures OK
+Verified signed RPM and original payload: x86_64 ae90e6219a4809394d6f095fe9043a9967f3f262751ce0d51be046b09af42e1a
+/tmp/airdrop-public-audit-bfyttvbb/rpm/aarch64/airdrop-linux-1.5.0-1.aarch64.rpm: digests signatures OK
+Verified signed RPM and original payload: aarch64 7b09979ce048f365ec27935ccee4498651c9c06bed6b493b7723701d9fa3dc76
+Public APT/RPM metadata, all four packages and release provenance passed.

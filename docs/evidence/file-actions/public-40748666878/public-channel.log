@@ -1,0 +1,11 @@
+Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 1026; scope --user
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: public HTTPS repository summary, commit and descriptor identity; fresh signed installation
+Updating app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+Updating app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+VERIFIED: ordinary flatpak update advanced the actual public signed previous revision to the current payload; data/identity fixtures preserved
+Uninstalling app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+Installing app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+Verified signing identity 6513D70958397F60D3787A0CB93F4FC1E97CF3AE; target 1.5.0 revision 1026; scope --user
+Installed the verified commit. Shared files, desktop preferences and Tailscale state retain the same application ID and private data directory.
+VERIFIED: original public r2 bundle migrated to signed origin without duplicate installation or data loss

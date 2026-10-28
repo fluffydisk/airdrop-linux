@@ -3,9 +3,10 @@
 This is an independent upstream GitHub Pages channel, not a Flathub submission.
 The application ID remains `io.github.fluffydisk.airdrop-linux`, branch `stable`,
 architecture **x86_64**. The current stable application source is
-`9bea1fe462cff0742357591bb3393cd08afddace`, version **1.5.0**. It preserves r2
+`25b7fa297901341e842863c082d72a60ae19969d`, version **1.5.0**. It preserves r2
 data and includes nonblocking welcome connection feedback, a simpler workspace
-and in-app Flatpak updates. Internal build sequences are allocated automatically.
+and in-app Flatpak updates, selected trash deletion, Select all and internal
+file drag moves. Internal build sequences are allocated automatically.
 The existing v1.5.0 tag and standalone release assets are not replaced.
 
 ## Live channel and public addresses
@@ -13,7 +14,7 @@ The existing v1.5.0 tag and standalone release assets are not replaced.
 The current signed channel is live. Actual public HTTPS installation, forward
 update from the signed previous revision, original r2-bundle migration, X11/Wayland application checks
 and APT/RPM provenance passed in
-[publication 40726679662](https://github.com/fluffydisk/airdrop-linux/actions/runs/40726679662),
+[publication 40748666878](https://github.com/fluffydisk/airdrop-linux/actions/runs/40748666878),
 including its post-deployment public checks.
 Production signing and Pages deployment retain the existing **package-publishing**
 environment and its required human reviewer.
@@ -33,7 +34,7 @@ This is the existing authorized APT/RPM identity. No new production key is creat
 
 The corrected bootstrap is deployed and its production GPG signature and checksum
 were verified. The current app commit is
-`edf1efa9fb6d6a6b1f907715e58a355d6faa99ad304a27d358ca622bded081f7`;
+`bc01a3007a9c3bad78e740514897fe6796dbf129b95e9bc1cf74e6c774af05cd`;
 the previously public signed build remains its parent. Data and node identity
 remain in the same private directory.
 That completed publication has no pending approval. Subsequent updates retain
