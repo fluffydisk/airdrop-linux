@@ -1,0 +1,147 @@
+
+> airdrop-push@1.5.0 test
+> node --test tests/*.test.js
+
+✔ desktop, AppStream and repository identity match Flathub code-hosting rules (175.120911ms)
+✔ new Flatpak identity selects independent data without adopting native or old sandbox data (1.178318ms)
+✔ private Snap backend control reports identity and stops only its own server (19.670386ms)
+✔ backend control preserves regular files and refuses linked or public directories (5.661017ms)
+✔ progress distinguishes sign-in, certificate checks, admin approval, failure and success without invented percentages (150.062788ms)
+✔ desktop policy grants user namespaces to one quoted executable path (2.740604ms)
+✔ desktop policy rejects relative paths, globs and policy injection (0.887863ms)
+✔ shared clipboard preserves Unicode, replaces text, bounds input and refuses linked reads (33.354113ms)
+✔ desktop clipboard buttons paste, share, load and copy; failed loads preserve draft (309.622667ms)
+✔ native clipboard snapshots prefer images and support the current asynchronous Electron API (50.115521ms)
+✔ workspace address requires Tailscale HTTPS without credentials or nonstandard ports (3.087374ms)
+✔ unconfigured address does not make a network request (0.882785ms)
+✔ controlled successful health response verifies reachability, not another device (39.08858ms)
+✔ controlled HTTP error keeps the local workspace available (0.867803ms)
+✔ controlled partial backend keeps the local workspace available (1.090687ms)
+✔ controlled unrelated service keeps the local workspace available (0.514822ms)
+✔ controlled invalid JSON keeps the local workspace available (0.572359ms)
+✔ controlled DNS failure keeps the local workspace available (0.155163ms)
+✔ controlled TLS failure keeps the local workspace available (0.39935ms)
+✔ controlled timeout keeps the local workspace available (0.379579ms)
+✔ controlled redirect rejected keeps the local workspace available (0.340701ms)
+✔ invalid saved address is rejected before transport (0.13345ms)
+✔ folder integration uses a portal helper inside Flatpak and reports native failures (3.870344ms)
+✔ native drag validates every file and rejects links, traversal, folders and oversized selections (24.721982ms)
+✔ clipboard files are format-qualified local URIs; cut never deletes originals (2.502836ms)
+✔ startup stays usable while Tailscale waits; Settings owns the only live address (4936.536025ms)
+✔ only ready Tailscale persists onboarding; mode changes retain it and private state (71.742917ms)
+✔ file sorting is stable, persists and native drag exports selected files only (131.752094ms)
+✔ appearance, density, startup, file order and ZIP preferences persist; reset does not erase other state (289.636755ms)
+✔ repeated Connect preserves a running helper and its pending authentication (1.453522ms)
+✔ LAN discovery excludes loopback, public and host Tailscale addresses (2.796678ms)
+✔ pairing protects the actual proxy; foreign origins, wrong host and stale tokens fail (124.988386ms)
+✔ tailnet origin requires real HTTPS .ts.net identity before a gateway can advertise (1.411259ms)
+✔ controlled helper states do not advertise a DNS name before HTTPS is verified (0.697797ms)
+✔ controller never advertises loopback or an unavailable helper (35.569253ms)
+✔ real LAN interface self-probe produces a decodable QR and revokes sharing on disconnect (127.839931ms)
+✔ single-file installer downloads a pinned release, verifies its checksum and executes setup without a build (389.651951ms)
+✔ download installer rejects linked entries before extraction or execution (138.910524ms)
+✔ prebuilt metadata refuses a different architecture, missing components and version mismatches (16.161495ms)
+✔ prebuilt server installation uses bundled dependencies and preserves existing files (601.374171ms)
+✔ release merge includes both AppImage architectures and checksum coverage for every public asset (83.8325ms)
+✔ nested folders, uploads, copy, recursive download and persistent trash restore without overwriting (115.631347ms)
+✔ every explorer operation rejects root escapes and intermediate links (14.803066ms)
+✔ opening a file passes only a regular shared file to the system opener (12.653019ms)
+✔ in-flight upload stays on its opened directory when its name becomes an outside symlink (19.498793ms)
+✔ explorer HTTP routes preserve legacy routes and return direct files or recursive ZIPs (166.90666ms)
+✔ nested arrivals notify their relative paths and trash is silent (11.049342ms)
+✔ independent recipe staging copies only declared inputs and architecture policy (179.648433ms)
+✔ recipe inputs cannot escape through relative paths or symlinks (178.125478ms)
+✔ recursive source includes fail without recursion or incomplete staging (116.752074ms)
+✔ unhashed or mutable remote inputs fail structural verification (87.666819ms)
+✔ a native-only release preserves the last complete Flatpak release (1.481784ms)
+✔ a partial newer Flatpak publication cannot silently downgrade the remote (0.516475ms)
+✔ draft and prerelease Flatpaks cannot become the stable remote (0.181102ms)
+✔ the tested x86_64 reference r2 supersedes older dual-architecture assets (0.694773ms)
+✔ a reference bundle without its checksum cannot fall back to an older package (0.182775ms)
+✔ Flatpak check detects same-version new content and rejects malformed/foreign metadata (54.018285ms)
+✔ portal installer surfaces real progress and success; failed or incomplete operations never become success (10.322021ms)
+✔ startup and manual checks await the same completed result; failure clears the pending request (2.048875ms)
+✔ installer file/CLI/VAPID blocks support fresh and repeat installation in isolated directories (882.114701ms)
+✔ installer-generated systemd units validate before installation, including paths with spaces (235.461071ms)
+✔ malformed compressed request bodies return an error without stopping the service (241.040909ms)
+✔ unified layout migrates files, collisions, clipboard, credentials and desktop preferences without losing originals (85.646211ms)
+✔ migration refuses conflicting identities, links, live desktop and changed data without removing sources (21.447013ms)
+✔ clearing shared files preserves UI/API/config/state; gateway never writes application files (70.773601ms)
+﹣ real dufs gateway isolates system files and preserves clipboard and empty-folder operation (3.685351ms) # dufs is not installed
+✔ custom roots cannot recursively overlap a legacy source (0.510216ms)
+✔ managed Snap CLI forwards help, exit status, file arguments and ZIP options (395.066688ms)
+✔ setup preserves VAPID identity and permissions on repeated initialization (46.353392ms)
+✔ unsafe roots and symlink data roots are rejected (5.730459ms)
+✔ ownership verification refuses altered files and unrelated paths before running commands (10.988432ms)
+✔ managed uninstall preserves data; permission failure never deletes requested data (9.572226ms)
+✔ installed script CLI removes owned code and launchers while retaining data by default (275.589304ms)
+✔ package update guard rejects mutation before network or filesystem writes (10.550294ms)
+✔ port conflicts produce actionable startup errors (9.531144ms)
+✔ distribution marker selects package manager and rejects unknown sources (4.256057ms)
+✔ background portal waits for the matching response; denial and absence fail closed (1.341914ms)
+✔ managed setup requires explicit migration and archives old code without changing identity (13.774798ms)
+✔ channel recipes pin both architectures to actual payload checksums (27.70538ms)
+✔ managed packages can be removed before first setup without touching a data tree (1.827533ms)
+✔ immutable payloads normalize private packager directories for an unprivileged installed user (13.704216ms)
+✔ immutable dependency duplicates share storage while preserving paths, content and executable modes (7.214867ms)
+✔ file names render as text, selection includes all files, comma preserved (419.184827ms)
+✔ service worker registers even without PushManager (87.580512ms)
+✔ staged Android files upload immediately and retry only failed files (107.823892ms)
+✔ oversize ZIP stays selected, never silently uploads separately, and can be discarded (111.280731ms)
+✔ IndexedDB staging preserves files and deletes expired records (13.653013ms)
+✔ worker Share Target stages files and redirects without uploading (18.67452ms)
+✔ LAN HTTP clipboard fallback sends manually pasted text without a clipboard API (161.388754ms)
+✔ LAN clipboard load preserves shared text for manual copy when the API is unavailable (72.94866ms)
+✔ legacy inverted ripgrep check hides missing executable as a successful skip (18.118531ms)
+✔ downloads requested release even when history omits it and stages both formats and architectures (16.768419ms)
+✔ rejects incomplete release before download: airdrop-linux-1.5.0-1.x86_64.rpm (2.062555ms)
+✔ rejects incomplete release before download: airdrop-linux_1.5.0-1_arm64.deb (1.531539ms)
+✔ rejects incomplete release before download: SHA256SUMS (2.383898ms)
+✔ does not turn a release API error into a skipped release (2.028064ms)
+✔ does not stage packages with a mismatched checksum (7.112716ms)
+✔ empty package directory fails before creating repository output or invoking signing tools (10.391257ms)
+✔ raw upload publishes complete bytes and concurrent conflicts never overwrite (119.541219ms)
+✔ unsafe paths, hidden files and archive symlinks are rejected (89.595574ms)
+✔ streamed ZIP, form download, preflight and missing file validation (74.847091ms)
+✔ failed and aborted writes clean staging and never publish (41.010821ms)
+✔ health and cross-origin writes (14.82652ms)
+✔ push validates subscriptions, preserves temporary failures, removes only expired (18.287979ms)
+✔ subscription added/refreshed during dispatch survives and dispatches serialize (2.240511ms)
+✔ scan waits for stable signatures, detects modifications and delete/recreate (5.987053ms)
+✔ JSZip duplicate names, empty selection and 100 MiB boundary (4.215525ms)
+✔ local multi-file transfer, ZIP and symlink rejection (22.277453ms)
+✔ cancelled archive stream releases sources and subsequent downloads work (23.805196ms)
+✔ stable checks use numeric versions, handle no releases and reject mismatched architectures (92.040418ms)
+✔ portable updates expose the matching AppImage download without changing full-application update metadata (29.089114ms)
+✖ verified update replaces the complete app and preserves data and an old-version backup (125.583764ms)
+✔ corrupt downloads and unsafe ZIP entries never replace the app (172.754612ms)
+✔ health failure rolls back and denied authorization preserves the original app (141.807161ms)
+✔ recovery restores a backup after interruption between directory replacements (5.108233ms)
+✔ maintenance denies new mutations and drains existing leases before activation (107.20231ms)
+ℹ tests 116
+ℹ suites 0
+ℹ pass 114
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 21163.294336
+
+✖ failing tests:
+
+test at tests/updater.test.js:60:1
+✖ verified update replaces the complete app and preserves data and an old-version backup (125.583764ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  448 !== 493
+  
+      at TestContext.<anonymous> (/workspace/airdrop-linux/tests/updater.test.js:71:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 448,
+    expected: 493,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

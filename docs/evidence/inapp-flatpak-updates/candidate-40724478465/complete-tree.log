@@ -1,0 +1,30 @@
+Validating refs...
+Validating refs in collections...
+Enumerating commits...
+Verifying content integrity of 5 commit objects...
+fsck objects (1/4572) 0%
+fsck objects (1513/4572) 33%
+fsck objects (3338/4572) 73%
+fsck objects (4572/4572) 100%
+object fsck of 5 commits completed successfully - no errors found.
+Importing app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75)
+
+(flatpak build-import-bundle:23619): GLib-CRITICAL **: 16:29:23.461: g_str_has_prefix: assertion 'str != NULL' failed
+
+(flatpak build-import-bundle:23619): OSTree-CRITICAL **: 16:29:23.461: _ostree_repo_get_remote: assertion 'name != NULL' failed
+
+(flatpak build-import-bundle:23619): GLib-CRITICAL **: 16:29:23.461: g_propagate_error: assertion 'src != NULL' failed
+app/io.github.fluffydisk.airdrop-linux/x86_64/stable: b3513979d272b89c6cf8ed5400b65e1f869476f0794d42b301b4ede6aa1aa786
+10 metadata, 5 content objects imported; 0 bytes content written
+Updating appstream branch
+Generating static deltas
+Generating delta: appstream2/x86_64 (c825facf0b)
+Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (b3513979d2)
+Generating delta: app/io.github.fluffydisk.airdrop-linux/x86_64/stable (f7627ea19c-b3513979d2)
+Updating summary
+Total objects: 4588
+Deleted 1 objects, 1.1 kB freed
+gpgv: Signature made Wed Oct 28 16:30:00 2026 UTC
+gpgv:                using EDDSA key A8732110DAD1109E403E3D9DA19FF294778B5C06
+gpgv: Good signature from "Repository CI <test@example.invalid>"
+{"signed_commit": "b3513979d272b89c6cf8ed5400b65e1f869476f0794d42b301b4ede6aa1aa786", "source_commit": "9bea1fe462cff0742357591bb3393cd08afddace", "revision": 1024, "public_bytes": 776110931}

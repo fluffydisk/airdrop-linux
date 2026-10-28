@@ -22,23 +22,53 @@ source. It requires a one-time standard Flatpak update after publication. Later
 updates can use the in-app control. Older packages without channel provenance
 remain managed by the system software manager.
 
-Validation: 115 unit tests passed; native Electron integration passed (tray test
+Validation: the latest local suite ran 116 tests: 115 passed and one real dufs
+test skipped because dufs was absent from PATH. That exact skipped test then
+passed with the existing verified runtime added to PATH. The first local run
+used the cloud account's umask 077 and failed an existing executable-mode
+assertion; rerunning with CI's umask 022 passed. Both outputs are retained.
+Native Electron integration passed (tray test
 skipped without a StatusNotifier watcher); the compiled C helper passed directed
 progress/success/empty/failure checks over real D-Bus with a controlled service.
 The protocol fixture is not an actual package installation or proof of a real
 interactive desktop consent flow. Existing signed-repository acceptance still
 checks real installation/update/migration and signature rejection in Actions.
-Full packaged in-app update acceptance must be recorded separately when run.
+The complete packaged acceptance result is recorded below.
 
 Official API: https://github.com/flatpak/flatpak/blob/main/data/org.freedesktop.portal.Flatpak.xml
 
-The signing acceptance suite also runs test-installed-update-portal.py against
+The signing acceptance suite runs test-installed-update-portal.py against
 its actual signed application and served OSTree origin. It exports a changed
 payload, checks denied portal consent leaves the installed commit intact, then
 allows consent in the disposable CI account and invokes the helper inside the
 installed sandbox. Success requires the new commit and new payload in a newly
 launched sandbox, plus unchanged data/identity fixtures. Results are recorded in
-inapp-update.log; do not call this passed until the Actions result is available.
+inapp-update.log.
+
+## Verified candidate
+
+[Run 40724478465](https://github.com/fluffydisk/airdrop-linux/actions/runs/40724478465)
+passed for application source `9bea1fe462cff0742357591bb3393cd08afddace`.
+The downloaded evidence ZIP was SHA-256 verified before extracting the selected
+raw files under `evidence/inapp-flatpak-updates/candidate-40724478465/`.
+
+| Check | Result | Evidence in that directory |
+| --- | --- | --- |
+| Clean offline x86_64 build | VERIFIED | `validated/21-clean-offline-build.log` |
+| Manifest/repository lint | VERIFIED | `validated/18-manifest-lint.log`, `validated/25-repository-lint.log` |
+| Actual packaged X11 and headless Wayland checks, including Check for updates | VERIFIED | `validated/36-x11-clipboard-sandbox-and-connection-ui.log`, `validated/38-native-headless-wayland-startup.log` |
+| 18 signed installation/update/migration/trust checks | VERIFIED | `signed-tests/results.json` |
+| In-sandbox portal update of a real changed, signed application payload | VERIFIED | `signed-tests/inapp-update.log` |
+| Consent denial leaves installed commit unchanged | VERIFIED | Same portal log and results |
+| Shared files/preferences/node-state retention | VERIFIED, synthetic retention fixtures | `signed-tests/results.json` |
+| Existing native publisher and complete signed Pages tree | VERIFIED with disposable key | `complete-tree.log` |
+| Production publication and public HTTPS acceptance for this candidate | NOT TESTED until protected publication completes | Follow the linked publication run |
+
+This does not establish Flathub acceptance: the validator still records the
+prebuilt Electron source-build blocker and unavailable physical-device tests.
+Portal consent was seeded only in the disposable CI account. A real user's
+interactive permission dialog, Omarchy desktop and authenticated second-device
+Tailscale certificate issuance remain untested here.
 
 An initial publication from a superseded run (40721697579) was rejected before
 signing because its source workflow was cancelled when newer code arrived.

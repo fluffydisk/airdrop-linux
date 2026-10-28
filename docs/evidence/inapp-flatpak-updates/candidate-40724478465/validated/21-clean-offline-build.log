@@ -1,0 +1,292 @@
+Initializing build dir
+Committing stage init to cache
+Starting build of io.github.fluffydisk.airdrop-linux
+========================================================================
+Building module node in /home/runner/work/_temp/validated/builder-state/build/node-1
+========================================================================
+Running: install -Dm755 /usr/lib/sdk/node24/bin/node /app/lib/airdrop-linux/runtime/node
+Running: mkdir -p /app/share/licenses/$FLATPAK_ID/node
+Running: cp -a /usr/lib/sdk/node24/share/licenses/. /app/share/licenses/$FLATPAK_ID/node/
+Committing stage build-node to cache
+========================================================================
+Building module dufs in /home/runner/work/_temp/validated/builder-state/build/dufs-1
+========================================================================
+Running: cargo build --offline --locked --release --bin dufs -j$FLATPAK_BUILDER_N_JOBS
+warning: `/run/build/dufs/cargo/config` is deprecated in favor of `config.toml`
+  |
+  = help: if you need to support cargo 1.38 or earlier, you can symlink `config` to `config.toml`
+   Compiling libc v0.2.186
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling unicode-ident v1.0.24
+   Compiling syn v2.0.117
+   Compiling jobserver v0.1.34
+   Compiling find-msvc-tools v0.1.9
+   Compiling cfg-if v1.0.4
+   Compiling shlex v1.3.0
+   Compiling cc v1.2.61
+   Compiling typenum v1.20.0
+   Compiling pin-project-lite v0.2.17
+   Compiling bytes v1.11.1
+   Compiling version_check v0.9.5
+   Compiling generic-array v0.14.7
+   Compiling futures-core v0.3.32
+   Compiling itoa v1.0.18
+   Compiling cmake v0.1.58
+   Compiling dunce v1.0.5
+   Compiling fs_extra v1.3.0
+   Compiling aws-lc-sys v0.40.0
+   Compiling errno v0.3.14
+   Compiling signal-hook-registry v1.4.8
+   Compiling http v1.4.0
+   Compiling tokio-macros v2.7.0
+   Compiling socket2 v0.6.3
+   Compiling mio v1.2.0
+   Compiling once_cell v1.21.4
+   Compiling pkg-config v0.3.33
+   Compiling zeroize v1.8.2
+   Compiling futures-io v0.3.32
+   Compiling liblzma-sys v0.4.6
+   Compiling tokio v1.52.2
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling aws-lc-rs v1.16.3
+   Compiling rustix v1.1.4
+   Compiling crc32fast v1.5.0
+   Compiling digest v0.10.7
+   Compiling hybrid-array v0.4.11
+   Compiling futures-sink v0.3.32
+   Compiling bitflags v2.11.1
+   Compiling adler2 v2.0.1
+   Compiling hashbrown v0.17.0
+   Compiling equivalent v1.0.2
+   Compiling serde_core v1.0.228
+   Compiling semver v1.0.28
+   Compiling cpufeatures v0.3.0
+   Compiling utf8parse v0.2.2
+   Compiling cpufeatures v0.2.17
+   Compiling simd-adler32 v0.3.9
+   Compiling linux-raw-sys v0.12.1
+   Compiling autocfg v1.5.0
+   Compiling num-traits v0.2.19
+   Compiling miniz_oxide v0.8.9
+   Compiling anstyle-parse v1.0.0
+   Compiling rustc_version v0.4.1
+   Compiling indexmap v2.14.0
+   Compiling tokio-util v0.7.18
+   Compiling tracing-core v0.1.36
+   Compiling subtle v2.6.1
+   Compiling anstyle-query v1.1.5
+   Compiling slab v0.4.12
+   Compiling anstyle v1.0.14
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling rand_core v0.10.1
+   Compiling libbz2-rs-sys v0.2.3
+   Compiling colorchoice v1.0.5
+   Compiling httparse v1.10.1
+   Compiling getrandom v0.4.2
+   Compiling anstream v1.0.0
+   Compiling bzip2 v0.6.1
+   Compiling tracing v0.1.44
+   Compiling flate2 v1.1.9
+   Compiling liblzma v0.4.6
+   Compiling curve25519-dalek v4.1.3
+   Compiling terminal_size v0.4.4
+   Compiling block-buffer v0.12.0
+   Compiling crypto-common v0.2.1
+   Compiling rustls-pki-types v1.14.1
+   Compiling http-body v1.0.1
+   Compiling atomic-waker v1.1.2
+   Compiling strsim v0.11.1
+   Compiling thiserror v2.0.18
+   Compiling clap_lex v1.1.0
+   Compiling const-oid v0.10.2
+   Compiling unicase v2.9.0
+   Compiling zmij v1.0.21
+   Compiling httpdate v1.0.3
+   Compiling memchr v2.8.0
+   Compiling untrusted v0.9.0
+   Compiling fnv v1.0.7
+   Compiling serde v1.0.228
+   Compiling compression-core v0.4.32
+   Compiling rustls v0.23.40
+   Compiling compression-codecs v0.4.38
+   Compiling h2 v0.4.14
+   Compiling mime_guess v2.0.5
+   Compiling digest v0.11.3
+   Compiling clap_builder v4.6.0
+   Compiling chacha20 v0.10.0
+   Compiling futures-channel v0.3.32
+   Compiling pin-project-internal v1.1.12
+   Compiling serde_derive v1.0.228
+   Compiling thiserror-impl v2.0.18
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling log v0.4.29
+   Compiling fastrand v2.4.1
+   Compiling smallvec v1.15.1
+   Compiling serde_json v1.0.149
+   Compiling anyhow v1.0.102
+   Compiling mime v0.3.17
+   Compiling cmov v0.5.3
+   Compiling iana-time-zone v0.1.65
+   Compiling base64ct v1.8.3
+   Compiling parking v2.2.1
+   Compiling signature v2.2.0
+   Compiling ed25519 v2.2.3
+   Compiling futures-lite v2.6.1
+   Compiling mcf v0.6.0
+   Compiling chrono v0.4.44
+   Compiling ctutils v0.4.2
+   Compiling hyper v1.9.0
+   Compiling pin-project v1.1.12
+   Compiling rand v0.10.1
+   Compiling clap v4.6.1
+   Compiling sha2 v0.11.0
+   Compiling async-compression v0.4.42
+   Compiling sha1 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling headers-core v0.3.0
+   Compiling async-stream-impl v0.3.6
+   Compiling encoding_rs v0.8.35
+   Compiling futures-task v0.3.32
+   Compiling percent-encoding v2.3.2
+   Compiling ryu v1.0.23
+   Compiling unsafe-libyaml v0.2.11
+   Compiling base64 v0.22.1
+   Compiling password-hash v0.6.1
+   Compiling same-file v1.0.6
+   Compiling xml v1.2.1
+   Compiling xml-rs v1.0.0
+   Compiling walkdir v2.5.0
+   Compiling sha-crypt v0.6.0
+   Compiling headers v0.4.1
+   Compiling serde_yaml v0.9.34+deprecated
+   Compiling form_urlencoded v1.2.2
+   Compiling futures-util v0.3.32
+   Compiling chardetng v1.0.0
+   Compiling async-stream v0.3.6
+   Compiling ed25519-dalek v2.2.0
+   Compiling async_zip v0.0.18
+   Compiling clap_complete v4.6.3
+   Compiling uuid v1.23.1
+   Compiling hyper-util v0.1.20
+   Compiling content_inspector v0.2.4
+   Compiling http-body-util v0.1.3
+   Compiling smart-default v0.7.1
+   Compiling if-addrs v0.15.0
+   Compiling glob v0.3.3
+   Compiling lazy_static v1.5.0
+   Compiling hex v0.4.3
+   Compiling md5 v0.8.0
+   Compiling alphanumeric-sort v1.5.6
+   Compiling urlencoding v2.1.3
+   Compiling rustls-webpki v0.103.13
+   Compiling tokio-rustls v0.26.4
+   Compiling dufs v0.46.0 (/run/build/dufs)
+    Finished `release` profile [optimized] target(s) in 2m 14s
+Running: install -Dm755 target/release/dufs /app/lib/airdrop-linux/runtime/dufs
+Running: install -Dm644 LICENSE-MIT /app/share/licenses/$FLATPAK_ID/dufs/LICENSE-MIT
+Running: mkdir -p /app/share/licenses/$FLATPAK_ID/dufs-dependencies /app/share/licenses/$FLATPAK_ID/rust-runtime
+Running: find cargo/vendor -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'copyright*' \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/dufs-dependencies/ \;
+Running: find /usr/lib/sdk/rust-stable -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' -o -iname 'copyright*' \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/rust-runtime/ \;
+Committing stage build-dufs to cache
+========================================================================
+Building module embedded-tsnet in /home/runner/work/_temp/validated/builder-state/build/embedded-tsnet-1
+========================================================================
+Running: cd network/tsnet && go build -mod=vendor -buildvcs=false -trimpath -ldflags="-s -w -X tailscale.com/version.longStamp=1.104.2-airdrop -X tailscale.com/version.shortStamp=1.104.2" -o /app/lib/airdrop-linux/runtime/airdrop-tsnet .
+Running: install -Dm644 go-toolchain/LICENSE /app/share/licenses/$FLATPAK_ID/go/LICENSE
+Running: mkdir -p /app/share/licenses/$FLATPAK_ID/tsnet-dependencies
+Running: find network/tsnet/vendor -type f \( -iname 'license*' -o -iname 'copying*' -o -iname 'notice*' \) -exec cp --parents '{}' /app/share/licenses/$FLATPAK_ID/tsnet-dependencies/ \;
+Committing stage build-embedded-tsnet to cache
+========================================================================
+Building module airdrop-linux in /home/runner/work/_temp/validated/builder-state/build/airdrop-linux-1
+========================================================================
+Applying patch metadata.patch
+patching file io.github.fluffydisk.airdrop-linux.desktop
+patching file io.github.fluffydisk.airdrop-linux.metainfo.xml
+Running: bash install-flatpak.sh
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 175 packages in 1s
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 135 packages in 955ms
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 178 packages in 1s
+Running: install -Dm644 distribution.json /app/share/airdrop-linux/distribution.json
+compressing debuginfo in: /home/runner/work/_temp/validated/build/files/bin/airdrop-background-portal
+processing: /home/runner/work/_temp/validated/build/files/bin/airdrop-background-portal
+[29] .debug_aranges compressed -> .zdebug_aranges (240 => 84 35.00%)
+[30] .debug_info compressed -> .zdebug_info (566 => 374 66.08%)
+[31] .debug_abbrev compressed -> .zdebug_abbrev (310 => 190 61.29%)
+[32] .debug_line compressed -> .zdebug_line (442 => 210 47.51%)
+[33] .debug_str compressed -> .zdebug_str (775 => 450 58.06%)
+[34] .debug_line_str compressed -> .zdebug_line_str (190 => 133 70.00%)
+[35] .debug_rnglists compressed -> .zdebug_rnglists (66 => 56 84.85%)
+[38] Updating section string table
+stripping /home/runner/work/_temp/validated/build/files/bin/airdrop-background-portal to /home/runner/work/_temp/validated/build/files/lib/debug/bin/airdrop-background-portal.debug
+compressing debuginfo in: /home/runner/work/_temp/validated/build/files/bin/airdrop-open-directory
+processing: /home/runner/work/_temp/validated/build/files/bin/airdrop-open-directory
+[29] .debug_aranges compressed -> .zdebug_aranges (240 => 85 35.42%)
+[30] .debug_info compressed -> .zdebug_info (566 => 375 66.25%)
+[31] .debug_abbrev compressed -> .zdebug_abbrev (310 => 190 61.29%)
+[32] .debug_line compressed -> .zdebug_line (442 => 210 47.51%)
+[33] .debug_str compressed -> .zdebug_str (775 => 450 58.06%)
+[34] .debug_line_str compressed -> .zdebug_line_str (190 => 133 70.00%)
+[35] .debug_rnglists compressed -> .zdebug_rnglists (66 => 56 84.85%)
+[38] Updating section string table
+stripping /home/runner/work/_temp/validated/build/files/bin/airdrop-open-directory to /home/runner/work/_temp/validated/build/files/lib/debug/bin/airdrop-open-directory.debug
+compressing debuginfo in: /home/runner/work/_temp/validated/build/files/bin/airdrop-update-portal
+processing: /home/runner/work/_temp/validated/build/files/bin/airdrop-update-portal
+[29] .debug_aranges compressed -> .zdebug_aranges (240 => 85 35.42%)
+[30] .debug_info compressed -> .zdebug_info (566 => 374 66.08%)
+[31] .debug_abbrev compressed -> .zdebug_abbrev (310 => 190 61.29%)
+[32] .debug_line compressed -> .zdebug_line (442 => 211 47.74%)
+[33] .debug_str compressed -> .zdebug_str (775 => 450 58.06%)
+[34] .debug_line_str compressed -> .zdebug_line_str (190 => 133 70.00%)
+[35] .debug_rnglists compressed -> .zdebug_rnglists (66 => 56 84.85%)
+[38] Updating section string table
+stripping /home/runner/work/_temp/validated/build/files/bin/airdrop-update-portal to /home/runner/work/_temp/validated/build/files/lib/debug/bin/airdrop-update-portal.debug
+compressing debuginfo in: /home/runner/work/_temp/validated/build/files/lib/airdrop-linux/desktop/libvulkan.so.1
+processing: /home/runner/work/_temp/validated/build/files/lib/airdrop-linux/desktop/libvulkan.so.1
+[30] .debug_abbrev compressed -> .zdebug_abbrev (1950 => 119 6.10%)
+[31] .debug_info compressed -> .zdebug_info (3440 => 2004 58.26%)
+[32] .debug_ranges compressed -> .zdebug_ranges (132832 => 22840 17.19%)
+[33] .debug_str compressed -> .zdebug_str (2288 => 198 8.65%)
+[34] .debug_addr compressed -> .zdebug_addr (254600 => 58844 23.11%)
+[35] .debug_line compressed -> .zdebug_line (379122 => 114072 30.09%)
+[36] .debug_frame compressed -> .zdebug_frame (46376 => 6844 14.76%)
+[39] Updating section string table
+stripping /home/runner/work/_temp/validated/build/files/lib/airdrop-linux/desktop/libvulkan.so.1 to /home/runner/work/_temp/validated/build/files/lib/debug/lib/airdrop-linux/desktop/libvulkan.so.1.debug
+Committing stage build-airdrop-linux to cache
+Cleaning up
+Running appstreamcli compose
+Saving screenshots in /home/runner/work/_temp/validated/build/files/share/app-info/media
+Only accepting components: io.github.fluffydisk.airdrop-linux, io.github.fluffydisk.airdrop-linux.desktop
+Processing directory: /home/runner/work/_temp/validated/build/files
+Composing metadata...
+Success!
+Committing stage cleanup to cache
+Finishing app
+Exporting share/applications/io.github.fluffydisk.airdrop-linux.desktop
+Exporting share/icons/hicolor/512x512/apps/io.github.fluffydisk.airdrop-linux.png
+Exporting share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml
+Please review the exported files and the metadata
+Committing stage finish to cache
+Exporting io.github.fluffydisk.airdrop-linux to repo
+Commit: 6c6a6644576b39da078a7ffd987ea975b95d7cbd02a5c531cd871a600ac3fe9f
+Metadata Total: 3087
+Metadata Written: 1023
+Content Total: 6771
+Content Written: 3512
+Content Bytes Written: 432697756 (432.7 MB)
+Exporting io.github.fluffydisk.airdrop_linux.Debug to repo
+Commit: e33c486c5e6719c92bf5a0421d661be3cad3796af97af343dc630cb163834b65
+Metadata Total: 15
+Metadata Written: 7
+Content Total: 5
+Content Written: 5
+Content Bytes Written: 1245072 (1.2 MB)
+Pruning cache

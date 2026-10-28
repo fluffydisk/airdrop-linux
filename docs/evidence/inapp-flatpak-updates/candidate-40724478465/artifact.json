@@ -1,0 +1,8 @@
+{
+  "run": "https://github.com/fluffydisk/airdrop-linux/actions/runs/40724478465",
+  "source_commit": "9bea1fe462cff0742357591bb3393cd08afddace",
+  "evidence_artifact_id": 12831844126,
+  "evidence_zip_sha256": "4153071f6199f310bbfe35586904645b5fbd4a9d329614a5a1a3da7dd602af32",
+  "candidate_artifact_id": 12832427600,
+  "candidate_zip_sha256": "39653bad0d18f1896a4ba0e05df37b40568613ba55a17fe100ea42555b356bf9"
+}

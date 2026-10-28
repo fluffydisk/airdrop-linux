@@ -32,7 +32,9 @@ This is the existing authorized APT/RPM identity. No new production key is creat
 The corrected bootstrap is deployed and its production GPG signature and checksum
 were verified. Revision 4 advances the app commit and retains revision 3 as its
 signed parent. Data and node identity remain in the same private directory.
-No deployment approval remains pending. See [workspace integration evidence](workspace-improvements.md).
+That completed publication has no pending approval. Subsequent updates retain
+the same required reviewer protection. See [workspace integration evidence](workspace-improvements.md)
+and the newer [in-app update candidate evidence](inapp-flatpak-updates.md).
 The identical [immutable GitHub copy](https://raw.githubusercontent.com/fluffydisk/airdrop-linux/bb5e6903562476702cbc4b8b70296a75643b6b2b/scripts/install-flatpak.py)
 is available for source inspection.
 
@@ -111,10 +113,13 @@ not an update procedure.
 
 ## Maintainer pipeline
 
-1. Update `packaging/flatpak-channel/channel.json` with an immutable application
-   commit reachable from main and a new repository revision. Pushes affecting
-   channel/build scripts also run validation. Manual dispatch can select a pinned
-   source and revision, with publication optional.
+1. Push application changes to main. The candidate workflow pins that exact
+   source commit and allocates its increasing internal build sequence from the
+   Actions run number; no manual channel/revision edits are needed. Changes to
+   channel/build scripts also trigger validation. Optional manual dispatch can
+   select an immutable source commit and sequence, with publication optional.
+   See [in-app updates](inapp-flatpak-updates.md) for the update control and the
+   one-time bootstrap required by older installed applications.
 2. `flatpak-update-repository.yml` regenerates verified npm/Go sources, performs a
    clean offline x86_64 build, and reuses the full reference validator. The signed
    repository tests install the actual r2 app, publish a newer payload, run real
