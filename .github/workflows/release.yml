@@ -2,11 +2,38 @@ name: Prepare application release
 on:
   push:
     tags: ['v*']
+    branches: [main]
+    paths: ['package.json', '.github/workflows/release.yml']
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested release (otherwise draft only)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(node -p 'require("./package.json").version')
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release already exists; preserving every asset and tag.'
+            if test "$(gh release view "v$version" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true; then echo build=true >> "$GITHUB_OUTPUT"; else echo build=false >> "$GITHUB_OUTPUT"; fi
+          else
+            echo build=true >> "$GITHUB_OUTPUT"
+          fi
   build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
     strategy:
       matrix:
         include:
@@ -22,7 +49,7 @@ jobs:
           node-version: '26'
           cache: npm
       - name: Install native packaging tools
-        run: sudo apt-get update && sudo apt-get install -y rpm lintian appstream xvfb dbus-x11
+        run: sudo bash scripts/ci-ubuntu-mirror.sh && sudo apt-get update && sudo apt-get install -y rpm lintian appstream xvfb dbus-x11 unzip
       - run: npm ci
       - run: npm test
       - run: npm ci --prefix desktop
@@ -43,30 +70,59 @@ jobs:
           name: linux-${{ matrix.arch }}
           path: release/*
   draft:
-    needs: build
+    needs: [plan, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '26'
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with:
           path: release
           merge-multiple: true
       - run: node scripts/merge-release.js
       - run: node scripts/prepare-channels.js
-      - name: Create draft release
+      - name: Create immutable tag and draft release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           version=$(node -p 'require("./package.json").version')
-          test "$GITHUB_REF_NAME" = "v$version"
+          if [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            # Tag creation by GITHUB_TOKEN does not trigger another tag workflow.
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$version" > "$RUNNER_TEMP/tag.json" 2>/dev/null; then
+              test "$(jq -r .object.sha "$RUNNER_TEMP/tag.json")" = "$GITHUB_SHA"
+            else
+              gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/v$version" -f "sha=$GITHUB_SHA"
+            fi
+          else
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
           notes="docs/releases/v$version.md"
-          if test -f "$notes"; then
+          if gh release view "v$version" --json isDraft --jq .isDraft > "$RUNNER_TEMP/existing-draft" 2>/dev/null; then
+            test "$(cat "$RUNNER_TEMP/existing-draft")" = true
+            echo 'Reusing the existing draft without overwriting assets.'
+          elif test -f "$notes"; then
             gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.rpm release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --notes-file "$notes"
           else
             gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.rpm release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --generate-notes
           fi
+      - name: Verify draft update payloads before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/test-release-update.js --draft
+      - name: Publish authorized stable release
+        if: inputs.publish == true || (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'fluffydisk/airdrop-linux')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          test "$version" = 1.5.1
+          gh release edit "v$version" --draft=false --latest
+          node scripts/test-release-update.js --public
+          gh workflow run package-publishing.yml --ref main -f "tag=v$version" -F publish=true
