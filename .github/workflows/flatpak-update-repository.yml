@@ -8,11 +8,11 @@ on:
       source_commit:
         description: Immutable application commit reachable from main
         required: true
-        default: '91363da43c2cd28173201f397c5b9f1ea8cde132'
+        default: '98cf455a9cc7789bd0935e963c81e05eb31bada3'
       revision:
         description: Monotonically increasing upstream repository revision
         required: true
-        default: '3'
+        default: '4'
       publish:
         description: Request the existing protected Pages publication after tests
         type: boolean
