@@ -55,6 +55,8 @@
     const download = button(actions, 'Download', downloadSelection);
     const remove = button(actions, 'Delete', trashSelection);
     const restore = button(actions, 'Restore', restoreSelection);
+    const selectAll = button(actions, 'Select all', () => { selected = new Set(entries.map(file => trash ? file.id : file.path)); updateSelection(); });
+    const permanentlyDelete = button(actions, 'Delete permanently', deleteSelection);
     const count = node('span', '', 'explorer-selection'); actions.append(count);
     function askName() {
       return new Promise(resolve => {
@@ -67,6 +69,8 @@
       back.disabled = busy || position <= 0; forward.disabled = busy || position >= history.length - 1;
       up.disabled = busy || trash || !directory; newFolder.disabled = busy || trash;
       for (const item of [copy, download, remove]) { item.hidden = trash; item.disabled = busy || !selected.size; }
+      selectAll.disabled = busy || !entries.length;
+      permanentlyDelete.hidden = !trash || !adapter.deleteTrash; permanentlyDelete.disabled = busy || !selected.size;
       restore.hidden = !trash; restore.disabled = busy || !selected.size;
       count.textContent = selected.size ? `${selected.size} selected` : `${entries.length} items`;
     }
@@ -88,18 +92,22 @@
         return value * (direction === 'desc' ? -1 : 1) || a.name.localeCompare(b.name);
       });
       content.className = 'explorer-items explorer-' + mode; content.replaceChildren(); crumbs.replaceChildren();
-      button(crumbs, 'Airdrop', () => navigate(''));
+      dropTarget(button(crumbs, 'Airdrop', () => navigate('')), () => '');
       if (trash) crumbs.append(node('span', ' / Trash'));
-      else { const segments = directory.split('/').filter(Boolean); segments.forEach((part, index) => { crumbs.append(node('span', '/')); button(crumbs, part, () => navigate(segments.slice(0, index + 1).join('/'))); }); }
+      else { const segments = directory.split('/').filter(Boolean); segments.forEach((part, index) => { crumbs.append(node('span', '/')); dropTarget(button(crumbs, part, () => navigate(segments.slice(0, index + 1).join('/'))), () => segments.slice(0, index + 1).join('/')); }); }
       entries.forEach((file, index) => {
         const key = trash ? file.id : file.path;
         const row = node('div', undefined, 'explorer-item'); row.dataset.path = file.path; row.dataset.key = key; row.dataset.kind = kind(file); row.classList.toggle('selected', selected.has(key)); row.tabIndex = 0;
-        if (adapter.drag && !trash && file.type === 'file') {
+        if ((adapter.drag || adapter.move) && !trash && file.type === 'file') {
           row.draggable = true;
-          row.title = 'Drag to another application to copy this file';
+          row.title = 'Drag to a folder to move. Hold Alt while dragging to copy to another application.';
           row.ondragstart = event => {
-            event.preventDefault(); if (busy) return;
+            if (busy) { event.preventDefault(); return; }
             const paths = selected.has(key) ? entries.filter(entry => selected.has(entry.path) && entry.type === 'file').map(entry => entry.path) : [file.path];
+            if (adapter.move && !event.altKey) {
+              event.dataTransfer.setData('application/x-airdrop-paths', JSON.stringify(paths)); event.dataTransfer.effectAllowed = 'move'; return;
+            }
+            event.preventDefault();
             try { adapter.drag(paths); say('Drag to another application to copy. The original stays in Airdrop.'); } catch (error) { say(error.message); }
           };
         }
@@ -130,10 +138,11 @@
         row.ondblclick = event => { if (!event.target.closest('input, button')) open(); };
         row.onkeydown = event => { if (event.target !== row) return; if (event.key === 'Enter') { event.preventDefault(); open(); } if (event.key === ' ') { event.preventDefault(); checkbox.click(); } };
         if (file.type === 'directory' && !trash) { const openButton = button(row, 'Open', open, `Open ${file.name}`); openButton.onclick = event => { event.stopPropagation(); open(); }; }
+        if (file.type === 'directory' && !trash) dropTarget(row, () => file.path);
         row.oncontextmenu = event => {
           event.preventDefault(); if (!selected.has(key)) { selected = new Set([key]); updateSelection(); }
           menu.replaceChildren();
-          for (const [label, action] of trash ? [['Restore', restoreSelection]] : [['Delete', trashSelection], ['Download', downloadSelection], ['Copy to folder', copySelection]]) {
+          for (const [label, action] of trash ? [['Restore', restoreSelection], ['Delete permanently', deleteSelection]] : [['Delete', trashSelection], ['Download', downloadSelection], ['Copy to folder', copySelection]]) {
             const item = button(menu, label, () => { menu.hidden = true; return action(); }); item.setAttribute('role', 'menuitem'); item.disabled = busy;
           }
           menu.hidden = false; menu.style.left = Math.min(event.clientX, innerWidth - 210) + 'px'; menu.style.top = Math.min(event.clientY, innerHeight - 160) + 'px'; menu.querySelector('button')?.focus();
@@ -163,7 +172,7 @@
       if (busy) return;
       busy = true; controls(); say('Working…');
       try { const result = await action(); say(success || 'Done'); await refresh(); return result; }
-      catch (error) { say(error.message); throw error; }
+      catch (error) { await refresh(); say(error.message); throw error; }
       finally { busy = false; controls(); }
     }
     async function copySelection() {
@@ -180,6 +189,24 @@
       if (good.length) button(status, 'Undo', () => run(async () => { for (const item of good) await adapter.restore(item.id); }, 'Restored'));
       selected.clear(); controls();
     }
+    async function deleteSelection() {
+      const ids = [...selected]; if (!ids.length || !adapter.deleteTrash) return;
+      if (!global.confirm(`Permanently delete ${ids.length} item(s)? This cannot be undone.`)) return;
+      await run(() => adapter.deleteTrash(ids), 'Permanently deleted');
+    }
+    function dropTarget(element, target) {
+      element.addEventListener('dragover', event => {
+        if (!trash && adapter.move && event.dataTransfer?.types?.includes('application/x-airdrop-paths')) { event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = 'move'; }
+      });
+      element.addEventListener('drop', event => {
+        if (!event.dataTransfer?.types?.includes('application/x-airdrop-paths')) return;
+        event.preventDefault(); event.stopPropagation(); if (busy || trash) return;
+        try { const paths = JSON.parse(event.dataTransfer.getData('application/x-airdrop-paths'));
+          run(() => adapter.move(target(), paths), 'Move complete').catch(() => {});
+        } catch (error) { say(error.message); }
+      });
+    }
+    dropTarget(content, () => directory);
     async function restoreSelection() { const ids = [...selected]; if (ids.length) await run(async () => { for (const id of ids) await adapter.restore(id); }, 'Restored'); }
     document.addEventListener('click', event => { if (!menu.contains(event.target)) menu.hidden = true; });
     const enabled = () => options.enabled ? options.enabled() : !host.hidden;

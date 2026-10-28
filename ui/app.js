@@ -26,6 +26,8 @@ const explorer = AirdropExplorer.mount(fileListCard, {
   copy: (directory, paths, name) => api('/copy', { directory, paths, name }),
   trash: async paths => (await api('/trash', { paths })).results,
   trashList: async () => (await api('/trash', null, 'GET')).entries,
+  move: (directory, paths) => api('/move', {directory, paths}),
+  deleteTrash: ids => api('/trash/delete', {ids}),
   restore: id => api('/trash/' + encodeURIComponent(id) + '/restore'),
   upload: async (directory, file) => { const result = await uploadFile(file, directory); if (!result.ok) throw new Error(result.error); setStatus(`Pasted: ${result.name}`, 'ok'); return result; },
   download: async paths => {

@@ -76,3 +76,14 @@ test('appearance, density, startup, file order and ZIP preferences persist; rese
 test('repeated Connect preserves a running helper and its pending authentication',async()=>{
  const d=new Devices({directory:'/unused'});d.state={mode:'tailscale',status:'checking-https'};d.proc={exitCode:null,signalCode:null};d.stop=()=>assert.fail('Must not restart helper');assert.equal((await d.action('tailscale')).status,'checking-https');
 });
+test('Select all, confirmed trash deletion and internal drag target use their privileged adapters',async t=>{
+ const dom=new JSDOM('<div id="files"></div>',{runScripts:'outside-only',url:'https://local.test'});t.after(()=>dom.window.close());const w=dom.window;let moved,deleted;
+ const files=[{name:'one',path:'one',type:'file'},{name:'Folder',path:'Folder',type:'directory'}];
+ w.eval(await fs.readFile('ui/explorer.js','utf8'));w.AirdropExplorer.mount(w.document.getElementById('files'),{list:async()=>files,move:async(...args)=>{moved=args;},trashList:async()=>[{id:'id1',name:'old',path:'old',type:'file'}],deleteTrash:async ids=>{deleted=ids;}});
+ const flush=()=>new Promise(r=>setImmediate(r));await flush();const click=async text=>{Array.from(w.document.querySelectorAll('button')).find(b=>b.textContent===text).click();await flush();};
+ await click('Select all');assert.equal(w.document.querySelectorAll('input:checked').length,2);
+ const row=w.document.querySelector('[data-path="one"]'), data={types:['application/x-airdrop-paths'],setData(type,text){this.value=text;},getData(){return this.value;}};
+ const start=new w.Event('dragstart',{bubbles:true,cancelable:true});Object.defineProperty(start,'dataTransfer',{value:data});row.dispatchEvent(start);
+ const drop=new w.Event('drop',{bubbles:true,cancelable:true});Object.defineProperty(drop,'dataTransfer',{value:data});w.document.querySelector('[data-path="Folder"]').dispatchEvent(drop);await flush();assert.equal(moved[0],'Folder');assert.deepEqual(Array.from(moved[1]),['one']);
+ await click('Trash');await click('Select all');w.confirm=()=>false;await click('Delete permanently');assert.equal(deleted,undefined);w.confirm=()=>true;await click('Delete permanently');assert.deepEqual(Array.from(deleted),['id1']);
+});

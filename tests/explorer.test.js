@@ -106,3 +106,25 @@ test('nested arrivals notify their relative paths and trash is silent', async t 
   assert.equal(notices[0].fileName, 'folder/new.txt');
   await explorer.trash(root, ['folder']); service.scan(120); service.scan(140); await service.idle(); assert.equal(notices.length, 1);
 });
+test('move keeps same-folder files unchanged, moves without copies, and never overwrites or follows links', async t => {
+ const {root,temp}=await fixture(t); await fs.mkdir(path.join(root,'target'));await fs.writeFile(path.join(root,'file.txt'),'original');
+ const initial=await fs.stat(path.join(root,'file.txt'));
+ assert.equal((await explorer.move(root,'',['file.txt']))[0].unchanged,true);
+ assert.deepEqual((await explorer.list(root)).map(f=>f.name),['target','file.txt']);
+ await explorer.move(root,'target',['file.txt']);await assert.rejects(fs.access(path.join(root,'file.txt')));
+ assert.equal((await fs.stat(path.join(root,'target/file.txt'))).ino,initial.ino);
+ await fs.writeFile(path.join(root,'file.txt'),'second');await assert.rejects(explorer.move(root,'target',['file.txt']),{code:'EEXIST'});
+ assert.equal(await fs.readFile(path.join(root,'file.txt'),'utf8'),'second');assert.equal(await fs.readFile(path.join(root,'target/file.txt'),'utf8'),'original');
+ await fs.symlink(temp,path.join(root,'outside'));await assert.rejects(explorer.move(root,'outside',['file.txt']));
+ await fs.symlink(path.join(root,'file.txt'),path.join(root,'link.txt'));await assert.rejects(explorer.move(root,'target',['link.txt']));
+});
+test('permanent trash deletion removes only selected entries, including nested content, without following links',async t=>{
+ const {root,temp}=await fixture(t);await fs.mkdir(path.join(root,'folder'));await fs.writeFile(path.join(temp,'keep'),'safe');await fs.symlink(path.join(temp,'keep'),path.join(root,'folder/link'));
+ await fs.writeFile(path.join(root,'other'),'keep');const trashed=await explorer.trash(root,['folder','other']);
+ await explorer.deleteTrash(root,[trashed[0].id]);assert.deepEqual((await explorer.trashList(root)).map(f=>f.name),['other']);assert.equal(await fs.readFile(path.join(temp,'keep'),'utf8'),'safe');
+ await assert.rejects(explorer.deleteTrash(root,['../other']));await explorer.restore(root,trashed[1].id);
+});
+test('sending an existing file back to its own folder does not create a duplicate',async t=>{
+ const {root}=await fixture(t);await fs.writeFile(path.join(root,'same.txt'),'same');
+ const results=await require('../lib/transfer').sendFiles(root,[path.join(root,'same.txt')]);assert.equal(results[0].unchanged,true);assert.deepEqual(await fs.readdir(root),['same.txt']);
+});

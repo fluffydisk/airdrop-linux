@@ -205,6 +205,8 @@ function registerIpc() {
     if (Object.hasOwn(read, action)) return read[action]();
     const write = {
       mkdir: () => explorer.mkdir(shareDir, payload.directory || '', payload.name),
+      move: () => explorer.move(shareDir, payload.directory || '', payload.paths),
+      deleteTrash: () => explorer.deleteTrash(shareDir, payload.ids),
       copy: () => explorer.copy(shareDir, payload.directory || '', payload.paths, payload.name),
       trash: () => explorer.trash(shareDir, payload.paths),
       restore: () => explorer.restore(shareDir, payload.id),

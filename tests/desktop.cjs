@@ -56,7 +56,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.locator('#fileExplorer select[aria-label="Sort files"]').selectOption('date-desc');
   assert.equal(await sharedFile.getAttribute('draggable'),'true');
   await app.evaluate(({BrowserWindow})=>{globalThis.draggedFiles=[];BrowserWindow.getAllWindows()[0].webContents.startDrag=item=>{globalThis.draggedFiles=item.files;};});
-  await sharedFile.dispatchEvent('dragstart');
+  await sharedFile.dispatchEvent('dragstart', {altKey:true});
   await page.waitForFunction(()=>document.querySelector('.explorer-status').textContent.includes('Drag to another'));
   assert.deepEqual(await app.evaluate(()=>globalThis.draggedFiles),[path.join(share,'ü,a.txt')]);
   await app.evaluate(({},share)=>{globalThis.testShare=share;},share);
@@ -66,6 +66,8 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await sharedFile.locator('input').dblclick();
   assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 1);
   await sharedFile.focus(); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelector('#fileExplorer .explorer-status').textContent === 'Opened: ü,a.txt');
+  await app.evaluate(async () => { for (let i=0;i<50 && globalThis.openedFiles.length<2;i++) await new Promise(resolve=>setTimeout(resolve,20)); });
   assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 2);
   await app.evaluate(({ shell }) => { shell.openPath = async () => 'No application available'; });
   await sharedFile.dblclick();
