@@ -88,7 +88,14 @@ jobs:
           bash scripts/ci-command.sh DEB-install sudo apt-get install -y ./release/*.deb
           AIRDROP_CODE_DIR=/usr/lib/airdrop-linux AIRDROP_INSTALL_MANIFEST=/usr/lib/airdrop-linux/distribution.json bash scripts/ci-command.sh DEB-backend node scripts/smoke-managed.js
           ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop bash scripts/ci-command.sh DEB-desktop xvfb-run -a dbus-run-session -- npm run test:desktop
-          CHROMIUM_PATH="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')" ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop bash scripts/ci-command.sh Native-drag xvfb-run -a -s '-screen 0 1800x1000x24' dbus-run-session -- node scripts/test-native-drag.cjs
+          receiver_chromium=$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')
+          receiver_profile="$RUNNER_TEMP/airdrop-drag-receiver.apparmor"
+          if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+            node scripts/desktop-apparmor.js "$receiver_chromium" > "$receiver_profile"
+            sudo apparmor_parser --replace "$receiver_profile"
+            trap 'sudo apparmor_parser --remove "$receiver_profile"' EXIT
+          fi
+          CHROMIUM_PATH="$receiver_chromium" ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop bash scripts/ci-command.sh Native-drag xvfb-run -a -s '-screen 0 1800x1000x24' dbus-run-session -- node scripts/test-native-drag.cjs
           bash scripts/ci-command.sh DEB-remove sudo apt-get remove -y airdrop-linux
       - uses: actions/upload-artifact@v4
         with:

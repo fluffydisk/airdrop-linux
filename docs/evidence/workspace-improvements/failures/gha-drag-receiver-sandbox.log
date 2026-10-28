@@ -1,0 +1,150 @@
+Job 122867352907
+e-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --ozone-platform=x11 --window-position=850,0 --window-size=800,760 --user-data-dir=/tmp/playwright_chromiumdev_profile-nTqYV2 --remote-debugging-pipe --no-startup-window
+2026-10-28T14:13:43.8791910Z   - <launched> pid=9178
+2026-10-28T14:13:43.8794368Z   - [pid=9178][err] [9178:9178:1028/141343.614637:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:130] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.
+2026-10-28T14:13:43.8798439Z   - [pid=9178][err] [1028/141343.621469:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)
+2026-10-28T14:13:43.8799734Z   - [pid=9178][err] [1028/141343.621519:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)
+2026-10-28T14:13:43.8800492Z   - [pid=9178] <gracefully close start>
+2026-10-28T14:13:43.8800764Z   - [pid=9178] <kill>
+2026-10-28T14:13:43.8800999Z   - [pid=9178] <will force kill>
+2026-10-28T14:13:43.8801338Z   - [pid=9178] <process did exit: exitCode=null, signal=SIGTRAP>
+2026-10-28T14:13:43.8801737Z   - [pid=9178] starting temporary directories cleanup
+2026-10-28T14:13:43.8802270Z   - [pid=9178] finished temporary directories cleanup
+2026-10-28T14:13:43.8802597Z   - [pid=9178] <gracefully close end>
+2026-10-28T14:13:43.8802769Z 
+2026-10-28T14:13:43.8803062Z     at /home/runner/work/airdrop-linux/airdrop-linux/scripts/test-native-drag.cjs:24:26 {
+2026-10-28T14:13:43.8803486Z   log: [
+2026-10-28T14:13:43.8811550Z     '  - <launching> /home/runner/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --ozone-platform=x11 --window-position=850,0 --window-size=800,760 --user-data-dir=/tmp/playwright_chromiumdev_profile-nTqYV2 --remote-debugging-pipe --no-startup-window',
+2026-10-28T14:13:43.8819992Z     '  - <launched> pid=9178',
+2026-10-28T14:13:43.8822570Z     '  - [pid=9178][err] [9178:9178:1028/141343.614637:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:130] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.',
+2026-10-28T14:13:43.8825259Z     '  - [pid=9178][err] [1028/141343.621469:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)',
+2026-10-28T14:13:43.8826727Z     '  - [pid=9178][err] [1028/141343.621519:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)',
+2026-10-28T14:13:43.8827506Z     '  - [pid=9178] <gracefully close start>',
+2026-10-28T14:13:43.8827792Z     '  - [pid=9178] <kill>',
+2026-10-28T14:13:43.8828058Z     '  - [pid=9178] <will force kill>',
+2026-10-28T14:13:43.8828422Z     '  - [pid=9178] <process did exit: exitCode=null, signal=SIGTRAP>',
+2026-10-28T14:13:43.8828844Z     '  - [pid=9178] starting temporary directories cleanup',
+2026-10-28T14:13:43.8829241Z     '  - [pid=9178] finished temporary directories cleanup',
+2026-10-28T14:13:43.8829588Z     '  - [pid=9178] <gracefully close end>'
+2026-10-28T14:13:43.8829850Z   ]
+2026-10-28T14:13:43.8830035Z }
+2026-10-28T14:13:43.8886974Z ##[error]dbus-daemon[9061]: [session uid=1001 pid=9061] Successfully activated service 'org.freedesktop.portal.Desktop'
+browserType.launch: Target page, context or browser has been closed
+Browser logs:
+Chromium sandboxing failed!
+================================
+To avoid the sandboxing issue, do either of the following:
+  - (preferred): Configure your environment to support sandboxing
+  - (alternative): Launch Chromium without sandbox using 'chromiumSandbox: false' option
+================================
+
+Call log:
+  - <launching> /home/runner/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --ozone-platform=x11 --window-position=850,0 --window-size=800,760 --user-data-dir=/tmp/playwright_chromiumdev_profile-nTqYV2 --remote-debugging-pipe --no-startup-window
+  - <launched> pid=9178
+  - [pid=9178][err] [9178:9178:1028/141343.614637:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:130] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.
+  - [pid=9178][err] [1028/141343.621469:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)
+  - [pid=9178][err] [1028/141343.621519:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)
+  - [pid=9178] <gracefully close start>
+  - [pid=9178] <kill>
+  - [pid=9178] <will force kill>
+  - [pid=9178] <process did exit: exitCode=null, signal=SIGTRAP>
+  - [pid=9178] starting temporary directories cleanup
+  - [pid=9178] finished temporary directories cleanup
+  - [pid=9178] <gracefully close end>
+
+    at /home/runner/work/airdrop-linux/airdrop-linux/scripts/test-native-drag.cjs:24:26 {
+  log: [
+    '  - <launching> /home/runner/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default
+2026-10-28T14:13:43.8914083Z ##[error]Process completed with exit code 1.
+2026-10-28T14:13:43.9017402Z Post job cleanup.
+2026-10-28T14:13:43.9719133Z [command]/usr/bin/git version
+2026-10-28T14:13:43.9761699Z git version 2.56.0
+2026-10-28T14:13:43.9792400Z Temporarily overriding HOME='/home/runner/work/_temp/942c499a-ba62-4f8b-8845-a93138ded684' before making global git config changes
+2026-10-28T14:13:43.9792988Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T14:13:43.9797258Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T14:13:43.9850708Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T14:13:43.9891340Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T14:13:44.0136608Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T14:13:44.0173927Z http.https://github.com/.extraheader
+2026-10-28T14:13:44.0178384Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T14:13:44.0228449Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T14:13:44.0462644Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T14:13:44.0508351Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T14:13:44.0927775Z Cleaning up orphan processes
+2026-10-28T14:13:44.1240397Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
+
+Job 122867353235
+mponent-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --ozone-platform=x11 --window-position=850,0 --window-size=800,760 --user-data-dir=/tmp/playwright_chromiumdev_profile-x2bZrO --remote-debugging-pipe --no-startup-window
+2026-10-28T14:14:32.5248687Z   - <launched> pid=9548
+2026-10-28T14:14:32.5251165Z   - [pid=9548][err] [9548:9548:1028/141432.245093:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:130] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.
+2026-10-28T14:14:32.5254265Z   - [pid=9548][err] [1028/141432.249449:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)
+2026-10-28T14:14:32.5255726Z   - [pid=9548][err] [1028/141432.249507:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)
+2026-10-28T14:14:32.5257557Z   - [pid=9548] <gracefully close start>
+2026-10-28T14:14:32.5257825Z   - [pid=9548] <kill>
+2026-10-28T14:14:32.5258051Z   - [pid=9548] <will force kill>
+2026-10-28T14:14:32.5258387Z   - [pid=9548] <process did exit: exitCode=null, signal=SIGTRAP>
+2026-10-28T14:14:32.5258774Z   - [pid=9548] starting temporary directories cleanup
+2026-10-28T14:14:32.5259130Z   - [pid=9548] finished temporary directories cleanup
+2026-10-28T14:14:32.5259451Z   - [pid=9548] <gracefully close end>
+2026-10-28T14:14:32.5259619Z 
+2026-10-28T14:14:32.5259911Z     at /home/runner/work/airdrop-linux/airdrop-linux/scripts/test-native-drag.cjs:24:26 {
+2026-10-28T14:14:32.5260319Z   log: [
+2026-10-28T14:14:32.5268878Z     '  - <launching> /home/runner/.cache/ms-playwright/chromium-1248/chrome-linux-arm64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --ozone-platform=x11 --window-position=850,0 --window-size=800,760 --user-data-dir=/tmp/playwright_chromiumdev_profile-x2bZrO --remote-debugging-pipe --no-startup-window',
+2026-10-28T14:14:32.5277305Z     '  - <launched> pid=9548',
+2026-10-28T14:14:32.5279799Z     '  - [pid=9548][err] [9548:9548:1028/141432.245093:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:130] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.',
+2026-10-28T14:14:32.5282582Z     '  - [pid=9548][err] [1028/141432.249449:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)',
+2026-10-28T14:14:32.5283942Z     '  - [pid=9548][err] [1028/141432.249507:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)',
+2026-10-28T14:14:32.5284741Z     '  - [pid=9548] <gracefully close start>',
+2026-10-28T14:14:32.5285335Z     '  - [pid=9548] <kill>',
+2026-10-28T14:14:32.5285721Z     '  - [pid=9548] <will force kill>',
+2026-10-28T14:14:32.5286101Z     '  - [pid=9548] <process did exit: exitCode=null, signal=SIGTRAP>',
+2026-10-28T14:14:32.5287061Z     '  - [pid=9548] starting temporary directories cleanup',
+2026-10-28T14:14:32.5287493Z     '  - [pid=9548] finished temporary directories cleanup',
+2026-10-28T14:14:32.5287996Z     '  - [pid=9548] <gracefully close end>'
+2026-10-28T14:14:32.5288244Z   ]
+2026-10-28T14:14:32.5288405Z }
+2026-10-28T14:14:32.5353345Z ##[error]dbus-daemon[9424]: [session uid=1001 pid=9424] Successfully activated service 'org.freedesktop.portal.Desktop'
+browserType.launch: Target page, context or browser has been closed
+Browser logs:
+Chromium sandboxing failed!
+================================
+To avoid the sandboxing issue, do either of the following:
+  - (preferred): Configure your environment to support sandboxing
+  - (alternative): Launch Chromium without sandbox using 'chromiumSandbox: false' option
+================================
+
+Call log:
+  - <launching> /home/runner/.cache/ms-playwright/chromium-1248/chrome-linux-arm64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-edgeupdater --disable-extensions --disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --disable-updater-scheduler --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --disable-infobars --disable-search-engine-choice-screen --disable-sync --enable-unsafe-swiftshader --ozone-platform=x11 --window-position=850,0 --window-size=800,760 --user-data-dir=/tmp/playwright_chromiumdev_profile-x2bZrO --remote-debugging-pipe --no-startup-window
+  - <launched> pid=9548
+  - [pid=9548][err] [9548:9548:1028/141432.245093:FATAL:content/browser/zygote_host/zygote_host_impl_linux.cc:130] No usable sandbox! If you are running on Ubuntu 23.10+ or another Linux distro that has disabled unprivileged user namespaces with AppArmor, see https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md. Otherwise see https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox_development.md for more information on developing with the (older) SUID sandbox. If you want to live dangerously and need an immediate workaround, you can try using --no-sandbox.
+  - [pid=9548][err] [1028/141432.249449:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq: No such file or directory (2)
+  - [pid=9548][err] [1028/141432.249507:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq: No such file or directory (2)
+  - [pid=9548] <gracefully close start>
+  - [pid=9548] <kill>
+  - [pid=9548] <will force kill>
+  - [pid=9548] <process did exit: exitCode=null, signal=SIGTRAP>
+  - [pid=9548] starting temporary directories cleanup
+  - [pid=9548] finished temporary directories cleanup
+  - [pid=9548] <gracefully close end>
+
+    at /home/runner/work/airdrop-linux/airdrop-linux/scripts/test-native-drag.cjs:24:26 {
+  log: [
+    '  - <launching> /home/runner/.cache/ms-playwright/chromium-1248/chrome-linux-arm64/chrome --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable
+2026-10-28T14:14:32.5381416Z ##[error]Process completed with exit code 1.
+2026-10-28T14:14:32.5533041Z Post job cleanup.
+2026-10-28T14:14:32.6297982Z [command]/usr/bin/git version
+2026-10-28T14:14:32.6337451Z git version 2.56.0
+2026-10-28T14:14:32.6373455Z Temporarily overriding HOME='/home/runner/work/_temp/02d095c2-6ef5-427c-9aa3-0218622c1c15' before making global git config changes
+2026-10-28T14:14:32.6382448Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T14:14:32.6384513Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T14:14:32.6467639Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T14:14:32.6470085Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T14:14:32.6706048Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T14:14:32.6731453Z http.https://github.com/.extraheader
+2026-10-28T14:14:32.6744300Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T14:14:32.6800161Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T14:14:32.7039597Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T14:14:32.7076630Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T14:14:32.7479553Z Cleaning up orphan processes
+2026-10-28T14:14:32.7941087Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

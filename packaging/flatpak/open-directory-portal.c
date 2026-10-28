@@ -13,6 +13,34 @@ static GMainLoop *loop;
 static gchar *request_path;
 static int result = 1;
 
+static int retrieve_files(const char *key) {
+  GError *error = NULL;
+  GDBusConnection *bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+  if (!bus) goto failed;
+  GVariantBuilder options;
+  g_variant_builder_init(&options, G_VARIANT_TYPE_VARDICT);
+  GVariant *reply = g_dbus_connection_call_sync(bus,
+    "org.freedesktop.portal.Documents", "/org/freedesktop/portal/documents",
+    "org.freedesktop.portal.FileTransfer", "RetrieveFiles",
+    g_variant_new("(sa{sv})", key, &options), G_VARIANT_TYPE("(as)"),
+    G_DBUS_CALL_FLAGS_NONE, 10000, NULL, &error);
+  if (!reply) goto failed;
+  gchar **files;
+  g_variant_get(reply, "(^as)", &files);
+  for (gchar **file = files; *file; file++) {
+    gchar *uri = g_filename_to_uri(*file, NULL, &error);
+    if (!uri) { g_strfreev(files); g_variant_unref(reply); goto failed; }
+    g_print("%s\n", uri); g_free(uri);
+  }
+  g_strfreev(files); g_variant_unref(reply); g_object_unref(bus);
+  return 0;
+failed:
+  g_printerr("Clipboard file transfer expired or is unavailable. Copy the files again or use Choose files.\n");
+  g_clear_error(&error);
+  if (bus) g_object_unref(bus);
+  return 1;
+}
+
 /* Export only the explicitly dragged regular files. Keep the connection alive
  * until Electron completes the drag, including for unsandboxed URI consumers.
  * Transient document grants do not grant access to home or neighbouring files.
@@ -100,6 +128,7 @@ static void response(GDBusConnection *connection, const gchar *sender,
 }
 
 int main(int argc, char **argv) {
+  if (argc == 3 && g_strcmp0(argv[1], "--retrieve") == 0) return retrieve_files(argv[2]);
   if (argc >= 3 && argc <= 102 && g_strcmp0(argv[1], "--export") == 0) return export_files(argc, argv);
   if (argc != 2) return 2;
   int fd = open(argv[1], O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);

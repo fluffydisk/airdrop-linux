@@ -13,8 +13,8 @@ private tsnet identity directory unchanged. It adds:
   Directories, traversal and symbolic links are rejected. The destination app
   determines whether dropping a file inserts it, attaches it or copies it.
 - Transfer presents Choose, Drop and Ctrl+V together, with an explicit paste
-  button. Native file-URI clipboard formats copy accessible files; text and
-  images create shared files. Plain text that happens to contain a file URI is
+  button. Native file-URI clipboard formats copy accessible files; FileTransfer portal keys retrieve sandbox grants without host filesystem access; text and
+  images create shared files. Electron 44 raw OS clipboard targets are supported as well. Plain text that happens to contain a file URI is
   never treated as permission to read it. Inaccessible sandbox clipboard files
   direct the user to Choose files. Cut clipboard entries never delete originals.
 - First-run setup requires a ready app-managed Tailscale HTTPS connection before
@@ -62,8 +62,8 @@ Evidence in `evidence/workspace-improvements/`:
 | --- | --- | --- |
 | Unit/regression tests | 111 passed, no failures/skips | unit-tests.log |
 | Browser file/ZIP/clipboard integration | passed | browser.log |
-| Electron integration, sandbox, persistence | passed; tray test skipped because no StatusNotifier host | electron.log |
-| Compiled portal helper, directory FD, request identity, denial, inherited original file after replacement, transient export lifetime | passed with controlled service | file-portal.log |
+| Electron integration, sandbox, persistence, real file-URI clipboard paste button and Ctrl+V | passed; tray test skipped because no StatusNotifier host | electron.log |
+| Compiled portal helper, FileTransfer clipboard retrieval, directory FD, request identity, denial, inherited original file after replacement, transient export lifetime | passed with controlled service | file-portal.log |
 | Real pointer drag to a separate Chromium process on X11 | passed, exact Unicode filename/bytes and source retained | native-drag.log |
 | Physical Omarchy default file manager and Wayland drag to external app | not tested in this worker | requires target desktop |
 | Authenticated two-device Tailscale HTTPS transfer | not tested without account/device access | no reviewer or device acceptance claim |
@@ -76,3 +76,12 @@ was corrected. Real Electron testing then caught in-memory clipboard images
 being treated as disk files; the renderer now falls back to native image
 clipboard decoding when webUtils reports no file path. The full suite passed
 following that product fix.
+
+The first Ubuntu Actions native-drag test failed on both CPUs because the
+**separate Playwright Chromium receiver** had no AppArmor user-namespace rule
+(run 40702946779). Airdrop's installed sandbox and its desktop tests had passed.
+The CI fixture now loads an exact-executable rule with the existing profile
+generator and removes it on exit. It does not disable Chromium sandboxing or
+change a system-wide restriction. The raw failure excerpts remain in evidence.
+The generic local Flatpak test recipe also compiles the new portal helper, so
+its CI payload includes the same integration as the stable source-built recipe.

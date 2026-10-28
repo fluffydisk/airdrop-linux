@@ -25,6 +25,8 @@ test('clipboard files are format-qualified local URIs; cut never deletes origina
   for(const value of ['https://example.com/f','file://evil.test/a','file:///tmp/a#token','file:///tmp/a?x=1'])assert.throws(()=>parseClipboardFiles(value));
   assert.equal(await readClipboardFiles({read:async()=>[{types:['text/plain'],getType:async()=>new Blob(['file:///etc/passwd'])}]}),null);
   assert.deepEqual(await readClipboardFiles({read:async()=>[{types:['text/uri-list'],getType:async()=>new Blob(['file:///tmp/a'])}]}),['/tmp/a']);
+  assert.deepEqual(await readClipboardFiles({read:async()=>[{types:['electron application/osclipboard;format="text/uri-list"'],getType:async()=>new Blob(['file:///tmp/raw'])}]}),['/tmp/raw']);
+  assert.deepEqual(await readClipboardFiles({read:async()=>[{types:['application/vnd.portal.filetransfer'],getType:async()=>new Blob(['controlled-key\0'])}]},{retrieveFiles:async key=>{assert.equal(key,'controlled-key');return ['/run/user/1000/doc/test/file'];}}),['/run/user/1000/doc/test/file']);
 });
 async function desktop(t){
  const dom=new JSDOM(await fs.readFile('desktop/index.html','utf8'),{runScripts:'outside-only',url:'https://local.test'});t.after(()=>dom.window.close());

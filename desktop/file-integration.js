@@ -52,4 +52,13 @@ function withPortalFiles(files, descriptors, start) {
     });
   });
 }
-module.exports = { openFolder, dragFiles, withPortalFiles };
+async function retrieveClipboardFiles(key) {
+  if (typeof key !== 'string' || !key || key.length > 4096 || /[\x00-\x1f\x7f]/.test(key)) throw new Error('Invalid clipboard transfer key. Copy the files again.');
+  let stdout;
+  try { ({stdout} = await promisify(execFile)('/app/bin/airdrop-open-directory', ['--retrieve', key], {timeout:15000,maxBuffer:1024*1024})); }
+  catch { throw new Error('Clipboard file transfer expired or is unavailable. Copy the files again or use Choose files.'); }
+  const files = stdout.trimEnd().split('\n').filter(Boolean).map(fileURLToPath);
+  if (!files.length || files.length > 1000) throw new Error('Copy 1–1000 files');
+  return files;
+}
+module.exports = { openFolder, dragFiles, withPortalFiles, retrieveClipboardFiles };

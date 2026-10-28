@@ -12,7 +12,7 @@ const { sendFiles } = require('./core/lib/transfer');
 const { getPaths } = require('./core/lib/paths');
 const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile, readClipboardFiles } = require('./clipboard');
 const { workspaceUrl, checkConnection } = require('./connection');
-const { openFolder, dragFiles, withPortalFiles } = require('./file-integration');
+const { openFolder, dragFiles, withPortalFiles, retrieveClipboardFiles } = require('./file-integration');
 const paths = getPaths();
 const distribution = require('./core/lib/installation').distribution();
 if (process.platform === 'linux' && distribution.managed) {
@@ -187,7 +187,7 @@ function registerIpc() {
       trash: () => explorer.trash(shareDir, payload.paths),
       restore: () => explorer.restore(shareDir, payload.id),
       paste: async () => {
-        const sources = await readClipboardFiles(clipboard);
+        const sources = await readClipboardFiles(clipboard, {retrieveFiles: distribution.source === 'flatpak' ? retrieveClipboardFiles : undefined});
         if (sources) {
           const target = await explorer.directory(shareDir, payload.directory || '');
           try {

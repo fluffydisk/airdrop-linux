@@ -79,17 +79,24 @@ function parseClipboardFiles(text) {
     return fileURLToPath(url);
   });
 }
-async function readClipboardFiles(clipboard) {
-  const formats = ['text/uri-list', 'x-special/gnome-copied-files'];
+async function readClipboardFiles(clipboard, {retrieveFiles} = {}) {
+  const nativeFormats = ['text/uri-list', 'x-special/gnome-copied-files'];
+  // Electron 44 surfaces unmapped Linux clipboard targets as raw OS formats.
+  const formats = [...nativeFormats, ...nativeFormats.map(type => `electron application/osclipboard;format="${type}"`)];
   if (typeof clipboard.read === 'function') {
     for (const item of await clipboard.read()) {
+      const portal = ['application/vnd.portal.filetransfer', 'electron application/osclipboard;format="application/vnd.portal.filetransfer"'].find(type => item.types.includes(type));
+      if (portal && retrieveFiles) {
+        const key = (await (await item.getType(portal)).text()).replace(/\0+$/, '').trim();
+        return retrieveFiles(key);
+      }
       const format = formats.find(type => item.types.includes(type));
       if (format) return parseClipboardFiles(await (await item.getType(format)).text());
     }
   }
   if (typeof clipboard.availableFormats === 'function' && typeof clipboard.readBuffer === 'function') {
     const available = clipboard.availableFormats();
-    const format = formats.find(type => available.includes(type));
+    const format = nativeFormats.find(type => available.includes(type));
     if (format) return parseClipboardFiles(clipboard.readBuffer(format).toString('utf8'));
   }
   return null;

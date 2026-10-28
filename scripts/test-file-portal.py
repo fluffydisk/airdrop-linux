@@ -19,7 +19,7 @@ from gi.repository import Gio, GLib
 helper = str(Path(sys.argv[1]).resolve())
 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 loop = GLib.MainLoop()
-xml = '''<node><interface name="org.freedesktop.portal.OpenURI"><method name="OpenFile"><arg type="s" direction="in"/><arg type="h" direction="in"/><arg type="a{sv}" direction="in"/><arg type="o" direction="out"/></method></interface><interface name="org.freedesktop.portal.Documents"><method name="GetMountPoint"><arg type="ay" direction="out"/></method><method name="Add"><arg type="h" direction="in"/><arg type="b" direction="in"/><arg type="b" direction="in"/><arg type="s" direction="out"/></method></interface></node>'''
+xml = '''<node><interface name="org.freedesktop.portal.OpenURI"><method name="OpenFile"><arg type="s" direction="in"/><arg type="h" direction="in"/><arg type="a{sv}" direction="in"/><arg type="o" direction="out"/></method></interface><interface name="org.freedesktop.portal.Documents"><method name="GetMountPoint"><arg type="ay" direction="out"/></method><method name="Add"><arg type="h" direction="in"/><arg type="b" direction="in"/><arg type="b" direction="in"/><arg type="s" direction="out"/></method></interface><interface name="org.freedesktop.portal.FileTransfer"><method name="RetrieveFiles"><arg type="s" direction="in"/><arg type="a{sv}" direction="in"/><arg type="as" direction="out"/></method></interface></node>'''
 seen = []
 rejection = False
 with tempfile.TemporaryDirectory(prefix='airdrop-file-portal-') as temp:
@@ -31,6 +31,10 @@ with tempfile.TemporaryDirectory(prefix='airdrop-file-portal-') as temp:
 
     def method(connection, sender, object_path, interface, name, parameters, invocation):
         values = parameters.unpack()
+        if name == 'RetrieveFiles':
+            assert values == ('controlled-key', {})
+            invocation.return_value(GLib.Variant('(as)', ([str(file)],)))
+            return
         if name == 'GetMountPoint':
             invocation.return_value(GLib.Variant('(ay)', (list(os.fsencode(root)+b'\0'),)))
             return
@@ -58,12 +62,14 @@ with tempfile.TemporaryDirectory(prefix='airdrop-file-portal-') as temp:
         GLib.timeout_add(50, reply)
 
     info = Gio.DBusNodeInfo.new_for_xml(xml)
-    registrations = [bus.register_object('/org/freedesktop/portal/desktop', info.interfaces[0], method, None, None),
+    registrations = [bus.register_object('/org/freedesktop/portal/documents', info.interfaces[2], method, None, None),bus.register_object('/org/freedesktop/portal/desktop', info.interfaces[0], method, None, None),
                      bus.register_object('/org/freedesktop/portal/documents', info.interfaces[1], method, None, None)]
     owners = [Gio.bus_own_name_on_connection(bus, name, Gio.BusNameOwnerFlags.NONE, None, None) for name in ['org.freedesktop.portal.Desktop','org.freedesktop.portal.Documents']]
     thread = threading.Thread(target=loop.run, daemon=True)
     thread.start()
     try:
+        retrieved=subprocess.check_output([helper,'--retrieve','controlled-key'],text=True,timeout=10).strip()
+        assert urllib.parse.unquote(retrieved) == file.as_uri().replace('%20',' ').replace('%C3%BC','ü')
         subprocess.run([helper,str(folder)], check=True, timeout=10)
         rejection = True
         rejected = subprocess.run([helper,str(folder)], capture_output=True, timeout=10)
@@ -89,7 +95,7 @@ with tempfile.TemporaryDirectory(prefix='airdrop-file-portal-') as temp:
         assert child.returncode == 0
         os.close(fd)
         assert [name for name, _ in seen] == ['OpenFile','OpenFile','Add']
-        print('PASS: real directory FD, matching directed response, denied response, nofollow, inherited original file FD, transient export, drag lifetime (controlled portal; no desktop/file-manager claim)')
+        print('PASS: real FileTransfer clipboard retrieval, directory FD, matching directed response, denied response, nofollow, inherited original file FD, transient export, drag lifetime (controlled portal; no desktop/file-manager claim)')
     finally:
         loop.quit()
         thread.join(timeout=3)

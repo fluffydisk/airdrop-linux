@@ -117,6 +117,17 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.locator('#clipboardText').focus(); await page.keyboard.press('Control+v');
   await page.waitForFunction(() => document.getElementById('clipboardText').value === 'Normal editor paste');
   assert.equal((await fs.readdir(path.join(share, 'Belgeler'))).length, 3);
+  await app.evaluate(async ({clipboard,ClipboardItem},source)=>{
+    const uri=process.getBuiltinModule('url').pathToFileURL(source).href;
+    await clipboard.write([new ClipboardItem({'electron application/osclipboard;format="text/uri-list"':new Blob([uri+'\r\n'])})]);
+  },source);
+  await page.locator('[data-view="transfer"]').click();
+  await page.locator('#pasteTransfer').click();
+  await page.waitForFunction(()=>document.getElementById('result').textContent==='Pasted into shared folder');
+  assert.equal(await fs.readFile(path.join(share,'Belgeler','ü,a.txt'),'utf8'),'desktop payload');
+  await page.locator('#dropZone').focus();await page.keyboard.press('Control+v');
+  await page.waitForFunction(()=>document.querySelector('#fileExplorer .explorer-status').textContent==='Pasted into shared folder');
+  assert.equal(await fs.readFile(path.join(share,'Belgeler','ü,a (1).txt'),'utf8'),'desktop payload');
   await page.locator('[data-view="files"]').click();
   await fs.mkdir('.test-artifacts', { recursive: true }); await page.screenshot({ path: '.test-artifacts/desktop-files-light.png' });
   await page.locator('#themeToggle').click(); await page.screenshot({ path: '.test-artifacts/desktop-files-dark.png' });
