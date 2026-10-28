@@ -1,0 +1,72 @@
+nloads, status and restart (21661.170209ms)
+2026-10-28T17:08:45.0966394Z ﹣ Electron: real StatusNotifier tray keeps window accessible after close (7.070855ms) # No StatusNotifier watcher in this desktop session
+2026-10-28T17:08:45.0967406Z ℹ tests 2
+2026-10-28T17:08:45.0967790Z ℹ suites 0
+2026-10-28T17:08:45.0968160Z ℹ pass 1
+2026-10-28T17:08:45.0968522Z ℹ fail 0
+2026-10-28T17:08:45.0968906Z ℹ cancelled 0
+2026-10-28T17:08:45.0969290Z ℹ skipped 1
+2026-10-28T17:08:45.0969656Z ℹ todo 0
+2026-10-28T17:08:45.0970069Z ℹ duration_ms 22015.545444
+2026-10-28T17:09:03.7656228Z dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1001 pid=9478 comm="/usr/lib/airdrop-linux/desktop/Airdrop --inspect=0" label="airdrop-desktop-32178410f7b96978cd32dfb197cd19b887e24c49eed55f6b6342511768f343e1 (unconfined)")
+2026-10-28T17:09:03.7657680Z dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.a11y.Bus'
+2026-10-28T17:09:03.7659273Z dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.0' (uid=1001 pid=9478 comm="/usr/lib/airdrop-linux/desktop/Airdrop --inspect=0" label="airdrop-desktop-32178410f7b96978cd32dfb197cd19b887e24c49eed55f6b6342511768f343e1 (unconfined)")
+2026-10-28T17:09:03.7661645Z dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.freedesktop.portal.Documents' requested by ':1.3' (uid=1001 pid=9558 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+2026-10-28T17:09:03.7663215Z dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.4' (uid=1001 pid=9564 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+2026-10-28T17:09:03.7664830Z dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+2026-10-28T17:09:03.7665775Z dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.freedesktop.portal.Documents'
+2026-10-28T17:09:03.7666401Z Ignoring invalid max threads value 4294967295 > max (100000).
+2026-10-28T17:09:03.7666643Z 
+2026-10-28T17:09:03.7667703Z (/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.034: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+2026-10-28T17:09:03.7668588Z 
+2026-10-28T17:09:03.7669644Z (/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.034: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+2026-10-28T17:09:03.7670521Z 
+2026-10-28T17:09:03.7671716Z (/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.034: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+2026-10-28T17:09:03.7672611Z 
+2026-10-28T17:09:03.7673039Z (/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.035: No skeleton to export
+2026-10-28T17:09:03.7673846Z dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.freedesktop.portal.Desktop'
+2026-10-28T17:09:03.7674412Z page.waitForFunction: Timeout 15000ms exceeded.
+2026-10-28T17:09:03.7674908Z     at /home/runner/work/airdrop-linux/airdrop-linux/scripts/test-native-drag.cjs:31:16 {
+2026-10-28T17:09:03.7675314Z   log: [],
+2026-10-28T17:09:03.7675495Z   name: 'TimeoutError'
+2026-10-28T17:09:03.7675696Z }
+2026-10-28T17:09:03.7719652Z ##[error]dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1001 pid=9478 comm="/usr/lib/airdrop-linux/desktop/Airdrop --inspect=0" label="airdrop-desktop-32178410f7b96978cd32dfb197cd19b887e24c49eed55f6b6342511768f343e1 (unconfined)")
+dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.0' (uid=1001 pid=9478 comm="/usr/lib/airdrop-linux/desktop/Airdrop --inspect=0" label="airdrop-desktop-32178410f7b96978cd32dfb197cd19b887e24c49eed55f6b6342511768f343e1 (unconfined)")
+dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.freedesktop.portal.Documents' requested by ':1.3' (uid=1001 pid=9558 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[9465]: [session uid=1001 pid=9465] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.4' (uid=1001 pid=9564 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.freedesktop.portal.Documents'
+Ignoring invalid max threads value 4294967295 > max (100000).
+
+(/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.034: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.034: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.034: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:9558): xdg-desktop-portal-WARNING **: 17:08:46.035: No skeleton to export
+dbus-daemon[9465]: [session uid=1001 pid=9465] Successfully activated service 'org.freedesktop.portal.Desktop'
+page.waitForFunction: Timeout 15000ms exceeded.
+    at /home/runner/work/airdrop-linux/airdrop-linux/scripts/test-native-drag.cjs:31:16 {
+  log: [],
+  name: 'TimeoutError'
+}
+2026-10-28T17:09:03.7774546Z ##[error]Process completed with exit code 1.
+2026-10-28T17:09:03.7915590Z Post job cleanup.
+2026-10-28T17:09:03.8675694Z [command]/usr/bin/git version
+2026-10-28T17:09:03.8717214Z git version 2.56.0
+2026-10-28T17:09:03.8765578Z Temporarily overriding HOME='/home/runner/work/_temp/d9436ba5-1de6-47ed-b3fa-ff0ceef3fc08' before making global git config changes
+2026-10-28T17:09:03.8766482Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T17:09:03.8770422Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T17:09:03.8818106Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T17:09:03.8862532Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T17:09:03.9096000Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T17:09:03.9126305Z http.https://github.com/.extraheader
+2026-10-28T17:09:03.9138355Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T17:09:03.9181350Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T17:09:03.9416128Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T17:09:03.9453085Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T17:09:03.9838414Z Cleaning up orphan processes
+2026-10-28T17:09:04.0279606Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

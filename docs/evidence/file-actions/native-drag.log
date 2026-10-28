@@ -1,0 +1,4 @@
+dbus-daemon[19929]: [session uid=1000 pid=19929 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=19942 comm="/workspace/.airdrop-tools/flathub-audit/builder/bu" label="kernel")
+dbus-daemon[19929]: [session uid=1000 pid=19929 pidfd=5] Successfully activated service 'org.a11y.Bus'
+PASS: Chromium pointer input internal same-folder drop produced no duplicate; folder drop moved the original inode and exact bytes.
+PASS: actual Alt+X11 pointer drag from Airdrop to a separate Chromium process delivered the original Unicode filename and exact bytes; source file retained. Virtual display, not physical Omarchy/Wayland.

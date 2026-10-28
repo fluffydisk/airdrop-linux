@@ -1,0 +1,8 @@
+dbus-daemon[19626]: [session uid=1000 pid=19626 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=19639 comm="/workspace/.airdrop-tools/flathub-audit/builder/bu" label="kernel")
+dbus-daemon[19626]: [session uid=1000 pid=19626 pidfd=5] Successfully activated service 'org.a11y.Bus'
+page.waitForFunction: Timeout 30000ms exceeded.
+    at /workspace/airdrop-linux/scripts/test-native-drag.cjs:39:16 {
+  log: [],
+  name: 'TimeoutError'
+}
+xvfb-run: error: problem while cleaning up temporary directory

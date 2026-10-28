@@ -1,0 +1,7 @@
+dbus-daemon[18393]: [session uid=1000 pid=18393 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=18406 comm="/workspace/.airdrop-tools/flathub-audit/builder/bu" label="kernel")
+dbus-daemon[18393]: [session uid=1000 pid=18393 pidfd=5] Successfully activated service 'org.a11y.Bus'
+page.waitForFunction: Timeout 30000ms exceeded.
+    at /workspace/airdrop-linux/scripts/test-native-drag.cjs:44:16 {
+  log: [],
+  name: 'TimeoutError'
+}
