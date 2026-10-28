@@ -130,6 +130,29 @@ const {_electron:electron}=require('playwright-core');
   console.log('Runtime versions: '+JSON.stringify(versions));
   assert.equal(await app.evaluate(({app})=>app.commandLine.getSwitchValue('class')),'io.github.fluffydisk.airdrop-linux');
   if(channel==='flatpak')assert.equal(await app.evaluate(()=>process.env.FLATPAK_ID),'io.github.fluffydisk.airdrop-linux');
+  if(channel==='flatpak' && !wayland && await page.evaluate(()=>typeof window.airdrop.drag==='function')) {
+   const name='portal-export-'+Date.now()+'.txt', payload='Native document portal copy '+Date.now();
+   assert.equal((await fetch('http://127.0.0.1:6001/push/files/'+name,{method:'PUT',body:payload})).status,201);
+   await app.evaluate(({BrowserWindow})=>{
+    const contents=BrowserWindow.getAllWindows()[0].webContents;
+    globalThis.originalNativeDrag=contents.startDrag;
+    globalThis.exportedDrag=[];
+    contents.startDrag=item=>{globalThis.exportedDrag=item.files;};
+   });
+   try {
+    await page.evaluate(name=>window.airdrop.drag([name]),name);
+    const exported=await app.evaluate(async()=>{
+     for(let i=0;i<100;i++){if(globalThis.exportedDrag.length)return globalThis.exportedDrag;await new Promise(resolve=>setTimeout(resolve,100));}
+     throw new Error('Document portal did not provide an exported drag path');
+    });
+    assert.equal(exported.length,1);assert.ok(exported[0].includes('/doc/'));
+    // Read the exported document from outside Flatpak as another host process.
+    assert.equal(await fs.readFile(exported[0],'utf8'),payload);
+    console.log('flatpak: actual Documents portal exported an inherited validated FD; a host process read identical bytes; native drag delivery was intercepted, not a physical external-app drop');
+   } finally {
+    await app.evaluate(({BrowserWindow})=>{BrowserWindow.getAllWindows()[0].webContents.startDrag=globalThis.originalNativeDrag;});
+   }
+  }
   if(wayland) {
    assert.equal(await app.evaluate(()=>process.env.DISPLAY),undefined);
    assert.ok(await app.evaluate(()=>process.env.WAYLAND_DISPLAY));

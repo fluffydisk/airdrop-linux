@@ -18,6 +18,8 @@
     host.classList.add('explorer'); host.tabIndex = 0; host.setAttribute('aria-label', 'Shared files');
     let directory = '', entries = [], selected = new Set(), history = [''], position = 0, anchor = 0, busy = false, trash = false, request = 0;
     let mode = 'grid'; try { mode = localStorage.getItem('airdrop-file-view') || 'grid'; } catch {}
+    const sorts = { 'name-asc': 'Name · A–Z', 'name-desc': 'Name · Z–A', 'date-desc': 'Date · Newest first', 'date-asc': 'Date · Oldest first', 'size-desc': 'Size · Largest first', 'size-asc': 'Size · Smallest first', 'type-asc': 'File type' };
+    let order = 'name-asc'; try { const saved = localStorage.getItem('airdrop-file-sort'); if (Object.hasOwn(sorts, saved)) order = saved; } catch {}
     const nav = node('div', undefined, 'explorer-toolbar'), crumbs = node('nav', undefined, 'explorer-crumbs'); crumbs.setAttribute('aria-label', 'Folder path');
     const actions = node('div', undefined, 'explorer-toolbar');
     const content = node('div', undefined, 'explorer-items'); content.setAttribute('role', 'group');
@@ -41,6 +43,13 @@
     button(nav, '↻', refresh, 'Refresh files');
     button(nav, 'Grid / List', () => { mode = mode === 'grid' ? 'list' : 'grid'; try { localStorage.setItem('airdrop-file-view', mode); } catch {} render(); });
     button(nav, 'Trash', async () => { trash = !trash; selected.clear(); await refresh(); });
+    const sort = node('select'); sort.setAttribute('aria-label', 'Sort files');
+    for (const [value, label] of Object.entries(sorts)) { const option = node('option', label); option.value = value; sort.append(option); }
+    sort.value = order;
+    sort.onchange = () => { order = sort.value; anchor = 0; try { localStorage.setItem('airdrop-file-sort', order); } catch {} render(); };
+    nav.append(sort);
+    global.addEventListener('airdrop-preferences', () => { try { const saved = localStorage.getItem('airdrop-file-sort'); if (Object.hasOwn(sorts, saved)) { order = saved; sort.value = order; render(); } } catch {} });
+    if (adapter.reveal) button(nav, 'Open folder location', () => adapter.reveal(directory));
     const newFolder = button(actions, 'New folder', async () => { const name = await askName(); if (name) await run(() => adapter.mkdir(directory, name), 'Folder created'); });
     const copy = button(actions, 'Copy to folder', copySelection);
     const download = button(actions, 'Download', downloadSelection);
@@ -71,6 +80,13 @@
       controls();
     }
     function render() {
+      entries.sort((a, b) => {
+        const folders = Number(b.type === 'directory') - Number(a.type === 'directory');
+        if (folders) return folders;
+        const [field, direction] = order.split('-');
+        const value = field === 'date' ? (a.deleted || a.modified || 0) - (b.deleted || b.modified || 0) : field === 'size' ? (a.size || 0) - (b.size || 0) : field === 'type' ? kind(a).localeCompare(kind(b)) : a.name.localeCompare(b.name, undefined, {numeric:true,sensitivity:'base'});
+        return value * (direction === 'desc' ? -1 : 1) || a.name.localeCompare(b.name);
+      });
       content.className = 'explorer-items explorer-' + mode; content.replaceChildren(); crumbs.replaceChildren();
       button(crumbs, 'Airdrop', () => navigate(''));
       if (trash) crumbs.append(node('span', ' / Trash'));
@@ -78,11 +94,21 @@
       entries.forEach((file, index) => {
         const key = trash ? file.id : file.path;
         const row = node('div', undefined, 'explorer-item'); row.dataset.path = file.path; row.dataset.key = key; row.dataset.kind = kind(file); row.classList.toggle('selected', selected.has(key)); row.tabIndex = 0;
+        if (adapter.drag && !trash && file.type === 'file') {
+          row.draggable = true;
+          row.title = 'Drag to another application to copy this file';
+          row.ondragstart = event => {
+            event.preventDefault(); if (busy) return;
+            const paths = selected.has(key) ? entries.filter(entry => selected.has(entry.path) && entry.type === 'file').map(entry => entry.path) : [file.path];
+            try { adapter.drag(paths); say('Drag to another application to copy. The original stays in Airdrop.'); } catch (error) { say(error.message); }
+          };
+        }
         const checkbox = node('input'); checkbox.type = 'checkbox'; checkbox.checked = selected.has(key); checkbox.setAttribute('aria-label', `Select ${file.name}`);
         checkbox.onclick = event => event.stopPropagation(); checkbox.onchange = () => { if (checkbox.checked) selected.add(key); else selected.delete(key); anchor = index; updateSelection(); };
         const symbol = node('span', symbols[kind(file)], 'explorer-symbol'); symbol.setAttribute('aria-hidden', 'true');
         const details = node('div', undefined, 'explorer-details'); const name = node('span', file.name, 'explorer-name'); name.title = file.name;
         const meta = node('small', trash ? file.path : file.type === 'directory' ? 'Folder' : file.size < 1024 ? `${file.size || 0} B` : file.size < 1024 ** 2 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / 1024 ** 2).toFixed(1)} MB`);
+        if (!trash && file.modified) { const date = new Date(file.modified); meta.append(document.createTextNode(' · ' + date.toLocaleDateString())); meta.title = date.toLocaleString(); }
         details.append(name, meta); row.append(checkbox, symbol, details);
         row.onclick = event => {
           if (event.detail > 1) return;
@@ -161,7 +187,7 @@
     document.addEventListener('keydown', event => {
       if (!enabled() || editable(event.target)) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a' && host.contains(event.target)) { event.preventDefault(); selected = new Set(entries.map(file => trash ? file.id : file.path)); updateSelection(); }
-      if (adapter.paste && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+      if (adapter.paste && !adapter.pasteFiles && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
         event.preventDefault();
         if (busy || trash) { say('Open a folder and wait for the current operation to finish before pasting.'); return; }
         const target = directory;
@@ -174,6 +200,8 @@
       event.preventDefault(); if (trash || busy) { say('Open a folder and wait for the current operation to finish before pasting.'); return; }
       const target = directory;
       run(async () => {
+        const files = Array.from(event.clipboardData?.files || []);
+        if (files.length && adapter.pasteFiles) return adapter.pasteFiles(target, files);
         if (adapter.paste) return adapter.paste(target);
         const image = Array.from(event.clipboardData?.items || []).find(item => item.type.startsWith('image/'));
         const stamp = new Date().toISOString().replace(/[:.]/g, '-');
