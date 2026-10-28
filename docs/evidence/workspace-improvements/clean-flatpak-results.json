@@ -1,0 +1,404 @@
+{
+  "started_at": "2026-10-28T14:37:22.073586+00:00",
+  "arch": "x86_64",
+  "builder": "native",
+  "flathub_ready": false,
+  "checks": [
+    {
+      "requirement": "Independent source paths",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements#required-files",
+      "solution": "Copy directory; recursively resolve includes and patches inside copy",
+      "command": "scripts/validate-flatpak-reference.py --manifest /home/runner/work/_temp/prepared/io.github.fluffydisk.airdrop-linux.yml --arch x86_64 --builder native --output /home/runner/work/_temp/validated",
+      "status": "VERIFIED",
+      "log": "source-receipt.json",
+      "blocker": ""
+    },
+    {
+      "requirement": "Electron offline source build",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements#building-from-source",
+      "solution": "Keep checksum-pinned binary reference; no source-build exception assumed",
+      "command": "Not executed",
+      "status": "BLOCKED",
+      "log": "results.json",
+      "blocker": "Verified complete offline Electron build or explicit exception required; see technical review"
+    },
+    {
+      "requirement": "External Tailscale service",
+      "source": "https://tailscale.com/kb/1244/tsnet",
+      "solution": "Source-built private userspace tsnet node; no host Tailscale installation or Serve command",
+      "command": "Not executed",
+      "status": "NOT TESTED",
+      "log": "results.json",
+      "blocker": "Authenticated tailnet and HTTPS certificate provisioning require a real account; no reviewer approval implied"
+    },
+    {
+      "requirement": "Real second-device Tailscale",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements#host-dependent-applications",
+      "solution": "Separate real-device procedure; controlled transport tests do not count",
+      "command": "Not executed",
+      "status": "NOT TESTED",
+      "log": "results.json",
+      "blocker": "Authenticated tailnet and second device unavailable"
+    },
+    {
+      "requirement": "Interactive GNOME/KDE portals and Wayland clipboard",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Fixture and headless startup reported separately",
+      "command": "Not executed",
+      "status": "NOT TESTED",
+      "log": "results.json",
+      "blocker": "Physical desktop/input session unavailable"
+    },
+    {
+      "requirement": "Native aarch64 build and execution",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Not advertised when excluded by flathub.json; run on native hardware before enabling",
+      "command": "Not executed",
+      "status": "NOT TESTED",
+      "log": "results.json",
+      "blocker": "This invocation runs only on x86_64; only-arches=['x86_64']"
+    },
+    {
+      "requirement": "Unit and controlled connection tests",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Real unit/integration suite plus explicitly controlled transport cases",
+      "command": "npm test",
+      "status": "NOT TESTED",
+      "log": "06-unit-and-controlled-connection-tests.log",
+      "blocker": "1 skipped tests; see suite log for missing prerequisites",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Flatpak tool version",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak --version",
+      "status": "VERIFIED",
+      "log": "07-flatpak-tool-version.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "x86_64 ref org.freedesktop.Platform",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=x86_64 --show-metadata flathub org.freedesktop.Platform//26.08",
+      "status": "VERIFIED",
+      "log": "08-x86-64-ref-org-freedesktop-platform.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "x86_64 ref org.freedesktop.Sdk",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=x86_64 --show-metadata flathub org.freedesktop.Sdk//26.08",
+      "status": "VERIFIED",
+      "log": "09-x86-64-ref-org-freedesktop-sdk.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "x86_64 ref org.electronjs.Electron2.BaseApp",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=x86_64 --show-metadata flathub org.electronjs.Electron2.BaseApp//26.08",
+      "status": "VERIFIED",
+      "log": "10-x86-64-ref-org-electronjs-electron2-baseapp.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "x86_64 ref org.freedesktop.Sdk.Extension.node24",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=x86_64 --show-metadata flathub org.freedesktop.Sdk.Extension.node24//26.08",
+      "status": "VERIFIED",
+      "log": "11-x86-64-ref-org-freedesktop-sdk-extension-node24.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "x86_64 ref org.freedesktop.Sdk.Extension.rust-stable",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=x86_64 --show-metadata flathub org.freedesktop.Sdk.Extension.rust-stable//26.08",
+      "status": "VERIFIED",
+      "log": "12-x86-64-ref-org-freedesktop-sdk-extension-rust-stable.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "aarch64 ref org.freedesktop.Platform",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=aarch64 --show-metadata flathub org.freedesktop.Platform//26.08",
+      "status": "VERIFIED",
+      "log": "13-aarch64-ref-org-freedesktop-platform.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "aarch64 ref org.freedesktop.Sdk",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=aarch64 --show-metadata flathub org.freedesktop.Sdk//26.08",
+      "status": "VERIFIED",
+      "log": "14-aarch64-ref-org-freedesktop-sdk.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "aarch64 ref org.electronjs.Electron2.BaseApp",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=aarch64 --show-metadata flathub org.electronjs.Electron2.BaseApp//26.08",
+      "status": "VERIFIED",
+      "log": "15-aarch64-ref-org-electronjs-electron2-baseapp.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "aarch64 ref org.freedesktop.Sdk.Extension.node24",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=aarch64 --show-metadata flathub org.freedesktop.Sdk.Extension.node24//26.08",
+      "status": "VERIFIED",
+      "log": "16-aarch64-ref-org-freedesktop-sdk-extension-node24.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "aarch64 ref org.freedesktop.Sdk.Extension.rust-stable",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Inspect signed remote metadata; availability is not execution proof",
+      "command": "flatpak remote-info --user --arch=aarch64 --show-metadata flathub org.freedesktop.Sdk.Extension.rust-stable//26.08",
+      "status": "VERIFIED",
+      "log": "17-aarch64-ref-org-freedesktop-sdk-extension-rust-stable.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Manifest lint",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder manifest /home/runner/work/_temp/validated/submission/io.github.fluffydisk.airdrop-linux.yml",
+      "status": "VERIFIED",
+      "log": "18-manifest-lint.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Builder version",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak-builder --version",
+      "status": "VERIFIED",
+      "log": "19-builder-version.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Fetch pinned sources",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --state-dir=/home/runner/work/_temp/validated/builder-state --download-only /home/runner/work/_temp/validated/fetch-build /home/runner/work/_temp/validated/submission/io.github.fluffydisk.airdrop-linux.yml",
+      "status": "VERIFIED",
+      "log": "20-fetch-pinned-sources.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Clean offline build",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements#no-network-access-during-build",
+      "solution": "Execute against the staged reference",
+      "command": "dbus-run-session -- flatpak-builder --user --disable-rofiles-fuse --state-dir=/home/runner/work/_temp/validated/builder-state --sandbox --disable-download --disable-cache --force-clean --jobs=2 --default-branch=stable --mirror-screenshots-url=https://dl.flathub.org/media --repo=/home/runner/work/_temp/validated/repo /home/runner/work/_temp/validated/build /home/runner/work/_temp/validated/submission/io.github.fluffydisk.airdrop-linux.yml",
+      "status": "VERIFIED",
+      "log": "21-clean-offline-build.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Export generated screenshot media",
+      "source": "https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines",
+      "solution": "Export real composer output; no uploaded media or lint exceptions",
+      "command": "ostree --repo=/home/runner/work/_temp/validated/repo commit --branch=screenshots/x86_64 '--subject=AppStream generated screenshot media' --tree=dir=/home/runner/work/_temp/validated/build/files/share/app-info/media",
+      "status": "VERIFIED",
+      "log": "22-export-generated-screenshot-media.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Update repository indexes",
+      "source": "https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak build-update-repo /home/runner/work/_temp/validated/repo",
+      "status": "VERIFIED",
+      "log": "23-update-repository-indexes.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Package security and dependency inventory",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "/usr/bin/python3 scripts/audit-flatpak-reference.py /home/runner/work/_temp/validated/submission/io.github.fluffydisk.airdrop-linux.yml --build-dir /home/runner/work/_temp/validated/build --output /home/runner/work/_temp/validated/package-audit.json",
+      "status": "VERIFIED",
+      "log": "24-package-security-and-dependency-inventory.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Repository lint",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder repo /home/runner/work/_temp/validated/repo",
+      "status": "VERIFIED",
+      "log": "25-repository-lint.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "AppStream lint",
+      "source": "https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder appstream /home/runner/work/_temp/validated/build/files/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml",
+      "status": "VERIFIED",
+      "log": "26-appstream-lint.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "AppStream validation",
+      "source": "https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines",
+      "solution": "Execute against the staged reference",
+      "command": "appstreamcli validate --no-net /home/runner/work/_temp/validated/build/files/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml",
+      "status": "VERIFIED",
+      "log": "27-appstream-validation.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Desktop entry validation",
+      "source": "https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines",
+      "solution": "Execute against the staged reference",
+      "command": "desktop-file-validate /home/runner/work/_temp/validated/build/files/share/applications/io.github.fluffydisk.airdrop-linux.desktop",
+      "status": "VERIFIED",
+      "log": "28-desktop-entry-validation.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "D-Bus background portal fixture",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Real D-Bus with controlled grant/denial/absence; no interactive consent claim",
+      "command": "dbus-run-session -- node scripts/test-background-portal.cjs /home/runner/work/_temp/validated/build/files/bin/airdrop-background-portal",
+      "status": "VERIFIED",
+      "log": "29-d-bus-background-portal-fixture.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Install built reference",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak install --user --noninteractive /home/runner/work/_temp/validated/repo io.github.fluffydisk.airdrop-linux",
+      "status": "VERIFIED",
+      "log": "30-install-built-reference.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Installed permissions",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak info --user --show-permissions io.github.fluffydisk.airdrop-linux",
+      "status": "VERIFIED",
+      "log": "31-installed-permissions.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Reinstall and persistent private workspace",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Actual uninstall/reinstall; compare exact private file bytes without --delete-data",
+      "command": "dbus-run-session -- node scripts/test-flatpak-persistence.cjs /home/runner/work/_temp/validated/repo",
+      "status": "VERIFIED",
+      "log": "32-reinstall-and-persistent-private-workspace.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Installed Node version",
+      "source": "https://docs.flathub.org/docs/for-app-authors/requirements",
+      "solution": "Execute against the staged reference",
+      "command": "dbus-run-session -- flatpak run --user --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux --version",
+      "status": "VERIFIED",
+      "log": "33-installed-node-version.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "No sandbox Tailscale daemon",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "dbus-run-session -- flatpak run --user --command=sh io.github.fluffydisk.airdrop-linux -c 'if command -v tailscale; then exit 1; fi; test ! -S /run/tailscale/tailscaled.sock'",
+      "status": "VERIFIED",
+      "log": "34-no-sandbox-tailscale-daemon.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Backend transfers and isolation",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "dbus-run-session -- node scripts/smoke-sandbox.js flatpak",
+      "status": "VERIFIED",
+      "log": "35-backend-transfers-and-isolation.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "X11 clipboard sandbox and connection UI",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak",
+      "status": "VERIFIED",
+      "log": "36-x11-clipboard-sandbox-and-connection-ui.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Icon screenshot integrity and actual metadata URL",
+      "source": "https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines",
+      "solution": "Execute against the staged reference",
+      "command": "/usr/bin/python3 scripts/check-flatpak-images.py --metainfo /home/runner/work/_temp/validated/build/files/share/metainfo/io.github.fluffydisk.airdrop-linux.metainfo.xml --capture /home/runner/work/_temp/validated/desktop.png --icon /home/runner/work/_temp/validated/build/files/share/icons/hicolor/512x512/apps/io.github.fluffydisk.airdrop-linux.png",
+      "status": "VERIFIED",
+      "log": "37-icon-screenshot-integrity-and-actual-metadata-url.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Native headless Wayland startup",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "bash scripts/test-flatpak-wayland.sh",
+      "status": "VERIFIED",
+      "log": "38-native-headless-wayland-startup.log",
+      "blocker": "",
+      "exit_code": 0
+    },
+    {
+      "requirement": "Uninstall test application keeping user data",
+      "source": "https://docs.flatpak.org/en/latest/sandbox-permissions.html",
+      "solution": "Execute against the staged reference",
+      "command": "flatpak uninstall --user --noninteractive io.github.fluffydisk.airdrop-linux",
+      "status": "VERIFIED",
+      "log": "39-uninstall-test-application-keeping-user-data.log",
+      "blocker": "",
+      "exit_code": 0
+    }
+  ],
+  "reference_working_on_native_arch": true,
+  "finished_at": "2026-10-28T14:42:54.360537+00:00"
+}

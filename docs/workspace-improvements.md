@@ -69,7 +69,7 @@ Evidence in `evidence/workspace-improvements/`:
 | Real pointer drag to a separate Chromium process on X11 | passed, exact Unicode filename/bytes and source retained | native-drag.log |
 | Physical Omarchy default file manager and Wayland drag to external app | not tested in this worker | requires target desktop |
 | Authenticated two-device Tailscale HTTPS transfer | not tested without account/device access | no reviewer or device acceptance claim |
-| Updated clean Flatpak build and signed distribution | tracked by the pinned channel candidate workflow | record run before claiming publication |
+| Updated clean Flatpak build, metadata/lint, startup and full signed rehearsal | passed; production publication pending | clean-flatpak-results.json, signed-flatpak-results.json, signed-flatpak-desktop.log |
 
 The original failing logs are retained: restrictive inherited umask caused an
 existing updater mode assertion; the standard 0022 test environment passes.
@@ -97,3 +97,35 @@ a fresh 0700 directory owned by the test user, created before D-Bus activation.
 No sandbox or FUSE verification is bypassed. Full desktop failure:
 `failures/signed-desktop-shared-runtime.log`; original artifact 12822799654 SHA256
 `f60de28cb0d69e8a4696a8e00d5ee61bc1641c055c7522582b11390f9a25197f`.
+
+## Verified revision 4 candidate
+
+- Application source: `a57b4f71ba9ca404559ffc5825eb8e85f00a0d4d`.
+- Build/publishing configuration: `2f2c2a4dafca6a70cf6234c28e971ad963e031cc`.
+- Clean candidate and complete signing rehearsal:
+  https://github.com/fluffydisk/airdrop-linux/actions/runs/40707200362 — success.
+- All **17 signed installation/update/migration/security/functional checks passed**.
+  The final desktop session uses a fresh user-owned runtime: the real Documents
+  portal exported the inherited FD and a separate host process read identical
+  bytes. Native drag delivery is intercepted in this Flatpak-specific check;
+  the independent native X11 test uses actual pointer input between processes.
+- Clean reference checks: 34 VERIFIED, five NOT TESTED and the inherited
+  Electron-source-build policy row BLOCKED. This independent GitHub channel
+  still uses the verified official Electron binary; it is not Flathub-ready.
+- Successful evidence artifact: `12824868213`, ZIP SHA256
+  `6c9d82b49eab52a8c3dd7dd6b0b89cee7a67fd32ad7dfa6f1e40b5c8d8da6dc0`.
+  The source archive checksums are in `flatpak-preparation.json`.
+- Actual HTTPS Tailscale login bootstrap passed (URL redacted); no real account
+  sign-in or physical phone/tablet HTTPS transfer is claimed.
+- Protected production publication was requested automatically:
+  https://github.com/fluffydisk/airdrop-linux/actions/runs/40709440609 .
+  Candidate verification is complete. Publication/public HTTPS acceptance must
+  finish before advertising revision 4 as available through `flatpak update`.
+  The existing `package-publishing` human reviewer protection remains in force.
+
+Official API references:
+
+- https://www.electronjs.org/docs/latest/tutorial/native-file-drag-drop
+- https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.OpenURI.html
+- https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Documents.html
+- https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileTransfer.html
