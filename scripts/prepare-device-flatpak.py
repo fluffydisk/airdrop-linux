@@ -67,6 +67,10 @@ go_module={'name':'embedded-tsnet','buildsystem':'simple','build-options':{'appe
 module=next(m for m in manifest['modules'] if m['name']=='airdrop-linux')
 metadata_patch=''
 for source_entry in module['sources']:
+ if isinstance(source_entry,dict) and source_entry.get('url','').endswith('/packaging/flatpak/install-flatpak.sh'):
+  # Assembly helpers must match the pinned application, including portal helpers.
+  source_entry['url']='https://raw.githubusercontent.com/fluffydisk/airdrop-linux/'+args.commit+'/packaging/flatpak/install-flatpak.sh'
+  source_entry['sha256']=hashlib.sha256((app/'packaging/flatpak/install-flatpak.sh').read_bytes()).hexdigest()
  if isinstance(source_entry,dict) and source_entry.get('url','').endswith(('.metainfo.xml','.desktop')):
   name=source_entry['url'].rsplit('/',1)[1]
   with urllib.request.urlopen(source_entry['url'],timeout=30) as response:original=response.read()

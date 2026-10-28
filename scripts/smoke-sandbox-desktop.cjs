@@ -27,7 +27,15 @@ const {_electron:electron}=require('playwright-core');
    console.log('flatpak: real first-launch device wizard is visible');
   }
   if(await page.locator('#connectionWizard').count()) {
-   if(await page.locator('#connectionWizard').isVisible())await page.evaluate(()=>document.getElementById('wizardLocal').click());
+   if(await page.locator('#connectionWizard').isVisible()) {
+    if(await page.locator('#wizardContinue').count()) {
+     assert.equal(await page.locator('#wizardContinue').isDisabled(),true);
+     assert.equal(await page.evaluate(()=>{const event=new Event('cancel',{cancelable:true});document.getElementById('connectionWizard').dispatchEvent(event);return event.defaultPrevented;}),true);
+     assert.equal(await page.locator('#connectionWizard').isVisible(),true);
+     console.log('First-run Tailscale gate stays closed before verified HTTPS and cannot be dismissed with Escape');
+    }
+    await page.evaluate(()=>document.getElementById('connectionWizard').close()); // Explicit test-only dismissal for independent local checks; not authenticated onboarding.
+   }
   }
   if(process.env.AIRDROP_TEST_DEVICES==='1' && !wayland){
    await page.locator('[data-view="connect"]').click();
@@ -38,6 +46,7 @@ const {_electron:electron}=require('playwright-core');
    assert.equal(state.status,'ready',state.message);
    assert.ok(!state.url.includes('127.0.0.1'));
    await page.waitForFunction(url=>document.getElementById('deviceAddress').value===url,state.url);
+   if(await page.locator('#activeWorkspace').count())await page.waitForFunction(url=>document.getElementById('activeWorkspace').value===url,state.url);
    await page.locator('#copyDeviceAddress').click();
    assert.equal(await app.evaluate(({clipboard})=>clipboard.readText()),state.url);
    const {PNG}=require('pngjs'),decode=require('jsqr');
@@ -145,6 +154,7 @@ const {_electron:electron}=require('playwright-core');
     try {
      assert.equal((await page.evaluate(()=>window.airdrop.checkConnection())).status,'not-configured');
      await page.locator('[data-view="settings"]').click();
+     if(await page.locator('summary').count())await page.locator('summary').click();
      await page.locator('#url').fill('https://reference-test.example.ts.net/');
      await page.locator('#saveUrl').click();
      await page.waitForFunction(()=>document.getElementById('settingsResult').textContent.includes('Connection has not been checked'));

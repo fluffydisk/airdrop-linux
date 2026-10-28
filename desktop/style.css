@@ -1065,3 +1065,28 @@ dialog .clipboard-actions{flex-wrap:wrap}
 #deviceAddress{display:block;width:100%;box-sizing:border-box;margin:12px 0;padding:10px}
 #deviceQr{display:block;background:white;margin:16px 0;max-width:100%;height:auto}
 #lanInterface{padding:8px;max-width:100%;margin:12px}
+
+/* Transfer methods and preferences share the active appearance tokens. */
+kbd{display:inline-block;padding:2px 6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);font:inherit;font-size:.88em;box-shadow:0 2px 0 var(--border)}
+.transfer-methods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;margin:24px auto 12px;max-width:680px}
+.transfer-methods>span,.transfer-methods>button{display:flex;flex-direction:column;gap:6px;padding:14px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--muted);font-size:12px;text-align:center;line-height:1.5}
+.transfer-methods strong{color:var(--text);font-size:13px}
+.preferences-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin:20px 0}
+.preferences-grid label{display:flex;flex-direction:column;gap:9px;color:var(--text)}
+.preferences-grid label:has(input){flex-direction:row;align-items:center}
+select{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px;max-width:100%}
+input[readonly]{text-overflow:ellipsis}
+#connectionWizard{max-width:640px;width:calc(100% - 36px);max-height:90vh;overflow:auto;border:1px solid var(--border);border-radius:22px;padding:32px;background:var(--surface);color:var(--text);line-height:1.7;box-shadow:var(--shadow)}
+#connectionWizard::backdrop{background:#0009;backdrop-filter:blur(6px)}
+#connectionWizard input{width:100%;padding:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px}
+#activeWorkspaceStatus,#wizardStatus{overflow-wrap:anywhere}
+#deviceQr{display:block;border-radius:12px;margin:18px 0;background:white}
+:root[data-accent=purple]{--accent:#9b51e0;--accent-strong:#8240c5;--accent-tint:#9b51e014}
+:root[data-accent=green]{--accent:#21855b;--accent-strong:#196c48;--accent-tint:#21855b14}
+:root[data-accent=orange]{--accent:#b95e13;--accent-strong:#9a4b0d;--accent-tint:#b95e1314}
+:root[data-density=compact] .explorer-item{padding:8px;min-height:48px}
+:root[data-density=compact] .file-row{padding-top:8px;padding-bottom:8px}
+:root[data-density=compact] .settings-card{padding:20px}
+:root[data-reduce-motion=true] *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(max-width:750px){.transfer-methods{grid-template-columns:1fr}.preferences-grid{grid-template-columns:1fr}.transfer-methods>span,.transfer-methods>button{padding:10px}.drop-zone{padding:25px 16px}}

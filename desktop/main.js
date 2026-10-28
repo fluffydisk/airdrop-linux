@@ -10,8 +10,9 @@ const { pipeline } = require('node:stream/promises');
 const { validName, rootDirectory } = require('./core/lib/files');
 const { sendFiles } = require('./core/lib/transfer');
 const { getPaths } = require('./core/lib/paths');
-const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile } = require('./clipboard');
+const { readSharedClipboard, writeSharedClipboard, validateText, readClipboardFile, readClipboardFiles } = require('./clipboard');
 const { workspaceUrl, checkConnection } = require('./connection');
+const { openFolder, dragFiles, withPortalFiles } = require('./file-integration');
 const paths = getPaths();
 const distribution = require('./core/lib/installation').distribution();
 if (process.platform === 'linux' && distribution.managed) {
@@ -88,6 +89,14 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.on('airdrop:drag', (event, paths) => {
+    try { ownWindow(event); }
+    catch { return; }
+    const start = files => event.sender.startDrag({ files,
+      icon: nativeImage.createFromPath(path.join(__dirname, 'core/ui/icon-192.png')).resize({width:48,height:48}) });
+    dragFiles(shareDir, paths, explorer, (files, descriptors) => distribution.source === 'flatpak' ? withPortalFiles(files, descriptors, start) : start(files))
+      .catch(error => { if (!event.sender.isDestroyed()) event.sender.send('airdrop:drag-error', error.message); });
+  });
   ipcMain.handle('airdrop:devices',async(event,action,payload)=>{
     ownWindow(event);await devicesReady;
     if(action==='state')return devices.snapshot();
@@ -178,6 +187,16 @@ function registerIpc() {
       trash: () => explorer.trash(shareDir, payload.paths),
       restore: () => explorer.restore(shareDir, payload.id),
       paste: async () => {
+        const sources = await readClipboardFiles(clipboard);
+        if (sources) {
+          const target = await explorer.directory(shareDir, payload.directory || '');
+          try {
+            const results = await sendFiles(target.path, sources, false, { anchored:true });
+            const failed = results.filter(item => !item.ok);
+            if (failed.length) throw new Error('Some clipboard files could not be copied. Use Choose files to grant access: ' + failed.map(item => item.name).join(', '));
+            return results;
+          } finally { await target.close(); }
+        }
         const file = await readClipboardFile(clipboard, nativeImage);
         return explorer.upload(shareDir, payload.directory || '', file.name, Readable.from([file.data]));
       },
@@ -215,7 +234,14 @@ function registerIpc() {
   ipcMain.handle('airdrop:settings', event => { ownWindow(event); return readSettings(); });
   ipcMain.handle('airdrop:connection', async event => { ownWindow(event); return checkConnection((await readSettings()).pwaUrl, net.fetch); });
   ipcMain.handle('airdrop:status', event => { ownWindow(event); return state; });
-  ipcMain.handle('airdrop:folder', event => { ownWindow(event); window.webContents.send('airdrop:show-files'); });
+  ipcMain.handle('airdrop:folder', async (event, relative = '') => {
+    ownWindow(event);
+    const directory = await explorer.directory(shareDir, relative);
+    try {
+      const actual = await fs.promises.realpath(directory.path);
+      await openFolder(actual, { flatpak: distribution.source === 'flatpak', shell });
+    } finally { await directory.close(); }
+  });
   ipcMain.handle('airdrop:pwa', event => { ownWindow(event); return openPwa(); });
   ipcMain.handle('airdrop:save-url', async (event, input) => {
     ownWindow(event);

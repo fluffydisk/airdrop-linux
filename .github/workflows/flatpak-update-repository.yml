@@ -60,7 +60,7 @@ jobs:
           set -euo pipefail
           sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg gpgv apt-utils rpm createrepo-c
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg gpgv apt-utils rpm createrepo-c libglib2.0-dev
           npm ci --ignore-scripts
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder \
@@ -77,6 +77,8 @@ jobs:
           python3 scripts/test-flatpak-network-retry.py
           python3 scripts/test-flatpak-installer-encoding.py
           python3 scripts/test-flatpak-preservation.py
+          cc -Wall -Wextra -Werror packaging/flatpak/open-directory-portal.c -o "$RUNNER_TEMP/airdrop-file-portal" $(pkg-config --cflags --libs gio-unix-2.0)
+          dbus-run-session -- /usr/bin/python3 scripts/test-file-portal.py "$RUNNER_TEMP/airdrop-file-portal"
           python3 scripts/prepare-flatpak-channel.py --source "$SOURCE" --revision "$REVISION" --output "$RUNNER_TEMP/prepared"
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/build-runtime.XXXXXX")
           status=0

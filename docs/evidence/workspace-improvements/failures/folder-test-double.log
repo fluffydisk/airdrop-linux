@@ -1,0 +1,31 @@
+dbus-daemon[2742]: [session uid=1000 pid=2742 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=2761 comm="/workspace/.airdrop-tools/flathub-audit/builder/bu" label="kernel")
+dbus-daemon[2742]: [session uid=1000 pid=2742 pidfd=5] Successfully activated service 'org.a11y.Bus'
+✖ Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart (2802.113529ms)
+﹣ Electron: real StatusNotifier tray keeps window accessible after close (30.411268ms) # No StatusNotifier watcher in this desktop session
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 3859.97182
+
+✖ failing tests:
+
+test at tests/desktop.cjs:17:1
+✖ Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart (2802.113529ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/workspace/airdrop-linux/tests/desktop.cjs:66:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

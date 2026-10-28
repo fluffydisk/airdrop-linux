@@ -1,0 +1,135 @@
+
+> airdrop-push@1.5.0 test
+> node --test tests/*.test.js
+
+✔ desktop, AppStream and repository identity match Flathub code-hosting rules (141.856974ms)
+✔ new Flatpak identity selects independent data without adopting native or old sandbox data (0.884647ms)
+✔ private Snap backend control reports identity and stops only its own server (30.372582ms)
+✔ backend control preserves regular files and refuses linked or public directories (17.279016ms)
+✔ desktop policy grants user namespaces to one quoted executable path (3.133221ms)
+✔ desktop policy rejects relative paths, globs and policy injection (0.777176ms)
+✔ shared clipboard preserves Unicode, replaces text, bounds input and refuses linked reads (19.333629ms)
+✔ desktop clipboard buttons paste, share, load and copy; failed loads preserve draft (203.073111ms)
+✔ native clipboard snapshots prefer images and support the current asynchronous Electron API (10.172333ms)
+✔ workspace address requires Tailscale HTTPS without credentials or nonstandard ports (4.791093ms)
+✔ unconfigured address does not make a network request (0.980051ms)
+✔ controlled successful health response verifies reachability, not another device (35.722089ms)
+✔ controlled HTTP error keeps the local workspace available (0.607061ms)
+✔ controlled partial backend keeps the local workspace available (0.461243ms)
+✔ controlled unrelated service keeps the local workspace available (0.471347ms)
+✔ controlled invalid JSON keeps the local workspace available (0.551468ms)
+✔ controlled DNS failure keeps the local workspace available (0.157717ms)
+✔ controlled TLS failure keeps the local workspace available (0.235784ms)
+✔ controlled timeout keeps the local workspace available (0.477065ms)
+✔ controlled redirect rejected keeps the local workspace available (0.480802ms)
+✔ invalid saved address is rejected before transport (0.138137ms)
+✔ LAN discovery excludes loopback, public and host Tailscale addresses (1.990857ms)
+✔ pairing protects the actual proxy; foreign origins, wrong host and stale tokens fail (105.746578ms)
+✔ tailnet origin requires real HTTPS .ts.net identity before a gateway can advertise (0.542915ms)
+✔ controlled helper states do not advertise a DNS name before HTTPS is verified (0.614983ms)
+✔ controller never advertises loopback or an unavailable helper (33.189299ms)
+✔ real LAN interface self-probe produces a decodable QR and revokes sharing on disconnect (101.053205ms)
+✔ single-file installer downloads a pinned release, verifies its checksum and executes setup without a build (367.898789ms)
+✔ download installer rejects linked entries before extraction or execution (119.519048ms)
+✔ prebuilt metadata refuses a different architecture, missing components and version mismatches (7.605356ms)
+✔ prebuilt server installation uses bundled dependencies and preserves existing files (655.377045ms)
+✔ release merge includes both AppImage architectures and checksum coverage for every public asset (63.623679ms)
+✔ nested folders, uploads, copy, recursive download and persistent trash restore without overwriting (112.169415ms)
+✔ every explorer operation rejects root escapes and intermediate links (21.301928ms)
+✔ opening a file passes only a regular shared file to the system opener (12.27513ms)
+✔ in-flight upload stays on its opened directory when its name becomes an outside symlink (14.020531ms)
+✔ explorer HTTP routes preserve legacy routes and return direct files or recursive ZIPs (166.275715ms)
+✔ nested arrivals notify their relative paths and trash is silent (12.334441ms)
+✔ independent recipe staging copies only declared inputs and architecture policy (164.397011ms)
+✔ recipe inputs cannot escape through relative paths or symlinks (199.150291ms)
+✔ recursive source includes fail without recursion or incomplete staging (82.388039ms)
+✔ unhashed or mutable remote inputs fail structural verification (107.082225ms)
+✔ a native-only release preserves the last complete Flatpak release (1.473882ms)
+✔ a partial newer Flatpak publication cannot silently downgrade the remote (0.98572ms)
+✔ draft and prerelease Flatpaks cannot become the stable remote (0.210166ms)
+✔ the tested x86_64 reference r2 supersedes older dual-architecture assets (1.292284ms)
+✔ a reference bundle without its checksum cannot fall back to an older package (0.427491ms)
+✔ installer file/CLI/VAPID blocks support fresh and repeat installation in isolated directories (909.668042ms)
+✔ installer-generated systemd units validate before installation, including paths with spaces (213.599061ms)
+✔ malformed compressed request bodies return an error without stopping the service (274.140475ms)
+✔ unified layout migrates files, collisions, clipboard, credentials and desktop preferences without losing originals (73.103357ms)
+✔ migration refuses conflicting identities, links, live desktop and changed data without removing sources (18.556171ms)
+✔ clearing shared files preserves UI/API/config/state; gateway never writes application files (80.122796ms)
+﹣ real dufs gateway isolates system files and preserves clipboard and empty-folder operation (3.966349ms) # dufs is not installed
+✔ custom roots cannot recursively overlap a legacy source (0.601472ms)
+✔ managed Snap CLI forwards help, exit status, file arguments and ZIP options (471.327653ms)
+✔ setup preserves VAPID identity and permissions on repeated initialization (47.316871ms)
+✔ unsafe roots and symlink data roots are rejected (9.420529ms)
+✔ ownership verification refuses altered files and unrelated paths before running commands (13.165582ms)
+✔ managed uninstall preserves data; permission failure never deletes requested data (13.680644ms)
+✔ installed script CLI removes owned code and launchers while retaining data by default (389.275719ms)
+✔ package update guard rejects mutation before network or filesystem writes (11.665501ms)
+✔ port conflicts produce actionable startup errors (11.327049ms)
+✔ distribution marker selects package manager and rejects unknown sources (7.037569ms)
+✔ background portal waits for the matching response; denial and absence fail closed (3.404416ms)
+✔ managed setup requires explicit migration and archives old code without changing identity (32.060652ms)
+✔ channel recipes pin both architectures to actual payload checksums (64.071516ms)
+✔ managed packages can be removed before first setup without touching a data tree (2.719999ms)
+✔ immutable payloads normalize private packager directories for an unprivileged installed user (34.490319ms)
+✔ immutable dependency duplicates share storage while preserving paths, content and executable modes (16.086627ms)
+✔ file names render as text, selection includes all files, comma preserved (491.815294ms)
+✔ service worker registers even without PushManager (173.014376ms)
+✔ staged Android files upload immediately and retry only failed files (98.028322ms)
+✔ oversize ZIP stays selected, never silently uploads separately, and can be discarded (104.865081ms)
+✔ IndexedDB staging preserves files and deletes expired records (41.922504ms)
+✔ worker Share Target stages files and redirects without uploading (26.46988ms)
+✔ LAN HTTP clipboard fallback sends manually pasted text without a clipboard API (169.830118ms)
+✔ LAN clipboard load preserves shared text for manual copy when the API is unavailable (69.745336ms)
+✔ legacy inverted ripgrep check hides missing executable as a successful skip (19.729316ms)
+✔ downloads requested release even when history omits it and stages both formats and architectures (28.727469ms)
+✔ rejects incomplete release before download: airdrop-linux-1.5.0-1.x86_64.rpm (3.62198ms)
+✔ rejects incomplete release before download: airdrop-linux_1.5.0-1_arm64.deb (2.454293ms)
+✔ rejects incomplete release before download: SHA256SUMS (4.117704ms)
+✔ does not turn a release API error into a skipped release (3.116807ms)
+✔ does not stage packages with a mismatched checksum (12.097614ms)
+✔ empty package directory fails before creating repository output or invoking signing tools (9.737021ms)
+✔ raw upload publishes complete bytes and concurrent conflicts never overwrite (98.95411ms)
+✔ unsafe paths, hidden files and archive symlinks are rejected (81.749203ms)
+✔ streamed ZIP, form download, preflight and missing file validation (81.76297ms)
+✔ failed and aborted writes clean staging and never publish (36.252851ms)
+✔ health and cross-origin writes (17.12325ms)
+✔ push validates subscriptions, preserves temporary failures, removes only expired (37.020943ms)
+✔ subscription added/refreshed during dispatch survives and dispatches serialize (4.90443ms)
+✔ scan waits for stable signatures, detects modifications and delete/recreate (6.936335ms)
+✔ JSZip duplicate names, empty selection and 100 MiB boundary (8.941682ms)
+✔ local multi-file transfer, ZIP and symlink rejection (34.215614ms)
+✔ cancelled archive stream releases sources and subsequent downloads work (31.78062ms)
+✔ stable checks use numeric versions, handle no releases and reject mismatched architectures (107.47679ms)
+✔ portable updates expose the matching AppImage download without changing full-application update metadata (28.64197ms)
+✖ verified update replaces the complete app and preserves data and an old-version backup (130.333169ms)
+✔ corrupt downloads and unsafe ZIP entries never replace the app (161.618886ms)
+✔ health failure rolls back and denied authorization preserves the original app (215.93587ms)
+✔ recovery restores a backup after interruption between directory replacements (26.317948ms)
+✔ maintenance denies new mutations and drains existing leases before activation (108.616586ms)
+ℹ tests 104
+ℹ suites 0
+ℹ pass 102
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 14240.215826
+
+✖ failing tests:
+
+test at tests/updater.test.js:60:1
+✖ verified update replaces the complete app and preserves data and an old-version backup (130.333169ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  448 !== 493
+  
+      at TestContext.<anonymous> (/workspace/airdrop-linux/tests/updater.test.js:71:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 448,
+    expected: 493,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

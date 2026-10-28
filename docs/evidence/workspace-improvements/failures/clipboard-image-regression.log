@@ -1,0 +1,22 @@
+dbus-daemon[2882]: [session uid=1000 pid=2882 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=2916 comm="/workspace/.airdrop-tools/flathub-audit/builder/bu" label="kernel")
+dbus-daemon[2882]: [session uid=1000 pid=2882 pidfd=5] Successfully activated service 'org.a11y.Bus'
+✖ Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart (34733.241424ms)
+﹣ Electron: real StatusNotifier tray keeps window accessible after close (15.846051ms) # No StatusNotifier watcher in this desktop session
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 36010.525421
+
+✖ failing tests:
+
+test at tests/desktop.cjs:17:1
+✖ Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart (34733.241424ms)
+  page.waitForFunction: Timeout 30000ms exceeded.
+      at TestContext.<anonymous> (/workspace/airdrop-linux/tests/desktop.cjs:108:14) {
+    name: 'TimeoutError',
+    log: []
+  }

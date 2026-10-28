@@ -23,7 +23,10 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   let app;
   t.after(async () => { if (app) await app.close().catch(() => {}); await fileServer.close(); await apiServer.close(); await fs.rm(root, { recursive: true, force: true }); });
   app = await launch(); const page = await app.firstWindow();
-  if(await page.locator('#connectionWizard').count())await page.evaluate(()=>document.getElementById('wizardLocal').click());
+  // This suite tests local operations with controlled backend responses, not an authenticated tailnet.
+  await page.locator('#connectionWizard').waitFor({state:'visible'});
+  assert.equal(await page.locator('#wizardContinue').isDisabled(),true);
+  await page.evaluate(()=>document.getElementById('connectionWizard').close());
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
   assert.equal(await page.evaluate(() => typeof require), 'undefined');
@@ -48,6 +51,16 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await sharedFile.dblclick();
   await page.waitForFunction(() => document.querySelector('#fileExplorer .explorer-status').textContent === 'Opened: ü,a.txt');
   assert.deepEqual(await app.evaluate(() => globalThis.openedFiles), [path.join(share, 'ü,a.txt')]);
+  await page.locator('#fileExplorer select[aria-label="Sort files"]').selectOption('date-desc');
+  assert.equal(await sharedFile.getAttribute('draggable'),'true');
+  await app.evaluate(({BrowserWindow})=>{globalThis.draggedFiles=[];BrowserWindow.getAllWindows()[0].webContents.startDrag=item=>{globalThis.draggedFiles=item.files;};});
+  await sharedFile.dispatchEvent('dragstart');
+  await page.waitForFunction(()=>document.querySelector('.explorer-status').textContent.includes('Drag to another'));
+  assert.deepEqual(await app.evaluate(()=>globalThis.draggedFiles),[path.join(share,'ü,a.txt')]);
+  await app.evaluate(({},share)=>{globalThis.testShare=share;},share);
+  await app.evaluate(({shell})=>{shell.openPath=async file=>{globalThis.folderOpened=file;if(file!==globalThis.testShare)globalThis.openedFiles.push(file);return '';};});
+  await page.locator('#folder').click();
+  assert.equal(await app.evaluate(()=>globalThis.folderOpened),share);
   await sharedFile.locator('input').dblclick();
   assert.equal((await app.evaluate(() => globalThis.openedFiles)).length, 1);
   await sharedFile.focus(); await page.keyboard.press('Enter');
@@ -112,12 +125,12 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   apiServer.set(false); await page.waitForFunction(() => document.getElementById('health').dataset.status === 'partial', null, { timeout: 10000 });
   fileServer.set(false); await page.waitForFunction(() => document.getElementById('health').dataset.status === 'offline', null, { timeout: 10000 });
   apiServer.set(true); fileServer.set(true); await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready', null, { timeout: 10000 });
-  await page.locator('[data-view="settings"]').click(); await page.locator('#url').fill('https://desktop.example.ts.net/ui/'); await page.locator('#saveUrl').click();
+  await page.locator('[data-view="settings"]').click(); await page.locator('summary').click(); await page.locator('#url').fill('https://desktop.example.ts.net/ui/'); await page.locator('#saveUrl').click();
   await page.waitForFunction(() => document.getElementById('settingsResult').textContent.startsWith('Saved:')); await page.screenshot({ path: '.test-artifacts/desktop-settings.png' });
   if (process.env.AIRDROP_TEST_APPIMAGE) assert.equal(await page.locator('#portableNote').isVisible(), true);
   assert.deepEqual(errors, []);
   const closed = app.waitForEvent('close'); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await closed; app = null;
-  app = await launch(); const reopened = await app.firstWindow(); await reopened.locator('[data-view="settings"]').click();
+  app = await launch(); const reopened = await app.firstWindow(); await reopened.locator('#connectionWizard').waitFor({state:'visible'}); await reopened.evaluate(()=>document.getElementById('connectionWizard').close()); await reopened.locator('[data-view="settings"]').click();
   assert.equal(await reopened.locator('html').getAttribute('data-theme'), 'dark');
   await reopened.waitForFunction(() => document.getElementById('url').value === 'https://desktop.example.ts.net/ui/');
   assert.equal(await reopened.locator('#zip').isChecked(), true);

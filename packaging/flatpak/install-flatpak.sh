@@ -39,6 +39,7 @@ for(const name of Object.keys(require(path.join(base,'server/package.json')).dep
 require(path.join(base,'desktop/resources/app/core/lib/explorer'));
 JS
 cc -Wall -Wextra -Werror packaging/flatpak/background-portal.c -o /app/bin/airdrop-background-portal $(pkg-config --cflags --libs gio-2.0)
+cc -Wall -Wextra -Werror packaging/flatpak/open-directory-portal.c -o /app/bin/airdrop-open-directory $(pkg-config --cflags --libs gio-unix-2.0)
 install -Dm644 io.github.fluffydisk.airdrop-linux.desktop /app/share/applications/$FLATPAK_ID.desktop
 install -Dm644 io.github.fluffydisk.airdrop-linux.metainfo.xml /app/share/metainfo/$FLATPAK_ID.metainfo.xml
 install -Dm644 ui/icon-512.png /app/share/icons/hicolor/512x512/apps/$FLATPAK_ID.png

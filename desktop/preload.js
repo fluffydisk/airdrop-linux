@@ -15,12 +15,14 @@ contextBridge.exposeInMainWorld('airdrop', {
   checkConnection: () => ipcRenderer.invoke('airdrop:connection'),
   send: (files, zip, directory) => ipcRenderer.invoke('airdrop:send', files, zip, directory),
   explore: (action, payload) => ipcRenderer.invoke('airdrop:explorer', action, payload),
+  drag: paths => ipcRenderer.send('airdrop:drag', paths),
+  onDragError: callback => ipcRenderer.on('airdrop:drag-error', (event, message) => callback(message)),
   onShowFiles: callback => ipcRenderer.on('airdrop:show-files', callback),
   update: action => ipcRenderer.invoke('airdrop:update', action),
   onUpdate: callback => ipcRenderer.on('airdrop:update-state', (event, value) => callback(value)),
   status: () => ipcRenderer.invoke('airdrop:status'),
   onStatus: callback => { ipcRenderer.on('airdrop:status', (event, value) => callback(value)); },
-  folder: () => ipcRenderer.invoke('airdrop:folder'),
+  folder: directory => ipcRenderer.invoke('airdrop:folder', directory),
   pwa: () => ipcRenderer.invoke('airdrop:pwa'),
   saveUrl: url => ipcRenderer.invoke('airdrop:save-url', url)
 });

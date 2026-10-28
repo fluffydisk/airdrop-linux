@@ -26,15 +26,18 @@ function icon(id, className) {
 }
 function status(value) {
   const node = document.getElementById('health'); node.textContent = value.label; node.dataset.status = value.status;
-  node.title = value.status === 'ready' ? 'Local files and clipboard are available. Check the saved address in Settings for remote access.' : 'Start the local Airdrop services. Cross-device access also requires host Tailscale, HTTPS and Serve.';
+  node.title = value.status === 'ready' ? 'Local files and clipboard are available. See Connect device for your active pairing link.' : 'Waiting for local services. See Connect device for Tailscale or trusted LAN sharing.';
 }
 function theme(value) {
+  const preference = value;
+  if (value === 'system') value = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   document.documentElement.dataset.theme = value;
-  try { localStorage.setItem('airdrop-theme', value); } catch {}
+  try { localStorage.setItem('airdrop-theme', preference); } catch {}
   document.getElementById('themeToggle').setAttribute('aria-label', `Switch to ${value === 'dark' ? 'light' : 'dark'} theme`);
-  document.querySelectorAll('[data-theme-choice]').forEach(button => { button.classList.toggle('selected', button.dataset.themeChoice === value); button.setAttribute('aria-pressed', String(button.dataset.themeChoice === value)); });
+  document.querySelectorAll('[data-theme-choice]').forEach(button => { button.classList.toggle('selected', button.dataset.themeChoice === preference); button.setAttribute('aria-pressed', String(button.dataset.themeChoice === preference)); });
 }
-try { theme(localStorage.getItem('airdrop-theme') === 'dark' ? 'dark' : 'light'); } catch { theme('light'); }
+try { theme(['light','dark','system'].includes(localStorage.getItem('airdrop-theme')) ? localStorage.getItem('airdrop-theme') : 'system'); } catch { theme('light'); }
+window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => { try { if (localStorage.getItem('airdrop-theme') === 'system') theme('system'); } catch {} });
 function navigate(view) {
   activeView = view;
   for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings', 'connect']) document.getElementById('view-' + name).hidden = name !== view;
@@ -110,6 +113,21 @@ const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer
   trashList: () => window.airdrop.explore('trashList'),
   restore: id => window.airdrop.explore('restore', { id }),
   paste: directory => window.airdrop.explore('paste', { directory }),
+  pasteFiles: async (directory, files) => {
+    let sources;
+    try { sources = await window.airdrop.drop(files); }
+    catch (error) {
+      // Browser clipboard images are in-memory Files, without a native path.
+      // The main process decodes these through Electron's clipboard API.
+      if (error.message.includes('Invalid dropped files')) return window.airdrop.explore('paste', {directory});
+      throw error;
+    }
+    const results = await window.airdrop.send(sources, false, directory);
+    const failed = results.filter(file => !file.ok);
+    if (failed.length) throw new Error(failed.map(file => `${file.name}: ${file.error}`).join('; '));
+  },
+  drag: paths => window.airdrop.drag(paths),
+  reveal: directory => window.airdrop.folder(directory),
   download: paths => window.airdrop.explore('download', { paths })
 }, { enabled: () => ['transfer', 'files'].includes(activeView) && !busy,
   choose: () => { if (!busy && !files.length) return window.airdrop.choose().then(select).catch(report); },
@@ -117,6 +135,7 @@ const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer
   onNavigate: directory => { document.getElementById('transferDestination').textContent = 'Destination: Airdrop/' + directory; }
 });
 window.airdrop.onShowFiles(() => navigate('files'));
+window.airdrop.onDragError?.(error => fileExplorer.say(error));
 let dismissedVersion = '';
 function updateState(state) {
   document.getElementById('stopSharing').textContent = ['flatpak','snap'].includes(state.distribution) ? 'Stop sharing and quit' : 'Quit desktop';
@@ -169,7 +188,12 @@ sendButton.onclick = async () => {
   } catch (error) { report(error); }
   finally { busy = false; renderQueue(); fileExplorer.refresh(); if (activeView === 'activity') loadActivity(); }
 };
-document.getElementById('folder').onclick = () => navigate('files');
+document.getElementById('folder').onclick = () => window.airdrop.folder(fileExplorer.directory).catch(report);
+document.getElementById('pasteTransfer').onclick = async () => {
+  if (busy || files.length) return;
+  try { await window.airdrop.explore('paste', {directory:fileExplorer.directory}); await fileExplorer.refresh(); message('Pasted into shared folder', 'success'); }
+  catch (error) { report(error); }
+};
 document.getElementById('pwa').onclick = () => window.airdrop.pwa().catch(report);
 document.getElementById('saveUrl').onclick = async () => {
   const button = document.getElementById('saveUrl'); button.disabled = true;
@@ -222,3 +246,35 @@ for (const [id, action, success] of [
 }
 
 document.getElementById('stopSharing').onclick = () => window.airdrop.quit().catch(report);
+
+// Presentation preferences never change sharing permissions or node identity.
+const preferences = [
+  ['accentPreference', 'airdrop-accent', 'blue', ['blue','purple','green','orange']],
+  ['densityPreference', 'airdrop-density', 'comfortable', ['comfortable','compact']],
+  ['startPreference', 'airdrop-start-view', 'transfer', ['transfer','files','connect','clipboard']],
+  ['sortPreference', 'airdrop-file-sort', 'name-asc', ['name-asc','name-desc','date-desc','date-asc','size-desc','size-asc','type-asc']],
+  ['motionPreference', 'airdrop-reduce-motion', 'false', ['true','false']],
+  ['zipPreference', 'airdrop-zip', 'false', ['true','false']]
+];
+function applyPreferences() {
+  for (const [id, key, fallback, allowed] of preferences) {
+    let value = fallback; try { const saved = localStorage.getItem(key); if (allowed.includes(saved)) value = saved; } catch {}
+    const control = document.getElementById(id);
+    if (control.type === 'checkbox') control.checked = value === 'true'; else control.value = value;
+    if (key === 'airdrop-accent') document.documentElement.dataset.accent = value;
+    if (key === 'airdrop-density') document.documentElement.dataset.density = value;
+    if (key === 'airdrop-reduce-motion') document.documentElement.dataset.reduceMotion = value;
+    if (key === 'airdrop-zip' && !busy) zipInput.checked = value === 'true';
+  }
+}
+for (const [id, key] of preferences) document.getElementById(id).onchange = event => {
+  try { localStorage.setItem(key, event.target.type === 'checkbox' ? String(event.target.checked) : event.target.value); } catch {}
+  applyPreferences(); window.dispatchEvent(new CustomEvent('airdrop-preferences'));
+};
+document.getElementById('resetPreferences').onclick = () => {
+  for (const [, key] of preferences) { try { localStorage.removeItem(key); } catch {} }
+  try { localStorage.removeItem('airdrop-file-view'); } catch {}
+  theme('system'); applyPreferences(); window.dispatchEvent(new CustomEvent('airdrop-preferences')); renderQueue();
+};
+applyPreferences();
+try { const start = localStorage.getItem('airdrop-start-view'); if (['files','connect','clipboard'].includes(start)) navigate(start); } catch {}
