@@ -39,3 +39,11 @@ allows consent in the disposable CI account and invokes the helper inside the
 installed sandbox. Success requires the new commit and new payload in a newly
 launched sandbox, plus unchanged data/identity fixtures. Results are recorded in
 inapp-update.log; do not call this passed until the Actions result is available.
+
+An initial publication from a superseded run (40721697579) was rejected before
+signing because its source workflow was cancelled when newer code arrived.
+Candidate 40721695010 then exposed an unrelated order-dependent preservation
+fixture: a full mirror could cache a commit through its valid canonical ref
+before visiting the intentionally invalid alias. The regression now explicitly
+pulls the invalid alias into a fresh repository, retaining GPG and ref-binding
+verification. The corrected complete preservation regression passed locally.

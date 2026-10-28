@@ -1,0 +1,103 @@
+56244Z VERIFIED: metadata retries HTTP 503 without false legacy fallback; optional 404 and fatal non-retried 403 stay distinct
+2026-10-28T16:03:32.0857043Z error: Server returned HTTP 503
+2026-10-28T16:03:32.0857886Z Transient HTTP 503; retrying verified repository pull (2/3)
+2026-10-28T16:03:32.1284112Z 5 metadata, 1 content objects fetched; 783 B transferred in 0 seconds; 29 bytes content written
+2026-10-28T16:03:32.1883892Z Imported 1 GPG key to remote "fixture"
+2026-10-28T16:03:32.2173304Z VERIFIED: real signed repository recovered from an injected object HTTP 503; authenticated payload is correct
+2026-10-28T16:03:32.2173807Z error: Server returned HTTP 503
+2026-10-28T16:03:32.2174152Z Transient HTTP 503; retrying verified repository pull (2/3)
+2026-10-28T16:03:32.2436773Z error: Server returned HTTP 503
+2026-10-28T16:03:32.2437185Z Transient HTTP 503; retrying verified repository pull (3/3)
+2026-10-28T16:03:32.2703995Z error: Server returned HTTP 503
+2026-10-28T16:03:32.3231540Z Imported 1 GPG key to remote "fixture"
+2026-10-28T16:03:32.3337622Z VERIFIED: persistent HTTP 503 fails after exactly three attempts
+2026-10-28T16:03:32.3338386Z error: GPG verification enabled, but no signatures found (use gpg-verify=false in remote config to disable)
+2026-10-28T16:03:32.8446755Z VERIFIED: invalid signed summary is fatal on the first attempt; no signature bypass or integrity retry
+2026-10-28T16:03:32.9726388Z VERIFIED: undecodable diagnostic bytes preserve both successful and failed subprocess exit status
+2026-10-28T16:03:32.9727473Z VERIFIED: real GPG signature with non-ASCII key UID accepted; non-UTF8 C-locale diagnostics reproduced=False
+2026-10-28T16:03:32.9728474Z VERIFIED: tampered metadata with the same non-ASCII key UID is rejected; decoding does not change signature validity
+2026-10-28T16:03:33.0300035Z gpg: keybox '/tmp/airdrop-preservation-f6bdxzvt/keys/pubring.kbx' created
+2026-10-28T16:03:33.0478666Z gpg: /tmp/airdrop-preservation-f6bdxzvt/keys/trustdb.gpg: trustdb created
+2026-10-28T16:03:33.0479239Z gpg: directory '/tmp/airdrop-preservation-f6bdxzvt/keys/openpgp-revocs.d' created
+2026-10-28T16:03:33.0493145Z gpg: revocation certificate stored as '/tmp/airdrop-preservation-f6bdxzvt/keys/openpgp-revocs.d/98C8A749F696C33979B2734BBC3972055ADC7BBA.rev'
+2026-10-28T16:03:33.0514904Z gpg: checking the trustdb
+2026-10-28T16:03:33.0523386Z gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+2026-10-28T16:03:33.0523931Z gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+2026-10-28T16:03:33.0524421Z gpg: next trustdb check due at 2026-10-29
+2026-10-28T16:03:33.1013892Z Commit: 518979f9be43c6f6c8859cf34d8b60c8bd24efe7a19ce88702dafae95b1ba9c9
+2026-10-28T16:03:33.1014294Z Metadata Total: 9
+2026-10-28T16:03:33.1014506Z Metadata Written: 6
+2026-10-28T16:03:33.1014695Z Content Total: 2
+2026-10-28T16:03:33.1014923Z Content Written: 2
+2026-10-28T16:03:33.1015230Z Content Bytes Written: 185 (185 bytes)
+2026-10-28T16:03:33.1500599Z Commit: b6a1487d70d727a0e931bb45547b3a47793a2a5df1f0beaef364adbfde304c68
+2026-10-28T16:03:33.1501260Z Metadata Total: 9
+2026-10-28T16:03:33.1501598Z Metadata Written: 4
+2026-10-28T16:03:33.1501939Z Content Total: 2
+2026-10-28T16:03:33.1502257Z Content Written: 1
+2026-10-28T16:03:33.1502628Z Content Bytes Written: 31 (31 bytes)
+2026-10-28T16:03:33.1766243Z Updating appstream branch
+2026-10-28T16:03:33.1774762Z No appstream data for app/io.github.fluffydisk.airdrop-linux/x86_64/stable: No such file or directory: /files/share
+2026-10-28T16:03:33.2225189Z Updating summary
+2026-10-28T16:03:33.2896642Z gpgv: Signature made Wed Oct 28 16:03:33 2026 UTC
+2026-10-28T16:03:33.2897155Z gpgv:                using EDDSA key 98C8A749F696C33979B2734BBC3972055ADC7BBA
+2026-10-28T16:03:33.2908848Z gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+2026-10-28T16:03:33.2977704Z gpgv: Signature made Wed Oct 28 16:03:33 2026 UTC
+2026-10-28T16:03:33.2978165Z gpgv:                using EDDSA key 98C8A749F696C33979B2734BBC3972055ADC7BBA
+2026-10-28T16:03:33.2990510Z gpgv: Good signature from "Preservation fixture <test@example.invalid>"
+2026-10-28T16:03:33.3060005Z gpgv: Signature made Wed Oct 28 16:03:33 2026 UTC
+2026-10-28T16:03:33.3060570Z gpgv:                using EDDSA key 98C8A749F696C33979B2734BBC3972055ADC7BBA
+2026-10-28T16:03:33.3072754Z gpgv: BAD signature from "Preservation fixture <test@example.invalid>"
+2026-10-28T16:03:33.3119446Z VERIFIED: authenticated stale bootstrap requests refresh, current bootstrap skips it, invalid signature is fatal
+2026-10-28T16:03:33.3648530Z Imported 1 GPG key to remote "fixture"
+2026-10-28T16:03:33.9881986Z Traceback (most recent call last):
+2026-10-28T16:03:33.9882897Z   File "/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-flatpak-preservation.py", line 62, in <module>
+2026-10-28T16:03:33.9883864Z     assert failed.returncode and 'binding' in failed.stderr.lower(),failed.stderr
+2026-10-28T16:03:33.9884595Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-28T16:03:33.9884937Z AssertionError
+2026-10-28T16:03:34.0035345Z ##[error]Process completed with exit code 1.
+2026-10-28T16:03:34.0130984Z ##[group]Run actions/upload-artifact@v4
+2026-10-28T16:03:34.0131226Z with:
+2026-10-28T16:03:34.0131415Z   name: signed-flatpak-validation-evidence
+2026-10-28T16:03:34.0132370Z   path: /home/runner/work/_temp/validated/*.log
+/home/runner/work/_temp/validated/*.json
+/home/runner/work/_temp/validated/*.md
+/home/runner/work/_temp/signed-tests.log
+/home/runner/work/_temp/signed-tests/
+/home/runner/work/_temp/native-signing.log
+/home/runner/work/_temp/complete-tree.log
+/home/runner/work/_temp/prepared/preparation.json
+
+2026-10-28T16:03:34.0133315Z   if-no-files-found: warn
+2026-10-28T16:03:34.0133510Z   compression-level: 6
+2026-10-28T16:03:34.0133688Z   overwrite: false
+2026-10-28T16:03:34.0133861Z   include-hidden-files: false
+2026-10-28T16:03:34.0134056Z ##[endgroup]
+2026-10-28T16:03:34.1514630Z (node:4796) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T16:03:34.1515718Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T16:03:34.1561619Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-28T16:03:34.1564261Z The least common ancestor is /home/runner/work/_temp. This will be the root directory of the artifact
+2026-10-28T16:03:34.1580952Z ##[warning]No files were found with the provided path: /home/runner/work/_temp/validated/*.log
+/home/runner/work/_temp/validated/*.json
+/home/runner/work/_temp/validated/*.md
+/home/runner/work/_temp/signed-tests.log
+/home/runner/work/_temp/signed-tests/
+/home/runner/work/_temp/native-signing.log
+/home/runner/work/_temp/complete-tree.log
+/home/runner/work/_temp/prepared/preparation.json. No artifacts will be uploaded.
+2026-10-28T16:03:34.1762016Z Post job cleanup.
+2026-10-28T16:03:34.2527619Z [command]/usr/bin/git version
+2026-10-28T16:03:34.2564345Z git version 2.56.0
+2026-10-28T16:03:34.2595658Z Temporarily overriding HOME='/home/runner/work/_temp/3f931a7a-a615-4ec7-aeb3-92e8f4f25cf8' before making global git config changes
+2026-10-28T16:03:34.2596801Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T16:03:34.2599770Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T16:03:34.2655712Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T16:03:34.2673903Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T16:03:34.2891042Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T16:03:34.2923916Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T16:03:34.3169018Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T16:03:34.3212415Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T16:03:34.3608717Z Evaluate and set job outputs
+2026-10-28T16:03:34.3614261Z Set output 'revision'
+2026-10-28T16:03:34.3615863Z Cleaning up orphan processes
+2026-10-28T16:03:34.3927134Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-go@v5, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

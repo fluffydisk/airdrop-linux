@@ -58,9 +58,11 @@ with tempfile.TemporaryDirectory(prefix='airdrop-preservation-') as directory:
    print('VERIFIED: authenticated stale bootstrap requests refresh, current bootstrap skips it, invalid signature is fatal',flush=True)
    probe=root/'unfiltered';run('ostree',f'--repo={probe}','init','--mode=archive-z2')
    run('ostree',f'--repo={probe}','remote','add',f'--gpg-import={source/"airdrop-linux.gpg"}','--set=gpg-verify-summary=true','fixture',base+'flatpak/')
-   failed=subprocess.run(['ostree',f'--repo={probe}','pull','--mirror','--depth=1','fixture'],capture_output=True,text=True)
+   # Pull only the invalid alias into a fresh repo: a full mirror may first
+   # cache the same commit through its valid canonical ref, skipping rechecks.
+   failed=subprocess.run(['ostree',f'--repo={probe}','pull','--mirror','--depth=1','fixture','history/airdrop-linux/'+baseline],capture_output=True,text=True)
    assert failed.returncode and 'binding' in failed.stderr.lower(),failed.stderr
-   print('VERIFIED: unfiltered signed mirror reproduces the historical-alias ref-binding rejection',flush=True)
+   print('VERIFIED: explicit historical-alias pull deterministically rejects its signed ref binding',flush=True)
    def native(name):
     public=root/name;public.mkdir()
     for tree in ['apt','rpm']:(public/tree).mkdir();(public/tree/'fixture-input').write_bytes((tree+' unchanged\n').encode())
