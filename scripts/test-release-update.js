@@ -35,18 +35,22 @@ async function main(){
   for(const name of retained){const p=path.join(root,name);await fs.mkdir(path.dirname(p),{recursive:true});await fs.writeFile(p,'retention fixture '+name);}
   await fs.writeFile(path.join(root,'state/runtime.json'),JSON.stringify({node:process.execPath}));
   const result=await updater.check('1.5.0',{fetcher});const prepared=await updater.prepare(root,result,{fetcher});const actions=[];
-  await updater.activate(root,prepared,{relaunch:false,control:async action=>actions.push(action),health:async()=>{
+  const backend=async mutate=>{
    const {createServer}=require(path.join(root,'app/server/push-server.js'));
    const service=createServer({watchDir:path.join(root,'files'),stateDir:path.join(root,'state/backend-test'),watch:false});
    const server=service.app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
    try{
     const base='http://127.0.0.1:'+server.address().port;
+    assert.equal((await (await fetch(base+'/version')).json()).version,version);
+    if(!mutate){assert.equal((await fetch(base+'/files/blocked.txt',{method:'PUT',body:'blocked'})).status,503);return;}
     assert.equal((await fetch(base+'/files/new-upload.txt',{method:'PUT',body:'new version transfer'})).status,201);
     assert.equal(await (await fetch(base+'/explorer/download?path=new-upload.txt')).text(),'new version transfer');
     const response=await fetch(base+'/explorer/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths:['new-upload.txt','retain.txt']})});
     const archive=await require('jszip').loadAsync(await response.arrayBuffer());assert.equal(await archive.file('new-upload.txt').async('string'),'new version transfer');
    }finally{service.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
-  }});
+  };
+  await updater.activate(root,prepared,{relaunch:false,control:async action=>actions.push(action),health:()=>backend(false)});
+  await backend(true);
   assert.deepEqual(actions,['stop','start']);
   for(const name of retained)assert.equal(await fs.readFile(path.join(root,name),'utf8'),'retention fixture '+name);
   assert.equal(JSON.parse(await fs.readFile(path.join(root,'app/server/package.json'))).version,version);

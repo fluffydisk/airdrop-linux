@@ -25,7 +25,7 @@ jobs:
           test "$(git rev-parse v1.5.1)" = 854bad6b368c0e5e951fa363e21428797e65e716
           git diff --exit-code v1.5.1 HEAD -- lib desktop ui package.json package-lock.json install.sh install-desktop.sh install-prebuilt.sh
           test "$(node -p 'require("./package.json").version')" = 1.5.1
-      - name: Actual draft ZIP update and data retention test
+      - name: Actual draft ZIP update, maintenance guard and data retention test
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/test-release-update.js --draft

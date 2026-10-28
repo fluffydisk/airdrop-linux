@@ -1,0 +1,81 @@
+405109Z ##[group]Run actions/setup-node@v4
+2026-10-28T19:35:02.2406372Z with:
+2026-10-28T19:35:02.2407321Z   node-version: 26
+2026-10-28T19:35:02.2408592Z   always-auth: false
+2026-10-28T19:35:02.2409716Z   check-latest: false
+2026-10-28T19:35:02.2419800Z   token: ***
+2026-10-28T19:35:02.2420746Z ##[endgroup]
+2026-10-28T19:35:02.4072832Z Attempting to download 26...
+2026-10-28T19:35:02.4234785Z (node:2397) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T19:35:02.4240603Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T19:35:03.3059989Z Acquiring 26.12.1 - x64 from https://github.com/actions/node-versions/releases/download/26.12.1-39618969937/node-26.12.1-linux-x64.tar.gz
+2026-10-28T19:35:03.8650172Z Extracting ...
+2026-10-28T19:35:03.8790143Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/a0aad16d-2c95-4a80-9025-e2193fd77ff0 -f /home/runner/work/_temp/096b38e5-4b00-4810-8db8-5fd8444f4884
+2026-10-28T19:35:05.2647012Z Adding to the cache ...
+2026-10-28T19:35:07.0406946Z ##[group]Environment details
+2026-10-28T19:35:07.2820832Z node: v26.12.1
+2026-10-28T19:35:07.2821250Z npm: 11.20.0
+2026-10-28T19:35:07.2821582Z yarn: 1.22.22
+2026-10-28T19:35:07.2822300Z ##[endgroup]
+2026-10-28T19:35:07.3044050Z ##[group]Run npm ci --ignore-scripts
+2026-10-28T19:35:07.3044447Z [36;1mnpm ci --ignore-scripts[0m
+2026-10-28T19:35:07.3070794Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:35:07.3071076Z ##[endgroup]
+2026-10-28T19:35:09.5569230Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-10-28T19:35:10.1774443Z 
+2026-10-28T19:35:10.1775732Z added 246 packages, and audited 247 packages in 3s
+2026-10-28T19:35:10.1776431Z 
+2026-10-28T19:35:10.1776890Z 44 packages are looking for funding
+2026-10-28T19:35:10.1777726Z   run `npm fund` for details
+2026-10-28T19:35:10.1860417Z 
+2026-10-28T19:35:10.1861045Z 2 vulnerabilities (1 moderate, 1 high)
+2026-10-28T19:35:10.1861459Z 
+2026-10-28T19:35:10.1861636Z To address all issues, run:
+2026-10-28T19:35:10.1862000Z   npm audit fix
+2026-10-28T19:35:10.1862136Z 
+2026-10-28T19:35:10.1862270Z Run `npm audit` for details.
+2026-10-28T19:35:10.2413778Z ##[group]Run set -euo pipefail
+2026-10-28T19:35:10.2414145Z [36;1mset -euo pipefail[0m
+2026-10-28T19:35:10.2414577Z [36;1mtest "$(git rev-parse v1.5.1)" = 854bad6b368c0e5e951fa363e21428797e65e716[0m
+2026-10-28T19:35:10.2415420Z [36;1mgit diff --exit-code v1.5.1 HEAD -- lib desktop ui package.json package-lock.json install.sh install-desktop.sh install-prebuilt.sh[0m
+2026-10-28T19:35:10.2416203Z [36;1mtest "$(node -p 'require("./package.json").version')" = 1.5.1[0m
+2026-10-28T19:35:10.2438301Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:35:10.2438858Z ##[endgroup]
+2026-10-28T19:35:10.2872858Z ##[group]Run node scripts/test-release-update.js --draft
+2026-10-28T19:35:10.2873345Z [36;1mnode scripts/test-release-update.js --draft[0m
+2026-10-28T19:35:10.2893762Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:35:10.2894025Z env:
+2026-10-28T19:35:10.2896814Z   GH_TOKEN: ***
+2026-10-28T19:35:10.2897053Z ##[endgroup]
+2026-10-28T19:35:40.9848055Z Airdrop is updating. Try again shortly.
+2026-10-28T19:35:41.3797545Z AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+2026-10-28T19:35:41.3798095Z 
+2026-10-28T19:35:41.3821400Z 503 !== 201
+2026-10-28T19:35:41.3821969Z 
+2026-10-28T19:35:41.3823314Z     at health (/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-release-update.js:44:12)
+2026-10-28T19:35:41.3825490Z     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+2026-10-28T19:35:41.3827803Z     at async Object.activate (/home/runner/work/airdrop-linux/airdrop-linux/lib/updater.js:192:29)
+2026-10-28T19:35:41.3830615Z     at async main (/home/runner/work/airdrop-linux/airdrop-linux/scripts/test-release-update.js:38:3) {
+2026-10-28T19:35:41.3832283Z   generatedMessage: true,
+2026-10-28T19:35:41.3833079Z   code: 'ERR_ASSERTION',
+2026-10-28T19:35:41.3833810Z   actual: 503,
+2026-10-28T19:35:41.3834476Z   expected: 201,
+2026-10-28T19:35:41.3835202Z   operator: 'strictEqual',
+2026-10-28T19:35:41.3835948Z   diff: 'simple'
+2026-10-28T19:35:41.3836611Z }
+2026-10-28T19:35:41.4424737Z ##[error]Process completed with exit code 1.
+2026-10-28T19:35:41.4585950Z Post job cleanup.
+2026-10-28T19:35:41.5553609Z [command]/usr/bin/git version
+2026-10-28T19:35:41.5602189Z git version 2.56.0
+2026-10-28T19:35:41.5642227Z Temporarily overriding HOME='/home/runner/work/_temp/c58547d1-2287-471f-b462-cd881fecb6db' before making global git config changes
+2026-10-28T19:35:41.5643906Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T19:35:41.5647621Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T19:35:41.5691355Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T19:35:41.5730582Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T19:35:41.5996377Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T19:35:41.6045465Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T19:35:41.6334234Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T19:35:41.6380212Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T19:35:41.6883891Z Cleaning up orphan processes
+2026-10-28T19:35:41.7329712Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+
