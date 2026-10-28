@@ -47,3 +47,10 @@ fixture: a full mirror could cache a commit through its valid canonical ref
 before visiting the intentionally invalid alias. The regression now explicitly
 pulls the invalid alias into a fresh repository, retaining GPG and ref-binding
 verification. The corrected complete preservation regression passed locally.
+
+Run 40722748893 built and installed the app and passed X11 functional checks,
+then caught a real startup/manual-check race under Wayland: manual Check returned
+an in-flight status rather than the completed result. Both calls now share one
+pending check promise. The regression covers one network operation for concurrent
+callers, completed result delivery, subsequent checks and retry after failure.
+The original failed log remains in wayland-check-race-failure.log.

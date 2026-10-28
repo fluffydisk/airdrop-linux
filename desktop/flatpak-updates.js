@@ -35,4 +35,11 @@ function install(publish,{spawnProcess=spawn}={}) {
     child.on('close',code=>{clearTimeout(timer);if(code===0&&terminal)resolve();else reject(Error('Flatpak could not install the update. It may have been cancelled or require your system software manager.'));});
   });
 }
-module.exports={check,install};
+function singleFlight(operation) {
+  let pending;
+  return () => {
+    if (!pending) pending = Promise.resolve().then(operation).finally(() => { pending = undefined; });
+    return pending;
+  };
+}
+module.exports={check,install,singleFlight};

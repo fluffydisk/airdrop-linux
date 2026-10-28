@@ -1,0 +1,155 @@
+221Z 
+2026-10-28T16:15:15.2699594Z ==> /home/runner/work/_temp/validated/36-x11-clipboard-sandbox-and-connection-ui.log <==
+2026-10-28T16:15:15.2700839Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.048: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+2026-10-28T16:15:15.2701464Z 
+2026-10-28T16:15:15.2702240Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.050: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+2026-10-28T16:15:15.2703180Z 
+2026-10-28T16:15:15.2703946Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.051: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+2026-10-28T16:15:15.2704573Z 
+2026-10-28T16:15:15.2705314Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.053: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+2026-10-28T16:15:15.2706414Z [W][00508.316864] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client.conf: No such file or directory
+2026-10-28T16:15:15.2707375Z [E][00508.316951] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client.conf: No such file or directory
+2026-10-28T16:15:15.2707842Z 
+2026-10-28T16:15:15.2708465Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.057: Failed connect to PipeWire: Couldn't create PipeWire context
+2026-10-28T16:15:15.2708988Z 
+2026-10-28T16:15:15.2709734Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.057: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+2026-10-28T16:15:15.2710362Z 
+2026-10-28T16:15:15.2711087Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.060: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+2026-10-28T16:15:15.2711699Z 
+2026-10-28T16:15:15.2712622Z (/usr/libexec/xdg-desktop-portal:15628): xdg-desktop-portal-WARNING **: 16:15:10.061: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+2026-10-28T16:15:15.2714032Z dbus-daemon[15459]: [session uid=1001 pid=15459] Successfully activated service 'org.freedesktop.portal.Desktop'
+2026-10-28T16:15:15.2714836Z Pairing browser request failure: {"path":"/.clipboard.txt","error":"net::ERR_ABORTED"}
+2026-10-28T16:15:15.2715624Z flatpak: real browser pairing redirect, session cookie, web UI and manual LAN clipboard passed (same worker)
+2026-10-28T16:15:15.2716591Z flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)
+2026-10-28T16:15:15.2717531Z Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+2026-10-28T16:15:15.2718689Z flatpak: actual Documents portal exported an inherited validated FD; a host process read identical bytes; native drag delivery was intercepted, not a physical external-app drop
+2026-10-28T16:15:15.2719971Z flatpak: real shared clipboard/HTTP contents passed; controlled connection UI, failure isolation and local fallback passed (not a real Tailscale test)
+2026-10-28T16:15:15.2720829Z flatpak: sandboxed desktop ready, managed updates and quit lifecycle passed
+2026-10-28T16:15:15.2721136Z 
+2026-10-28T16:15:15.2721568Z ==> /home/runner/work/_temp/validated/37-icon-screenshot-integrity-and-actual-metadata-url.log <==
+2026-10-28T16:15:15.2722048Z {
+2026-10-28T16:15:15.2722238Z   "icon": {
+2026-10-28T16:15:15.2722452Z     "width": 512,
+2026-10-28T16:15:15.2722912Z     "height": 512,
+2026-10-28T16:15:15.2723171Z     "bytes": 3596,
+2026-10-28T16:15:15.2723644Z     "sha256": "ad177aac103b10b697cf043eca8bf8eb842bd0531da5d2f429ba80fed679aeb3"
+2026-10-28T16:15:15.2724040Z   },
+2026-10-28T16:15:15.2724243Z   "real_capture": {
+2026-10-28T16:15:15.2724471Z     "width": 1065,
+2026-10-28T16:15:15.2724688Z     "height": 1473,
+2026-10-28T16:15:15.2725070Z     "bytes": 107158,
+2026-10-28T16:15:15.2725535Z     "sha256": "959ccdb51b0704861dde14d7551c62c33164019a3aa63c595ed6cd6de603f2db"
+2026-10-28T16:15:15.2725917Z   },
+2026-10-28T16:15:15.2726125Z   "store_screenshot": {
+2026-10-28T16:15:15.2726363Z     "width": 1080,
+2026-10-28T16:15:15.2726590Z     "height": 840,
+2026-10-28T16:15:15.2726807Z     "bytes": 68254,
+2026-10-28T16:15:15.2727259Z     "sha256": "cc2653e95ae69fc2ee4a3037680a8c84257e2b0920807e32dc704a3fd469b10a",
+2026-10-28T16:15:15.2728058Z     "url": "https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.5.0/assets/airdrop-desktop.png"
+2026-10-28T16:15:15.2728546Z   }
+2026-10-28T16:15:15.2728719Z }
+2026-10-28T16:15:15.2728822Z 
+2026-10-28T16:15:15.2729269Z ==> /home/runner/work/_temp/validated/38-native-headless-wayland-startup.log <==
+2026-10-28T16:15:15.2730083Z 2026-10-28T16:15:13.366Z pw:browser [pid=15743][err] For help, see: https://nodejs.org/learn/getting-started/debugging
+2026-10-28T16:15:15.2731044Z 2026-10-28T16:15:13.367Z pw:browser <ws disconnected> ws://127.0.0.1:44463/a2f7d06f-98cd-4d99-b4f3-2fcde684384f code=1005 reason=
+2026-10-28T16:15:15.2732109Z 2026-10-28T16:15:13.391Z pw:browser <ws disconnected> ws://127.0.0.1:40131/devtools/browser/3e1b112a-961a-4dc4-9e98-e914ca56a504 code=1006 reason=
+2026-10-28T16:15:15.2733198Z 2026-10-28T16:15:13.411Z pw:browser [pid=15743] <process did exit: exitCode=0, signal=null>
+2026-10-28T16:15:15.2733869Z 2026-10-28T16:15:13.411Z pw:browser [pid=15743] starting temporary directories cleanup
+2026-10-28T16:15:15.2734519Z 2026-10-28T16:15:13.413Z pw:browser [pid=15743] finished temporary directories cleanup
+2026-10-28T16:15:15.2735484Z AssertionError [ERR_ASSERTION]: Checking for updates…
+2026-10-28T16:15:15.2736188Z     at /home/runner/work/airdrop-linux/airdrop-linux/scripts/smoke-sandbox-desktop.cjs:224:11 {
+2026-10-28T16:15:15.2736708Z   generatedMessage: false,
+2026-10-28T16:15:15.2736975Z   code: 'ERR_ASSERTION',
+2026-10-28T16:15:15.2737216Z   actual: false,
+2026-10-28T16:15:15.2737447Z   expected: true,
+2026-10-28T16:15:15.2737822Z   operator: '==',
+2026-10-28T16:15:15.2738052Z   diff: 'simple'
+2026-10-28T16:15:15.2738260Z }
+2026-10-28T16:15:15.2773069Z ##[error]t support zcr_alpha_compositing_v1.
+2026-10-28T16:15:12.869Z pw:browser [pid=15743][err] [13:1028/161512.869226:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:185] Server doesn't support overlay_prioritizer.
+2026-10-28T16:15:12.869Z pw:browser [pid=15743][err] [13:1028/161512.869232:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:200] Server doesn't support wp_content_type_v1
+2026-10-28T16:15:12.869Z pw:browser [pid=15743][err] [13:1028/161512.869237:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:214] Server doesn't support wp_color_management_surface_v1.
+2026-10-28T16:15:12.869Z pw:browser [pid=15743][err] [13:1028/161512.869561:WARNING:ui/ozone/platform/wayland/host/wayland_connection.cc:408] text-input-v3 not available.
+2026-10-28T16:15:13.128Z pw:browser [pid=15743][err] [13:1028/161513.125981:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+2026-10-28T16:15:13.129Z pw:browser <ws connected> ws://127.0.0.1:40131/devtools/browser/3e1b112a-961a-4dc4-9e98-e914ca56a504
+2026-10-28T16:15:13.253Z pw:browser [pid=15743][out] 2026-10-28T16:15:13Z INFO - 127.0.0.1 "GET /?json" 200
+Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+2026-10-28T16:15:13.363Z pw:browser <ws disconnecting> ws://127.0.0.1:44463/a2f7d06f-98cd-4d99-b4f3-2fcde684384f
+2026-10-28T16:15:13.366Z pw:browser [pid=15743][err] Debugger ending on ws://127.0.0.1:44463/a2f7d06f-98cd-4d99-b4f3-2fcde684384f
+2026-10-28T16:15:13.366Z pw:browser [pid=15743][err] For help, see: https://nodejs.org/learn/getting-started/debugging
+2026-10-28T16:15:13.367Z pw:browser <ws disconnected> ws://127.0.0.1:44463/a2f7d06f-98cd-4d99-b4f3-2fcde684384f code=1005 reason=
+2026-10-28T16:15:13.391Z pw:browser <ws disconnected> ws://127.0.0.1:40131/devtools/browser/3e1b112a-961a-4dc4-9e98-e914ca56a504 code=1006 reason=
+2026-10-28T16:15:13.411Z pw:browser [pid=15743] <process did exit: exitCode=0, signal=null>
+2026-10-28T16:15:13.411Z pw:browser [pid=15743] starting temporary directories cleanup
+2026-10-28T16:15:13.413Z pw:browser [pid=15743] finished temporary directories cleanup
+AssertionError [ERR_ASSERTION]: Checking for updates…
+    at /home/runner/work/airdrop-linux/airdrop-linux/scripts/smoke-sandbox-desktop.cjs:224:11 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+2026-10-28T16:15:15.2789334Z [16:15:11.521] launching '/usr/libexec/weston-keyboard'
+2026-10-28T16:15:15.2789848Z [16:15:11.522] launching '/usr/libexec/weston-desktop-shell'
+2026-10-28T16:15:15.2790287Z could not load cursor 'dnd-move'
+2026-10-28T16:15:15.2790603Z could not load cursor 'dnd-copy'
+2026-10-28T16:15:15.2790928Z could not load cursor 'dnd-none'
+2026-10-28T16:15:15.2791251Z could not load cursor 'dnd-move'
+2026-10-28T16:15:15.2791556Z could not load cursor 'dnd-copy'
+2026-10-28T16:15:15.2791844Z could not load cursor 'dnd-none'
+2026-10-28T16:15:15.2792292Z Gdk-Message: 16:15:13.463: Error reading events from display: Broken pipe
+2026-10-28T16:15:15.2792586Z 
+2026-10-28T16:15:15.2793224Z ==> /home/runner/work/_temp/validated/39-uninstall-test-application-keeping-user-data.log <==
+2026-10-28T16:15:15.2793898Z Uninstalling app/io.github.fluffydisk.airdrop-linux/x86_64/stable
+2026-10-28T16:15:15.2796117Z ##[error]Process completed with exit code 1.
+2026-10-28T16:15:15.2911837Z ##[group]Run actions/upload-artifact@v4
+2026-10-28T16:15:15.2912178Z with:
+2026-10-28T16:15:15.2912415Z   name: signed-flatpak-validation-evidence
+2026-10-28T16:15:15.2914075Z   path: /home/runner/work/_temp/validated/*.log
+/home/runner/work/_temp/validated/*.json
+/home/runner/work/_temp/validated/*.md
+/home/runner/work/_temp/signed-tests.log
+/home/runner/work/_temp/signed-tests/
+/home/runner/work/_temp/native-signing.log
+/home/runner/work/_temp/complete-tree.log
+/home/runner/work/_temp/prepared/preparation.json
+
+2026-10-28T16:15:15.2915375Z   if-no-files-found: warn
+2026-10-28T16:15:15.2915610Z   compression-level: 6
+2026-10-28T16:15:15.2915829Z   overwrite: false
+2026-10-28T16:15:15.2916041Z   include-hidden-files: false
+2026-10-28T16:15:15.2916279Z ##[endgroup]
+2026-10-28T16:15:15.4660121Z (node:16034) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-28T16:15:15.4661053Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-28T16:15:15.4865679Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-10-28T16:15:15.4872131Z The least common ancestor is /home/runner/work/_temp. This will be the root directory of the artifact
+2026-10-28T16:15:15.4874351Z With the provided path, there will be 40 files uploaded
+2026-10-28T16:15:15.4876497Z Artifact name is valid!
+2026-10-28T16:15:15.4877702Z Root directory input is valid!
+2026-10-28T16:15:15.7960204Z Beginning upload of artifact content to blob storage
+2026-10-28T16:15:15.8943728Z (node:16034) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-28T16:15:16.2738227Z Uploaded bytes 215937
+2026-10-28T16:15:16.3310644Z Finished uploading artifact content to blob storage!
+2026-10-28T16:15:16.3312103Z SHA256 digest of uploaded artifact zip is 0f15930dc4f5819ca637ccb36380f376364cf78cd39cd5209be5e91a549aac4e
+2026-10-28T16:15:16.3313700Z Finalizing artifact upload
+2026-10-28T16:15:16.7946056Z Artifact signed-flatpak-validation-evidence.zip successfully finalized. Artifact ID 12832221740
+2026-10-28T16:15:16.7947129Z Artifact signed-flatpak-validation-evidence has been successfully uploaded! Final size is 215937 bytes. Artifact ID is 12832221740
+2026-10-28T16:15:16.7952447Z Artifact download URL: https://github.com/fluffydisk/airdrop-linux/actions/runs/40722748893/artifacts/12832221740
+2026-10-28T16:15:16.8191768Z Post job cleanup.
+2026-10-28T16:15:16.9108409Z [command]/usr/bin/git version
+2026-10-28T16:15:16.9157339Z git version 2.56.0
+2026-10-28T16:15:16.9199769Z Temporarily overriding HOME='/home/runner/work/_temp/59729634-edf6-4a7c-8c0f-79896e9e4470' before making global git config changes
+2026-10-28T16:15:16.9201272Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T16:15:16.9207396Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T16:15:16.9256098Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T16:15:16.9302019Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T16:15:16.9602375Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T16:15:16.9655319Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T16:15:16.9944220Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T16:15:16.9998820Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T16:15:17.0482503Z Evaluate and set job outputs
+2026-10-28T16:15:17.0488300Z Set output 'revision'
+2026-10-28T16:15:17.0490218Z Cleaning up orphan processes
+2026-10-28T16:15:17.0924968Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-go@v5, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

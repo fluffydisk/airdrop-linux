@@ -26,14 +26,16 @@ const flatpakUpdates = require('./flatpak-updates');
 let updateTimer, updateBusy = false;
 let updateState = { distribution: distribution.source, status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
 function publishUpdate(value) { value = { ...value, distribution: distribution.source }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
+const checkFlatpak = flatpakUpdates.singleFlight(async () => {
+  updateBusy = true; publishUpdate({...updateState,status:'checking',message:'Checking for updates…'});
+  try { return publishUpdate(await flatpakUpdates.check({fetcher:net.fetch})); }
+  catch (error) { return publishUpdate({...updateState,status:'error',message:error.message}); }
+  finally { updateBusy = false; }
+});
 async function checkUpdate() {
   if (distribution.source === 'flatpak') {
-    if (updateState.status === 'updated') return updateState;
-    if (updateBusy) return updateState;
-    updateBusy = true; publishUpdate({...updateState,status:'checking',message:'Checking for updates…'});
-    try { return publishUpdate(await flatpakUpdates.check({fetcher:net.fetch})); }
-    catch (error) { return publishUpdate({...updateState,status:'error',message:error.message}); }
-    finally { updateBusy = false; }
+    if (updateState.status === 'updated' || (updateBusy && updateState.status === 'installing')) return updateState;
+    return checkFlatpak();
   }
   if (distribution.managed) return publishUpdate({ status: 'managed', current: app.getVersion(), message: distribution.message });
   if (updateBusy) return updateState;

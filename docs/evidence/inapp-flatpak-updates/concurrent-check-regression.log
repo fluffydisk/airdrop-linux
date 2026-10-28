@@ -1,0 +1,11 @@
+✔ Flatpak check detects same-version new content and rejects malformed/foreign metadata (70.678602ms)
+✔ portal installer surfaces real progress and success; failed or incomplete operations never become success (12.054822ms)
+✔ startup and manual checks await the same completed result; failure clears the pending request (1.351009ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 225.094882

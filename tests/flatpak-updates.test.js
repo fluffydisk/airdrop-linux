@@ -18,3 +18,12 @@ test('portal installer surfaces real progress and success; failed or incomplete 
   else await assert.rejects(install(s=>events.push(s),{spawnProcess}),/could not install/);
  }
 });
+
+test('startup and manual checks await the same completed result; failure clears the pending request',async()=>{
+ const {singleFlight}=require('../desktop/flatpak-updates');let finish,calls=0;
+ const run=singleFlight(()=>{calls++;return new Promise(resolve=>{finish=resolve;});});
+ const first=run(),second=run();assert.equal(first,second);await Promise.resolve();assert.equal(calls,1);
+ finish({status:'available'});assert.deepEqual(await first,{status:'available'});assert.deepEqual(await second,{status:'available'});
+ const next=run();await Promise.resolve();assert.equal(calls,2);finish({status:'current'});assert.deepEqual(await next,{status:'current'});
+ let failures=0;const failed=singleFlight(async()=>{failures++;throw Error('Offline');});await assert.rejects(failed(),/Offline/);await assert.rejects(failed(),/Offline/);assert.equal(failures,2);
+});
