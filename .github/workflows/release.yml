@@ -51,6 +51,8 @@ jobs:
       - name: Install native packaging tools
         run: sudo bash scripts/ci-ubuntu-mirror.sh && sudo apt-get update && sudo apt-get install -y rpm lintian appstream xvfb dbus-x11 unzip
       - run: npm ci
+      - name: Verify application and lockfile versions match
+        run: node -e "const v=require('./package.json').version;for(const p of ['./desktop/package.json','./package-lock.json','./desktop/package-lock.json']){const x=require(p);if(x.version!==v||(x.packages&&x.packages[''].version!==v))throw Error('Version mismatch in '+p);}"
       - run: npm test
       - run: npm ci --prefix desktop
       - run: npm run prepare-desktop
