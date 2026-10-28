@@ -82,7 +82,7 @@ with tempfile.TemporaryDirectory(prefix='airdrop-file-portal-') as temp:
         child = subprocess.Popen([helper,'--export',str(file)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                  pass_fds=(fd,3) if fd != 3 else (3,), preexec_fn=inherit, text=True)
         exported = child.stdout.readline().strip()
-        assert urllib.parse.unquote(exported).endswith('/exported-document/test ü.txt'), exported
+        assert urllib.parse.unquote(exported).endswith('/exported-document/original.txt'), exported
         assert child.stdout.readline().strip() == 'ready'
         assert child.poll() is None, 'Export connection must survive until drag completion'
         child.communicate(timeout=10)

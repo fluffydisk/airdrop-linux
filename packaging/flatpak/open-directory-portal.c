@@ -18,6 +18,7 @@ static int result = 1;
  * Transient document grants do not grant access to home or neighbouring files.
  */
 static int export_files(int argc, char **argv) {
+  (void)argv;
   GError *error = NULL;
   GDBusConnection *bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
   if (!bus) goto failed;
@@ -39,6 +40,12 @@ static int export_files(int argc, char **argv) {
       if (fd >= 0) close(fd);
       g_free(mount); goto failed;
     }
+    gchar *fd_path = g_strdup_printf("/proc/self/fd/%d", fd);
+    gchar *actual = g_file_read_link(fd_path, &error);
+    g_free(fd_path);
+    if (!actual) { close(fd); g_free(mount); goto failed; }
+    gchar *name = g_path_get_basename(actual);
+    g_free(actual);
     GUnixFDList *fds = g_unix_fd_list_new();
     int index = g_unix_fd_list_append(fds, fd, &error);
     close(fd);
@@ -48,10 +55,9 @@ static int export_files(int argc, char **argv) {
       "org.freedesktop.portal.Documents", "Add", g_variant_new("(hbb)", index, TRUE, FALSE),
       G_VARIANT_TYPE("(s)"), G_DBUS_CALL_FLAGS_NONE, 10000, fds, NULL, NULL, &error);
     g_object_unref(fds);
-    if (!reply) { g_free(mount); goto failed; }
+    if (!reply) { g_free(name); g_free(mount); goto failed; }
     const gchar *id;
     g_variant_get(reply, "(&s)", &id);
-    gchar *name = g_path_get_basename(argv[i]);
     gchar *exported = g_build_filename(mount, id, name, NULL);
     gchar *uri = g_filename_to_uri(exported, NULL, &error);
     if (uri) g_print("%s\n", uri);

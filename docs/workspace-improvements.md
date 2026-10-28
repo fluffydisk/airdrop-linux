@@ -41,6 +41,8 @@ npm run test:browser
 npm run prepare-desktop
 # Requires installed Electron, a display/Xvfb and normal Chromium sandbox support.
 xvfb-run -a dbus-run-session -- npm run test:desktop
+# Also requires xdotool and a Chromium installation (CHROMIUM_PATH optional).
+xvfb-run -a -s '-screen 0 1800x1000x24' dbus-run-session -- node scripts/test-native-drag.cjs
 cc -Wall -Wextra -Werror packaging/flatpak/open-directory-portal.c \
   -o /tmp/airdrop-file-portal $(pkg-config --cflags --libs gio-unix-2.0)
 dbus-run-session -- /usr/bin/python3 scripts/test-file-portal.py /tmp/airdrop-file-portal
@@ -62,7 +64,8 @@ Evidence in `evidence/workspace-improvements/`:
 | Browser file/ZIP/clipboard integration | passed | browser.log |
 | Electron integration, sandbox, persistence | passed; tray test skipped because no StatusNotifier host | electron.log |
 | Compiled portal helper, directory FD, request identity, denial, inherited original file after replacement, transient export lifetime | passed with controlled service | file-portal.log |
-| Physical Omarchy default file manager and drag to external app | not tested in this worker | requires target desktop |
+| Real pointer drag to a separate Chromium process on X11 | passed, exact Unicode filename/bytes and source retained | native-drag.log |
+| Physical Omarchy default file manager and Wayland drag to external app | not tested in this worker | requires target desktop |
 | Authenticated two-device Tailscale HTTPS transfer | not tested without account/device access | no reviewer or device acceptance claim |
 | Updated clean Flatpak build and signed distribution | tracked by the pinned channel candidate workflow | record run before claiming publication |
 
