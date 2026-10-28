@@ -41,6 +41,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
   const sources=[
     ...['x64','arm64'].map(arch=>({type:'archive',url:base+`/airdrop-flatpak-${arch}-${pkg.version}.tar.gz`,sha256:checksums[`airdrop-flatpak-${arch}-${pkg.version}.tar.gz`],'only-arches':[arch==='x64'?'x86_64':'aarch64']})),
     {type:'inline','dest-filename':'airdrop-desktop',contents:'#!/bin/sh\nexport GTK_USE_PORTAL=1\nexec /app/lib/airdrop-linux/runtime/node /app/lib/airdrop-linux/server/scripts/managed-runtime.js desktop "$@"\n'},
+    {type:'inline','dest-filename':'update-portal.c',contents:await fs.readFile(path.join(root,'packaging/flatpak/update-portal.c'),'utf8')},
     {type:'inline','dest-filename':'background-portal.c',contents:await fs.readFile(path.join(root,'packaging/flatpak/background-portal.c'),'utf8')},
     {type:'inline','dest-filename':'open-directory-portal.c',contents:await fs.readFile(path.join(root,'packaging/flatpak/open-directory-portal.c'),'utf8')},
     ...await Promise.all(['io.github.fluffydisk.airdrop-linux.desktop','io.github.fluffydisk.airdrop-linux.metainfo.xml'].map(async name=>({type:'inline','dest-filename':name,contents:await fs.readFile(path.join(root,'packaging',name),'utf8')}))),
@@ -65,6 +66,7 @@ async function generate(directory=path.join(root,'release'), { local = false } =
         'mkdir -p /app/lib/airdrop-linux',
         'cp -a server ui desktop runtime distribution.json LICENSE /app/lib/airdrop-linux/',
         'install -Dm755 airdrop-desktop /app/bin/airdrop-desktop',
+        'cc -Wall -Wextra -Werror update-portal.c -o /app/bin/airdrop-update-portal $(pkg-config --cflags --libs gio-2.0)',
         'cc -Wall -Wextra -Werror background-portal.c -o /app/bin/airdrop-background-portal $(pkg-config --cflags --libs gio-2.0)',
         'cc -Wall -Wextra -Werror open-directory-portal.c -o /app/bin/airdrop-open-directory $(pkg-config --cflags --libs gio-unix-2.0)',
         'install -Dm644 io.github.fluffydisk.airdrop-linux.desktop /app/share/applications/io.github.fluffydisk.airdrop-linux.desktop',

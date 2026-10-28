@@ -218,7 +218,11 @@ const {_electron:electron}=require('playwright-core');
    }
   }
   const update=await page.evaluate(()=>window.airdrop.update('check'));
-  assert.equal(update.distribution,channel);assert.equal(update.status,'managed');
+  assert.equal(update.distribution,channel);
+  if(channel==='flatpak'){
+   const hasChannel=await app.evaluate(()=>process.getBuiltinModule('fs').existsSync('/app/share/airdrop-linux/distribution.json'));
+   assert.ok((hasChannel?['current','available']:['error']).includes(update.status),update.message);
+  }else assert.equal(update.status,'managed');
   if(channel==='snap' && process.argv[3]!=='background') {
    const closed=app.waitForEvent('close',{timeout:15000});
    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close()).catch(error=>{if(!/closed/i.test(error.message))throw error;});

@@ -1,0 +1,1 @@
+PASS: official CreateUpdateMonitor/Update methods, directed progress, done, empty and failure over real D-Bus (controlled service; not an installed update)

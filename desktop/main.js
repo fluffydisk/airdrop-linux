@@ -22,10 +22,19 @@ if (process.platform === 'linux' && distribution.managed) {
 }
 const backgroundRequest = new AbortController();
 const updater = require('./core/lib/updater');
+const flatpakUpdates = require('./flatpak-updates');
 let updateTimer, updateBusy = false;
 let updateState = { distribution: distribution.source, status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
 function publishUpdate(value) { value = { ...value, distribution: distribution.source }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
 async function checkUpdate() {
+  if (distribution.source === 'flatpak') {
+    if (updateState.status === 'updated') return updateState;
+    if (updateBusy) return updateState;
+    updateBusy = true; publishUpdate({...updateState,status:'checking',message:'Checking for updates…'});
+    try { return publishUpdate(await flatpakUpdates.check({fetcher:net.fetch})); }
+    catch (error) { return publishUpdate({...updateState,status:'error',message:error.message}); }
+    finally { updateBusy = false; }
+  }
   if (distribution.managed) return publishUpdate({ status: 'managed', current: app.getVersion(), message: distribution.message });
   if (updateBusy) return updateState;
   updateBusy = true; publishUpdate({ ...updateState, status: 'checking', message: 'Checking for updates…' });
@@ -112,6 +121,16 @@ function registerIpc() {
     ownWindow(event);
     if (action === 'state') return updateState;
     if (action === 'check') return checkUpdate();
+    if (distribution.source === 'flatpak') {
+      if (action === 'finish' && updateState.status === 'updated') return app.quit();
+      if (action !== 'install' || updateState.status !== 'available' || updateBusy) throw Error('Check for updates first');
+      if (sending) throw Error('Wait for the current transfer to finish before updating');
+      updateBusy = true; publishUpdate({...updateState,status:'installing',message:'Requesting the Flatpak update…'});
+      try { await flatpakUpdates.install(value=>publishUpdate({...updateState,...value})); }
+      catch(error){publishUpdate({...updateState,status:'error',message:error.message});}
+      finally{updateBusy=false;}
+      return updateState;
+    }
     if (distribution.managed) throw new Error(distribution.message);
     if (action !== 'install') throw new Error('Unknown update action');
     if (updateBusy || updateState.status !== 'available') throw new Error('Check for updates first');

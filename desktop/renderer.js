@@ -142,18 +142,18 @@ function updateState(state) {
   document.getElementById('stopSharing').textContent = ['flatpak','snap'].includes(state.distribution) ? 'Stop sharing and quit' : 'Quit desktop';
   document.getElementById('updateState').textContent = state.message || `Current version: ${state.current}`;
   document.getElementById('checkUpdate').disabled = ['checking', 'downloading', 'installing'].includes(state.status);
-  document.getElementById('installUpdate').hidden = state.status !== 'available';
-  document.getElementById('installUpdate').textContent = state.distribution === 'appimage' ? 'Download AppImage update' : 'Update';
+  document.getElementById('installUpdate').hidden = !['available','updated'].includes(state.status);
+  document.getElementById('installUpdate').textContent = state.status === 'updated' ? 'Quit to finish update' : state.distribution === 'appimage' ? 'Download AppImage update' : 'Update';
   document.getElementById('portableNote').hidden = state.distribution !== 'appimage';
   const show = state.status === 'available' && dismissedVersion !== state.version;
   document.getElementById('updateBanner').hidden = !show;
-  document.getElementById('updateNotice').textContent = `Airdrop ${state.version} is available.`;
+  document.getElementById('updateNotice').textContent = state.distribution === 'flatpak' ? 'An Airdrop update is available.' : `Airdrop ${state.version} is available.`;
   document.getElementById('dismissUpdate').onclick = () => { dismissedVersion = state.version; document.getElementById('updateBanner').hidden = true; };
 }
 window.airdrop.onUpdate(updateState);
 window.airdrop.update('state').then(updateState).catch(report);
 document.getElementById('checkUpdate').onclick = () => window.airdrop.update('check').then(updateState).catch(report);
-document.getElementById('installUpdate').onclick = () => window.airdrop.update('install').then(updateState).catch(report);
+document.getElementById('installUpdate').onclick = () => window.airdrop.update(document.getElementById('installUpdate').textContent === 'Quit to finish update' ? 'finish' : 'install').then(updateState).catch(report);
 document.getElementById('showUpdate').onclick = () => navigate('settings');
 window.airdrop.onStatus(status); window.airdrop.status().then(status).catch(report);
 window.airdrop.settings().then(settings => { document.getElementById('url').value = settings.pwaUrl; document.getElementById('deviceName').textContent = settings.deviceName || 'This computer'; }).catch(report);

@@ -39,6 +39,10 @@ jobs:
         run: |
           cc -Wall -Wextra -Werror packaging/flatpak/open-directory-portal.c -o "$RUNNER_TEMP/airdrop-file-portal" $(pkg-config --cflags --libs gio-unix-2.0)
           bash scripts/ci-command.sh File-portal dbus-run-session -- /usr/bin/python3 scripts/test-file-portal.py "$RUNNER_TEMP/airdrop-file-portal"
+      - name: Flatpak update portal protocol
+        run: |
+          cc -Wall -Wextra -Werror packaging/flatpak/update-portal.c -o "$RUNNER_TEMP/airdrop-update-portal" $(pkg-config --cflags --libs gio-2.0)
+          dbus-run-session -- /usr/bin/python3 scripts/test-update-portal.py "$RUNNER_TEMP/airdrop-update-portal"
       - name: Chromium integration
         run: |
           npx playwright-core install --with-deps chromium

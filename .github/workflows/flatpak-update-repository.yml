@@ -2,17 +2,17 @@ name: Build signed Flatpak update candidate
 on:
   push:
     branches: [main]
-    paths: ['packaging/flatpak-channel/**', 'scripts/*flatpak*', 'tests/*flatpak*', '.github/workflows/flatpak-update-repository.yml', '.github/workflows/package-publishing.yml']
+    paths: ['packaging/flatpak-channel/**', 'scripts/*flatpak*', 'tests/*flatpak*', '.github/workflows/flatpak-update-repository.yml', '.github/workflows/package-publishing.yml', 'desktop/**', 'lib/**', 'ui/**', 'network/**', 'package.json', 'package-lock.json']
   workflow_dispatch:
     inputs:
       source_commit:
         description: Immutable application commit reachable from main
-        required: true
-        default: '1f73c466908a4f1674a3e4faf6656607a9fae721'
+        required: false
+        default: ''
       revision:
         description: Monotonically increasing upstream repository revision
-        required: true
-        default: '6'
+        required: false
+        default: ''
       publish:
         description: Request the existing protected Pages publication after tests
         type: boolean
@@ -49,8 +49,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/main
-          if test -z "$SOURCE"; then SOURCE=$(python3 -c 'import json;print(json.load(open("packaging/flatpak-channel/channel.json"))["source_commit"])'); fi
-          if test -z "$REVISION"; then REVISION=$(python3 -c 'import json;print(json.load(open("packaging/flatpak-channel/channel.json"))["revision"])'); fi
+          if test -z "$SOURCE"; then SOURCE="$GITHUB_SHA"; fi
+          if test -z "$REVISION"; then REVISION=$((1000 + GITHUB_RUN_NUMBER)); fi
           [[ "$SOURCE" =~ ^[0-9a-f]{40}$ ]]
           [[ "$REVISION" =~ ^[1-9][0-9]*$ ]]
           git merge-base --is-ancestor "$SOURCE" HEAD
@@ -67,6 +67,10 @@ jobs:
             org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 \
             org.electronjs.Electron2.BaseApp//26.08 \
             org.freedesktop.Sdk.Extension.node24//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08
+      - name: Flatpak update portal protocol
+        run: |
+          cc -Wall -Wextra -Werror packaging/flatpak/update-portal.c -o "$RUNNER_TEMP/airdrop-update-portal" $(pkg-config --cflags --libs gio-2.0)
+          dbus-run-session -- /usr/bin/python3 scripts/test-update-portal.py "$RUNNER_TEMP/airdrop-update-portal"
       - name: Recreate pinned source recipe and clean offline build
         env:
           SOURCE: ${{ steps.source.outputs.source }}
