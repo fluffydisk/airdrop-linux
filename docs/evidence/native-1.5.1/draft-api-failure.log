@@ -1,0 +1,80 @@
+tifact is acf18860fe5a1760ba2021aedf8ee13794a94acf42e870e3574a7917667cb43c
+2026-10-28T19:31:24.7242657Z Artifact download completed successfully.
+2026-10-28T19:31:24.7243002Z Total of 2 artifact(s) downloaded
+2026-10-28T19:31:24.7248137Z Download artifact has finished successfully
+2026-10-28T19:31:24.8538449Z ##[group]Run node scripts/merge-release.js
+2026-10-28T19:31:24.8538813Z [36;1mnode scripts/merge-release.js[0m
+2026-10-28T19:31:24.8557142Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:31:24.8557299Z ##[endgroup]
+2026-10-28T19:31:26.4071297Z ##[group]Run node scripts/prepare-channels.js
+2026-10-28T19:31:26.4071535Z [36;1mnode scripts/prepare-channels.js[0m
+2026-10-28T19:31:26.4088786Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:31:26.4088946Z ##[endgroup]
+2026-10-28T19:31:27.8503745Z /home/runner/work/airdrop-linux/airdrop-linux/release/submissions
+2026-10-28T19:31:27.8685558Z ##[group]Run set -euo pipefail
+2026-10-28T19:31:27.8685777Z [36;1mset -euo pipefail[0m
+2026-10-28T19:31:27.8685977Z [36;1mversion=$(node -p 'require("./package.json").version')[0m
+2026-10-28T19:31:27.8686208Z [36;1mif [[ "$GITHUB_REF" == refs/heads/main ]]; then[0m
+2026-10-28T19:31:27.8686459Z [36;1m  # Tag creation by GITHUB_TOKEN does not trigger another tag workflow.[0m
+2026-10-28T19:31:27.8686814Z [36;1m  if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$version" > "$RUNNER_TEMP/tag.json" 2>/dev/null; then[0m
+2026-10-28T19:31:27.8687179Z [36;1m    test "$(jq -r .object.sha "$RUNNER_TEMP/tag.json")" = "$GITHUB_SHA"[0m
+2026-10-28T19:31:27.8687392Z [36;1m  else[0m
+2026-10-28T19:31:27.8687858Z [36;1m    gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/v$version" -f "sha=$GITHUB_SHA"[0m
+2026-10-28T19:31:27.8688146Z [36;1m  fi[0m
+2026-10-28T19:31:27.8688261Z [36;1melse[0m
+2026-10-28T19:31:27.8688414Z [36;1m  test "$GITHUB_REF_NAME" = "v$version"[0m
+2026-10-28T19:31:27.8688580Z [36;1mfi[0m
+2026-10-28T19:31:27.8688713Z [36;1mnotes="docs/releases/v$version.md"[0m
+2026-10-28T19:31:27.8689013Z [36;1mif gh release view "v$version" --json isDraft --jq .isDraft > "$RUNNER_TEMP/existing-draft" 2>/dev/null; then[0m
+2026-10-28T19:31:27.8689331Z [36;1m  test "$(cat "$RUNNER_TEMP/existing-draft")" = true[0m
+2026-10-28T19:31:27.8689577Z [36;1m  echo 'Reusing the existing draft without overwriting assets.'[0m
+2026-10-28T19:31:27.8689793Z [36;1melif test -f "$notes"; then[0m
+2026-10-28T19:31:27.8690352Z [36;1m  gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.rpm release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --notes-file "$notes"[0m
+2026-10-28T19:31:27.8690897Z [36;1melse[0m
+2026-10-28T19:31:27.8691399Z [36;1m  gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.rpm release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --generate-notes[0m
+2026-10-28T19:31:27.8691918Z [36;1mfi[0m
+2026-10-28T19:31:27.8709158Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:31:27.8709305Z env:
+2026-10-28T19:31:27.8710848Z   GH_TOKEN: ***
+2026-10-28T19:31:27.8710976Z ##[endgroup]
+2026-10-28T19:32:01.4282905Z {"ref":"refs/tags/v1.5.1","node_id":"REF_kwDOU7QD67ByZWZzL3RhZ3MvdjEuNS4x","url":"https://api.github.com/repos/fluffydisk/airdrop-linux/git/refs/tags/v1.5.1","object":{"sha":"854bad6b368c0e5e951fa363e21428797e65e716","type":"commit","url":"https://api.github.com/repos/fluffydisk/airdrop-linux/git/commits/854bad6b368c0e5e951fa363e21428797e65e716"}}https://github.com/fluffydisk/airdrop-linux/releases/tag/untagged-9f03f2284c78213743a9
+2026-10-28T19:32:01.4343799Z ##[group]Run node scripts/test-release-update.js --draft
+2026-10-28T19:32:01.4344063Z [36;1mnode scripts/test-release-update.js --draft[0m
+2026-10-28T19:32:01.4360529Z shell: /usr/bin/bash -e {0}
+2026-10-28T19:32:01.4360679Z env:
+2026-10-28T19:32:01.4362068Z   GH_TOKEN: ***
+2026-10-28T19:32:01.4362206Z ##[endgroup]
+2026-10-28T19:32:01.7008126Z Error: Command failed: gh api repos/fluffydisk/airdrop-linux/releases/tags/v1.5.1
+2026-10-28T19:32:01.7008664Z gh: Not Found (HTTP 404)
+2026-10-28T19:32:01.7008822Z 
+2026-10-28T19:32:01.7009144Z     at genericNodeError (node:internal/errors:999:15)
+2026-10-28T19:32:01.7009491Z     at wrappedFn (node:internal/errors:544:14)
+2026-10-28T19:32:01.7009959Z     at ChildProcess.exithandler (node:child_process:420:12)
+2026-10-28T19:32:01.7010234Z     at ChildProcess.emit (node:events:514:20)
+2026-10-28T19:32:01.7010450Z     at maybeClose (node:internal/child_process:1156:16)
+2026-10-28T19:32:01.7010758Z     at ChildProcess._handle.onexit (node:internal/child_process:334:5) {
+2026-10-28T19:32:01.7010968Z   code: 1,
+2026-10-28T19:32:01.7011094Z   killed: false,
+2026-10-28T19:32:01.7011219Z   signal: null,
+2026-10-28T19:32:01.7011454Z   cmd: 'gh api repos/fluffydisk/airdrop-linux/releases/tags/v1.5.1',
+2026-10-28T19:32:01.7011951Z   stdout: '{"message":"Not Found","documentation_url":"https://docs.github.com/rest/releases/releases#get-a-release-by-tag-name","status":"404"}',
+2026-10-28T19:32:01.7012352Z   stderr: 'gh: Not Found (HTTP 404)\n'
+2026-10-28T19:32:01.7012520Z }
+2026-10-28T19:32:01.7052174Z ##[error]Process completed with exit code 1.
+2026-10-28T19:32:01.7131435Z Post job cleanup.
+2026-10-28T19:32:01.7707475Z [command]/usr/bin/git version
+2026-10-28T19:32:01.7746433Z git version 2.56.0
+2026-10-28T19:32:01.7773214Z Temporarily overriding HOME='/home/runner/work/_temp/91467b18-ca46-478b-b909-c9d5c2b11037' before making global git config changes
+2026-10-28T19:32:01.7774021Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-28T19:32:01.7777184Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/airdrop-linux/airdrop-linux
+2026-10-28T19:32:01.7813337Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-28T19:32:01.7844885Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-28T19:32:01.8061851Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-28T19:32:01.8089065Z http.https://github.com/.extraheader
+2026-10-28T19:32:01.8099101Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-28T19:32:01.8131029Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-28T19:32:01.8384960Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-28T19:32:01.8422577Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-28T19:32:01.8764920Z Cleaning up orphan processes
+2026-10-28T19:32:01.8997213Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

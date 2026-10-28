@@ -1,0 +1,39 @@
+name: Verify and publish existing native 1.5.1 draft
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/finish-native-151.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - run: npm ci --ignore-scripts
+      - name: Verify immutable payload source and retain existing assets
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse v1.5.1)" = 854bad6b368c0e5e951fa363e21428797e65e716
+          git diff --exit-code v1.5.1 HEAD -- lib desktop ui package.json package-lock.json install.sh install-desktop.sh install-prebuilt.sh
+          test "$(node -p 'require("./package.json").version')" = 1.5.1
+      - name: Actual draft ZIP update and data retention test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/test-release-update.js --draft
+      - name: Publish the verified existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit v1.5.1 --repo fluffydisk/airdrop-linux --draft=false --latest
+      - name: Verify real public latest feed and application update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/test-release-update.js --public

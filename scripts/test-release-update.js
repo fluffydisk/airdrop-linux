@@ -10,12 +10,13 @@ async function main(){
  try{
   const draft=process.argv.includes('--draft');let fetcher=fetch;
   if(draft){
-   const release=JSON.parse((await run('gh',['api',`repos/${repo}/releases/tags/${tag}`])).stdout);
+   const releases=JSON.parse((await run('gh',['api',`repos/${repo}/releases?per_page=100`])).stdout);
+   const release=releases.find(r=>r.tag_name===tag);assert.ok(release,'Expected release draft');
    assert.equal(release.draft,true);
    const directory=path.join(root,'download');await fs.mkdir(directory);
    await run('gh',['release','download',tag,'--repo',repo,'--dir',directory]);
    fetcher=async url=>{
-    if(url.endsWith('/releases/latest'))return Response.json({...release,draft:false});
+    if(url.endsWith('/releases/latest'))return Response.json({...release,draft:false,assets:release.assets.map(a=>({...a,browser_download_url:`https://github.com/${repo}/releases/download/${tag}/${a.name}`}))});
     const prefix=`https://github.com/${repo}/releases/download/${tag}/`;
     assert.ok(url.startsWith(prefix));return new Response(await fs.readFile(path.join(directory,url.slice(prefix.length))));
    };
