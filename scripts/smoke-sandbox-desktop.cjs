@@ -22,7 +22,7 @@ const {_electron:electron}=require('playwright-core');
   app=await electron.launch({executablePath:executable,chromiumSandbox:true,args,env:launchEnv,timeout:60000});
   const page=await app.firstWindow();
   await page.waitForFunction(()=>document.getElementById('health').dataset.status==='ready',{},{timeout:30000});
-  if(process.env.AIRDROP_TEST_DEVICES==='1' && !(await page.evaluate(()=>window.airdrop.devices('state'))).configured){
+  if(await page.locator('#connectionWizard').count() && process.env.AIRDROP_TEST_DEVICES==='1' && !(await page.evaluate(()=>window.airdrop.devices('state'))).configured){
    await page.locator('#connectionWizard').waitFor({state:'visible'});
    console.log('flatpak: real first-launch device wizard is visible');
   }
@@ -38,7 +38,8 @@ const {_electron:electron}=require('playwright-core');
    }
   }
   if(process.env.AIRDROP_TEST_DEVICES==='1' && !wayland){
-   await page.locator('[data-view="connect"]').click();
+   await page.locator('[data-view="settings"]').click();
+   await page.locator('#connectionSettings').evaluate(el=>el.open=true);
    if(process.env.AIRDROP_TEST_LAN_ADDRESS)await page.locator('#lanInterface').selectOption(process.env.AIRDROP_TEST_LAN_ADDRESS);
    await page.locator('#connectLan').click();
    await page.waitForFunction(()=>document.getElementById('deviceStatus').dataset.status==='ready');
@@ -46,7 +47,7 @@ const {_electron:electron}=require('playwright-core');
    assert.equal(state.status,'ready',state.message);
    assert.ok(!state.url.includes('127.0.0.1'));
    await page.waitForFunction(url=>document.getElementById('deviceAddress').value===url,state.url);
-   if(await page.locator('#activeWorkspace').count())await page.waitForFunction(url=>document.getElementById('activeWorkspace').value===url,state.url);
+
    await page.locator('#copyDeviceAddress').click();
    assert.equal(await app.evaluate(({clipboard})=>clipboard.readText()),state.url);
    const {PNG}=require('pngjs'),decode=require('jsqr');
@@ -177,7 +178,7 @@ const {_electron:electron}=require('playwright-core');
     try {
      assert.equal((await page.evaluate(()=>window.airdrop.checkConnection())).status,'not-configured');
      await page.locator('[data-view="settings"]').click();
-     if(await page.locator('summary').count())await page.locator('summary').click();
+     await page.locator('details').filter({has:page.locator('#url')}).evaluate(el=>el.open=true);
      await page.locator('#url').fill('https://reference-test.example.ts.net/');
      await page.locator('#saveUrl').click();
      await page.waitForFunction(()=>document.getElementById('settingsResult').textContent.includes('Connection has not been checked'));

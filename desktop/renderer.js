@@ -39,8 +39,9 @@ function theme(value) {
 try { theme(['light','dark','system'].includes(localStorage.getItem('airdrop-theme')) ? localStorage.getItem('airdrop-theme') : 'system'); } catch { theme('light'); }
 window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => { try { if (localStorage.getItem('airdrop-theme') === 'system') theme('system'); } catch {} });
 function navigate(view) {
+  if (view === 'connect') { view = 'settings'; document.getElementById('connectionSettings').open = true; }
   activeView = view;
-  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings', 'connect']) document.getElementById('view-' + name).hidden = name !== view;
+  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
   document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();
@@ -73,7 +74,7 @@ function renderQueue() {
   document.getElementById('queueSummary').textContent = files.length ? `${files.length} ${files.length === 1 ? 'file' : 'files'} · ${formatSize(total)} total` : 'Your next transfer starts here.';
   zipInput.disabled = busy;
   document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'One neat package. Up to 100 MiB.';
-  sendButton.disabled = busy || !files.length;
+  sendButton.disabled = busy || !files.length; sendButton.hidden = !files.length;
   sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : 'Retry failed files'), icon('send'));
   document.getElementById('choose').disabled = busy || files.length > 0;
   document.body.classList.toggle('busy', busy);
@@ -251,7 +252,7 @@ document.getElementById('stopSharing').onclick = () => window.airdrop.quit().cat
 const preferences = [
   ['accentPreference', 'airdrop-accent', 'blue', ['blue','purple','green','orange']],
   ['densityPreference', 'airdrop-density', 'comfortable', ['comfortable','compact']],
-  ['startPreference', 'airdrop-start-view', 'transfer', ['transfer','files','connect','clipboard']],
+  ['startPreference', 'airdrop-start-view', 'transfer', ['transfer','files','clipboard']],
   ['sortPreference', 'airdrop-file-sort', 'name-asc', ['name-asc','name-desc','date-desc','date-asc','size-desc','size-asc','type-asc']],
   ['motionPreference', 'airdrop-reduce-motion', 'false', ['true','false']],
   ['zipPreference', 'airdrop-zip', 'false', ['true','false']]
@@ -277,4 +278,4 @@ document.getElementById('resetPreferences').onclick = () => {
   theme('system'); applyPreferences(); window.dispatchEvent(new CustomEvent('airdrop-preferences')); renderQueue();
 };
 applyPreferences();
-try { const start = localStorage.getItem('airdrop-start-view'); if (['files','connect','clipboard'].includes(start)) navigate(start); } catch {}
+try { const start = localStorage.getItem('airdrop-start-view'); if (['files','clipboard'].includes(start)) navigate(start); } catch {}

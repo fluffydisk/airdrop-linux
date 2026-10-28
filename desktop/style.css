@@ -1090,3 +1090,17 @@ input[readonly]{text-overflow:ellipsis}
 :root[data-reduce-motion=true] *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media(max-width:750px){.transfer-methods{grid-template-columns:1fr}.preferences-grid{grid-template-columns:1fr}.transfer-methods>span,.transfer-methods>button{padding:10px}.drop-zone{padding:25px 16px}}
+/* A single task per screen; connection details live in Settings. */
+#connectionSettings summary,.settings-card>summary{font-weight:600;cursor:pointer}
+.connection-controls{padding-top:16px;display:flex;flex-direction:column;gap:12px}
+#deviceLink{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+#deviceLink label,#deviceLink p{grid-column:1/-1;margin:0;color:var(--muted);font-size:12px}
+#deviceAddress{width:100%;min-width:0;font:inherit;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text)}
+#deviceQr{grid-column:1/-1;width:192px;height:192px;margin:8px auto;padding:8px}
+.lan-options{font-size:13px;color:var(--muted)}
+.lan-options[open]{padding:12px;border:1px solid var(--border);border-radius:10px}
+#pasteTransfer{margin-top:12px}
+.page-heading{margin-bottom:24px}
+.drop-zone{padding-top:28px;padding-bottom:28px}
+.drop-orbit{transform:scale(.8);margin-bottom:0}
+.workspace-footer{display:none}

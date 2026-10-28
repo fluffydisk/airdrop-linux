@@ -24,11 +24,11 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   t.after(async () => { if (app) await app.close().catch(() => {}); await fileServer.close(); await apiServer.close(); await fs.rm(root, { recursive: true, force: true }); });
   app = await launch(); const page = await app.firstWindow();
   // This suite tests local operations with controlled backend responses, not an authenticated tailnet.
-  if ((await page.evaluate(()=>window.airdrop.devices('state'))).setupRequired) {
+  if (await page.locator('#connectionWizard').count()) {
     await page.locator('#connectionWizard').waitFor({state:'visible'});
     assert.equal(await page.locator('#wizardContinue').isDisabled(),true);
     await page.evaluate(()=>document.getElementById('connectionWizard').close());
-  } else assert.equal(await page.locator('#connectionWizard').isVisible(),false);
+  } else assert.equal(await page.locator('#view-transfer').isVisible(),true);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
   assert.equal(await page.evaluate(() => typeof require), 'undefined');
@@ -138,13 +138,13 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   apiServer.set(false); await page.waitForFunction(() => document.getElementById('health').dataset.status === 'partial', null, { timeout: 10000 });
   fileServer.set(false); await page.waitForFunction(() => document.getElementById('health').dataset.status === 'offline', null, { timeout: 10000 });
   apiServer.set(true); fileServer.set(true); await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready', null, { timeout: 10000 });
-  await page.locator('[data-view="settings"]').click(); await page.locator('summary').click(); await page.locator('#url').fill('https://desktop.example.ts.net/ui/'); await page.locator('#saveUrl').click();
+  await page.locator('[data-view="settings"]').click(); await page.locator('details').filter({has:page.locator('#url')}).evaluate(el=>el.open=true); await page.locator('#url').fill('https://desktop.example.ts.net/ui/'); await page.locator('#saveUrl').click();
   await page.waitForFunction(() => document.getElementById('settingsResult').textContent.startsWith('Saved:')); await page.screenshot({ path: '.test-artifacts/desktop-settings.png' });
   if (process.env.AIRDROP_TEST_APPIMAGE) assert.equal(await page.locator('#portableNote').isVisible(), true);
   assert.deepEqual(errors, []);
   const closed = app.waitForEvent('close'); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await closed; app = null;
   app = await launch(); const reopened = await app.firstWindow();
-  if ((await reopened.evaluate(()=>window.airdrop.devices('state'))).setupRequired) { await reopened.locator('#connectionWizard').waitFor({state:'visible'}); await reopened.evaluate(()=>document.getElementById('connectionWizard').close()); }
+  if (await reopened.locator('#connectionWizard').count()) { await reopened.locator('#connectionWizard').waitFor({state:'visible'}); await reopened.evaluate(()=>document.getElementById('connectionWizard').close()); }
   await reopened.locator('[data-view="settings"]').click();
   assert.equal(await reopened.locator('html').getAttribute('data-theme'), 'dark');
   await reopened.waitForFunction(() => document.getElementById('url').value === 'https://desktop.example.ts.net/ui/');

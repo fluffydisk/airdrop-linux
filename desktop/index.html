@@ -24,11 +24,9 @@
   <a class="brand" href="#transfer" aria-label="Airdrop home"><span class="brand-mark"><svg><use href="#i-send"/></svg></span><span>Airdrop<span class="brand-caption">FILES. SIMPLY SHARED.</span></span></a>
   <div class="nav-label">WORKSPACE</div>
   <nav aria-label="Main navigation">
-    <button class="nav-item" data-view="connect"><svg><use href="#i-monitor"/></svg>Connect device</button>
     <button class="nav-item selected" data-view="transfer" aria-current="page"><svg><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
     <button class="nav-item" data-view="files"><svg><use href="#i-folder"/></svg>Files</button>
     <button class="nav-item" data-view="clipboard"><svg><use href="#i-file"/></svg>Clipboard</button>
-    <button class="nav-item" data-view="activity"><svg><use href="#i-clock"/></svg>Activity</button>
     <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg>Settings</button>
   </nav>
   <div class="sidebar-bottom">
@@ -40,27 +38,14 @@
 <div class="workspace">
   <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
   <main><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
-    <section id="view-connect" class="view" hidden>
-      <div class="page-heading"><h1>Connect another device</h1><p>Keep local work private, share on your LAN, or connect securely through your tailnet.</p></div>
-      <section class="settings-card">
-        <div class="clipboard-actions"><button class="button" id="connectTailnet">Connect Tailscale</button><button class="button" id="connectLan">Start LAN sharing</button><button class="button" id="disconnectDevices">Local only / disconnect</button></div>
-        <p>Tailscale runs inside Airdrop; no host installation or terminal commands are needed. Your phone/tablet must sign in to the same tailnet. Public Funnel access is never enabled.</p>
-        <label for="lanInterface">LAN interface</label><select id="lanInterface" aria-label="LAN interface"></select>
-        <p>LAN mode uses unencrypted HTTP. Choose it only on a trusted network, with your devices on the same Wi-Fi/LAN. Guest Wi-Fi isolation and firewalls can prevent connections.</p>
-        <p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p>
-        <button class="button button-primary" id="deviceLogin" hidden>Open Tailscale sign-in</button>
-        <button class="button" id="deviceHttps" hidden>Enable tailnet HTTPS in browser</button>
-        <div id="deviceLink" hidden><label for="deviceAddress">Pairing address — treat this link like a password</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan to open Airdrop. Stopping sharing revokes this link. Readiness is checked from this computer; a second device can still be blocked by network rules.</p></div>
-      </section>
-    </section>
     <section id="view-transfer" class="view">
-      <div class="page-heading"><div class="eyebrow">PRIVATE FILE SHARING</div><h1>Your files, <span>within reach.</span></h1><p>Send from this computer. Pick up on your other devices.</p></div>
+      <div class="page-heading"><h1>Transfer</h1></div>
       <p id="transferDestination">Destination: Airdrop/</p>
       <div id="dropZone" class="drop-zone" tabindex="0" role="group" aria-label="Drop files, paste with Ctrl+V, or press Enter to choose files">
         <div class="drop-orbit" aria-hidden="true"><span class="orbit-dot one"></span><span class="orbit-dot two"></span><div class="upload-symbol"><svg><use href="#i-upload"/></svg></div></div>
-        <h2>Three ways to share.</h2><p>Choose files, drag them here, or paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
+        <h2>Share files</h2><p>Drop files here or paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
         <button class="button button-primary" id="choose">Choose files<svg class="button-arrow"><use href="#i-arrow"/></svg></button>
-        <div class="transfer-methods"><span><strong>01 · Choose</strong>Browse files on your computer</span><span><strong>02 · Drop</strong>Drag one or more files here</span><button class="text-button" id="pasteTransfer"><strong>03 · Paste · Ctrl+V</strong>Copy files, text or an image</button></div><span class="drop-caption">Transfers start immediately · Paste into the current folder</span>
+        <button class="text-button" id="pasteTransfer">Paste from clipboard</button><span class="drop-caption">Files are shared as soon as you add them.</span>
       </div>
       <section class="queue-card" aria-label="Files to send">
         <div class="section-heading"><div><h2>Transfer status <span class="count-pill" id="fileCount">0</span></h2><p id="queueSummary">Your next transfer starts here.</p></div><button class="text-button" id="clearFiles" hidden>Clear all</button></div>
@@ -69,11 +54,10 @@
         <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Retry failed files<svg><use href="#i-send"/></svg></button></div>
       </section>
       <div class="result" id="result" role="status" aria-live="polite" hidden></div>
-      <div class="privacy-note"><svg><use href="#i-lock"/></svg><span>Your files stay on this computer. Connect through private Tailscale HTTPS or a trusted LAN.</span></div>
     </section>
-    <section id="view-files" class="view" hidden><div class="page-heading"><div class="eyebrow">YOUR SHARED WORKSPACE</div><h1>Files &amp; folders.</h1><p>Sort your shared files, paste with Ctrl+V, or drag a file into another application to copy it.</p></div><div id="fileExplorer"></div></section>
+    <section id="view-files" class="view" hidden><div class="page-heading"><h1>Files &amp; folders.</h1><p>Sort your shared files, paste with Ctrl+V, or drag a file into another application to copy it.</p></div><div id="fileExplorer"></div></section>
     <section id="view-clipboard" class="view" hidden>
-      <div class="page-heading"><div class="eyebrow">TEXT BETWEEN DEVICES</div><h1>Your shared clipboard.</h1><p>Paste text from this computer, or pick up text shared by another device.</p></div>
+      <div class="page-heading"><h1>Your shared clipboard.</h1><p>Paste text from this computer, or pick up text shared by another device.</p></div>
       <section class="settings-card">
         <label class="field-label" for="clipboardText">Clipboard text</label>
         <textarea id="clipboardText" rows="10" placeholder="Paste or type text to share…" spellcheck="false"></textarea>
@@ -88,26 +72,36 @@
       </section>
     </section>
     <section id="view-activity" class="view" hidden>
-      <div class="page-heading"><div class="eyebrow">ALL IN ONE PLACE</div><h1>A little history.</h1><p>The latest files in your shared workspace.</p></div>
+      <div class="page-heading"><h1>A little history.</h1><p>The latest files in your shared workspace.</p></div>
       <section class="queue-card activity-card"><div class="section-heading"><div><h2>Shared files</h2><p>Recent additions, ready on your other devices.</p></div><button class="text-button" id="refreshActivity">Refresh</button></div><ul class="file-list" id="recentFiles"></ul><div class="queue-empty" id="activityEmpty">Nothing here yet. Send your first file.</div></section><div id="activityResult" class="result" role="status" hidden></div>
     </section>
     <section id="view-settings" class="view" hidden>
-      <div class="page-heading"><div class="eyebrow">MAKE YOURSELF AT HOME</div><h1>Your workspace.</h1><p>A few thoughtful details, just the way you like them.</p></div>
-      <section class="settings-card"><h2>Active workspace</h2><p>The same verified pairing link shown in Connect device. This private link is renewed when sharing restarts.</p><label class="field-label" for="activeWorkspace">Workspace address</label><div class="address-field"><input id="activeWorkspace" readonly placeholder="Connect Tailscale or start LAN sharing"><button class="button" id="copyActiveWorkspace" disabled>Copy address</button></div><p id="activeWorkspaceStatus" role="status">Checking connection…</p><button class="button button-primary" id="manageConnection">Manage connection &amp; QR code</button></section><details class="settings-card"><summary>Advanced: external workspace</summary><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>External workspace</h2><p>Use Connect device for app-managed Tailscale or trusted LAN sharing. No host Tailscale installation is needed. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">External address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></details>
+      <div class="page-heading"><h1>Settings</h1></div>
+    <details id="connectionSettings" class="settings-card"><summary>Device connection</summary>
+      <p class="field-help">Optional. Connect your phone or tablet using the same Tailscale account.</p>
+      <div class="connection-controls">
+        <div class="clipboard-actions"><button class="button" id="connectTailnet">Connect</button><button class="button" id="disconnectDevices">Disconnect</button></div>
+        <details class="lan-options"><summary>Use a trusted local network instead</summary><p>Same Wi-Fi required. LAN uses unencrypted HTTP.</p><label for="lanInterface">Network</label><select id="lanInterface" aria-label="LAN interface"></select><button class="button" id="connectLan">Start LAN sharing</button></details>
+        <p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p>
+        <button class="button button-primary" id="deviceLogin" hidden>Open Tailscale sign-in</button>
+        <button class="button" id="deviceHttps" hidden>Enable tailnet HTTPS in browser</button>
+        <div id="deviceLink" hidden><label for="deviceAddress">Private sharing link</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan on a device in the same tailnet. Keep this link private.</p></div>
+      </div>
+    </details>
+<details class="settings-card"><summary>Advanced: external workspace</summary><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>External workspace</h2><p>Use Connect device for app-managed Tailscale or trusted LAN sharing. No host Tailscale installation is needed. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">External address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></details>
       <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="system">System</button><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
-      <section class="settings-card"><h2>Personalize your workspace</h2><div class="preferences-grid">
+      <details class="settings-card"><summary>More preferences</summary><div class="preferences-grid">
 <label>Accent color<select id="accentPreference"><option value="blue">Blue</option><option value="purple">Purple</option><option value="green">Green</option><option value="orange">Orange</option></select></label>
 <label>Spacing<select id="densityPreference"><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></label>
-<label>Open at startup<select id="startPreference"><option value="transfer">Transfer</option><option value="files">Files</option><option value="connect">Connect device</option><option value="clipboard">Clipboard</option></select></label>
+<label>Open at startup<select id="startPreference"><option value="transfer">Transfer</option><option value="files">Files</option><option value="clipboard">Clipboard</option></select></label>
 <label>Default file order<select id="sortPreference"><option value="name-asc">Name · A–Z</option><option value="name-desc">Name · Z–A</option><option value="date-desc">Date · Newest first</option><option value="date-asc">Date · Oldest first</option><option value="size-desc">Size · Largest first</option><option value="size-asc">Size · Smallest first</option><option value="type-asc">File type</option></select></label>
 <label><input type="checkbox" id="motionPreference"> Reduce animation</label><label><input type="checkbox" id="zipPreference"> Bundle new transfers as ZIP by default</label>
-</div><button class="text-button" id="resetPreferences">Reset appearance and transfer preferences</button><p class="field-help">These preferences stay on this computer. Resetting them keeps your files, connections and Tailscale identity.</p></section>
+</div><button class="text-button" id="resetPreferences">Reset appearance and transfer preferences</button><p class="field-help">These preferences stay on this computer.</p></details>
       <section class="settings-card"><h2>Updates</h2><button id="stopSharing" type="button">Quit desktop</button>
           <p id="portableNote" hidden>AppImage desktop companion: the local server and Tailscale must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
-      <div class="privacy-note"><svg><use href="#i-monitor"/></svg><span>Airdrop shares files from this computer. You’re always in control.</span></div>
     </section>
   </main>
   <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>
 </div></div>
-<dialog id="connectionWizard" aria-labelledby="wizardTitle"><div class="eyebrow">WELCOME TO AIRDROP</div><h1 id="wizardTitle">Connect securely. Share simply.</h1><p>Connect this computer to Tailscale before continuing. Airdrop manages its own connection; no host installation or terminal commands are needed.</p><ol><li>Start the connection below.</li><li>Sign in through your browser. Your tailnet may require device approval and HTTPS certificates.</li><li>Wait for a verified HTTPS pairing link, then continue.</li></ol><p>Your phone or tablet must join the same tailnet before scanning the QR code. After setup you can switch to trusted LAN or local-only mode in Connect device. Public Funnel is never enabled.</p><p id="wizardStatus" role="status" aria-live="polite">Ready to connect.</p><input id="wizardAddress" readonly hidden aria-label="Verified workspace address"><div class="clipboard-actions"><button class="button button-primary" id="wizardTailnet">Connect with Tailscale</button><button class="button" id="wizardLogin" hidden>Sign in through browser</button><button class="button" id="wizardHttps" hidden>Configure tailnet HTTPS</button><button class="button button-primary" id="wizardContinue" disabled>Continue to workspace</button><button class="text-button" id="wizardQuit">Quit</button></div></dialog>
+
 <script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="devices-ui.js"></script></body></html>

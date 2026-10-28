@@ -35,15 +35,12 @@ async function desktop(t){
  w.navigate=()=>{};w.airdrop={devices:async action=>{if(action==='state')return state;},quit:async()=>{}};
  return {w,set:s=>{state={...state,...s};},get:id=>w.document.getElementById(id),tick:()=>new Promise(r=>setTimeout(r,1550))};
 }
-test('welcome requires verified Tailscale HTTPS, remains open on Escape/failure/LAN, then synchronizes Settings',async t=>{
+test('startup stays usable while Tailscale waits; Settings owns the only live address',async t=>{
  const {w,set,get,tick}=await desktop(t);w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));
- assert.equal(get('connectionWizard').open,true);assert.equal(get('wizardContinue').disabled,true);
- const cancel=new w.Event('cancel',{cancelable:true});get('connectionWizard').dispatchEvent(cancel);assert.equal(cancel.defaultPrevented,true);assert.equal(get('connectionWizard').open,true);
- set({mode:'lan',status:'ready',url:'http://192.168.1.3:1234/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();assert.equal(get('wizardContinue').disabled,true);
- set({mode:'tailscale',status:'needs-https',url:'',qr:''});await tick();assert.equal(get('wizardContinue').disabled,true);assert.equal(get('activeWorkspace').value,'');
- set({mode:'tailscale',status:'ready',url:'https://device.tail.ts.net/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();
- assert.equal(get('activeWorkspace').value,get('deviceAddress').value);assert.equal(get('wizardContinue').disabled,false);get('wizardContinue').click();assert.equal(get('connectionWizard').open,false);
- set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('activeWorkspace').value,'');assert.equal(get('deviceLink').hidden,true);
+ assert.equal(get('connectionWizard'),null);assert.equal(get('view-transfer').hidden,false);
+ set({mode:'tailscale',status:'checking-https',message:'Checking HTTPS',url:'',qr:''});await tick();assert.equal(get('connectTailnet').disabled,true);assert.equal(get('deviceLink').hidden,true);
+ set({mode:'tailscale',status:'ready',url:'https://device.tail.ts.net/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();assert.equal(get('deviceAddress').value,'https://device.tail.ts.net/pair/#secret');
+ set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('connectTailnet').disabled,false);
 });
 test('only ready Tailscale persists onboarding; mode changes retain it and private state',async t=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-onboarding-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
@@ -76,8 +73,6 @@ test('appearance, density, startup, file order and ZIP preferences persist; rese
  w.document.getElementById('resetPreferences').click();assert.equal(w.document.documentElement.dataset.accent,'blue');assert.equal(w.localStorage.getItem('unrelated-state'),'keep');assert.equal(w.document.getElementById('zip').checked,false);
 });
 
-test('native packages without the embedded helper retain local use instead of an impossible mandatory setup',async t=>{
- const {w,set,get}=await desktop(t);set({setupRequired:false});w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));assert.equal(get('connectionWizard').open,false);assert.equal(get('wizardContinue').disabled,true);
- const native=new Devices({directory:'/unused',setupRequired:false});assert.equal((await native.snapshot()).setupRequired,false);
- const flatpak=new Devices({directory:'/unused'});assert.equal((await flatpak.snapshot()).setupRequired,true);
+test('repeated Connect preserves a running helper and its pending authentication',async()=>{
+ const d=new Devices({directory:'/unused'});d.state={mode:'tailscale',status:'checking-https'};d.proc={exitCode:null,signalCode:null};d.stop=()=>assert.fail('Must not restart helper');assert.equal((await d.action('tailscale')).status,'checking-https');
 });
