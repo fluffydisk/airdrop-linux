@@ -3,7 +3,7 @@
   "app_id": "io.github.fluffydisk.airdrop-linux",
   "arch": "x86_64",
   "branch": "stable",
-  "source_commit": "474c5597f441f1bd287caa46f4dd3c259657abbf",
+  "source_commit": "a57b4f71ba9ca404559ffc5825eb8e85f00a0d4d",
   "version": "1.5.0",
   "revision": 4,
   "base_url": "https://fluffydisk.github.io/airdrop-linux/",
