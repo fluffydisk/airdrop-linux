@@ -8,7 +8,7 @@ on:
       source_commit:
         description: Immutable application commit reachable from main
         required: true
-        default: '98cf455a9cc7789bd0935e963c81e05eb31bada3'
+        default: 'c4b8563e84205c42a2654df44be08746ee71eb55'
       revision:
         description: Monotonically increasing upstream repository revision
         required: true
