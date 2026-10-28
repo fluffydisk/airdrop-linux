@@ -152,6 +152,14 @@ def exercise(candidate,r2,output,system=False):
      finally:
       if os.path.ismount(functional_runtime/'doc'):subprocess.run(['fusermount3','-uz',str(functional_runtime/'doc')],check=True)
     passed('Actual signed app '+name+' transfer/LAN/QR/clipboard/lifecycle checks')
+   portal_runtime=temp/'functional-runtime-self-update';portal_runtime.mkdir(mode=0o700)
+   with (output/'inapp-update.log').open('w') as stream:
+    try:
+     subprocess.run(['dbus-run-session','--',sys.executable,'scripts/test-installed-update-portal.py','--repo',str(next_dir/'flatpak')],check=True,stdout=stream,stderr=subprocess.STDOUT,env={**os.environ,'XDG_RUNTIME_DIR':str(portal_runtime)})
+    finally:
+     if os.path.ismount(portal_runtime/'doc'):subprocess.run(['fusermount3','-uz',str(portal_runtime/'doc')],check=True)
+   assert state('user')==before
+   passed('Actual installed portal self-update loaded changed signed payload and retained data/identity fixtures; denied consent prevented installation')
    shutil.copyfile(next_dir/'flatpak-channel.json',output/'signed-channel.json')
    passed('Application remains installed once with both summary/commit GPG checks enabled')
   finally:

@@ -31,3 +31,11 @@ checks real installation/update/migration and signature rejection in Actions.
 Full packaged in-app update acceptance must be recorded separately when run.
 
 Official API: https://github.com/flatpak/flatpak/blob/main/data/org.freedesktop.portal.Flatpak.xml
+
+The signing acceptance suite also runs test-installed-update-portal.py against
+its actual signed application and served OSTree origin. It exports a changed
+payload, checks denied portal consent leaves the installed commit intact, then
+allows consent in the disposable CI account and invokes the helper inside the
+installed sandbox. Success requires the new commit and new payload in a newly
+launched sandbox, plus unchanged data/identity fixtures. Results are recorded in
+inapp-update.log; do not call this passed until the Actions result is available.
