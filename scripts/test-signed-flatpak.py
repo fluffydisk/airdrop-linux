@@ -141,8 +141,16 @@ def exercise(candidate,r2,output,system=False):
    shutil.copyfile(next_dir/'airdrop-linux.flatpakrepo',output/'fixture.flatpakrepo')
    # Reuse packaged functional tests; all operations hit the actual signed app.
    for name,args in [('backend',['dbus-run-session','--','node','scripts/smoke-sandbox.js','flatpak']),('desktop',['xvfb-run','-a','dbus-run-session','--','node','scripts/smoke-sandbox-desktop.cjs','flatpak'])]:
+    # System-scope authorization and earlier D-Bus sessions must not share a
+    # document-portal mount with the user desktop. This directory belongs only
+    # to the current functional session, before its D-Bus daemon is started.
+    functional_runtime=temp/('functional-runtime-'+name);functional_runtime.mkdir(mode=0o700)
     with (output/(name+'.log')).open('w') as stream:
-     subprocess.run(args,check=True,stdout=stream,stderr=subprocess.STDOUT,env={**os.environ,'AIRDROP_TEST_DEVICES':'1','AIRDROP_TEST_CONNECTION':'1','AIRDROP_TEST_HOME':'/var/data/signed-repository-functional-test'})
+     try:
+      print('Functional runtime UID',functional_runtime.stat().st_uid,'mode',oct(functional_runtime.stat().st_mode&0o777),file=stream,flush=True)
+      subprocess.run(args,check=True,stdout=stream,stderr=subprocess.STDOUT,env={**os.environ,'XDG_RUNTIME_DIR':str(functional_runtime),'AIRDROP_TEST_DEVICES':'1','AIRDROP_TEST_CONNECTION':'1','AIRDROP_TEST_HOME':'/var/data/signed-repository-functional-test'})
+     finally:
+      if os.path.ismount(functional_runtime/'doc'):subprocess.run(['fusermount3','-uz',str(functional_runtime/'doc')],check=True)
     passed('Actual signed app '+name+' transfer/LAN/QR/clipboard/lifecycle checks')
    shutil.copyfile(next_dir/'flatpak-channel.json',output/'signed-channel.json')
    passed('Application remains installed once with both summary/commit GPG checks enabled')

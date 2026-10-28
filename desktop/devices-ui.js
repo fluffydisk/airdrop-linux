@@ -24,7 +24,7 @@
       get('activeWorkspace').value = ready ? state.url : '';
       get('copyActiveWorkspace').disabled = !ready;
       get('activeWorkspaceStatus').textContent = ready ? `${state.mode === 'tailscale' ? 'Tailscale HTTPS' : 'Trusted LAN HTTP'} · ${state.message}` : state.message;
-      if (!initialized) { initialized = true; if (!state.onboarded) wizard.showModal(); }
+      if (!initialized) { initialized = true; if (!state.onboarded && state.setupRequired !== false) wizard.showModal(); }
       get('wizardStatus').textContent = state.message;
       get('wizardLogin').hidden = !state.authURL;
       get('wizardHttps').hidden = state.status !== 'needs-https';

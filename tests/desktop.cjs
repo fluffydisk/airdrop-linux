@@ -24,9 +24,11 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   t.after(async () => { if (app) await app.close().catch(() => {}); await fileServer.close(); await apiServer.close(); await fs.rm(root, { recursive: true, force: true }); });
   app = await launch(); const page = await app.firstWindow();
   // This suite tests local operations with controlled backend responses, not an authenticated tailnet.
-  await page.locator('#connectionWizard').waitFor({state:'visible'});
-  assert.equal(await page.locator('#wizardContinue').isDisabled(),true);
-  await page.evaluate(()=>document.getElementById('connectionWizard').close());
+  if ((await page.evaluate(()=>window.airdrop.devices('state'))).setupRequired) {
+    await page.locator('#connectionWizard').waitFor({state:'visible'});
+    assert.equal(await page.locator('#wizardContinue').isDisabled(),true);
+    await page.evaluate(()=>document.getElementById('connectionWizard').close());
+  } else assert.equal(await page.locator('#connectionWizard').isVisible(),false);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
   assert.equal(await page.evaluate(() => typeof require), 'undefined');
@@ -141,7 +143,9 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   if (process.env.AIRDROP_TEST_APPIMAGE) assert.equal(await page.locator('#portableNote').isVisible(), true);
   assert.deepEqual(errors, []);
   const closed = app.waitForEvent('close'); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await closed; app = null;
-  app = await launch(); const reopened = await app.firstWindow(); await reopened.locator('#connectionWizard').waitFor({state:'visible'}); await reopened.evaluate(()=>document.getElementById('connectionWizard').close()); await reopened.locator('[data-view="settings"]').click();
+  app = await launch(); const reopened = await app.firstWindow();
+  if ((await reopened.evaluate(()=>window.airdrop.devices('state'))).setupRequired) { await reopened.locator('#connectionWizard').waitFor({state:'visible'}); await reopened.evaluate(()=>document.getElementById('connectionWizard').close()); }
+  await reopened.locator('[data-view="settings"]').click();
   assert.equal(await reopened.locator('html').getAttribute('data-theme'), 'dark');
   await reopened.waitForFunction(() => document.getElementById('url').value === 'https://desktop.example.ts.net/ui/');
   assert.equal(await reopened.locator('#zip').isChecked(), true);

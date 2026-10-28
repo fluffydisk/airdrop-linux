@@ -17,12 +17,14 @@ private tsnet identity directory unchanged. It adds:
   images create shared files. Electron 44 raw OS clipboard targets are supported as well. Plain text that happens to contain a file URI is
   never treated as permission to read it. Inaccessible sandbox clipboard files
   direct the user to Choose files. Cut clipboard entries never delete originals.
-- First-run setup requires a ready app-managed Tailscale HTTPS connection before
+- Flatpak first-run setup requires a ready app-managed Tailscale HTTPS connection before
   Continue is enabled. Escape, errors, a saved external address and LAN readiness
   cannot complete it. Quit remains available. Completed setup is persisted only
   after the helper has verified the TLS certificate and authenticated health
   route. Existing node identity is retained. After setup, LAN/local modes remain
-  available. This intentionally changes the previous optional first-run flow.
+  available. This intentionally changes the previous optional Flatpak first-run flow. Native
+  distributions without an embedded helper retain local operation; they cannot
+  be blocked behind an unavailable embedded connection. A regression covers this.
 - Settings shows the same live pairing address as Connect device and its QR.
   Stopped or failed connections clear both. External workspace settings remain
   under Advanced and do not overwrite the active device link.
@@ -60,7 +62,7 @@ Evidence in `evidence/workspace-improvements/`:
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Unit/regression tests | 111 passed, no failures/skips | unit-tests.log |
+| Unit/regression tests | 112 passed, no failures/skips | unit-tests.log |
 | Browser file/ZIP/clipboard integration | passed | browser.log |
 | Electron integration, sandbox, persistence, real file-URI clipboard paste button and Ctrl+V | passed; tray test skipped because no StatusNotifier host | electron.log |
 | Compiled portal helper, FileTransfer clipboard retrieval, directory FD, request identity, denial, inherited original file after replacement, transient export lifetime | passed with controlled service | file-portal.log |
@@ -85,3 +87,13 @@ generator and removes it on exit. It does not disable Chromium sandboxing or
 change a system-wide restriction. The raw failure excerpts remain in evidence.
 The generic local Flatpak test recipe also compiles the new portal helper, so
 its CI payload includes the same integration as the stable source-built recipe.
+
+Candidate run 40704351299 passed the clean build, lint, installation/startup,
+actual signed r2 update/migration, signature rejection and backend checks, then
+failed the final desktop smoke when the document portal could not mount
+`update-runtime.../doc` (permission denied). The test reused the runtime across
+system-scope operations and new D-Bus sessions. Each functional session now uses
+a fresh 0700 directory owned by the test user, created before D-Bus activation.
+No sandbox or FUSE verification is bypassed. Full desktop failure:
+`failures/signed-desktop-shared-runtime.log`; original artifact 12822799654 SHA256
+`f60de28cb0d69e8a4696a8e00d5ee61bc1641c055c7522582b11390f9a25197f`.

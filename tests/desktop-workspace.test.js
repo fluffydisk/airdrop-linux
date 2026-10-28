@@ -75,3 +75,9 @@ test('appearance, density, startup, file order and ZIP preferences persist; rese
  const zip=w.document.getElementById('zipPreference');zip.checked=true;zip.dispatchEvent(new w.Event('change'));assert.equal(w.document.getElementById('zip').checked,true);
  w.document.getElementById('resetPreferences').click();assert.equal(w.document.documentElement.dataset.accent,'blue');assert.equal(w.localStorage.getItem('unrelated-state'),'keep');assert.equal(w.document.getElementById('zip').checked,false);
 });
+
+test('native packages without the embedded helper retain local use instead of an impossible mandatory setup',async t=>{
+ const {w,set,get}=await desktop(t);set({setupRequired:false});w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));assert.equal(get('connectionWizard').open,false);assert.equal(get('wizardContinue').disabled,true);
+ const native=new Devices({directory:'/unused',setupRequired:false});assert.equal((await native.snapshot()).setupRequired,false);
+ const flatpak=new Devices({directory:'/unused'});assert.equal((await flatpak.snapshot()).setupRequired,true);
+});

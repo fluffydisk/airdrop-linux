@@ -15,9 +15,9 @@ const execute=promisify(execFile);
   await fs.mkdir(path.join(root,'files'));await fs.writeFile(path.join(root,'files',name),payload);
   const executable=process.env.ELECTRON_PATH||require('../desktop/node_modules/electron');
   app=await electron.launch({executablePath:executable,chromiumSandbox:true,args:[...(process.env.ELECTRON_PATH?[]:[path.resolve('desktop')]),'--ozone-platform=x11'],env:{...process.env,AIRDROP_HOME:root,AIRDROP_DISABLE_TRAY:'1',AIRDROP_DISABLE_UPDATE_CHECK:'1',AIRDROP_FILE_PORT:String(server.address().port),AIRDROP_API_PORT:String(server.address().port)},timeout:30000});
-  const source=await app.firstWindow();await source.locator('#connectionWizard').waitFor({state:'visible'});
+  const source=await app.firstWindow();
   // Independent local functionality test, not a production onboarding bypass.
-  await source.evaluate(()=>document.getElementById('connectionWizard').close());
+  if ((await source.evaluate(()=>window.airdrop.devices('state'))).setupRequired) { await source.locator('#connectionWizard').waitFor({state:'visible'}); await source.evaluate(()=>document.getElementById('connectionWizard').close()); }
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setBounds({x:0,y:0,width:780,height:760}));
   await source.locator('[data-view="files"]').click();
   const row=source.locator('.explorer-item').filter({hasText:name});await row.scrollIntoViewIfNeeded();
