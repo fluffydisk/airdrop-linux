@@ -1,0 +1,22 @@
+{
+  "publication_run": "https://github.com/fluffydisk/airdrop-linux/actions/runs/40726679662",
+  "conclusion": "success",
+  "public_test_job": 122956864707,
+  "evidence_artifact": 12833437829,
+  "evidence_zip_sha256": "f42f90a69def41d38e82e8abf3d9fa7d2995cde5b724f0a9e8f3cd723874434c",
+  "application_source": "9bea1fe462cff0742357591bb3393cd08afddace",
+  "application_commit": "edf1efa9fb6d6a6b1f907715e58a355d6faa99ad304a27d358ca622bded081f7",
+  "independent_cloud_verification": [
+    "Pinned production key in HTTPS descriptor",
+    "Production-signed channel receipt",
+    "Matching signed OSTree summary and app commit",
+    "Published installer GPG signature and immutable SHA-256"
+  ],
+  "installer_sha256": "9a9791cc4d8e97d6a609839f875c023cecb8e82334cf8fd23de8c322dd7525d3",
+  "release_assets": 27,
+  "unchanged_v1_5_0_tag": "a47e8b8ee359dc2b2587674c4a465dafced8369b",
+  "limitations": [
+    "Data and node identity retention checks use synthetic sentinels, not an authenticated account",
+    "No physical Omarchy desktop, phone/tablet, or interactive update consent test"
+  ]
+}

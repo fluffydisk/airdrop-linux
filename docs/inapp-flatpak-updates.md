@@ -62,7 +62,37 @@ raw files under `evidence/inapp-flatpak-updates/candidate-40724478465/`.
 | Consent denial leaves installed commit unchanged | VERIFIED | Same portal log and results |
 | Shared files/preferences/node-state retention | VERIFIED, synthetic retention fixtures | `signed-tests/results.json` |
 | Existing native publisher and complete signed Pages tree | VERIFIED with disposable key | `complete-tree.log` |
-| Production publication and public HTTPS acceptance for this candidate | NOT TESTED until protected publication completes | Follow the linked publication run |
+| Production publication and public HTTPS acceptance for this candidate | VERIFIED | Public evidence below |
+
+## Published and independently verified
+
+[Publication 40726679662](https://github.com/fluffydisk/airdrop-linux/actions/runs/40726679662)
+completed successfully after the existing protected-environment review. The
+public stable application commit is
+`edf1efa9fb6d6a6b1f907715e58a355d6faa99ad304a27d358ca622bded081f7`.
+No publication approval remains pending for this build.
+
+Raw post-deployment logs are retained under
+`evidence/inapp-flatpak-updates/public-40726679662/`. The original artifact ZIP
+SHA-256 was verified as
+`f42f90a69def41d38e82e8abf3d9fa7d2995cde5b724f0a9e8f3cd723874434c`.
+
+| Public HTTPS acceptance | Result | Evidence in that directory |
+| --- | --- | --- |
+| Fresh signed installation, normal update from the previous public commit, original r2-bundle migration | VERIFIED | `public-channel.log` |
+| Data/node-state fixture retention and no duplicate installation | VERIFIED, synthetic retention fixtures | `public-channel.log` |
+| Actual packaged file upload/download, ZIP and isolation | VERIFIED | `public-backend.log` |
+| Electron X11, clipboard, LAN pairing/decoded QR, authenticated browser file/ZIP exchange and shutdown | VERIFIED on one worker | `public-desktop.log` |
+| Headless native Wayland application and update check | VERIFIED | `public-wayland.log` |
+| Existing public APT/RPM signatures and original release payloads | VERIFIED | `public-native.log` |
+| Independent cloud check of production descriptor/key, receipt, OSTree summary and commit signatures | VERIFIED | `verification.json`, `channel.json`, `channel.json.asc` |
+| Installer production signature and immutable SHA-256; unchanged v1.5.0 tag and 27 release assets | VERIFIED | `verification.json` |
+
+Quit the existing signed-channel application, then bootstrap the new updater
+once with `flatpak update io.github.fluffydisk.airdrop-linux//stable` and reopen.
+Future available updates can use Settings > Check for updates > Update.
+Check for updates correctly reports current immediately after this bootstrap;
+another update is offered only when a newer signed build is published.
 
 This does not establish Flathub acceptance: the validator still records the
 prebuilt Electron source-build blocker and unavailable physical-device tests.

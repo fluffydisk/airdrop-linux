@@ -1,0 +1,93 @@
+dbus-daemon[5295]: [session uid=1001 pid=5295] Activating service name='org.freedesktop.Flatpak' requested by ':1.0' (uid=1001 pid=5314 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="flatpak (unconfined)")
+dbus-daemon[5295]: [session uid=1001 pid=5295] Successfully activated service 'org.freedesktop.Flatpak'
+dbus-daemon[5295]: [session uid=1001 pid=5295] Activating service name='org.freedesktop.portal.Documents' requested by ':1.0' (uid=1001 pid=5314 comm="flatpak run --user --env=AIRDROP_HOME=/var/data/pu" label="flatpak (unconfined)")
+dbus-daemon[5295]: [session uid=1001 pid=5295] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.2' (uid=1001 pid=5327 comm="/usr/libexec/xdg-document-portal" label="unconfined")
+dbus-daemon[5295]: [session uid=1001 pid=5295] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[5295]: [session uid=1001 pid=5295] Successfully activated service 'org.freedesktop.portal.Documents'
+Ignoring invalid max threads value 4294967295 > max (100000).
+dbus-daemon[5295]: [session uid=1001 pid=5295] Activating service name='org.freedesktop.portal.Flatpak' requested by ':1.4' (uid=1001 pid=5344 comm="xdg-dbus-proxy --args=38" label="flatpak (unconfined)")
+dbus-daemon[5295]: [session uid=1001 pid=5295] Successfully activated service 'org.freedesktop.portal.Flatpak'
+dbus-daemon[5295]: [session uid=1001 pid=5295] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.9' (uid=1001 pid=5344 comm="xdg-dbus-proxy --args=38" label="flatpak (unconfined)")
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.794: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.794: The preferred method to match portal implementations to desktop environments is to use the portals.conf(5) configuration file
+dbus-daemon[5295]: [session uid=1001 pid=5295] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.10' (uid=1001 pid=5409 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+
+(xdg-desktop-portal-gtk:5421): dbind-WARNING **: 16:41:30.849: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+dbus-daemon[5295]: [session uid=1001 pid=5295] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.977: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.978: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.978: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.978: No skeleton to export
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.978: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.978: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.979: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.980: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.980: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.980: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+[W][00181.743144] pw.conf      | [          conf.c: 1031 try_load_conf()] can't load config client.conf: No such file or directory
+[E][00181.743201] pw.conf      | [          conf.c: 1060 pw_conf_load_conf_for_context()] can't load config client.conf: No such file or directory
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.982: Failed connect to PipeWire: Couldn't create PipeWire context
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.982: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.983: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:5409): xdg-desktop-portal-WARNING **: 16:41:30.983: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[5295]: [session uid=1001 pid=5295] Successfully activated service 'org.freedesktop.portal.Desktop'
+2026-10-28T16:41:30.454Z pw:browser <launching> /tmp/airdrop-sandbox-ui-sXIquA/flatpak-airdrop --inspect=0 --remote-debugging-port=0 --ozone-platform=wayland --disable-gpu --enable-logging=stderr
+2026-10-28T16:41:30.458Z pw:browser <launched> pid=5314
+2026-10-28T16:41:30.615Z pw:browser [pid=5314][err] [13:1028/164130.614568:ERROR:ui/ozone/platform/wayland/common/drm_render_node_path_finder.cc:45] drmGetDevices2() has not found any devices: Invalid argument (22)
+2026-10-28T16:41:30.732Z pw:browser [pid=5314][err] [13:1028/164130.732442:ERROR:dbus/bus.cc:406] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+2026-10-28T16:41:30.735Z pw:browser [pid=5314][err] Fontconfig warning: We will not regenerate the cache because some cache files were generated by a newer version (0x2012003) of Fontconfig. Please regenerate the cache with the latest version of Fontconfig to avoid any unexpected behavior. (current version: 0x2012001)
+2026-10-28T16:41:30.746Z pw:browser [pid=5314][err] Debugger listening on ws://127.0.0.1:46157/a18e5f90-e5c3-4024-9b6a-541926ea31a4
+2026-10-28T16:41:30.746Z pw:browser [pid=5314][err] For help, see: https://nodejs.org/learn/getting-started/debugging
+2026-10-28T16:41:30.746Z pw:browser <ws connecting> ws://127.0.0.1:46157/a18e5f90-e5c3-4024-9b6a-541926ea31a4
+2026-10-28T16:41:30.752Z pw:browser <ws connected> ws://127.0.0.1:46157/a18e5f90-e5c3-4024-9b6a-541926ea31a4
+2026-10-28T16:41:30.753Z pw:browser [pid=5314][err] Debugger attached.
+2026-10-28T16:41:30.782Z pw:browser [pid=5314][err] [13:1028/164130.782377:WARNING:ui/ozone/platform/wayland/ozone_platform_wayland.cc:278] Failed to initialize drm render node handle.
+2026-10-28T16:41:30.792Z pw:browser [pid=5314][out] Listening on http://127.0.0.1:5000/
+2026-10-28T16:41:30.909Z pw:browser [pid=5314][out] Airdrop API listening on localhost
+2026-10-28T16:41:30.926Z pw:browser [pid=5314][out] 2026-10-28T16:41:30Z INFO - 127.0.0.1 "GET /" 200
+2026-10-28T16:41:30.986Z pw:browser [pid=5314][err] 
+2026-10-28T16:41:30.986Z pw:browser [pid=5314][err] (Airdrop:13): Gdk-WARNING **: 16:41:30.985: Failed to read portal settings: GDBus.Error:org.freedesktop.DBus.Error.UnknownMethod: No such interface “org.freedesktop.portal.Settings” on object at path /org/freedesktop/portal/desktop
+2026-10-28T16:41:31.015Z pw:browser [pid=5314][err] [13:1028/164131.015079:ERROR:dbus/bus.cc:406] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+2026-10-28T16:41:31.015Z pw:browser [pid=5314][err] [13:1028/164131.015108:ERROR:dbus/bus.cc:406] Failed to connect to the bus: Failed to connect to socket /run/dbus/system_bus_socket: No such file or directory
+2026-10-28T16:41:31.017Z pw:browser [pid=5314][err] 
+2026-10-28T16:41:31.017Z pw:browser [pid=5314][err] DevTools listening on ws://127.0.0.1:41913/devtools/browser/88a561c0-0875-4433-9765-b85f4da5d494
+2026-10-28T16:41:31.017Z pw:browser <ws connecting> ws://127.0.0.1:41913/devtools/browser/88a561c0-0875-4433-9765-b85f4da5d494
+2026-10-28T16:41:31.019Z pw:browser [pid=5314][err] [79:1028/164131.019516:ERROR:ui/ozone/platform/wayland/common/drm_render_node_path_finder.cc:45] drmGetDevices2() has not found any devices: Success (0)
+2026-10-28T16:41:31.020Z pw:browser [pid=5314][err] [79:1028/164131.019993:WARNING:ui/ozone/platform/wayland/ozone_platform_wayland.cc:331] Failed to find drm render node path.
+2026-10-28T16:41:31.020Z pw:browser [pid=5314][err] [79:1028/164131.020077:WARNING:ui/ozone/platform/wayland/gpu/wayland_buffer_manager_gpu.cc:456] Failed to initialize drm render node handle.
+2026-10-28T16:41:31.020Z pw:browser [pid=5314][err] [79:1028/164131.020366:WARNING:media/gpu/vaapi/vaapi_wrapper.cc:1660] drmGetDevices2() has not found any devices
+2026-10-28T16:41:31.027Z pw:browser [pid=5314][err] [13:1028/164131.025959:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:170] Server doesn't support zcr_alpha_compositing_v1.
+2026-10-28T16:41:31.028Z pw:browser [pid=5314][err] [13:1028/164131.025971:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:185] Server doesn't support overlay_prioritizer.
+2026-10-28T16:41:31.028Z pw:browser [pid=5314][err] [13:1028/164131.025975:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:200] Server doesn't support wp_content_type_v1
+2026-10-28T16:41:31.028Z pw:browser [pid=5314][err] [13:1028/164131.025978:WARNING:ui/ozone/platform/wayland/host/wayland_surface.cc:214] Server doesn't support wp_color_management_surface_v1.
+2026-10-28T16:41:31.028Z pw:browser [pid=5314][err] [13:1028/164131.026205:WARNING:ui/ozone/platform/wayland/host/wayland_connection.cc:408] text-input-v3 not available.
+2026-10-28T16:41:31.271Z pw:browser [pid=5314][err] [13:1028/164131.271662:WARNING:device/bluetooth/dbus/bluez_dbus_manager.cc:209] Floss manager service not available, cannot set Floss enable/disable.
+2026-10-28T16:41:31.275Z pw:browser <ws connected> ws://127.0.0.1:41913/devtools/browser/88a561c0-0875-4433-9765-b85f4da5d494
+2026-10-28T16:41:31.378Z pw:browser [pid=5314][out] 2026-10-28T16:41:31Z INFO - 127.0.0.1 "GET /?json" 200
+Runtime versions: {"app":"1.5.0","electron":"44.9.3","chromium":"152.0.7977.167","embeddedNode":"24.22.0","arch":"x64"}
+2026-10-28T16:41:31.461Z pw:browser <ws disconnecting> ws://127.0.0.1:46157/a18e5f90-e5c3-4024-9b6a-541926ea31a4
+2026-10-28T16:41:31.462Z pw:browser [pid=5314][err] Debugger ending on ws://127.0.0.1:46157/a18e5f90-e5c3-4024-9b6a-541926ea31a4
+2026-10-28T16:41:31.462Z pw:browser [pid=5314][err] For help, see: https://nodejs.org/learn/getting-started/debugging
+2026-10-28T16:41:31.463Z pw:browser <ws disconnected> ws://127.0.0.1:46157/a18e5f90-e5c3-4024-9b6a-541926ea31a4 code=1005 reason=
+2026-10-28T16:41:31.483Z pw:browser <ws disconnected> ws://127.0.0.1:41913/devtools/browser/88a561c0-0875-4433-9765-b85f4da5d494 code=1006 reason=
+2026-10-28T16:41:31.497Z pw:browser [pid=5314] <process did exit: exitCode=0, signal=null>
+2026-10-28T16:41:31.497Z pw:browser [pid=5314] starting temporary directories cleanup
+flatpak: sandboxed desktop ready, managed updates and quit lifecycle passed
+2026-10-28T16:41:31.502Z pw:browser [pid=5314] finished temporary directories cleanup
+Gdk-Message: 16:41:31.522: Error reading events from display: Broken pipe

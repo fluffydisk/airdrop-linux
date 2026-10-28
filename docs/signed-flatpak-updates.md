@@ -2,16 +2,18 @@
 
 This is an independent upstream GitHub Pages channel, not a Flathub submission.
 The application ID remains `io.github.fluffydisk.airdrop-linux`, branch `stable`,
-architecture **x86_64**. The current repository revision is **1.5.0 revision 4**;
-it preserves r2 data and adds native file integration, connection setup and workspace preferences.
+architecture **x86_64**. The current stable application source is
+`9bea1fe462cff0742357591bb3393cd08afddace`, version **1.5.0**. It preserves r2
+data and includes nonblocking welcome connection feedback, a simpler workspace
+and in-app Flatpak updates. Internal build sequences are allocated automatically.
 The existing v1.5.0 tag and standalone release assets are not replaced.
 
 ## Live channel and public addresses
 
-The signed revision 4 channel is live. Actual public HTTPS installation, forward
+The current signed channel is live. Actual public HTTPS installation, forward
 update from the signed previous revision, original r2-bundle migration, X11/Wayland application checks
 and APT/RPM provenance passed in
-[publication 40709440609](https://github.com/fluffydisk/airdrop-linux/actions/runs/40709440609),
+[publication 40726679662](https://github.com/fluffydisk/airdrop-linux/actions/runs/40726679662),
 including its post-deployment public checks.
 Production signing and Pages deployment retain the existing **package-publishing**
 environment and its required human reviewer.
@@ -30,11 +32,13 @@ Pinned project signing fingerprint:
 This is the existing authorized APT/RPM identity. No new production key is created.
 
 The corrected bootstrap is deployed and its production GPG signature and checksum
-were verified. Revision 4 advances the app commit and retains revision 3 as its
-signed parent. Data and node identity remain in the same private directory.
+were verified. The current app commit is
+`edf1efa9fb6d6a6b1f907715e58a355d6faa99ad304a27d358ca622bded081f7`;
+the previously public signed build remains its parent. Data and node identity
+remain in the same private directory.
 That completed publication has no pending approval. Subsequent updates retain
 the same required reviewer protection. See [workspace integration evidence](workspace-improvements.md)
-and the newer [in-app update candidate evidence](inapp-flatpak-updates.md).
+and the [in-app update and public acceptance evidence](inapp-flatpak-updates.md).
 The identical [immutable GitHub copy](https://raw.githubusercontent.com/fluffydisk/airdrop-linux/bb5e6903562476702cbc4b8b70296a75643b6b2b/scripts/install-flatpak.py)
 is available for source inspection.
 
