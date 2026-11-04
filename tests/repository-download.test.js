@@ -68,3 +68,8 @@ test('empty package directory fails before creating repository output or invokin
  await assert.rejects(run('bash',[path.resolve(__dirname,'../scripts/build-repository.sh'),f.incoming,output],{env:{...process.env,SIGNING_KEY_FINGERPRINT:'A'.repeat(40)}}),error=>error.stderr.includes('Both DEB and RPM assets are required')&&error.stdout.includes('DEB=0 RPM=0'));
  await assert.rejects(fs.access(output),{code:'ENOENT'});
 });
+test('bounded Pages staging verifies the requested release without copying all historical native packages',async t=>{
+ const f=await fixture(t);const inventory=await downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,log:()=>{},includeHistory:false});
+ assert.deepEqual(inventory.map(item=>item.tag),[f.tag]);assert.equal(f.calls.some(args=>args[1]==='list'),false);
+ assert.equal(f.calls.filter(args=>args[1]==='download').length,5);await verifyReleaseAssets(f.incoming);
+});

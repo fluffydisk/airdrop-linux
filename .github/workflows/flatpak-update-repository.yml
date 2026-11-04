@@ -114,7 +114,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          node scripts/download-repository-assets.js v1.5.0 "$RUNNER_TEMP/native-input" "$RUNNER_TEMP/native-downloads"
+          node scripts/download-repository-assets.js v1.5.0 "$RUNNER_TEMP/native-input" "$RUNNER_TEMP/native-downloads" --latest-only
           export GNUPGHOME="$RUNNER_TEMP/native-test-signing"
           mkdir -m 700 "$GNUPGHOME"
           trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT

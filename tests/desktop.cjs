@@ -146,7 +146,11 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   assert.deepEqual(errors, []);
   const closed = app.waitForEvent('close'); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await closed; app = null;
   app = await launch(); const reopened = await app.firstWindow();
-  if (await reopened.locator('#connectionWizard').isVisible()) { await reopened.evaluate(()=>document.getElementById('wizardContinue').click()); }
+  if (await reopened.locator('#connectionWizard').count()) {
+    // Setup was explicitly deferred; wait for its async state before dismissal.
+    await reopened.locator('#wizardContinue').waitFor({state:'visible'});
+    await reopened.locator('#wizardContinue').click();
+  }
   await reopened.locator('[data-view="settings"]').click();
   assert.equal(await reopened.locator('html').getAttribute('data-theme'), 'dark');
   await reopened.waitForFunction(() => document.getElementById('url').value === 'https://desktop.example.ts.net/ui/');

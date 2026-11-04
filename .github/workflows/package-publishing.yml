@@ -58,7 +58,7 @@ jobs:
           else
             echo '::notice title=Downloader prerequisites::ripgrep is absent; the legacy if-not-rg selector would silently skip every release.'
           fi
-          bash scripts/ci-command.sh Repository-download node scripts/download-repository-assets.js "$RELEASE_TAG" incoming downloads
+          bash scripts/ci-command.sh Repository-download node scripts/download-repository-assets.js "$RELEASE_TAG" incoming downloads --latest-only
           printf '### Repository inputs verified\n\nSource commit: `%s`\n\nRequested release: `%s`\n\n' "$GITHUB_SHA" "$RELEASE_TAG" >> "$GITHUB_STEP_SUMMARY"
           cat incoming/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
       - name: Select verified candidate or newest complete public Flatpak release

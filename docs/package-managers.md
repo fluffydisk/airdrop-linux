@@ -324,3 +324,8 @@ own sandbox. Store auto-connection requires review; for a locally built test sna
 connect `airdrop-linux:browser-sandbox` explicitly. The hosted sandbox checks
 exercise the real backend and desktop startup/update/quit behavior. Neither the
 Snap nor the Flatpak launcher passes `--no-sandbox`.
+
+The combined signed Pages snapshot stages the requested native release only to
+leave room for Flatpak within the hosting size limit. Older native packages remain
+available on their immutable GitHub Release pages; published release assets are not
+deleted or replaced when the signed repository advances.

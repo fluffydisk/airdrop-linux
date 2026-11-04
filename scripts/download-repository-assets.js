@@ -20,12 +20,12 @@ async function gh(args) {
     throw new Error(`gh ${args[0]} ${args[1]} failed: ${detail}`);
   }
 }
-async function downloadRepositoryAssets(tag, incoming, downloads, {command = gh, log = console.log} = {}) {
+async function downloadRepositoryAssets(tag, incoming, downloads, {command = gh, log = console.log, includeHistory = true} = {}) {
   requiredPackages(tag);
   incoming = path.resolve(incoming); downloads = path.resolve(downloads);
   // Fresh staging prevents stale files from concealing a failed download.
   await fs.mkdir(incoming); await fs.mkdir(downloads);
-  const history = JSON.parse(await command(['release','list','--exclude-drafts','--exclude-pre-releases','--limit','100','--json','tagName']));
+  const history = includeHistory ? JSON.parse(await command(['release','list','--exclude-drafts','--exclude-pre-releases','--limit','100','--json','tagName'])) : [];
   if (!Array.isArray(history)) throw new Error('Invalid stable release history');
   // Always inspect the requested release, even if the release-list API omits it.
   const tags = [...new Set([tag, ...history.map(release => release.tagName)])];
@@ -64,5 +64,5 @@ async function downloadRepositoryAssets(tag, incoming, downloads, {command = gh,
   log(`Repository staging complete: ${actual.length} packages; requested release ${tag}`);
   return inventory;
 }
-if(require.main===module)downloadRepositoryAssets(process.argv[2],process.argv[3]||'incoming',process.argv[4]||'downloads').catch(error=>{console.error(error.message);process.exitCode=1;});
+if(require.main===module)downloadRepositoryAssets(process.argv[2],process.argv[3]||'incoming',process.argv[4]||'downloads',{includeHistory:!process.argv.includes('--latest-only')}).catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports={downloadRepositoryAssets,requiredPackages};
