@@ -3,7 +3,7 @@ on:
   push:
     tags: ['v*']
     branches: [main]
-    paths: ['package.json', '.github/workflows/release.yml']
+    paths: ['package.json', 'packaging/appimage-tools.json', '.github/workflows/release.yml']
   workflow_dispatch:
     inputs:
       publish:
