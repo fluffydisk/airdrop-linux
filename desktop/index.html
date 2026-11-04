@@ -78,8 +78,13 @@
     <section id="view-settings" class="view" hidden>
       <div class="page-heading"><h1>Settings</h1></div>
     <details id="connectionSettings" class="settings-card" open><summary>Device connection</summary>
-      <p class="field-help">Connect your iPhone, Android phone or tablet in a few steps. No VPN account is needed.</p>
+      <p class="field-help">Choose Airdrop, Tailscale or the same Wi-Fi for your iPhone, Android phone or tablet. Airdrop and Wi-Fi do not need a VPN account.</p>
       <button class="button button-primary" id="setupDevices">Connect a device</button>
+      <label class="field-label" for="connectionProvider">Connection provider</label>
+      <select id="connectionProvider" aria-label="Connection provider"><option value="internet">Airdrop (default)</option><option value="tailscale">Tailscale</option><option value="lan">Same Wi-Fi</option></select>
+      <p id="providerHint" class="field-help"></p>
+      <button class="button" id="applyProvider">Connect using this provider</button>
+      <button class="button" id="providerLogin" hidden>Sign in to Tailscale inside Airdrop</button>
       <div class="connection-controls">
         <details id="advancedConnection"><summary>Advanced connection options</summary>
         <p class="field-help">For managed installations only. Normal setup does not require an address or access key.</p>
@@ -90,7 +95,7 @@
         <label class="connection-preference"><input id="autoConnectPreference" type="checkbox" checked> Connect automatically when Airdrop opens</label>
         <label class="connection-preference"><input id="backgroundPreference" type="checkbox"> Keep the connection running after closing the window</label>
         <p id="backgroundHint" class="field-help">With background sharing off, closing the window stops the connection. Reopening Airdrop starts it again when automatic connection is enabled.</p>
-        <div class="clipboard-actions"><button class="button" id="connectPrivate">Connect</button><button class="button" id="disconnectDevices">Disconnect</button></div>
+        <div class="clipboard-actions"><button class="button" id="disconnectDevices">Disconnect</button></div>
         <details class="lan-options"><summary>Wi-Fi network options</summary><p>Same Wi-Fi required. LAN uses unencrypted HTTP.</p><label for="lanInterface">Network</label><select id="lanInterface" aria-label="LAN interface"></select><button class="button" id="connectLan">Start LAN sharing</button></details>
         <div id="deviceProgress" class="connection-progress" aria-busy="false"><span id="deviceSpinner" class="connection-spinner" aria-hidden="true" hidden></span><div><p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p><p id="deviceHint" class="field-help"></p><span id="deviceElapsed" class="connection-elapsed" aria-live="off" hidden></span></div></div>
 
@@ -119,15 +124,17 @@
   <h1 id="wizardTitle" tabindex="-1">Connect your devices</h1>
   <ol id="wizardSteps" class="connection-steps" aria-label="Setup steps"><li>Connection</li><li>Background sharing</li><li>Add your phone</li></ol>
   <section id="wizardConnection">
-    <p>No account, VPN, server or domain to set up. Choose free internet sharing for different networks, or Wi-Fi for a direct local connection.</p>
+    <label class="field-label" for="wizardProvider">Connection provider</label>
+    <select id="wizardProvider" aria-label="Setup connection provider"><option value="internet">Airdrop (default)</option><option value="tailscale">Tailscale</option><option value="lan">Same Wi-Fi</option></select>
+    <p id="wizardProviderHint" class="field-help"></p>
+    <button class="button button-primary" id="wizardProviderConnect">Connect using this provider</button>
+    <button class="button" id="wizardProviderLogin" hidden>Sign in to Tailscale inside Airdrop</button>
+    <p>Choose how to connect. You can switch providers here or in Settings whenever you need.</p>
     <div id="wizardProgress" class="connection-progress" aria-busy="false">
       <span id="wizardSpinner" class="connection-spinner" aria-hidden="true" hidden></span>
       <div><h2 id="wizardStatus" role="status" aria-live="polite">Preparing your connection…</h2><p id="wizardHint"></p><span id="wizardElapsed" class="connection-elapsed" aria-live="off" hidden></span></div>
     </div>
     <div class="clipboard-actions">
-      <button class="button button-primary" id="wizardInternet">Connect over the internet — free</button>
-      <button class="button" id="wizardLan">Connect over Wi-Fi</button>
-      <button class="button" id="wizardConnect" hidden>Connect across networks</button>
       <button class="text-button" id="wizardCancel" hidden>Cancel connection</button>
     </div>
     <p id="wizardInternetNote" class="field-help">Free internet sharing uses Cloudflare. No account, server or domain is needed. Traffic passes through Cloudflare; this free service has no uptime guarantee.</p>
@@ -136,7 +143,7 @@
   <section id="wizardBackground" hidden>
     <p class="wizard-success">Connection ready</p>
     <h2>Keep sharing when you close the window?</h2>
-    <p>Your phone can still reach this computer while Airdrop runs in the background.</p>
+    <p>Your phone can still reach this computer while Airdrop runs in the background using your selected provider.</p>
     <div class="wizard-choices">
       <button class="button button-primary" id="wizardBackgroundYes">Keep sharing in the background</button>
       <button class="button" id="wizardBackgroundNo">Only while the app is open</button>

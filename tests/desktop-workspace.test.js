@@ -30,7 +30,7 @@ test('clipboard files are format-qualified local URIs; cut never deletes origina
 });
 async function desktop(t){
  const dom=new JSDOM(await fs.readFile('desktop/index.html','utf8'),{runScripts:'outside-only',url:'https://local.test'});t.after(()=>dom.window.close());
- const w=dom.window;let state={mode:'local',status:'local',message:'Not connected',onboarded:false,interfaces:[]};
+ const w=dom.window;let state={mode:'local',status:'local',message:'Not connected',onboarded:false,interfaces:[],preferences:{provider:'private'},providers:[{id:'internet',label:'Airdrop (default)',available:true},{id:'tailscale',label:'Tailscale',available:true},{id:'lan',label:'Same Wi-Fi',available:true},{id:'private',label:'Managed relay',available:true}]};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;};
  w.navigate=()=>{};w.airdrop={devices:async action=>{if(action==='state')return state;},quit:async()=>{}};
  return {w,set:s=>{state={...state,...s};},get:id=>w.document.getElementById(id),tick:()=>new Promise(r=>setTimeout(r,1550))};
@@ -38,9 +38,11 @@ async function desktop(t){
 test('startup stays usable while the relay connects; Settings owns the only live address',async t=>{
  const {w,set,get,tick}=await desktop(t);w.eval(await fs.readFile('desktop/connection-progress.js','utf8'));w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));
  assert.equal(get('connectionWizard').open,true);assert.equal(get('wizardContinue').disabled,false);assert.equal(get('view-transfer').hidden,false);
- set({mode:'private',status:'checking',message:'Checking sharing',url:'',qr:''});await tick();assert.equal(get('wizardSpinner').hidden,false);assert.match(get('wizardStatus').textContent,/Verifying sharing/);assert.equal(get('connectPrivate').disabled,true);assert.equal(get('deviceLink').hidden,true);
+ set({mode:'private',status:'checking',message:'Checking sharing',url:'',qr:''});await tick();assert.equal(get('wizardSpinner').hidden,false);assert.match(get('wizardStatus').textContent,/Verifying sharing/);assert.equal(get('applyProvider').disabled,true);assert.equal(get('deviceLink').hidden,true);
+ get('connectionProvider').value='lan';get('connectionProvider').dispatchEvent(new w.Event('change'));assert.equal(get('applyProvider').disabled,false,'a different provider remains selectable during connection');
+ get('connectionProvider').value='private';get('connectionProvider').dispatchEvent(new w.Event('change'));
  set({mode:'private',status:'ready',url:'https://device.relay.example.com/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();assert.equal(get('deviceAddress').value,'https://device.relay.example.com/pair/#secret');
- set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('connectPrivate').disabled,false);get('wizardContinue').click();assert.equal(get('connectionWizard').open,false);assert.equal(w.localStorage.getItem('airdrop-welcome-seen'),'true');
+ set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('applyProvider').disabled,false);get('wizardContinue').click();assert.equal(get('connectionWizard').open,false);assert.equal(w.localStorage.getItem('airdrop-welcome-seen'),'true');
 });
 test('file sorting is stable, persists and native drag exports selected files only',async t=>{
  const dom=new JSDOM('<div id="files"></div>',{runScripts:'outside-only',url:'https://local.test'});t.after(()=>dom.window.close());const w=dom.window;

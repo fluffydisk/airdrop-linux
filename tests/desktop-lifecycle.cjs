@@ -16,9 +16,9 @@ async function fixture(t,source){
 test('Electron first-run wizard connects first, asks background next, then shows phone pairing and persists the choice', {timeout:60000},async t=>{
  if(!lanAddresses().length){t.skip('No private LAN interface');return;}
  const f=await fixture(t);let {app,page}=await f.launch();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.locator('#wizardLan').waitFor({state:'visible'});
+ await page.locator('#wizardProvider').waitFor({state:'visible'});assert.equal(await page.locator('#wizardProvider').inputValue(),'internet');
  assert.equal(await page.locator('#relayUrl').isVisible(),false);assert.equal(await page.locator('#wizardBackground').isVisible(),false);assert.equal(await page.locator('#wizardPairing').isVisible(),false);
- await page.locator('#wizardLan').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
+ await page.locator('#wizardProvider').selectOption('lan');await page.locator('#wizardProviderConnect').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
  assert.match(await page.locator('#wizardBackground').textContent(),/change this anytime in Settings/);
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).setupComplete,false);
  await fs.mkdir('.test-artifacts',{recursive:true});await page.setViewportSize({width:1080,height:840});await page.screenshot({path:'.test-artifacts/wizard-background.png'});
@@ -43,7 +43,7 @@ test('Electron first-run wizard connects first, asks background next, then shows
 test('Electron Flatpak requests background access after connection and opt-in; denial is explained and settings stay off', {timeout:30000},async t=>{
  if(!lanAddresses().length){t.skip('No private LAN interface');return;}
  const f=await fixture(t,'flatpak'),{app,page}=await f.launch();
- await page.locator('#wizardLan').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
+ await page.locator('#wizardProvider').selectOption('lan');await page.locator('#wizardProviderConnect').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).background.active,false);
  await page.locator('#wizardBackgroundYes').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
  assert.match(await page.locator('#wizardBackgroundSummary').textContent(),/not granted/);

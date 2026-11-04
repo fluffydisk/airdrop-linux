@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/public-ui-runtime.XXXXXX")
-          export AIRDROP_TEST_HOME=/var/data/public-signed-acceptance AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_DEVICES=1 AIRDROP_TEST_CONNECTION=1 AIRDROP_TEST_TAILSCALE_BOOTSTRAP=1
+          export AIRDROP_TEST_HOME=/var/data/public-signed-acceptance AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_DEVICES=1 AIRDROP_TEST_CONNECTION=1 AIRDROP_TEST_INAPP_SETUP=1 AIRDROP_TEST_LIVE_INTERNET=1
           dbus-run-session -- node scripts/smoke-sandbox.js flatpak | tee "$RUNNER_TEMP/public-backend.log"
           xvfb-run -a dbus-run-session -- node scripts/smoke-sandbox-desktop.cjs flatpak | tee "$RUNNER_TEMP/public-desktop.log"
           bash scripts/test-flatpak-wayland.sh | tee "$RUNNER_TEMP/public-wayland.log"

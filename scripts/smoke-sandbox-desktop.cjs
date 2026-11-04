@@ -109,12 +109,48 @@ const {_electron:electron}=require('playwright-core');
     assert.equal(await page.locator('#connectTailnet').count(),0);
     assert.equal(await page.locator('#setupDevices').count(),1);
     assert.equal(await page.locator('#wizardSteps li').count(),3);
-    assert.equal(await page.locator('#wizardInternet').count(),1);
-    assert.equal(await page.locator('#wizardLan').count(),1);
+    assert.deepEqual(await page.locator('#wizardProvider option').evaluateAll(nodes=>nodes.map(n=>n.value).slice(0,3)),['internet','tailscale','lan']);
+    assert.equal(await page.locator('#wizardProviderConnect').count(),1);
+    assert.equal(await page.locator('#wizardProvider option[value="tailscale"]').isDisabled(),false,'the optional Tailscale provider must be included in the installed package');
     assert.equal(await page.locator('#autoConnectPreference').isChecked(),true);
     assert.equal(await page.locator('#backgroundPreference').isChecked(),false);
     assert.equal(await page.locator('#advancedConnection').evaluate(el=>el.open),false);
     console.log('flatpak: installed app has the three-step in-app connection wizard, Wi-Fi/free internet choices and editable auto-connect/background preferences; Tailscale login control is absent');
+    if(process.env.AIRDROP_TEST_LIVE_INTERNET==='1'){
+     await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));
+     let publicState;
+     for(let i=0;i<240;i++){
+      publicState=await page.evaluate(()=>window.airdrop.devices('state'));
+      if(['ready','error'].includes(publicState.status))break;
+      await new Promise(resolve=>setTimeout(resolve,1000));
+     }
+     assert.equal(publicState.status,'ready',publicState.message);
+     const publicURL=new URL(publicState.url),publicOrigin=publicURL.origin;
+     assert.ok(publicURL.hostname.endsWith('.trycloudflare.com'));
+     assert.equal((await fetch(publicOrigin+'/push/health')).status,401);
+     const pairing=await fetch(publicOrigin+'/pair/',{method:'POST',headers:{Origin:publicOrigin},body:JSON.stringify({token:publicURL.hash.slice(1)})});
+     assert.equal(pairing.status,204);const publicHeaders={Cookie:pairing.headers.get('set-cookie').split(';')[0]};
+     assert.equal((await fetch(publicOrigin+'/push/health',{headers:publicHeaders})).status,200);
+     const publicFile='flatpak-public-'+Date.now()+'.txt';
+     assert.equal((await fetch(publicOrigin+'/push/files/'+publicFile,{method:'PUT',headers:publicHeaders,body:'real Flatpak public sharing'})).status,201);
+     assert.equal(await(await fetch(publicOrigin+'/'+publicFile,{headers:publicHeaders})).text(),'real Flatpak public sharing');
+     await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
+     console.log('flatpak: actual in-sandbox internet component download, registered Cloudflare tunnel, Electron HTTPS verification, authenticated public pairing and file upload/download passed');
+     await page.evaluate(()=>window.airdrop.devices('mode',{mode:'tailscale'}));
+     let loginState;
+     for(let i=0;i<80;i++){
+      loginState=await page.evaluate(()=>window.airdrop.devices('state'));
+      if(loginState.authURL||loginState.status==='error')break;
+      await new Promise(resolve=>setTimeout(resolve,1000));
+     }
+     assert.ok(loginState.authURL,loginState.message);assert.equal(new URL(loginState.authURL).hostname,'login.tailscale.com');
+     assert.equal(loginState.url,'');assert.equal(loginState.qr,'');
+     const signingIn=app.waitForEvent('window');await page.evaluate(()=>window.airdrop.devices('provider-login'));const loginPage=await signingIn;
+     const loginPreferences=await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getLastWebPreferences().partition==='airdrop-provider-login').webContents.getLastWebPreferences());
+     assert.equal(loginPreferences.sandbox,true);assert.equal(loginPreferences.contextIsolation,true);assert.equal(loginPreferences.nodeIntegration,false);assert.ok(!loginPreferences.preload);
+     await loginPage.close();await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
+     console.log('flatpak: actual embedded Tailscale control-plane sign-in link and isolated in-app sign-in window passed; no authenticated tailnet or physical phone transfer claimed');
+    }
    }
    if(process.env.AIRDROP_TEST_TAILSCALE_BOOTSTRAP==='1' && legacyLogin){
     await page.locator('#connectTailnet').click();

@@ -83,7 +83,7 @@ jobs:
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/build-runtime.XXXXXX")
           status=0
           python3 scripts/validate-flatpak-reference.py --manifest "$RUNNER_TEMP/prepared/io.github.fluffydisk.airdrop-linux.yml" \
-            --arch x86_64 --builder native --output "$RUNNER_TEMP/validated" || status=$?
+            --arch x86_64 --builder native --live-internet --output "$RUNNER_TEMP/validated" || status=$?
           if (( status )); then tail -n 25 "$RUNNER_TEMP"/validated/*.log; fi
           exit "$status"
       - name: Package verified candidate and download actual r2 baseline

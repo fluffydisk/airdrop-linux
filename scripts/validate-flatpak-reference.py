@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--builder', choices=['sdk', 'native'], default='sdk')
     parser.add_argument('--state-dir', type=Path, help='Reusable checksum-verified source downloads; build cache is disabled')
     parser.add_argument('--linter', help='Official linter command, shell-quoted; parsed as argv, never executed by a shell')
+    parser.add_argument('--live-internet',action='store_true',help='Verify the modern provider UI and real public sharing inside the installed sandbox')
     parser.add_argument('--wayland-socket', help='Existing real compositor socket name')
     parser.add_argument('--wayland-runtime', type=Path, help='Runtime directory containing that socket')
     args = parser.parse_args()
@@ -210,7 +211,7 @@ def main():
             '-c', 'if command -v tailscale; then exit 1; fi; test ! -S /run/tailscale/tailscaled.sock'], source=PERMS)
         run('Backend transfers and isolation', ['dbus-run-session', '--', 'node', 'scripts/smoke-sandbox.js', 'flatpak'], source=PERMS)
         run('X11 clipboard sandbox and connection UI', ['xvfb-run', '-a', 'dbus-run-session', '--', 'node', 'scripts/smoke-sandbox-desktop.cjs', 'flatpak'],
-            source=PERMS, extra={'AIRDROP_TEST_CONNECTION': '1', 'AIRDROP_TEST_SCREENSHOT': str(out/'desktop.png'),
+            source=PERMS, extra={'AIRDROP_TEST_CONNECTION': '1', **({'AIRDROP_TEST_INAPP_SETUP':'1','AIRDROP_TEST_LIVE_INTERNET':'1'} if args.live_internet else {}), 'AIRDROP_TEST_SCREENSHOT': str(out/'desktop.png'),
             'AIRDROP_TEST_DEVICES': '1'})
         run('Icon screenshot integrity and actual metadata URL', [sys.executable, 'scripts/check-flatpak-images.py',
             '--metainfo', files/f'share/metainfo/{APP}.metainfo.xml', '--capture', out/'desktop.png',

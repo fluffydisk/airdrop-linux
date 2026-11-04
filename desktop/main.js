@@ -49,8 +49,26 @@ const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
 const internetAsset=process.platform==='linux'&&require('./core/internet-helper.json').assets[process.arch];
+const tailscaleHelper=[path.resolve(__dirname,'../../../runtime/airdrop-tsnet'),path.join(__dirname,'core/bin/airdrop-tsnet')].find(file=>fs.existsSync(file));
 const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),service:require('./core/connection-service.json'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`,
+  probe:gateway=>gateway.probe(gateway.secure?{request:net.fetch}:undefined),
+  createTailscaleClient:tailscaleHelper?options=>new (require('./core/lib/tailscale-connection').TailscaleConnection)({...options,helper:tailscaleHelper,directory:path.join(desktopData,'connections')}):undefined,
   createInternetClient:internetAsset?options=>new (require('./core/lib/internet-connection').InternetConnection)({...options,directory:path.join(desktopData,'connection-runtime'),asset:internetAsset,request:net.fetch}):undefined});
+let providerLoginWindow;
+function signInToProvider(){
+  const link=devices.state.mode==='tailscale'&&devices.state.authURL;
+  let url;try{url=new URL(link);}catch{throw Error('Reconnect Tailscale to request a new sign-in link.');}
+  if(url.protocol!=='https:'||url.hostname!=='login.tailscale.com'||url.username||url.password)throw Error('Invalid provider sign-in address');
+  if(providerLoginWindow&&!providerLoginWindow.isDestroyed()){providerLoginWindow.focus();return;}
+  providerLoginWindow=new BrowserWindow({width:1000,height:760,parent:window,autoHideMenuBar:true,title:'Tailscale sign-in — login.tailscale.com',webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false,partition:'airdrop-provider-login'}});
+  const login=providerLoginWindow;
+  login.webContents.session.setPermissionRequestHandler((contents,permission,callback)=>callback(false));
+  login.webContents.on('will-navigate',(event,target)=>{try{if(new URL(target).protocol!=='https:')event.preventDefault();}catch{event.preventDefault();}});
+  login.webContents.setWindowOpenHandler(({url:target})=>{try{if(new URL(target).protocol==='https:')login.loadURL(target);}catch{}return {action:'deny'};});
+  login.webContents.on('did-navigate',(_,target)=>{login.setTitle('Tailscale sign-in — '+new URL(target).hostname);});
+  login.on('closed',()=>{providerLoginWindow=null;});
+  login.loadURL(url.href);
+}
 let devicesReady;
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
 let window, tray, timer, quitting = false, sending = false;
@@ -113,7 +131,7 @@ function registerIpc() {
   });
   ipcMain.handle('airdrop:devices',async(event,action,payload)=>{
     ownWindow(event);await devicesReady;
-    if(action==='state')return {...await devices.snapshot(),background:backgroundPolicy.snapshot()};
+    if(action==='state'){if(devices.state.status==='ready')providerLoginWindow?.close();return {...await devices.snapshot(),background:backgroundPolicy.snapshot()};}
     if(action==='preferences'||action==='finish-setup'){
       if(action==='finish-setup'&&devices.state.status!=='ready')throw Error('Reconnect before finishing setup.');
       if(action==='finish-setup'&&typeof payload?.background!=='boolean')throw Error('Choose a background sharing option.');
@@ -126,7 +144,8 @@ function registerIpc() {
       if(action==='finish-setup')await devices.completeSetup();
       return {...await devices.snapshot(),background:backgroundPolicy.snapshot()};
     }
-    if(action==='mode')return devices.action(payload?.mode,payload?.address);
+    if(action==='mode'){providerLoginWindow?.close();return devices.action(payload?.mode,payload?.address);}
+    if(action==='provider-login')return signInToProvider();
     if(action==='copy'){if(!devices.state.url)throw Error('No verified sharing link');clipboard.writeText(devices.state.url);return;}
     throw Error('Unknown connection action');
   });
