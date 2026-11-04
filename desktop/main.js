@@ -20,7 +20,8 @@ if (process.platform === 'linux' && distribution.managed) {
   app.setDesktopName('io.github.fluffydisk.airdrop-linux.desktop');
   app.commandLine.appendSwitch('class', 'io.github.fluffydisk.airdrop-linux');
 }
-const backgroundRequest = new AbortController();
+const backgroundPolicy = new (require('./background-policy').BackgroundPolicy)({source:distribution.source,
+  request:options => require('./background').requestBackground(options), snapEnabled:process.env.AIRDROP_SNAP_BACKGROUND === '1'});
 const updater = require('./core/lib/updater');
 const flatpakUpdates = require('./flatpak-updates');
 let updateTimer, updateBusy = false;
@@ -47,11 +48,12 @@ async function checkUpdate() {
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
-const tailscaleHelper = process.env.AIRDROP_TSNET_HELPER || path.join(paths.app,'runtime/airdrop-tsnet');
-const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),helper:tailscaleHelper,setupRequired:distribution.source==='flatpak'||fs.existsSync(tailscaleHelper),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`});
+const internetAsset=process.platform==='linux'&&require('./core/internet-helper.json').assets[process.arch];
+const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),service:require('./core/connection-service.json'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`,
+  createInternetClient:internetAsset?options=>new (require('./core/lib/internet-connection').InternetConnection)({...options,directory:path.join(desktopData,'connection-runtime'),asset:internetAsset,request:net.fetch}):undefined});
 let devicesReady;
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
-let window, tray, timer, quitting = false, sending = false, backgroundGranted = false;
+let window, tray, timer, quitting = false, sending = false;
 let state = { status: 'offline', label: 'Checking services…' };
 const allowedPaths = new Set();
 
@@ -89,12 +91,12 @@ async function openPwa() {
   let { pwaUrl: url } = await readSettings();
   if (!url) {
     const response = await dialog.showMessageBox(window, { type: 'question', buttons: ['Open local web app', 'Cancel'], defaultId: 0,
-      message: 'Connect your workspace', detail: 'Add your Tailscale HTTPS address in Settings for access across devices. You can also open the local web app on this computer.' });
+      message: 'Connect your workspace', detail: 'Set up your Airdrop connection in Settings for access across devices. You can also open the local web app on this computer.' });
     if (response.response !== 0) return;
     url = `http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`;
   } else if ((await checkConnection(url, net.fetch)).status !== 'reachable') {
     const response = await dialog.showMessageBox(window, { type: 'warning', buttons: ['Open local web app', 'Open saved address', 'Cancel'], defaultId: 0, cancelId: 2,
-      message: 'Workspace address unavailable', detail: 'Check host Tailscale sign-in, tailnet HTTPS and Tailscale Serve. You can keep using the local workspace or try the saved address in your browser.' });
+      message: 'Workspace address unavailable', detail: 'Check the saved server address and its HTTPS configuration. You can keep using the local workspace or try the saved address in your browser.' });
     if (response.response === 2) return;
     if (response.response === 0) url = `http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`;
   }
@@ -111,11 +113,21 @@ function registerIpc() {
   });
   ipcMain.handle('airdrop:devices',async(event,action,payload)=>{
     ownWindow(event);await devicesReady;
-    if(action==='state')return devices.snapshot();
+    if(action==='state')return {...await devices.snapshot(),background:backgroundPolicy.snapshot()};
+    if(action==='preferences'||action==='finish-setup'){
+      if(action==='finish-setup'&&devices.state.status!=='ready')throw Error('Reconnect before finishing setup.');
+      if(action==='finish-setup'&&typeof payload?.background!=='boolean')throw Error('Choose a background sharing option.');
+      const result=await devices.configure(payload);
+      if('background' in payload){
+        const granted=await backgroundPolicy.set(payload.background);
+        if(quitting)return result;
+        await devices.configure({background:granted});
+      }
+      if(action==='finish-setup')await devices.completeSetup();
+      return {...await devices.snapshot(),background:backgroundPolicy.snapshot()};
+    }
     if(action==='mode')return devices.action(payload?.mode,payload?.address);
     if(action==='copy'){if(!devices.state.url)throw Error('No verified sharing link');clipboard.writeText(devices.state.url);return;}
-    if(action==='login'){const url=new URL(devices.state.authURL);if(url.protocol!=='https:'||url.hostname!=='login.tailscale.com')throw Error('No verified Tailscale login URL');return shell.openExternal(url.href);}
-    if(action==='https-settings')return shell.openExternal('https://login.tailscale.com/admin/dns');
     throw Error('Unknown connection action');
   });
   ipcMain.handle('airdrop:quit', event => { ownWindow(event); app.quit(); });
@@ -280,11 +292,11 @@ else {
   if (distribution.source === 'flatpak') process.stdout.write('AIRDROP_START_BACKEND\n');
   app.on('second-instance', () => { window?.show(); window?.focus(); });
   app.on('before-quit', event => {
-    backgroundRequest.abort();
+    backgroundPolicy.stop();
     if (distribution.source === 'snap' && !quitting) {
       event.preventDefault(); quitting = true;
       require('./core/lib/backend-control').request(paths.root,'stop')
-        .then(() => app.quit())
+        .then(() => devices.stop()).then(() => app.quit())
         .catch(error => {
           quitting = false;
           console.error('Could not stop sharing:',error.message);
@@ -318,22 +330,16 @@ else {
       } catch (error) { console.warn('Tray unavailable:', error.message); }
     }
     window.on('closed', () => { window = null; });
-    window.on('close', event => { if (!quitting && (['flatpak','snap'].includes(distribution.source) ? backgroundGranted : tray)) { event.preventDefault(); window.hide(); } });
-    if (distribution.source === 'flatpak') {
-      require('./background').requestBackground({signal:backgroundRequest.signal}).then(granted => {
-        backgroundGranted = granted;
-        if (!granted && window && !quitting) dialog.showMessageBox(window, {type:'info', message:'Background sharing is not enabled', detail:'Sharing stops when you close Airdrop. You can reopen it to resume.'});
-      });
-    }
-    if (distribution.source === 'snap') {
-      backgroundGranted = process.env.AIRDROP_SNAP_BACKGROUND === '1';
-      if (!backgroundGranted) dialog.showMessageBox(window, {type:'info', message:'Background sharing is not enabled', detail:'Sharing stops when you close Airdrop. See the package guide to enable its user service.'});
-    }
+    window.on('close', event => { if (!quitting && backgroundPolicy.active) { event.preventDefault(); window.hide(); } });
+    await devicesReady;
+    backgroundPolicy.set(devices.preferences.background && devices.preferences.backgroundChosen).then(async granted => {
+      if (!quitting && granted !== devices.preferences.background) await devices.configure({background:granted});
+    }).catch(error => console.warn('Background setting unavailable:',error.message));
     await health(); timer = setInterval(health, 5000);
     const journal = await updater.readJournal(paths.root);
     if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
     else if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) checkUpdate();
     if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(checkUpdate, 6 * 60 * 60 * 1000);
   }).catch(error => { console.error(error); app.quit(); });
-  app.on('window-all-closed', () => { if (['flatpak','snap'].includes(distribution.source) ? !backgroundGranted : !tray) app.quit(); });
+  app.on('window-all-closed', () => { if (!backgroundPolicy.active) app.quit(); });
 }

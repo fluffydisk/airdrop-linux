@@ -1115,3 +1115,27 @@ input[readonly]{text-overflow:ellipsis}
 #connectionWizard{max-width:540px;padding:28px}
 #connectionWizard>p{color:var(--muted)}
 #connectionWizard>#wizardContinue{margin-top:14px;width:100%}
+
+.connection-button{font:inherit;color:var(--text);border:1px solid var(--border);cursor:pointer;background:var(--surface);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.connection-button[data-status=connecting]:before{background:var(--accent);animation:connection-pulse 1.4s ease-in-out infinite}
+.connection-preference{display:flex;align-items:center;gap:10px;margin-top:16px;line-height:1.5}
+.connection-controls>input{display:block;width:100%;box-sizing:border-box;font:inherit;color:var(--text);background:var(--bg);padding:12px;border:1px solid var(--border);border-radius:10px;margin:8px 0 16px}
+.connection-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;list-style:none;padding:0;margin:24px 0;font-size:12px;line-height:1.4;color:var(--muted)}
+.connection-steps li{border-top:3px solid var(--border);padding-top:8px}
+.connection-steps li[data-state=complete]{border-color:var(--green);color:var(--text)}
+.connection-steps li[data-state=current]{border-color:var(--accent);color:var(--accent)}
+@keyframes connection-pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.connection-button[data-status=connecting]:before{animation:none}}
+:root[data-motion=reduced] .connection-button[data-status=connecting]:before{animation:none}
+@media(max-width:760px){.topbar-actions{gap:6px}.connection-button{max-width:160px;font-size:11px}.connection-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+#wizardSteps{grid-template-columns:repeat(3,minmax(0,1fr))}
+.wizard-choices{display:flex;flex-direction:column;gap:12px;margin:24px 0}
+.wizard-choices .button{white-space:normal;min-height:48px;line-height:1.5}
+.wizard-success{color:var(--green);font-weight:600}
+#wizardQr{display:block;width:256px;max-width:100%;height:auto;margin:20px auto;border-radius:16px;background:white}
+#advancedConnection{margin:20px 0}
+#advancedConnection input{display:block;width:100%;box-sizing:border-box;font:inherit;color:var(--text);background:var(--bg);padding:12px;border:1px solid var(--border);border-radius:10px;margin:8px 0 16px}
+#connectionWizard h2{font-size:20px;line-height:1.4}
+#connectionWizard>button:last-child{margin-top:20px}
+#wizardError{color:#b53a32}

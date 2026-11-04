@@ -1,112 +1,129 @@
-# App-managed device sharing (Flatpak r2)
+# Connect devices inside Airdrop
 
-## Why r1 had no setup wizard or QR
+The first-run wizard handles connection, background sharing and phone pairing
+without sending the user to a terminal, VPN login or server setup page:
 
-The r1 desktop only supported a manually entered external workspace URL. It did
-not embed a Tailscale node, create a LAN listener, or implement first-launch
-onboarding. Healthy loopback services did not establish cross-device access.
-The legacy URL field remains available; the new **Connect device** page is the
-normal setup path.
+1. Choose **Connect over the internet — free** for different networks, or
+   **Connect over Wi-Fi** for the same trusted local network.
+2. Wait for a real authenticated health check. Only then does Airdrop ask
+   **Keep sharing when you close the window?** Choose either background sharing
+   or sharing only while the app is open. The screen explains that this can be
+   changed anytime in **Settings → Device connection**.
+3. Scan the verified QR code with an iPhone or Android camera. The phone opens
+   the web app in Safari/Chrome and can upload/download files immediately.
+   The desktop confirms pairing only after a successful pairing request.
 
-## Connection choices
+No Tailscale client/account, purchased server, domain or manually entered access
+key is required for either normal setup option. Advanced operator settings are
+collapsed and are not part of the wizard. Setup completion is saved on disk only
+after connection verification and an explicit background choice. Dismissing setup
+does not mark it complete; the wizard returns next time.
 
-- **This computer:** backend/file service stay on loopback. No sharing address.
-- **Trusted LAN:** an explicit private IPv4 interface is selected, a gateway binds
-  that address on an automatically assigned port, and an actual authenticated
-  backend health request must pass before displaying a pairing link and QR.
-  Both devices need the same LAN; client isolation/firewalls may block peers.
-  This mode uses unencrypted HTTP: only use a trusted LAN. No router/UPnP or
-  firewall changes are performed. A changing interface revokes the displayed URL.
-- **Tailscale:** a source-built Go helper embeds `tailscale.com/tsnet` v1.104.2.
-  Electron manages its lifecycle and stores node state in its private user data
-  directory (0700). No host Tailscale package, daemon, CLI, TUN device, root
-  privilege, host filesystem grant, or host-command execution is required.
-  Normal system routing and configured HTTP(S) proxies are retained; no host
-  VPN routes or privileged bypass socket marks are installed. This does not
-  disable Flatpak's namespace or Chromium's sandbox.
+## Free internet sharing
 
-Tailscale login is real interactive browser authentication, without shipping an
-API key. The application waits for the control plane's login URL and offers an
-**Open Tailscale sign-in** button. It follows login/device approval status. The
-user may switch to LAN/local mode while authentication or networking is pending.
-Previously selected Tailscale mode reconnects after restart; LAN exposure always
-requires explicitly starting sharing in that session.
+This optional mode uses Cloudflare Quick Tunnels. First use downloads the pinned
+official cloudflared component inside the app, showing actual download progress.
+Its size and SHA-256 must match [internet-helper.json](../packaging/internet-helper.json)
+before it can execute. Only verified cached bytes are reused. The helper runs as
+the app user with an isolated configuration, disabled self-updates, private
+metrics listener and a loopback target pointing to the authenticated sharing
+gateway. It never exposes the unauthenticated backend directly. No browser login
+or Cloudflare account is requested. Ports are not opened on the user's router.
 
-The helper uses `tsnet.ListenTLS` on the private tailnet, never Funnel. MagicDNS
-and HTTPS certificates must be enabled by an authorized tailnet user in the
-Tailscale DNS settings; the UI offers the official settings page. DNS alone is
-not treated as working HTTPS. Before advertising a URL, the helper performs a
-real HTTPS request through its userspace network to the paired backend, verifies
-the certificate and the expected health payload, and rejects redirects. Failed
-login, TLS, or route checks clear the address and QR. No certificate-verification
-bypass is used.
+Cloudflare provides the public HTTPS address; no user-owned server/domain is
+needed. Cloudflare terminates TLS and can read relay traffic. This is not
+end-to-end encryption between devices. Account-free Quick Tunnels have no uptime
+guarantee and are intended for temporary use; they may be unavailable or blocked
+by a network. Airdrop shows errors rather than advertising an unverified QR code.
+Choose Wi-Fi if the free service cannot connect. A new tunnel/app session creates
+a new sharing link, so scan a fresh code after restarting. Background sharing
+keeps the current helper and pairing session alive while the window is hidden.
 
-**Phone/tablet requirement:** install and sign in to the Tailscale client on that
-other device, join the same tailnet, and allow access under its ACLs. A browser
-alone cannot join a private VPN. On the Linux desktop only, Airdrop embeds its
-own node. For a browser-only phone experience, choose trusted LAN instead.
+The provider's limitations are documented in its [pinned implementation](https://github.com/cloudflare/cloudflared/blob/2026.10.7/cmd/cloudflared/tunnel/quick_tunnel.go).
+The downloaded component is distributed by Cloudflare; its [Apache 2.0 license](https://github.com/cloudflare/cloudflared/blob/2026.10.7/LICENSE)
+applies. No third-party account credentials are bundled.
 
-## Pairing and security
+## Direct Wi-Fi sharing
 
-The link carries a random 256-bit capability in the URL fragment. The pairing
-page removes that fragment from browser history, posts it to its own origin,
-and establishes an HttpOnly, SameSite=Strict session cookie (Secure for TLS).
-Without the capability/cookie, file, clipboard and API requests receive 401.
-Foreign origins/hosts are rejected. Tokens/cookies are stripped before proxying
-requests to the loopback backend. Disconnect closes sockets and revokes links.
-Anyone with the current pairing link can use the shared workspace: treat links
-and QR codes as secrets. Never include them in public screenshots or logs.
-LAN HTTP does not protect them against an observer on that LAN.
+This mode uses no internet relay. The wizard selects a private Wi-Fi/Ethernet
+interface automatically; advanced network selection remains available in
+Settings. Both devices must use the same reachable local network. Guest Wi-Fi
+client isolation, VPN routing and host firewalls can prevent access. LAN mode
+uses HTTP and must only be used on a trusted network. The wizard explains this
+before the user starts sharing. Pairing links grant workspace access; keep them
+private. This mode does not silently replace an unsuccessful internet connection.
 
-The core Node file, ZIP and clipboard implementation is retained. The gateway
-streams requests to it instead of exposing the backend directly. No unrestricted
-D-Bus, filesystem, device or host-execution permissions are added.
+## Background behavior
 
-## Reproduce
+Automatic connection on app open defaults to on. Background sharing defaults to
+off until the user chooses it in the wizard or Settings. With background off,
+closing the window stops the connection and invalidates its session. Opening
+Airdrop reconnects using the saved mode. With background on, closing hides the
+window; reopen Airdrop to return. **Quit** always stops the connection and any
+child helper. This preference does not install a login startup task or keep the
+app running after logout/reboot.
+
+Flatpak requests OS background permission only after opt-in. Denial keeps the
+setting off and is explained inside the wizard, which still allows foreground
+sharing. Snap also requires its background user service. The setting applies to
+the desktop computer. iPhone/Android browsers may pause when backgrounded; the
+phone UI explains that transfers should stay open until finished. Native mobile
+background services are not implemented.
+
+The mobile web app verifies connection status, offers a retry, and gives
+instructions when the computer is unavailable or a pairing session expires.
+Downloads use short-lived, single-use GET tickets so native mobile downloads can
+stream without loading entire files into memory or weakening origin checks.
+The original POST download API remains available for existing clients.
+
+## Optional managed service for distributors
+
+For a stable operator-owned service, the earlier Airdrop HTTPS relay remains an
+alternative. Set `relayUrl` in [connection-service.json](../packaging/connection-service.json)
+or set `AIRDROP_CONNECTION_SERVICE_URL` when running `npm run prepare-desktop`.
+The URL is embedded in the desktop package; end users never need to type it.
+Enable `AIRDROP_RELAY_ENROLLMENT=1` on the relay to enroll devices automatically.
+Enrollment issues a device-scoped token rather than distributing the relay's
+master key, and applies rate/concurrency limits. The credential remains in the
+private desktop state file and is not returned to the renderer.
+
+The optional relay requires DNS for its domain and wildcard subdomains, a trusted
+TLS certificate, and Node 18+. Run `node network/relay/server.js` with:
 
 ```sh
-npm ci --ignore-scripts
-npm ci --prefix desktop --ignore-scripts
-npm run prepare-desktop
-# Include a real dufs on PATH for the existing integration test; umask 022 is
-# required by the existing portable-update executable-permission fixture.
-umask 022
-npm test
-cd network/tsnet
-GOTOOLCHAIN=local CGO_ENABLED=0 go mod verify
-GOTOOLCHAIN=local CGO_ENABLED=0 go mod vendor
-GOTOOLCHAIN=local CGO_ENABLED=0 go test -mod=vendor ./...
-GOTOOLCHAIN=local CGO_ENABLED=0 go build -mod=vendor -trimpath -o ../../airdrop-tsnet .
-cd ../..
-node scripts/test-tsnet-bootstrap.cjs ./airdrop-tsnet
-# Preparation is online; compilation and npm/Cargo installation are offline.
-python3 scripts/prepare-device-flatpak.py --commit "$(git rev-parse HEAD)" --output /path/to/new-r2-recipe
-python3 scripts/validate-flatpak-reference.py --manifest /path/to/new-r2-recipe/io.github.fluffydisk.airdrop-linux.yml --arch x86_64 --builder native --output /path/to/new-r2-validation
+AIRDROP_RELAY_DOMAIN=relay.example.com
+AIRDROP_RELAY_ACCESS_KEY=<random service secret of at least 32 characters>
+AIRDROP_RELAY_ENROLLMENT=1
+AIRDROP_RELAY_CERT=/etc/airdrop-relay/fullchain.pem
+AIRDROP_RELAY_KEY=/etc/airdrop-relay/privkey.pem
+PORT=443
 ```
 
-Use Go 1.27.3, native x86_64 Flatpak tools and signed 26.08 SDK/BaseApp/Node24/Rust
-extensions. The preparer downloads the published immutable application commit,
-verifies newly required npm archive integrities, vendors checksum-verified Go
-modules, creates a normalized vendor archive and records its actual SHA-256.
-Keep that archive alongside the generated manifest. It is an internal GitHub
-reference, not a Flathub submission; the official prebuilt Electron runtime
-remains a separate Flathub source-build limitation.
+Keep these in a private service environment file. A systemd example is in
+[airdrop-relay.service.example](../systemd/airdrop-relay.service.example).
+No managed service is configured/deployed by this repository. It is optional;
+the normal Wi-Fi/free internet wizard does not ask the user to host one.
 
-The publication workflow gates upload on independent staging, clean offline
-compilation, package lint, install/startup, paired transfer/QR tests, and an actual
-unauthenticated Tailscale control-plane login URL. It never logs login links or
-publishes node state. Authenticated tailnet/phone acceptance requires a real user
-account and second device and must be reported separately.
+## Validation
 
-## Official implementation references
+```sh
+npm run prepare-desktop
+npm test
+npm run test:desktop-connection
+npm run test:mobile
+```
 
-- https://tailscale.com/kb/1244/tsnet
-- https://pkg.go.dev/tailscale.com/tsnet#Server.ListenTLS
-- https://pkg.go.dev/tailscale.com/tsnet#Server.Dial
-- https://tailscale.com/kb/1153/enabling-https
-- https://tailscale.com/kb/1081/magicdns
-- https://tailscale.com/kb/1223/funnel
-- https://docs.flatpak.org/en/latest/sandbox-permissions.html
+Tests exercise a real desktop wizard with sandboxed Electron, persistence,
+background denial/opt-in/opt-out, and real authenticated file upload/download in
+Chromium using iPhone and Android viewport/user-agent profiles. These are browser
+emulations, not physical iOS/Android hardware or a native Safari/WebKit run.
+Relay tests use real TLS sockets and a trusted test certificate. Component tests
+verify checksum enforcement, cancellation, progress, provider-origin parsing and
+child-process cleanup with a controlled process; they do not claim a live tunnel.
 
-Publication checks and remaining acceptance limits are recorded in
-[the r2 evidence report](flatpak-device-sharing-r2.md).
+The pinned real cloudflared binary and CLI options were checked. A live Quick
+Tunnel attempt in the managed development environment failed with a direct TCP
+connection refusal to `api.trycloudflare.com:443`; no external phone transfer
+through the free service was established here. Public-service availability and
+real-device acceptance remain separate validation steps. Historical release
+reports describe the old Tailscale implementation and do not validate this flow.

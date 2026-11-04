@@ -92,6 +92,11 @@ test('explorer HTTP routes preserve legacy routes and return direct files or rec
   assert.equal((await fetch(base + '/explorer/file?directory=folder&name=test.txt', { method: 'PUT', body: 'hello' })).status, 201);
   assert.equal((await (await fetch(base + '/explorer?directory=folder')).json()).entries[0].name, 'test.txt');
   const direct = await fetch(base + '/explorer/download?path=folder%2Ftest.txt'); assert.equal(await direct.text(), 'hello');
+  const prepared=await (await post('/download',{paths:['folder/test.txt'],validateOnly:true,createTicket:true})).json();
+  assert.match(prepared.ticket,/^[a-f0-9]{48}$/);
+  const ticketed=await fetch(base+'/explorer/download?ticket='+prepared.ticket);assert.equal(ticketed.status,200);assert.equal(await ticketed.text(),'hello');
+  assert.equal((await fetch(base+'/explorer/download?ticket='+prepared.ticket)).status,410);
+  assert.equal((await post('/download',{paths:['../private'],validateOnly:true,createTicket:true})).status,400);
   const zip = await post('/download', { paths: ['folder'] }); assert.ok((await JSZip.loadAsync(await zip.arrayBuffer())).file('folder/test.txt'));
   assert.equal((await fetch(base + '/files/legacy.txt', { method: 'PUT', body: 'legacy' })).status, 201);
   assert.equal((await fetch(base + '/explorer?directory=..%2Fprivate')).status, 400);

@@ -67,6 +67,14 @@ jobs:
           sudo apt-get install -y ./release/*.deb
           AIRDROP_CODE_DIR=/usr/lib/airdrop-linux node scripts/smoke-managed.js
           ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop xvfb-run -a dbus-run-session -- npm run test:desktop
+          ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop AIRDROP_TEST_OZONE=x11 xvfb-run -a dbus-run-session -- npm run test:desktop-connection
+      - name: Verify mobile browsers and real free internet sharing
+        if: matrix.arch == 'x64'
+        run: |
+          set -euo pipefail
+          export CHROMIUM_PATH=$(command -v google-chrome || command -v chromium)
+          npm run test:mobile
+          AIRDROP_TEST_LIVE_INTERNET=1 node --test tests/internet-live.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}
@@ -124,7 +132,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.5.1
+          test "$version" = 1.6.0
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           gh workflow run package-publishing.yml --ref main -f "tag=v$version" -F publish=true

@@ -1,0 +1,23 @@
+[Unit]
+Description=Airdrop HTTPS relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=airdrop-relay
+Group=airdrop-relay
+WorkingDirectory=/opt/airdrop-linux
+EnvironmentFile=/etc/airdrop-relay/relay.env
+ExecStart=/usr/bin/node /opt/airdrop-linux/network/relay/server.js
+Restart=on-failure
+RestartSec=3
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

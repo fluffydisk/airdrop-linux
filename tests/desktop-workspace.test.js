@@ -35,21 +35,12 @@ async function desktop(t){
  w.navigate=()=>{};w.airdrop={devices:async action=>{if(action==='state')return state;},quit:async()=>{}};
  return {w,set:s=>{state={...state,...s};},get:id=>w.document.getElementById(id),tick:()=>new Promise(r=>setTimeout(r,1550))};
 }
-test('startup stays usable while Tailscale waits; Settings owns the only live address',async t=>{
+test('startup stays usable while the relay connects; Settings owns the only live address',async t=>{
  const {w,set,get,tick}=await desktop(t);w.eval(await fs.readFile('desktop/connection-progress.js','utf8'));w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));
  assert.equal(get('connectionWizard').open,true);assert.equal(get('wizardContinue').disabled,false);assert.equal(get('view-transfer').hidden,false);
- set({mode:'tailscale',status:'checking-https',message:'Checking HTTPS',url:'',qr:''});await tick();assert.equal(get('wizardSpinner').hidden,false);assert.match(get('wizardStatus').textContent,/Checking secure/);assert.equal(get('connectTailnet').disabled,true);assert.equal(get('deviceLink').hidden,true);
- set({mode:'tailscale',status:'ready',url:'https://device.tail.ts.net/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();assert.equal(get('deviceAddress').value,'https://device.tail.ts.net/pair/#secret');
- set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('connectTailnet').disabled,false);get('wizardContinue').click();assert.equal(get('connectionWizard').open,false);assert.equal(w.localStorage.getItem('airdrop-welcome-seen'),'true');
-});
-test('only ready Tailscale persists onboarding; mode changes retain it and private state',async t=>{
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-onboarding-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
- const d=new Devices({directory:dir});await d.initialize();await d.action('local');assert.equal((await d.snapshot()).onboarded,false);
- d.state.mode='tailscale';d.gateway=new ShareGateway({secure:true});d.gateway.setOrigin('https://fixture.tail.ts.net');
- // Controlled helper readiness, not a real authenticated tailnet.
- await d.ready(d.gateway.url(),'Controlled readiness');assert.equal((await d.snapshot()).onboarded,true);
- await d.action('local');assert.equal(JSON.parse(await fs.readFile(path.join(dir,'devices.json'))).onboarded,true);
- await d.stop();
+ set({mode:'private',status:'checking',message:'Checking sharing',url:'',qr:''});await tick();assert.equal(get('wizardSpinner').hidden,false);assert.match(get('wizardStatus').textContent,/Verifying sharing/);assert.equal(get('connectPrivate').disabled,true);assert.equal(get('deviceLink').hidden,true);
+ set({mode:'private',status:'ready',url:'https://device.relay.example.com/pair/#secret',qr:'data:image/png;base64,fixture'});await tick();assert.equal(get('deviceAddress').value,'https://device.relay.example.com/pair/#secret');
+ set({status:'disconnected',url:'',qr:''});await tick();assert.equal(get('deviceLink').hidden,true);assert.equal(get('connectPrivate').disabled,false);get('wizardContinue').click();assert.equal(get('connectionWizard').open,false);assert.equal(w.localStorage.getItem('airdrop-welcome-seen'),'true');
 });
 test('file sorting is stable, persists and native drag exports selected files only',async t=>{
  const dom=new JSDOM('<div id="files"></div>',{runScripts:'outside-only',url:'https://local.test'});t.after(()=>dom.window.close());const w=dom.window;
@@ -73,9 +64,6 @@ test('appearance, density, startup, file order and ZIP preferences persist; rese
  w.document.getElementById('resetPreferences').click();assert.equal(w.document.documentElement.dataset.accent,'blue');assert.equal(w.localStorage.getItem('unrelated-state'),'keep');assert.equal(w.document.getElementById('zip').checked,false);
 });
 
-test('repeated Connect preserves a running helper and its pending authentication',async()=>{
- const d=new Devices({directory:'/unused'});d.state={mode:'tailscale',status:'checking-https'};d.proc={exitCode:null,signalCode:null};d.stop=()=>assert.fail('Must not restart helper');assert.equal((await d.action('tailscale')).status,'checking-https');
-});
 test('Select all, confirmed trash deletion and internal drag target use their privileged adapters',async t=>{
  const dom=new JSDOM('<div id="files"></div>',{runScripts:'outside-only',url:'https://local.test'});t.after(()=>dom.window.close());const w=dom.window;let moved,deleted;
  const files=[{name:'one',path:'one',type:'file'},{name:'Folder',path:'Folder',type:'directory'}];

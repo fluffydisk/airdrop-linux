@@ -1,19 +1,17 @@
 'use strict';
-// Shared by the welcome dialog and Settings. No invented completion percentage.
 (function (global) {
   function describe(state, elapsed = 0) {
     const ready = state.status === 'ready' && !!state.url && !!state.qr;
-    const active = state.mode === 'tailscale' && !['local','error','disconnected'].includes(state.status) && !ready;
-    let title = 'Ready when you are', hint = 'Connect with Tailscale to share securely with your phone or tablet.', spinning = active;
-    if (ready) { title = 'Connected'; hint = state.mode === 'lan' ? 'Use the same trusted Wi-Fi. LAN uses unencrypted HTTP; keep the sharing link private.' : 'Your sharing link and QR code are ready in Settings. Your other device must join the same tailnet.'; }
-    else if (state.authURL) { title = 'Sign in to Tailscale'; hint = 'Click Sign in through browser, finish signing in, then return here. We will detect the connection automatically.'; spinning = false; }
-    else if (state.status === 'NeedsMachineAuth') { title = 'Waiting for device approval'; hint = 'Your tailnet administrator must approve this device. We will keep checking.'; }
-    else if (state.status === 'needs-https') { title = 'Enable secure sharing'; hint = 'Open HTTPS settings and enable MagicDNS and HTTPS certificates for your tailnet. We will check again automatically.'; spinning = false; }
-    else if (['checking-https','https-unavailable'].includes(state.status)) { title = 'Checking secure sharing…'; hint = 'Verifying the HTTPS certificate and connection. This can take a few minutes. Checks continue automatically; you do not need to reconnect.'; }
-    else if (active) { title = 'Connecting to Tailscale…'; hint = 'Preparing your private connection. A sign-in button will appear if needed.'; }
-    else if (['error','disconnected'].includes(state.status)) { title = 'Connection unavailable'; hint = state.message || 'Check your internet connection, then try Connect again.'; }
-    if (active) hint += elapsed >= 45 ? ' Taking longer than usual. You can continue on this computer, check your internet/tailnet settings, or cancel the connection.' : ' You can keep using Airdrop while this completes.';
-    return {ready, active, title, hint, spinning, elapsed:Math.max(0, Math.floor(elapsed))};
+    const active = state.mode !== 'local' && ['starting', 'downloading', 'enrolling', 'connecting', 'reconnecting', 'checking'].includes(state.status);
+    let title = 'Connection stopped', hint = state.message || 'Connect from Settings to share with another device.', step = 0;
+    if (ready) { title = 'Connected'; step = 4; hint = state.mode === 'lan' ? 'Use the same trusted Wi-Fi. LAN uses unencrypted HTTP; keep the sharing link private.' : 'Your sharing link and QR code are ready in Settings. Open the link on your other device from any network.'; }
+    else if (state.status === 'setup-required') { title = 'Ready to connect'; hint = 'Choose free internet sharing or Connect over Wi-Fi. No account or server setup is needed.'; }
+    else if (state.status === 'checking') { title = 'Verifying sharing…'; hint = state.mode === 'lan' ? 'Checking your local connection before creating a sharing code.' : 'Checking your connection before creating a sharing code.'; step = 2; }
+    else if (state.status === 'reconnecting') { title = 'Reconnecting…'; hint = state.message; step = 1; }
+    else if (active) { title = 'Connecting…'; hint = state.message || 'Setting up your Airdrop connection…'; step = 1; }
+    else if (['error', 'disconnected'].includes(state.status)) { title = 'Connection unavailable'; hint = state.message || 'Check your connection, then try again.'; }
+    if (active) hint += elapsed >= 45 ? ' Taking longer than usual. Check your network connection, or continue using local files.' : ' You can continue using local files while this completes.';
+    return { ready, active, title, hint, step, spinning: active, elapsed: Math.max(0, Math.floor(elapsed)) };
   }
-  global.AirdropConnectionProgress = {describe};
+  global.AirdropConnectionProgress = { describe };
 })(window);

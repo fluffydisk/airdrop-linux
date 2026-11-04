@@ -37,10 +37,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.27.3'
-          cache: false
       - name: Check immutable production inputs
         id: source
         env:
@@ -107,7 +103,7 @@ jobs:
           gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Flatpak update CI <test@example.invalid>' ed25519 sign 1d
           export SIGNING_KEY_FINGERPRINT=$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/update-runtime.XXXXXX")
-          export AIRDROP_TEST_DISPOSABLE=1 AIRDROP_TEST_ELECTRON_VERSION=44.9.3 AIRDROP_TEST_TAILSCALE_BOOTSTRAP=1
+          export AIRDROP_TEST_DISPOSABLE=1 AIRDROP_TEST_ELECTRON_VERSION=44.9.3
           status=0
           dbus-run-session -- python3 scripts/test-signed-flatpak.py --candidate "$RUNNER_TEMP/candidate" --r2 "$RUNNER_TEMP/r2.flatpak" --output "$RUNNER_TEMP/signed-tests" --system-cases > "$RUNNER_TEMP/signed-tests.log" 2>&1 || status=$?
           cat "$RUNNER_TEMP/signed-tests.log"

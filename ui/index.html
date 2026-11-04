@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Airdrop</title>
 <link rel="manifest" href="/ui/manifest.json">
 <meta name="theme-color" content="#F2F2F7">
@@ -12,6 +12,11 @@
 <link rel="apple-touch-icon" href="/ui/icon-192.png">
 <style>
   [hidden] { display: none !important; }
+  .mobile-connection-card { padding:18px;line-height:1.55;overflow-wrap:anywhere; }
+  .mobile-connection-card p { font-size:14px;color:var(--secondary-label);margin:10px 0; }
+  .mobile-connection-card summary { font-size:13px;cursor:pointer; }
+  .mobile-connection-card button { min-height:44px; }
+
   button { cursor: pointer; }
   #sendPanel button, #downloadZip { padding: 10px 14px; margin: 8px 4px; border: 0; border-radius: 10px; background: var(--blue); color: white; font: inherit; font-size: 14px; }
   #sendPanel button:disabled, #downloadZip:disabled { opacity: .45; cursor: default; }
@@ -394,6 +399,15 @@
 
   <div class="content" id="scrollArea">
 
+    <section class="section" aria-label="Your connection">
+      <div class="card mobile-connection-card">
+        <strong id="mobileConnectionTitle" role="status" aria-live="polite">Connecting to your computer…</strong>
+        <p id="mobileConnectionHint">Getting your shared workspace ready.</p>
+        <button class="quick-btn" id="mobileConnectionRetry" hidden>Try again</button>
+        <details><summary>Using iPhone or Android</summary><p>Safari on iPhone and Chrome on Android can send and receive files here. No account or VPN app is needed.</p><p>Background sharing is controlled in Airdrop on your computer. Your phone may pause a browser page when you leave it, so keep transfers open until they finish.</p></details>
+      </div>
+    </section>
+
     <div class="section">
       <div class="card">
         <div class="quick-actions" style="padding:12px;">
@@ -485,5 +499,6 @@
 <script src="pending-share.js"></script>
 <script src="explorer.js"></script>
 <script src="app.js"></script>
+<script src="mobile-connection.js"></script>
 </body>
 </html>

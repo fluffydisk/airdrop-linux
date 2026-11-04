@@ -13,16 +13,16 @@
       <li>Browse shared files, organize folders and restore items from the workspace trash</li>
       <li>Share clipboard text and save clipboard images as files</li>
     </ul>
-    <p>Local files and clipboard work without Tailscale. Connect other devices through app-managed Tailscale or explicit trusted-LAN sharing. Tailscale mode requires signing in through your browser, the same tailnet on the other device, and tailnet HTTPS certificates. LAN mode uses unencrypted HTTP and a private pairing link. No host VPN daemon or terminal setup is required.</p>
-    <p>Background sharing requires desktop portal permission. Without permission, sharing stops when the window closes. Choose Stop sharing and quit to stop the bundled server.</p>
+    <p>Connect devices inside the app using trusted Wi-Fi or optional free internet sharing through Cloudflare Quick Tunnels. No VPN account, purchased server or domain is needed. The free service has no uptime guarantee and terminates TLS. Local Wi-Fi sharing uses HTTP and a private pairing link. The setup wizard asks about background sharing after connection, with the choice editable in Settings.</p>
+    <p>Background sharing is optional and requires desktop portal permission. Without permission, sharing stops when the window closes. Choose Stop sharing and quit to stop the bundled server.</p>
   </description>
   <categories><category>Network</category><category>FileTransfer</category></categories>
-  <keywords><keyword>files</keyword><keyword>transfer</keyword><keyword>clipboard</keyword><keyword>Tailscale</keyword></keywords>
+  <keywords><keyword>files</keyword><keyword>transfer</keyword><keyword>clipboard</keyword><keyword>sharing</keyword></keywords>
   <launchable type="desktop-id">io.github.fluffydisk.airdrop-linux.desktop</launchable>
   <url type="homepage">https://github.com/fluffydisk/airdrop-linux</url>
   <url type="bugtracker">https://github.com/fluffydisk/airdrop-linux/issues</url>
-  <url type="help">https://github.com/fluffydisk/airdrop-linux#3-tailscale-and-https</url>
+  <url type="help">https://github.com/fluffydisk/airdrop-linux/blob/main/docs/device-sharing.md</url>
   <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.5.0/assets/airdrop-desktop.png</image></screenshot></screenshots>
   <content_rating type="oars-1.1"/>
-  <releases><release version="1.5.1" date="2026-10-28"/><release version="1.5.0" date="2026-10-21"/></releases>
+  <releases><release version="1.6.0" date="2026-11-04"/><release version="1.5.1" date="2026-10-28"/><release version="1.5.0" date="2026-10-21"/></releases>
 </component>

@@ -1,7 +1,7 @@
 Name: airdrop-linux
 Version: @VERSION@
 Release: 1
-Summary: Private file and clipboard sharing over Tailscale
+Summary: Private file and clipboard sharing through an Airdrop relay
 Packager: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>
 Group: Applications/Internet
 License: MIT
@@ -19,7 +19,7 @@ Requires: libXrandr.so.2()(64bit), libxkbcommon.so.0()(64bit), libstdc++.so.6()(
 
 %description
 Electron desktop, local Node gateway, CLI and dufs file server.
-Tailscale is configured separately on the host.
+Internet sharing uses your own HTTPS Airdrop relay.
 
 %prep
 %build

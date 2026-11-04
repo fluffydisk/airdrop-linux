@@ -17,10 +17,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.27.3'
-          cache: false
       - name: Install validation tools and signed runtimes
         run: |
           set -euo pipefail
@@ -46,12 +42,8 @@ jobs:
             --arch x86_64 --builder native --output "$RUNNER_TEMP/validated" || status=$?
           if (( status )); then tail -n 20 "$RUNNER_TEMP"/validated/*.log; fi
           exit "$status"
-      - name: Test real unauthenticated Tailscale bootstrap
-        run: |
-          set -euo pipefail
-          helper="$RUNNER_TEMP/validated/build/files/lib/airdrop-linux/runtime/airdrop-tsnet"
-          "$helper" --version
-          node scripts/test-tsnet-bootstrap.cjs "$helper" | tee "$RUNNER_TEMP/validated/real-tsnet-bootstrap.log"
+      - name: Test Airdrop relay connection
+        run: node --test tests/relay.test.js tests/device-share.test.js tests/background-policy.test.js
       - name: Export and test the installable bundle
         run: |
           set -euo pipefail

@@ -159,13 +159,9 @@ No user data is exposed through a blanket home plug.
 
 All backends use loopback ports 5000 and 6001. Running another installation on those
 ports is an error, not permission to reuse or terminate it. Stop the other instance
-before switching formats. Configure host Tailscale explicitly if remote devices
-need access:
-
-```sh
-sudo tailscale serve --bg --set-path / http://127.0.0.1:6001
-sudo tailscale serve --bg --set-path /push http://127.0.0.1:6001/push
-```
+before switching formats. The in-app wizard offers direct Wi-Fi and optional
+free internet sharing, then asks about background behavior. No host VPN, user-owned
+server or domain is required. See [device sharing](device-sharing.md) for details.
 
 Updates use the installation's package manager. A managed app never installs a
 GitHub update over managed files. Existing script/AppImage workflows remain available.

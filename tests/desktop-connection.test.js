@@ -3,11 +3,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { workspaceUrl, checkConnection } = require('../desktop/connection');
 
-test('workspace address requires Tailscale HTTPS without credentials or nonstandard ports', () => {
+test('workspace address accepts HTTPS on any domain without credentials or nonstandard ports', () => {
   assert.equal(workspaceUrl('https://device.tail.ts.net/other?secret=x#fragment'), 'https://device.tail.ts.net/ui/');
-  for (const input of ['', 'bad', 'http://device.tail.ts.net', 'https://example.com', 'https://ts.net',
-    'https://user:password@device.tail.ts.net', 'https://device.tail.ts.net:8443', 'https://device.tail.ts.net.example.com']) {
-    assert.throws(() => workspaceUrl(input), /Tailscale HTTPS/);
+  assert.equal(workspaceUrl('https://workspace.example.com'), 'https://workspace.example.com/ui/');
+  for (const input of ['', 'bad', 'http://device.tail.ts.net', 'https://user:password@device.tail.ts.net', 'https://device.tail.ts.net:8443']) {
+    assert.throws(() => workspaceUrl(input), /workspace HTTPS/);
   }
 });
 
@@ -44,11 +44,11 @@ for (const [name, response] of [
     const result = await checkConnection('https://device.tail.ts.net/ui/', response);
     assert.equal(result.status, 'unreachable');
     assert.match(result.message, /Local files and clipboard are still available/);
-    assert.match(result.message, /Tailscale Serve/);
+    assert.match(result.message, /HTTPS certificate/);
   });
 }
 
 test('invalid saved address is rejected before transport', async () => {
-  const result = await checkConnection('https://example.com', () => { assert.fail('Invalid target requested'); });
+  const result = await checkConnection('http://example.com', () => { assert.fail('Invalid target requested'); });
   assert.equal(result.status, 'unreachable');
 });

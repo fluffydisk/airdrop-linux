@@ -31,13 +31,14 @@ const explorer = AirdropExplorer.mount(fileListCard, {
   restore: id => api('/trash/' + encodeURIComponent(id) + '/restore'),
   upload: async (directory, file) => { const result = await uploadFile(file, directory); if (!result.ok) throw new Error(result.error); setStatus(`Pasted: ${result.name}`, 'ok'); return result; },
   download: async paths => {
-    await api('/download', { paths, validateOnly: true });
-    const form = document.createElement('form'); form.method = 'POST'; form.action = '/push/explorer/download';
-    const input = document.createElement('input'); input.type = 'hidden'; input.name = 'paths'; input.value = JSON.stringify(paths);
+    const { ticket } = await api('/download', { paths, validateOnly: true, createTicket: true });
+    if(typeof ticket!=='string'||!/^[a-f0-9]{48}$/.test(ticket))throw Error('Download could not start. Try again.');
     // An iframe keeps mobile browsers on the manager while native downloads stream.
     let frame = document.getElementById('downloadFrame');
     if (!frame) { frame = document.createElement('iframe'); frame.id = 'downloadFrame'; frame.name = 'airdropDownload'; frame.hidden = true; document.body.append(frame); }
-    form.target = frame.name; form.append(input); document.body.append(form); form.submit(); form.remove();
+    // POST navigations can carry Origin:null under a no-referrer policy. A
+    // single-use GET ticket preserves strict origin checks and streams large files.
+    frame.src = '/push/explorer/download?ticket=' + ticket;
   }
 }, { enabled: () => !sending, choose: () => { if (!sending && !selectedFiles.length) fileInput.click(); } });
 function loadRecent() { return explorer.refresh(); }

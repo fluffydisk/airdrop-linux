@@ -1,13 +1,13 @@
 # Airdrop Linux
 
-A self-hosted file and clipboard sharing system that runs over Tailscale. It is designed as a private alternative to AirDrop for sharing files and clipboard content between iPad, iPhone, Android, and Linux/desktop devices. It includes an iOS-inspired PWA interface, real Web Push notifications, bidirectional clipboard synchronization, ZIP transfers, and an optional Linux tray companion.
+A file and clipboard sharing system with direct Wi-Fi and optional free internet sharing. It is designed as a private alternative to AirDrop for sharing files and clipboard content between iPad, iPhone, Android, and Linux/desktop devices. It includes an iOS-inspired PWA interface, real Web Push notifications, bidirectional clipboard synchronization, ZIP transfers, and an optional Linux tray companion.
 
 ![Airdrop Linux overview](assets/airdrop-linux-overview.png)
 
 ## Architecture
 
 - **[dufs](https://github.com/sigoden/dufs)** — lightweight HTTP file server for serving the shared files
-- **Tailscale** — secure private networking between devices, with `tailscale serve` providing HTTPS termination
+- **In-app connection wizard** — direct Wi-Fi or free internet sharing without a VPN account, purchased server or domain
 - **Node.js + Express + web-push** — push notifications, atomic uploads, and streamed ZIP downloads
 - **JSZip** — ZIP creation in the PWA, CLI, and desktop app (bundled locally)
 - **Electron** — optional Linux tray app for the local server
@@ -15,7 +15,7 @@ A self-hosted file and clipboard sharing system that runs over Tailscale. It is 
 
 ## Ready-built downloads
 
-GitHub releases provide a stand-alone `install-prebuilt.sh` and native x64/arm64 bundles, plus one-file desktop AppImages. The download script needs no checkout and installs the complete local setup without compiling Electron or installing npm dependencies. The AppImage contains the desktop companion; its local server and Tailscale setup remain separate.
+GitHub releases provide a stand-alone `install-prebuilt.sh` and native x64/arm64 bundles, plus one-file desktop AppImages. The download script needs no checkout and installs the complete local setup without compiling Electron or installing npm dependencies. The AppImage contains the desktop companion; its local server remains separate; internet sharing can use the free in-app connection option.
 
 See the [distribution guide](docs/distribution.md) for download commands, prerequisites, release preparation and portable updates. [v1.5.0 downloads](https://github.com/fluffydisk/airdrop-linux/releases/tag/v1.5.0) are public.
 
@@ -42,7 +42,7 @@ tests passed. The application ID and private data directory are preserved.
 See [fresh installation, safe r2 migration and standard update commands](docs/signed-flatpak-updates.md)
 and [test evidence and activation status](docs/signed-flatpak-evidence.md).
 The current stable build keeps the welcome screen and shows connection progress
-while Tailscale prepares secure sharing. You can continue using local files;
+while Airdrop prepares your saved connection. You can continue using local files;
 device connection and its live pairing address/QR are in Settings. The workspace
 retains system folder opening, outbound file dragging, Choose/Drop/Ctrl+V
 transfers and file sorting. See [current update behavior and public test evidence](docs/inapp-flatpak-updates.md).
@@ -88,29 +88,15 @@ If the same Flatpak ID is already installed, quit it and use `flatpak install
 To uninstall while retaining data, run `flatpak uninstall --user
 io.github.fluffydisk.airdrop-linux`; do not add `--delete-data` unless intended.
 
-On first launch, choose **Tailscale**, **trusted LAN**, or **this computer**.
-The Linux Flatpak manages its own userspace Tailscale node: no host Tailscale
-installation or terminal setup is needed. Sign in through the browser; your
-phone/tablet still needs the Tailscale client on the same tailnet. Tailnet
-MagicDNS and HTTPS certificates must be enabled in its DNS settings. A pairing
-address and QR appear only after the selected endpoint passes its checks.
+On first launch the in-app wizard connects your devices, then asks whether
+sharing should continue after closing the window, and finally shows the phone
+pairing QR. This preference can be changed anytime in Settings. Scan using an
+iPhone or Android camera to use the mobile web app; no VPN app is required.
 
-For a browser-only phone/tablet on the same trusted Wi-Fi/LAN, choose LAN mode.
-LAN uses unencrypted HTTP and may be blocked by firewalls or guest-network
-isolation. Treat pairing links like passwords. Manual clipboard copy/paste is
-available when browser clipboard access is unavailable on HTTP. Stopping sharing
-revokes the link. See [device setup and security](docs/device-sharing.md).
-
-This revision includes Electron 44.9.3, body-parser 1.20.9 and a source-built
-Tailscale tsnet 1.104.2 helper. Electron remains an official precompiled runtime;
-this is independent GitHub distribution, not a Flathub listing. The Chromium
-sandbox is enabled. See [r2 test evidence and remaining real-device limits](docs/flatpak-device-sharing-r2.md).
-
-For an installation made by the updated installer, quit the desktop and run
-`airdrop uninstall` to remove the app; it asks whether to retain shared files and
-settings (the default). `airdrop uninstall --yes` keeps data without prompting;
-`--delete-data` explicitly removes it. Older installations must rerun the updated
-installer once to record ownership before automatic removal is available.
+Choose direct Wi-Fi or optional free internet sharing through Cloudflare Quick
+Tunnels. No account, purchased server or domain is needed. The free service has
+no uptime guarantee and can read traffic; Wi-Fi remains independent. See
+[device sharing](docs/device-sharing.md) for behavior, trust and test limits.
 
 ## Quick start
 
@@ -122,25 +108,22 @@ cd airdrop-linux
 
 The installer automatically:
 
-- Detects your Linux distribution and installs missing dependencies (Node.js, dufs, clipboard utilities, and Tailscale)
+- Detects your Linux distribution and installs missing dependencies (Node.js, dufs and clipboard utilities)
 - Creates one application root at `~/.local/share/airdrop`, with separate shared files, application code, configuration and state
 - Installs the npm dependencies
 - **Generates a fresh VAPID key pair for your installation** so users never inherit someone else's credentials
 - Installs and starts the systemd services using your current user account when systemd is available
-- Sets the installing user as the Tailscale Linux operator
-- Authenticates the machine with Tailscale when needed (the installer pauses for the normal browser login)
-- Configures Tailscale Serve automatically for the Airdrop file server (`/`) and push server (`/push`)
 - Prints the exact Airdrop HTTPS URL to open on the user's other devices
 - Installs terminal helpers (`airdrop`, `copy-clipboard`, `paste-clipboard`) in `~/.local/bin` and automatically detects Wayland vs. X11 for clipboard access
 
-The only external step that may be required is enabling HTTPS certificates for your tailnet in the Tailscale admin console. Tailscale Serve requires HTTPS certificates; once they are enabled, re-running `./install.sh` completes the Serve configuration automatically.
+Choose Wi-Fi or free internet sharing in the first-run wizard. The installer does not install or configure a VPN.
 
 ### Requirements
 
 - A Linux distribution with systemd for automatic service management
-- A [Tailscale](https://tailscale.com/) account
+- A reachable local Wi-Fi network, or access to the optional free internet sharing service
 - `curl` and `sudo` access
-- Tailscale HTTPS certificates enabled for the tailnet when using automatic Serve setup
+- No purchased server, domain or VPN account is required for normal setup
 
 The included Docker test suite covers Ubuntu, Debian, Fedora, Rocky Linux, openSUSE Tumbleweed, Arch Linux, Alpine Linux, and Void Linux. Docker containers do not provide a normal desktop session or a full systemd environment, so clipboard integration and real service startup are not completely exercised by the container tests.
 
@@ -178,7 +161,7 @@ Without systemd, originals remain in place: stop the old manual services, run th
 
 Set an absolute `AIRDROP_HOME` before running **both** installers to choose a different root, for example `AIRDROP_HOME="$HOME/Airdrop" ./install.sh`. The generated launchers remember it. The default follows `XDG_DATA_HOME`; manual services using a custom root must use matching environment settings. Launchers and systemd unit files remain in their standard OS registration locations.
 
-The Node gateway listens on localhost port 6001: `/ui/` serves application assets, `/push/` exposes the API, and other paths stream to dufs on port 5000. Tailscale serves this gateway at `/`; its explicit `/push` mount targets `http://127.0.0.1:6001/push` to preserve the API prefix. Application code, secrets, profiles and backups are outside the dufs root.
+The Node gateway listens on localhost port 6001: `/ui/` serves application assets, `/push/` exposes the API, and other paths stream to dufs on port 5000. The desktop sharing gateway exposes it through an authenticated outbound connection to your Airdrop relay. Application code, secrets, profiles and backups are outside the dufs root.
 
 ## Manual installation
 
@@ -214,19 +197,11 @@ Put the generated keys into the configuration file:
 # Edit "$AIRDROP_HOME/config/server.env" and set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY
 ```
 
-### 3. Tailscale and HTTPS
+### 3. Connection and background sharing
 
-```bash
-sudo tailscale up
-sudo tailscale set --hostname=<your-fixed-name>
-sudo tailscale serve --bg --set-path / http://127.0.0.1:6001
-sudo tailscale serve --bg --set-path /push http://127.0.0.1:6001/push
-```
-
-> **Important:** Set a stable system hostname as well. Otherwise the Tailscale device name may change after a reboot:
-> ```bash
-> sudo hostnamectl set-hostname <your-name>
-> ```
+Use the in-app connection wizard. After the connection is verified, choose
+whether sharing should continue after closing the window. You can change this
+later in Settings. Saved connections restart automatically when Airdrop opens.
 
 ### 4. systemd services
 
@@ -270,8 +245,8 @@ For Wayland, install `wl-clipboard`. For X11, use the `xclip` or `xsel` commands
 
 ## Device setup
 
-1. Install Tailscale on each device and sign in to the same tailnet.
-2. Open `https://<hostname>.<tailnet-name>.ts.net/ui/`.
+1. Open Airdrop and complete its connection and background-sharing wizard.
+2. Scan the verified pairing QR code in Settings on your other device.
 3. Add the PWA to the home screen on iOS, or install the web app on Android/Chrome.
 4. Enable notifications when prompted.
 
@@ -325,7 +300,7 @@ Set the ZIP preference, then drag files into the window or use **Choose files** 
 
 **Clipboard** lets you paste text from your computer, edit it, and use **Share text** to replace the shared clipboard. Use **Load shared text** followed by **Copy to computer** to receive text from another device. It uses the same `.clipboard.txt` as the terminal helpers and web app, supports text up to 1 MiB, and only reads or changes your computer clipboard when you press a button or explicitly paste.
 
-In **Settings**, enter the server's Tailscale HTTPS address to open the PWA. The initial fallback opens the local PWA; clipboard and mobile use should use HTTPS. Environment overrides `AIRDROP_SHARE_DIR`, `AIRDROP_DESKTOP_USER_DATA`, `AIRDROP_FILE_PORT`, `AIRDROP_API_PORT` and `AIRDROP_DISABLE_TRAY=1` support isolated local testing.
+In **Settings**, enter the server's HTTPS address to open the PWA. The initial fallback opens the local PWA; clipboard and mobile use should use HTTPS. Environment overrides `AIRDROP_SHARE_DIR`, `AIRDROP_DESKTOP_USER_DATA`, `AIRDROP_FILE_PORT`, `AIRDROP_API_PORT` and `AIRDROP_DISABLE_TRAY=1` support isolated local testing.
 
 ### Application updates
 
@@ -339,7 +314,7 @@ User files, credentials, subscriptions, preferences and runtime remain in place.
 
 To prepare a release, keep the root and desktop package versions equal and commit the lockfiles. `npm run prepare-desktop`, `npm run package --prefix desktop`, then `npm run release:build` and `npm run release:appimage` prepare native install/update bundles and an AppImage and per-architecture manifest under ignored `release/`. Build both architectures and run `node scripts/merge-release.js` to produce `airdrop-update.json`. Tag the commit `v<package-version>` and push the tag to trigger the release workflow. It builds on native x64/arm64 runners and creates a **draft** containing both architectures, the standalone installer, AppImages, SHA256SUMS and the combined manifest. Inspect the draft and publish it to make it discoverable by installed apps. Dispatch the workflow against a version tag to rerun it; never publish mismatched versions or incomplete assets.
 
-The update workflow does not change dufs, Tailscale, system libraries or the Node runtime. If a future release requires a newer runtime, the app asks for a manual installer upgrade before replacing anything.
+The update workflow does not change dufs, system libraries or the Node runtime. If a future release requires a newer runtime, the app asks for a manual installer upgrade before replacing anything.
 
 ### iOS / iPadOS Share Sheet
 
@@ -347,7 +322,7 @@ Follow the [Shortcuts guide](docs/ios-shortcuts.md) and [action template](docs/i
 
 ### Local API
 
-Tailscale exposes the Express endpoints under `/push`. Direct local calls use the same `/push` prefix, for example `http://127.0.0.1:6001/push/health`.
+The sharing gateway exposes Express endpoints under `/push`. Direct local calls use the same `/push` prefix, for example `http://127.0.0.1:6001/push/health`.
 
 | Method and external path | Request / response |
 | --- | --- |
@@ -379,15 +354,13 @@ The shared clipboard continues to use dufs `PUT /.clipboard.txt`. Existing dufs 
 ## Troubleshooting
 
 - **Push notifications do not arrive:** Check that `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` are set in `~/.local/share/airdrop/config/server.env`, then monitor the service with `sudo journalctl -u airdrop-push.service -f`.
-- **`/ui/` shows a file listing instead of the app:** Re-run `./install.sh` to update the Tailscale root target to port 6001, and verify `http://127.0.0.1:6001/ui/` locally. The UI now belongs to the Node gateway.
-- **The hostname changes after reboot:** Set a stable system hostname with `sudo hostnamectl set-hostname <name>`, then run `sudo tailscale set --hostname=<name>`.
 - **Clipboard synchronization does not work:** Check `echo $XDG_SESSION_TYPE` and make sure the appropriate clipboard utility (`wl-clipboard`, `xclip`, or `xsel`) is installed.
 
 ## Security
 
 `VAPID_PRIVATE_KEY` controls access to the Web Push notification identity. Never share it or commit it to a public repository. `install.sh` generates a new key pair for every fresh installation, so cloning this repository does not reuse the maintainer's credentials. Credentials live outside the repository in `config/server.env`.
 
-Because the application is exposed through `tailscale serve`, the service is intended to remain private to your tailnet rather than being publicly reachable from the Internet.
+Across-network sharing exposes an authenticated workspace through your HTTPS relay. Keep pairing links private and operate a trusted relay; see [transport and trust](docs/device-sharing.md#transport-and-trust).
 
 ## Roadmap
 

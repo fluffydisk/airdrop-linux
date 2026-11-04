@@ -36,7 +36,7 @@
   </div>
 </aside>
 <div class="workspace">
-  <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
+  <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><button class="connection connection-button" id="sharingStatus" type="button" aria-label="Open connection settings">Preparing connection…</button><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
   <main><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
     <section id="view-transfer" class="view">
       <div class="page-heading"><h1>Transfer</h1></div>
@@ -77,18 +77,28 @@
     </section>
     <section id="view-settings" class="view" hidden>
       <div class="page-heading"><h1>Settings</h1></div>
-    <details id="connectionSettings" class="settings-card"><summary>Device connection</summary>
-      <p class="field-help">Optional. Connect your phone or tablet using the same Tailscale account.</p>
+    <details id="connectionSettings" class="settings-card" open><summary>Device connection</summary>
+      <p class="field-help">Connect your iPhone, Android phone or tablet in a few steps. No VPN account is needed.</p>
+      <button class="button button-primary" id="setupDevices">Connect a device</button>
       <div class="connection-controls">
-        <div class="clipboard-actions"><button class="button" id="connectTailnet">Connect</button><button class="button" id="disconnectDevices">Disconnect</button></div>
-        <details class="lan-options"><summary>Use a trusted local network instead</summary><p>Same Wi-Fi required. LAN uses unencrypted HTTP.</p><label for="lanInterface">Network</label><select id="lanInterface" aria-label="LAN interface"></select><button class="button" id="connectLan">Start LAN sharing</button></details>
+        <details id="advancedConnection"><summary>Advanced connection options</summary>
+        <p class="field-help">For managed installations only. Normal setup does not require an address or access key.</p>
+        <label class="field-label" for="relayUrl">Connection service address</label><input id="relayUrl" type="url" placeholder="https://relay.example.com" autocomplete="off" spellcheck="false">
+        <label class="field-label" for="relayAccessKey">Access key (optional)</label><input id="relayAccessKey" type="password" autocomplete="off" placeholder="Leave empty for automatic setup">
+        <p id="relayKeyHint" class="field-help"></p><button class="button" id="saveRelay">Save connection</button>
+        </details><p id="connectionPreferencesResult" class="field-help" role="status" aria-live="polite"></p>
+        <label class="connection-preference"><input id="autoConnectPreference" type="checkbox" checked> Connect automatically when Airdrop opens</label>
+        <label class="connection-preference"><input id="backgroundPreference" type="checkbox"> Keep the connection running after closing the window</label>
+        <p id="backgroundHint" class="field-help">With background sharing off, closing the window stops the connection. Reopening Airdrop starts it again when automatic connection is enabled.</p>
+        <div class="clipboard-actions"><button class="button" id="connectPrivate">Connect</button><button class="button" id="disconnectDevices">Disconnect</button></div>
+        <details class="lan-options"><summary>Wi-Fi network options</summary><p>Same Wi-Fi required. LAN uses unencrypted HTTP.</p><label for="lanInterface">Network</label><select id="lanInterface" aria-label="LAN interface"></select><button class="button" id="connectLan">Start LAN sharing</button></details>
         <div id="deviceProgress" class="connection-progress" aria-busy="false"><span id="deviceSpinner" class="connection-spinner" aria-hidden="true" hidden></span><div><p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p><p id="deviceHint" class="field-help"></p><span id="deviceElapsed" class="connection-elapsed" aria-live="off" hidden></span></div></div>
-        <button class="button button-primary" id="deviceLogin" hidden>Open Tailscale sign-in</button>
-        <button class="button" id="deviceHttps" hidden>Enable tailnet HTTPS in browser</button>
-        <div id="deviceLink" hidden><label for="deviceAddress">Private sharing link</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan on a device in the same tailnet. Keep this link private.</p></div>
+
+
+        <div id="deviceLink" hidden><label for="deviceAddress">Private sharing link</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan using your iPhone or Android camera. Keep this link private. For Wi-Fi sharing, both devices need the same network.</p></div>
       </div>
     </details>
-<details class="settings-card"><summary>Advanced: external workspace</summary><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>External workspace</h2><p>Use Connect device for app-managed Tailscale or trusted LAN sharing. No host Tailscale installation is needed. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">External address</label><div class="address-field"><input id="url" type="url" placeholder="https://your-device.your-tailnet.ts.net" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></details>
+<details class="settings-card"><summary>Advanced: external workspace</summary><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>External workspace</h2><p>Use Device connection for app-managed sharing through your Airdrop relay or a trusted LAN. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">External address</label><div class="address-field"><input id="url" type="url" placeholder="https://workspace.example.com" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></details>
       <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="system">System</button><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
       <details class="settings-card"><summary>More preferences</summary><div class="preferences-grid">
 <label>Accent color<select id="accentPreference"><option value="blue">Blue</option><option value="purple">Purple</option><option value="green">Green</option><option value="orange">Orange</option></select></label>
@@ -98,25 +108,52 @@
 <label><input type="checkbox" id="motionPreference"> Reduce animation</label><label><input type="checkbox" id="zipPreference"> Bundle new transfers as ZIP by default</label>
 </div><button class="text-button" id="resetPreferences">Reset appearance and transfer preferences</button><p class="field-help">These preferences stay on this computer.</p></details>
       <section class="settings-card"><h2>Updates</h2><button id="stopSharing" type="button">Quit desktop</button>
-          <p id="portableNote" hidden>AppImage desktop companion: the local server and Tailscale must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
+          <p id="portableNote" hidden>AppImage desktop companion: the local server must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
     </section>
   </main>
   <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>
 </div></div>
 
 <dialog id="connectionWizard" aria-labelledby="wizardTitle">
-  <h1 id="wizardTitle">Welcome to Airdrop</h1>
-  <p>Share files with your devices, or start on this computer.</p>
-  <div id="wizardProgress" class="connection-progress" aria-busy="false">
-    <span id="wizardSpinner" class="connection-spinner" aria-hidden="true" hidden></span>
-    <div><h2 id="wizardStatus" role="status" aria-live="polite">Ready when you are</h2><p id="wizardHint">Connect with Tailscale to share securely with your phone or tablet.</p><span id="wizardElapsed" class="connection-elapsed" aria-live="off" hidden></span></div>
-  </div>
-  <div class="clipboard-actions">
-    <button class="button button-primary" id="wizardTailnet">Connect with Tailscale</button>
-    <button class="button button-primary" id="wizardLogin" hidden>Sign in through browser</button>
-    <button class="button button-primary" id="wizardHttps" hidden>Open HTTPS settings</button>
-    <button class="text-button" id="wizardCancel" hidden>Cancel connection</button>
-  </div>
-  <button class="button" id="wizardContinue">Use on this computer</button>
+  <p id="wizardStepLabel" class="field-help">Step 1 of 3</p>
+  <h1 id="wizardTitle" tabindex="-1">Connect your devices</h1>
+  <ol id="wizardSteps" class="connection-steps" aria-label="Setup steps"><li>Connection</li><li>Background sharing</li><li>Add your phone</li></ol>
+  <section id="wizardConnection">
+    <p>No account, VPN, server or domain to set up. Choose free internet sharing for different networks, or Wi-Fi for a direct local connection.</p>
+    <div id="wizardProgress" class="connection-progress" aria-busy="false">
+      <span id="wizardSpinner" class="connection-spinner" aria-hidden="true" hidden></span>
+      <div><h2 id="wizardStatus" role="status" aria-live="polite">Preparing your connection…</h2><p id="wizardHint"></p><span id="wizardElapsed" class="connection-elapsed" aria-live="off" hidden></span></div>
+    </div>
+    <div class="clipboard-actions">
+      <button class="button button-primary" id="wizardInternet">Connect over the internet — free</button>
+      <button class="button" id="wizardLan">Connect over Wi-Fi</button>
+      <button class="button" id="wizardConnect" hidden>Connect across networks</button>
+      <button class="text-button" id="wizardCancel" hidden>Cancel connection</button>
+    </div>
+    <p id="wizardInternetNote" class="field-help">Free internet sharing uses Cloudflare. No account, server or domain is needed. Traffic passes through Cloudflare; this free service has no uptime guarantee.</p>
+    <p id="wizardLanNote" class="field-help">Choose a network you trust. Local sharing is not encrypted; anyone with your private link can access the workspace.</p>
+  </section>
+  <section id="wizardBackground" hidden>
+    <p class="wizard-success">Connection ready</p>
+    <h2>Keep sharing when you close the window?</h2>
+    <p>Your phone can still reach this computer while Airdrop runs in the background.</p>
+    <div class="wizard-choices">
+      <button class="button button-primary" id="wizardBackgroundYes">Keep sharing in the background</button>
+      <button class="button" id="wizardBackgroundNo">Only while the app is open</button>
+    </div>
+    <p class="field-help">You can change this anytime in Settings → Device connection. If you choose “Only while open”, Airdrop reconnects when you open it again.</p>
+    <p id="wizardBackgroundResult" role="status" aria-live="polite"></p>
+  </section>
+  <section id="wizardPairing" hidden>
+    <h2>Connect your iPhone or Android</h2>
+    <p id="wizardPairingHint">Open your phone’s camera and scan this code. Airdrop opens on your phone, ready to send files. No account or VPN app is needed.</p>
+    <img id="wizardQr" width="256" height="256" alt="Scan with your iPhone or Android camera to connect">
+    <p id="wizardNetworkHint" class="field-help"></p>
+    <button class="button" id="wizardCopy">Copy connection link</button>
+    <p id="wizardPairingStatus" role="status" aria-live="polite"></p>
+    <p id="wizardBackgroundSummary" class="field-help"></p>
+  </section>
+  <p id="wizardError" class="field-help" role="alert" hidden></p>
+  <button class="button" id="wizardContinue">Set up later</button>
 </dialog>
 <script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script></body></html>

@@ -24,7 +24,7 @@ async function stage(target, {source='apt', arch=process.arch, desktop=path.join
   if(JSON.parse(await fs.readFile(path.join(desktop,'resources/app/package.json'),'utf8')).version !== pkg.version)throw new Error('Rebuild the matching desktop first');
   await fs.mkdir(target,{recursive:true});
   const server=path.join(target,'server');await fs.mkdir(server);
-  for(const item of ['push-server.js','package.json','package-lock.json','lib','bin']) await fs.cp(path.join(root,item),path.join(server,item),{recursive:true});
+  for(const item of ['push-server.js','package.json','package-lock.json','lib','bin','network']) await fs.cp(path.join(root,item),path.join(server,item),{recursive:true});
   await fs.mkdir(path.join(server,'scripts'));
   for(const name of ['migrate-layout.js','managed-runtime.js','register-install.js']) await fs.copyFile(path.join(root,'scripts',name),path.join(server,'scripts',name));
   await fs.mkdir(path.join(server,'ui'));await fs.copyFile(path.join(root,'ui/zip.js'),path.join(server,'ui/zip.js'));
@@ -151,7 +151,7 @@ async function main() {
     if(source==='apt'){
       await fs.mkdir(path.join(target,'DEBIAN'));
       const installedSize=run('du',['-sk',target],{encoding:'utf8'}).split(/\s/)[0];
-      await fs.writeFile(path.join(target,'DEBIAN/control'),`Package: airdrop-linux\nVersion: ${pkg.version}-1\nArchitecture: ${arch}\nMaintainer: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>\nSection: net\nPriority: optional\nInstalled-Size: ${installedSize}\nDepends: libc6 (>= 2.39), libatomic1, libstdc++6, libgcc-s1, libatspi2.0-0 | libatspi2.0-0t64, libgtk-3-0 | libgtk-3-0t64, libnss3, libnspr4, libasound2 | libasound2t64, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libcups2 | libcups2t64, libdrm2, libgbm1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxrandr2, libxkbcommon0, dbus, systemd\nRecommends: xdg-desktop-portal, xdg-utils, apparmor\nHomepage: https://github.com/fluffydisk/airdrop-linux\nDescription: Private file and clipboard sharing over Tailscale\n Electron desktop, local Node gateway, CLI and file server.\n Tailscale is configured separately on the host.\n`);
+      await fs.writeFile(path.join(target,'DEBIAN/control'),`Package: airdrop-linux\nVersion: ${pkg.version}-1\nArchitecture: ${arch}\nMaintainer: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>\nSection: net\nPriority: optional\nInstalled-Size: ${installedSize}\nDepends: libc6 (>= 2.39), libatomic1, libstdc++6, libgcc-s1, libatspi2.0-0 | libatspi2.0-0t64, libgtk-3-0 | libgtk-3-0t64, libnss3, libnspr4, libasound2 | libasound2t64, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libcups2 | libcups2t64, libdrm2, libgbm1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxrandr2, libxkbcommon0, dbus, systemd\nRecommends: xdg-desktop-portal, xdg-utils, apparmor\nHomepage: https://github.com/fluffydisk/airdrop-linux\nDescription: Private file and clipboard sharing through an Airdrop relay\n Electron desktop, local Node gateway, CLI and file server.\n Internet sharing uses your own HTTPS Airdrop relay.\n`);
       await fs.writeFile(path.join(target,'DEBIAN/conffiles'),'/etc/apparmor.d/airdrop-linux\n');
       for(const hook of ['postinst','prerm','postrm'])await fs.copyFile(path.join(root,'packaging/native',hook),path.join(target,'DEBIAN',hook));
       run('chmod',['0755',path.join(target,'DEBIAN/postinst'),path.join(target,'DEBIAN/prerm'),path.join(target,'DEBIAN/postrm')]);

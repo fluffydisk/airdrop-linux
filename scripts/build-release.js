@@ -16,7 +16,7 @@ async function main() {
   const stage = await fsp.mkdtemp(path.join(os.tmpdir(), 'airdrop-release-'));
   try {
     const app = path.join(stage, 'app'); const server = path.join(app, 'server'); await fsp.mkdir(server, { recursive: true });
-    for (const name of ['push-server.js', 'package.json', 'package-lock.json', 'lib', 'bin', 'scripts']) await fsp.cp(path.join(root, name), path.join(server, name), { recursive: true });
+    for (const name of ['push-server.js', 'package.json', 'package-lock.json', 'lib', 'bin', 'scripts', 'network']) await fsp.cp(path.join(root, name), path.join(server, name), { recursive: true });
     await fsp.mkdir(path.join(server, 'ui')); await fsp.copyFile(path.join(root, 'ui/zip.js'), path.join(server, 'ui/zip.js'));
     execFileSync('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: server, stdio: 'inherit' });
     await fsp.cp(path.join(root, 'ui'), path.join(app, 'ui'), { recursive: true });
@@ -45,7 +45,7 @@ async function main() {
     // The stand-alone shell installer only needs standard tar + curl. Ship a
     // complete native application alongside the existing system-setup scripts.
     const bootstrap = path.join(stage, 'bootstrap/airdrop'); await fsp.mkdir(bootstrap, { recursive: true });
-    for (const entry of ['install.sh', 'install-desktop.sh', 'install-prebuilt.sh', 'package.json', 'package-lock.json', 'push-server.js', 'lib', 'bin', 'scripts', 'ui', '.env.example', 'LICENSE']) await fsp.cp(path.join(root, entry), path.join(bootstrap, entry), { recursive: true });
+    for (const entry of ['install.sh', 'install-desktop.sh', 'install-prebuilt.sh', 'package.json', 'package-lock.json', 'push-server.js', 'lib', 'bin', 'scripts', 'network', 'ui', '.env.example', 'LICENSE']) await fsp.cp(path.join(root, entry), path.join(bootstrap, entry), { recursive: true });
     await fsp.mkdir(path.join(bootstrap, 'desktop')); await fsp.copyFile(path.join(root, 'desktop/package.json'), path.join(bootstrap, 'desktop/package.json'));
     await fsp.mkdir(path.join(bootstrap, 'prebuilt'));
     await fsp.cp(app, path.join(bootstrap, 'prebuilt/app'), { recursive: true, filter: async source => !(await fsp.lstat(source)).isSymbolicLink() });

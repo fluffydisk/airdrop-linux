@@ -5,7 +5,7 @@ umask 022
 python3 -c 'import socket; assert [n for _,n in socket.if_nameindex()] == ["lo"], "Build must be offline"'
 app=/app/lib/airdrop-linux
 mkdir -p "$app/server/scripts" "$app/server/ui" "$app/desktop"
-cp -a push-server.js package.json package-lock.json lib bin "$app/server/"
+cp -a push-server.js package.json package-lock.json lib bin network "$app/server/"
 cp scripts/{managed-runtime,migrate-layout,register-install}.js "$app/server/scripts/"
 cp ui/zip.js "$app/server/ui/"
 cp -a ui "$app/"

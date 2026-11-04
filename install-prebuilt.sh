@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stand-alone installer: download one verified native bundle, never build Electron.
 set -Eeuo pipefail
-usage() { printf 'Usage: bash install-prebuilt.sh [--version X.Y.Z]\nDownloads the stable Linux bundle and installs Airdrop without local compilation.\nRun as your normal user; system setup may request sudo and Tailscale login.\n'; }
+usage() { printf 'Usage: bash install-prebuilt.sh [--version X.Y.Z]\nDownloads the stable Linux bundle and installs Airdrop without local compilation.\nRun as your normal user; system setup may request sudo.\n'; }
 release_version=''
 while [[ $# -gt 0 ]]; do
   case "$1" in

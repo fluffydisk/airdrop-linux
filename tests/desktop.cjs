@@ -167,6 +167,8 @@ test('Electron: real StatusNotifier tray keeps window accessible after close', a
   t.after(async () => { await app.close(); await fs.rm(root, { recursive: true, force: true }); });
   const page = await app.firstWindow();
   await page.waitForFunction(() => document.getElementById('health').textContent !== 'Checking services…');
+  await page.evaluate(() => { document.getElementById('connectionWizard').close(); });
+  await page.evaluate(() => window.airdrop.devices('preferences', {background:true}));
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
   assert.equal(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isVisible()), false);
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].show());

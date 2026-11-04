@@ -30,30 +30,22 @@ test('pairing protects the actual proxy; foreign origins, wrong host and stale t
  assert.equal(wrongHost,421);
  await gateway.close();await assert.rejects(fetch(origin+'/private-file'));
 });
-test('tailnet origin requires real HTTPS .ts.net identity before a gateway can advertise',()=>{
+test('secure sharing requires a valid HTTPS origin before a gateway can advertise',()=>{
  const gateway=new ShareGateway({secure:true});assert.throws(()=>gateway.url());
- for(const origin of ['http://host.ts.net','https://example.com','https://user@host.ts.net'])assert.throws(()=>gateway.setOrigin(origin));
+ for(const origin of ['http://host.example.com','https://example.com/path','https://user@host.example.com'])assert.throws(()=>gateway.setOrigin(origin));
 });
-test('controlled helper states do not advertise a DNS name before HTTPS is verified',async()=>{
- const devices=new Devices({directory:'/unused'});devices.state.mode='tailscale';devices.gateway=new ShareGateway({secure:true});
- await devices.receive({state:'NeedsLogin',authURL:'https://evil.example/login'});assert.equal(devices.state.authURL,'');assert.equal(devices.state.url,'');
- await devices.receive({state:'needs-https',origin:'https://node.tail.ts.net',message:'Certificate approval needed'});assert.equal(devices.state.qr,'');assert.equal(devices.state.url,'');
- await devices.receive({state:'https-unavailable',origin:'https://node.tail.ts.net'});assert.equal(devices.state.url,'');
- await devices.stop();
-});
-test('controller never advertises loopback or an unavailable helper',async t=>{
+test('controller refuses loopback LAN and reports missing relay configuration without a sharing link',async t=>{
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-devices-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
- const devices=new Devices({directory,backend:await backend(t)});await devices.initialize();t.after(()=>devices.stop());
- assert.equal((await devices.snapshot()).configured,false);
+ const devices=new Devices({directory,backend:await backend(t)});await devices.initialize();await devices.queue;t.after(()=>devices.stop());
+ const missing=await devices.action('private');assert.equal(missing.status,'setup-required');assert.equal(missing.url,'');assert.equal(missing.qr,'');
  const bad=await devices.action('lan','127.0.0.1');assert.equal(bad.status,'error');assert.equal(bad.url,'');assert.equal(bad.qr,'');
- const missing=await devices.action('tailscale');assert.equal(missing.status,'error');assert.equal(missing.url,'');
  assert.equal((await devices.action('local')).status,'local');
 });
 test('real LAN interface self-probe produces a decodable QR and revokes sharing on disconnect',async t=>{
  const address=lanAddresses()[0]?.address;if(!address){t.skip('No private LAN interface on this worker');return;}
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-lan-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
  const devices=new Devices({directory,backend:await backend(t)});await devices.initialize();t.after(()=>devices.stop());
- const state=await devices.action('lan',address);assert.equal(state.status,'ready',state.message);
+ await devices.action('lan',address);await devices.checkTask;const state=await devices.snapshot();assert.equal(state.status,'ready',state.message);
  assert.equal(new URL(state.url).hostname,address);assert.notEqual(address,'127.0.0.1');
  const image=PNG.sync.read(Buffer.from(state.qr.split(',')[1],'base64'));
  const decoded=jsQR(new Uint8ClampedArray(image.data),image.width,image.height);assert.equal(decoded.data,state.url);

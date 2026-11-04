@@ -26,7 +26,7 @@ function icon(id, className) {
 }
 function status(value) {
   const node = document.getElementById('health'); node.textContent = value.label; node.dataset.status = value.status;
-  node.title = value.status === 'ready' ? 'Local files and clipboard are available. See Connect device for your active pairing link.' : 'Waiting for local services. See Connect device for Tailscale or trusted LAN sharing.';
+  node.title = value.status === 'ready' ? 'Local files and clipboard are available. See Connect device for your active pairing link.' : 'Waiting for local services. See Connect device for Airdrop relay or trusted LAN sharing.';
 }
 function theme(value) {
   const preference = value;

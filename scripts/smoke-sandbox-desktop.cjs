@@ -212,6 +212,7 @@ const {_electron:electron}=require('playwright-core');
    const background=process.argv[3]==='background';
    assert.equal(await app.evaluate(()=>process.env.AIRDROP_SNAP_BACKGROUND),background?'1':'0');
    if(background) {
+    await page.evaluate(()=>window.airdrop.devices('preferences',{background:true}));
     await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());
     assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false);
     assert.equal((await fetch('http://127.0.0.1:6001/push/health')).status,200);

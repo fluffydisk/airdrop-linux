@@ -3,8 +3,7 @@ version: '@VERSION@'
 summary: Private file and clipboard sharing across your devices
 description: |
   Desktop file manager, local Node gateway and file server for file and
-  clipboard sharing. Tailscale is installed and configured separately on
-  the host. Stop sharing and quit stops the user background service.
+  clipboard sharing through your own HTTPS Airdrop relay. Stop sharing and quit stops the user background service.
 base: core24
 grade: stable
 confinement: strict

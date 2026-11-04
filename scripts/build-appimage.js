@@ -37,7 +37,7 @@ async function main() {
     if (metadata.version !== version) throw new Error('Rebuild the desktop package first');
     await fsp.cp(source, path.join(appdir, 'usr/lib/airdrop'), { recursive: true });
     await fsp.writeFile(path.join(appdir, 'AppRun'), '#!/bin/sh\nset -eu\nappdir="${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}"\nexec "$appdir/usr/lib/airdrop/Airdrop" "$@"\n', { mode: 0o755 });
-    await fsp.writeFile(path.join(appdir, 'airdrop.desktop'), '[Desktop Entry]\nType=Application\nName=Airdrop\nComment=Private files and clipboard over Tailscale\nExec=AppRun\nIcon=airdrop\nTerminal=false\nCategories=Network;\nStartupWMClass=airdrop-desktop\n');
+    await fsp.writeFile(path.join(appdir, 'airdrop.desktop'), '[Desktop Entry]\nType=Application\nName=Airdrop\nComment=Private files and clipboard through an Airdrop relay\nExec=AppRun\nIcon=airdrop\nTerminal=false\nCategories=Network;\nStartupWMClass=airdrop-desktop\n');
     const icon = await fsp.readFile(path.join(root, 'ui/icon-192.png')); await fsp.writeFile(path.join(appdir, 'airdrop.png'), icon); await fsp.writeFile(path.join(appdir, '.DirIcon'), icon);
     // Run the build tool without FUSE; the runtime itself is pinned by checksum.
     const extracted = await exec(tool, ['--appimage-extract'], { cwd: work, maxBuffer: 8 * 1024 * 1024 });
