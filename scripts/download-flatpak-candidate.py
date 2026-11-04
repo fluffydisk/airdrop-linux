@@ -2,17 +2,20 @@
 """Download only a successfully tested candidate produced on this repo's main."""
 import argparse,hashlib,json,re,shutil,subprocess,tarfile,time
 from pathlib import Path
+from candidate_provenance import verified_build
 p=argparse.ArgumentParser();p.add_argument('run_id');p.add_argument('output',type=Path);a=p.parse_args()
 assert re.fullmatch(r'\d+',a.run_id)
 repo='fluffydisk/airdrop-linux'
 def api(path):return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/'+path],text=True))
 for attempt in range(13):
  run=api('actions/runs/'+a.run_id)
- if run['status']=='completed':break
- if attempt==12:raise RuntimeError('Candidate run did not finish')
+ jobs=api('actions/runs/'+a.run_id+'/jobs?per_page=100')['jobs']
+ if verified_build(run,jobs):break
+ if run.get('conclusion') not in (None,'success'):raise RuntimeError('Candidate producer did not succeed')
+ if attempt==12:raise RuntimeError('Candidate build did not complete all required validation steps')
  time.sleep(5)
-assert run['conclusion']=='success' and run['head_branch']=='main' and run['head_repository']['full_name']==repo
-assert run['path']=='.github/workflows/flatpak-update-repository.yml'
+assert verified_build(run,jobs)
+print('Verified producer build, including all validation gates and final runner completion; publication bookkeeping is independent')
 a.output.mkdir();archive_dir=a.output/'download'
 subprocess.run(['gh','run','download',a.run_id,'--repo',repo,'--name','signed-flatpak-candidate','--dir',str(archive_dir)],check=True)
 archive=archive_dir/'candidate.tar'
