@@ -101,7 +101,22 @@ const {_electron:electron}=require('playwright-core');
    await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
    assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).url,'');
    console.log('flatpak: real LAN pairing, decoded QR, authenticated file/ZIP exchange and disconnect passed (same worker; not two physical devices)');
-   if(process.env.AIRDROP_TEST_TAILSCALE_BOOTSTRAP==='1'){
+   // The public acceptance workflow also verifies historical r2 bundles.
+   // Its legacy bootstrap flag selects the corresponding installed UI:
+   // v1.6+ must expose the complete replacement wizard instead of VPN login.
+   const legacyLogin=await page.locator('#connectTailnet').count();
+   if(process.env.AIRDROP_TEST_INAPP_SETUP==='1' || (process.env.AIRDROP_TEST_TAILSCALE_BOOTSTRAP==='1' && !legacyLogin)){
+    assert.equal(await page.locator('#connectTailnet').count(),0);
+    assert.equal(await page.locator('#setupDevices').count(),1);
+    assert.equal(await page.locator('#wizardSteps li').count(),3);
+    assert.equal(await page.locator('#wizardInternet').count(),1);
+    assert.equal(await page.locator('#wizardLan').count(),1);
+    assert.equal(await page.locator('#autoConnectPreference').isChecked(),true);
+    assert.equal(await page.locator('#backgroundPreference').isChecked(),false);
+    assert.equal(await page.locator('#advancedConnection').evaluate(el=>el.open),false);
+    console.log('flatpak: installed app has the three-step in-app connection wizard, Wi-Fi/free internet choices and editable auto-connect/background preferences; Tailscale login control is absent');
+   }
+   if(process.env.AIRDROP_TEST_TAILSCALE_BOOTSTRAP==='1' && legacyLogin){
     await page.locator('#connectTailnet').click();
     // Poll a synchronous DOM condition. A promise is truthy before an async
     // IPC predicate resolves, so it must not be used as the polling predicate.
