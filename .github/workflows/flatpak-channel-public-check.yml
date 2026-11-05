@@ -28,6 +28,7 @@ jobs:
           set -euo pipefail
           export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/public-flatpak-runtime.XXXXXX")
           export AIRDROP_TEST_DISPOSABLE=1
+          python3 scripts/test-public-flatpak-retry.py
           dbus-run-session -- python3 scripts/test-public-flatpak-channel.py | tee "$RUNNER_TEMP/public-channel.log"
       - name: Exercise the app downloaded from the signed public repository
         run: |
