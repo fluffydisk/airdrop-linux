@@ -118,6 +118,21 @@ const {_electron:electron}=require('playwright-core');
     assert.equal(await page.locator('#advancedConnection').evaluate(el=>el.open),false);
     console.log('flatpak: installed app has the three-step in-app connection wizard, Wi-Fi/free internet choices and editable auto-connect/background preferences; Tailscale login control is absent');
     if(process.env.AIRDROP_TEST_LIVE_INTERNET==='1'){
+     app.on('console',message=>{const value=message.text();if(value.startsWith('AIRDROP_PROBE_TEST_DIAGNOSTIC '))console.log(value);});
+     await app.evaluate(()=>{
+      const cp=process.getBuiltinModule('child_process'),fs=process.getBuiltinModule('fs'),original=cp.fork;
+      const log=value=>console.log('AIRDROP_PROBE_TEST_DIAGNOSTIC '+JSON.stringify(value));
+      cp.fork=(file,args,options)=>{
+       if(!file.endsWith('/public-probe-worker.js'))return original(file,args,options);
+       log({phase:'start',workerExists:fs.existsSync(file),runtimeExists:fs.existsSync(options.execPath),standaloneNode:options.execPath.endsWith('/runtime/node'),runAsNode:options.env?.ELECTRON_RUN_AS_NODE==='1'});
+       const child=original(file,args,{...options,stdio:['ignore','ignore','pipe','ipc']});let errors='';
+       child.stderr.on('data',chunk=>{errors=(errors+chunk).slice(-8192);});
+       child.once('message',message=>log({phase:'reply',ok:message?.ok,code:message?.code,httpStatus:message?.httpStatus}));
+       child.once('error',error=>log({phase:'spawn-error',code:/^[A-Z0-9_]+$/.test(error.code||'')?error.code:'UNKNOWN'}));
+       child.once('close',(code,signal)=>log({phase:'close',code,signal,stderrCodes:[...new Set(errors.match(/\b(?:ERR_[A-Z0-9_]+|MODULE_NOT_FOUND|EACCES|ENOENT)\b/g)||[])]}));
+       return child;
+      };
+     });
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));
      let publicState;
      for(let i=0;i<240;i++){
