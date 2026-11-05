@@ -5,7 +5,7 @@ Never approves a deployment or changes environment protection. Unrelated modern
 requests, started signers and newer native releases are never cancelled. One
 explicitly identified, still-unapproved superseded candidate is retired below.
 """
-import base64,hashlib,json,os,re,subprocess,sys,tempfile
+import base64,hashlib,json,os,re,subprocess,sys,tempfile,time
 from pathlib import Path
 from flatpak_channel import PRODUCTION,FINGERPRINT,fetch,verify_public_key,signed_json
 repo='fluffydisk/airdrop-linux'

@@ -120,16 +120,22 @@ const {_electron:electron}=require('playwright-core');
     if(process.env.AIRDROP_TEST_LIVE_INTERNET==='1'){
      async function stateUntil(statuses){let state;for(let i=0;i<180;i++){state=await page.evaluate(()=>window.airdrop.devices('state'));if(statuses.includes(state.status))return state;await new Promise(r=>setTimeout(r,1000));}throw Error('Connection did not reach '+statuses.join('/')+': '+state.status);}
      async function pairPeer(address){
-      const url=new URL(address),origin=url.origin;
-      // An unauthenticated entry-page request waits for public DNS/edge
-      // provisioning without producing the authenticated readiness proof.
+      const url=new URL(address),origin=url.origin;let status;
+      // Both entry and pairing can briefly return Cloudflare 530 while the
+      // registered route propagates. Pairing is idempotent and never sufficient
+      // for readiness: authenticated workspace health remains mandatory.
       for(let attempt=0;attempt<12;attempt++){
-       try{const response=await fetch(origin+'/pair/',{signal:AbortSignal.timeout(10000)});if(response.status===200)break;if(![502,503,504,530].includes(response.status))throw Error('Pairing page HTTP '+response.status);}
-       catch(error){if(attempt===11||!/ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|Pairing page HTTP (?:502|503|504|530)/.test([error.code,error.cause?.code,error.message].join(' ')))throw error;}
+       try{
+        const entry=await fetch(origin+'/pair/',{signal:AbortSignal.timeout(10000)});status=entry.status;
+        if(status===200){
+         const response=await fetch(origin+'/pair/',{method:'POST',headers:{Origin:origin},body:JSON.stringify({token:url.hash.slice(1)}),signal:AbortSignal.timeout(10000)});status=response.status;
+         if(status===204)return {origin,headers:{Cookie:response.headers.get('set-cookie').split(';')[0]}};
+        }
+        if(![502,503,504,530].includes(status))throw Error('Pairing HTTP '+status);
+       }catch(error){if(attempt===11||!/ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT/.test([error.code,error.cause?.code].join(' ')))throw error;}
        await new Promise(r=>setTimeout(r,2000));
       }
-      const response=await fetch(origin+'/pair/',{method:'POST',headers:{Origin:origin},body:JSON.stringify({token:url.hash.slice(1)}),signal:AbortSignal.timeout(10000)});
-      assert.equal(response.status,204);return {origin,headers:{Cookie:response.headers.get('set-cookie').split(';')[0]}};
+      throw Error('Public pairing did not recover; final HTTP '+status);
      }
      async function startInternet(){
       for(let attempt=0;attempt<3;attempt++){
