@@ -35,10 +35,16 @@ async function bounded(operation,label,timeout=15000){
    const execPath=path.resolve(app.getAppPath(),'../../../runtime/node');if(!fs.existsSync(execPath))throw Error('Bundled Node runtime is missing');
    const gateway={origin:options.origin,token:options.token,probe:async()=>{throw new health.HealthError('DNS');}};
    const probe=createPublicProbe({request:(...args)=>net.fetch(...args),resolveProxy:url=>session.defaultSession.resolveProxy(url),probeResolved:args=>probeInProcess(args,{execPath})});
-   try{await probe(gateway);return {passed:true,transport:gateway.probeTransport,dnsFallback:gateway.dnsFallback};}
-   catch(error){return {passed:false,code:error.code,transport:gateway.probeTransport,dnsFallback:gateway.dnsFallback};}
+   try{
+    // Registration can precede DNS publication. Retain the real resolver,
+    // certificate and health checks while allowing that bounded startup delay.
+    for(let attempt=0;attempt<6;attempt++){
+     try{await probe(gateway);return {passed:true,transport:gateway.probeTransport,dnsFallback:gateway.dnsFallback};}
+     catch(error){if(attempt<5&&(error.code==='DNS'&&gateway.dnsFallback==='resolver-unavailable'||error.code==='HTTP'&&[502,503,504].includes(error.httpStatus))){await new Promise(r=>setTimeout(r,6000));continue;}return {passed:false,code:error.code,transport:gateway.probeTransport,dnsFallback:gateway.dnsFallback};}
+    }
+   }
    finally{fs.rmSync(stage,{recursive:true,force:true});}
-  },{sources,origin:address.origin,token:address.hash.slice(1)}),'Certificate-verified DNS recovery using the bundled Node worker',60000);
+  },{sources,origin:address.origin,token:address.hash.slice(1)}),'Certificate-verified DNS recovery using the bundled Node worker',120000);
   assert.equal(result.passed,true,JSON.stringify(result));assert.equal(result.transport,'secure-dns');assert.equal(result.dnsFallback,'used');
   assert.ok(['ready','phone-verification'].includes((await bounded(page.evaluate(()=>window.airdrop.devices('state')),'Main-process responsiveness')).status));
   const headers={Authorization:'Bearer '+address.hash.slice(1)},name='runtime-dns-'+randomUUID()+'.txt';
