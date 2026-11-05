@@ -34,6 +34,13 @@ test('untrusted/private DNS answers cannot select an internal endpoint and faile
  await assert.rejects(probe(g),e=>e.code==='DNS');assert.equal(calls,4);await assert.rejects(probe(g),e=>e.code==='DNS');assert.equal(calls,4);
  for(const ip of ['0.0.0.0','127.0.0.1','10.2.3.4','100.64.0.1','192.168.1.1','172.16.1.1','169.254.169.254','::1','::ffff:127.0.0.1','fe80::1','fd00::1'])assert.equal(publicAddress(ip),false,ip);
 });
+test('a newly registered sharing hostname is resolved again within the connection retry window',async t=>{
+ let now=100000,published=false,calls=0,verified=0;t.mock.method(Date,'now',()=>now);
+ const g=gateway(),probe=createPublicProbe({environment:{},resolveProxy:async()=> 'DIRECT',request:async()=>{calls++;return Response.json(published?{Status:0,Answer:[{type:1,data:'104.16.230.132'}]}:{Status:3});},probeResolved:async()=>{verified++;}});
+ await assert.rejects(probe(g),e=>e.code==='DNS');assert.equal(calls,4);
+ published=true;now+=2000;await assert.rejects(probe(g),e=>e.code==='DNS');assert.equal(calls,4);
+ now+=4000;await probe(g);assert.equal(calls,6);assert.equal(verified,1);assert.equal(g.dnsFallback,'used');
+});
 test('resolved-address HTTPS keeps real SNI/Host checks, rejects untrusted or mismatched certificates and checks actual health',async t=>{
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-dns-tls-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
  await promisify(execFile)('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-days','1','-keyout',path.join(directory,'key'),'-out',path.join(directory,'cert'),'-subj','/CN=resolver-fixture.trycloudflare.com','-addext','subjectAltName=DNS:resolver-fixture.trycloudflare.com']);

@@ -156,19 +156,20 @@ const {_electron:electron}=require('playwright-core');
      // A fresh real tunnel proves app-scoped DNS recovery independently of
      // phone verification. Only the normal desktop hostname lookup fails;
      // secure DNS and the certificate-verified HTTPS connection are real.
-     await app.evaluate(({net})=>{globalThis.dnsCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')throw Object.assign(Error('Controlled ordinary DNS failure'),{code:'ERR_NAME_NOT_RESOLVED'});return globalThis.dnsCheckFetch(input,options);};});
+     await app.evaluate(({net})=>{globalThis.dnsCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health'){globalThis.dnsCheckOrigin=url.origin;throw Object.assign(Error('Controlled ordinary DNS failure'),{code:'ERR_NAME_NOT_RESOLVED'});}return globalThis.dnsCheckFetch(input,options);};});
      try{
       await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));let recovered;
       for(let i=0;i<240;i++){recovered=await page.evaluate(()=>window.airdrop.devices('state'));if(['ready','error'].includes(recovered.status))break;await new Promise(r=>setTimeout(r,1000));}
       if(recovered.status!=='ready'){
-       const network=await app.evaluate(async({session,net},origin)=>{
+       const network=await app.evaluate(async({session,net})=>{
+        const origin=globalThis.dnsCheckOrigin;
         const proxyKeys=['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy'].filter(key=>!!process.env[key]);
         const proxy=await session.defaultSession.resolveProxy(origin).then(value=>value.trim().toUpperCase()==='DIRECT'?'direct':'configured',()=> 'unavailable');
         const resolvers=await Promise.all(['https://cloudflare-dns.com/dns-query','https://dns.google/resolve'].map(async endpoint=>{
          const url=new URL(endpoint);url.searchParams.set('name',new URL(origin).hostname);url.searchParams.set('type','A');
          try{const response=await net.fetch(url.href,{headers:{Accept:'application/dns-json'},credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(5000)});const data=await response.json();return {status:response.status,dnsStatus:data.Status,answers:data.Answer?.length||0};}catch(error){return {error:error.code||error.name};}
         }));return {proxyKeys,proxy,resolvers};
-       },recovered.verificationUrl?new URL(recovered.verificationUrl).origin:'https://diagnostic.trycloudflare.com');
+       });
        console.log('flatpak: DNS recovery failure diagnostics '+JSON.stringify({checks:recovered.diagnostics,network}));
       }
       assert.equal(recovered.status,'ready',recovered.message+' '+JSON.stringify(recovered.diagnostics));assert.equal(recovered.diagnostics.public.transport,'secure-dns');
@@ -177,7 +178,7 @@ const {_electron:electron}=require('playwright-core');
       assert.equal((await fetch(recoveredURL.origin+'/push/files/'+name,{method:'PUT',headers,body:'secure DNS recovery payload'})).status,201);
       assert.equal(await(await fetch(recoveredURL.origin+'/'+name,{headers})).text(),'secure DNS recovery payload');
       console.log('flatpak: real DNS-over-HTTPS recovery, original-host TLS certificate validation and public file upload/download passed after a controlled ordinary DNS failure');
-     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.dnsCheckFetch;delete globalThis.dnsCheckFetch;});await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));}
+     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.dnsCheckFetch;delete globalThis.dnsCheckFetch;delete globalThis.dnsCheckOrigin;});await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));}
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'tailscale'}));
      let loginState;
      for(let i=0;i<80;i++){
