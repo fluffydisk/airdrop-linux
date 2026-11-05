@@ -11,6 +11,9 @@ test('the real Node worker verifies TLS and health while retaining the original 
  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>{server.closeAllConnections();return new Promise(r=>server.close(r));});
  const options={origin:'https://worker-fixture.trycloudflare.com:'+server.address().port,token:'worker-fixture-capability',addresses:[{address:'127.0.0.1',family:4}],ca};
  await probeInProcess(options);assert.equal(observed.sni,'worker-fixture.trycloudflare.com');assert.equal(observed.host,new URL(options.origin).host);assert.equal(observed.authorization,'Bearer '+options.token);
+ // A worker must not exit ahead of its result when the parent is busy with UI
+ // events. Delay only message delivery; TLS and the worker process remain real.
+ await probeInProcess(options,{forkProcess:(...args)=>{const child=fork(...args),emit=child.emit.bind(child);child.emit=(event,...values)=>{if(event==='message'){setTimeout(()=>emit(event,...values),100);return true;}return emit(event,...values);};return child;}});
  await assert.rejects(probeInProcess({...options,ca:undefined}),e=>e.code==='TLS');
  await assert.rejects(probeInProcess({...options,origin:options.origin.replace('worker-fixture.','mismatch.')}),e=>e.code==='TLS');
  healthy=false;await assert.rejects(probeInProcess(options),e=>e.code==='HTTP'&&e.httpStatus===503);

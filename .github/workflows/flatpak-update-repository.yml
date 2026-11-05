@@ -29,6 +29,7 @@ jobs:
     outputs:
       tag: ${{ steps.candidate.outputs.tag }}
       revision: ${{ steps.source.outputs.revision }}
+      source: ${{ steps.source.outputs.source }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -175,4 +176,5 @@ jobs:
           CANDIDATE_RUN: ${{ github.run_id }}
           RELEASE_TAG: ${{ needs.build.outputs.tag }}
           TARGET_REVISION: ${{ needs.build.outputs.revision }}
+          TARGET_SOURCE: ${{ needs.build.outputs.source }}
         run: python3 scripts/request-flatpak-publication.py "$CANDIDATE_RUN" "$RELEASE_TAG"

@@ -11,6 +11,23 @@ from flatpak_channel import PRODUCTION,FINGERPRINT,fetch,verify_public_key,signe
 repo='fluffydisk/airdrop-linux'
 def api(path):return subprocess.run(['gh','api',f'repos/{repo}/'+path],capture_output=True,text=True)
 def version(value):return tuple(map(int,value.removeprefix('v').split('.')))
+def wait_for_native_release(tag,source,require_run=True):
+ assert re.fullmatch(r'[0-9a-f]{40}',source or '')
+ deadline=time.monotonic()+1200
+ while time.monotonic()<deadline:
+  response=api('releases/tags/'+tag)
+  if response.returncode==0:
+   release=json.loads(response.stdout)
+   assert not release['draft'] and not release['prerelease'] and release['tag_name']==tag
+   reference=api('git/ref/tags/'+tag);reference.check_returncode()
+   assert json.loads(reference.stdout)['object']['sha']==source,'Native tag does not match tested Flatpak source'
+   runs=api('actions/workflows/release.yml/runs?head_sha='+source+'&per_page=20');runs.check_returncode()
+   if not require_run or any(run['head_sha']==source and run['conclusion']=='success' for run in json.loads(runs.stdout)['workflow_runs']):
+    print('The exact source has a published, validated native release; requesting the single combined publication.',flush=True);return
+  elif not re.search(r'HTTP (?:404|429|500|502|503|504)\b',response.stderr):
+   response.check_returncode()
+  print('Waiting for the tested native release to complete before combined publication…',flush=True);time.sleep(5)
+ raise RuntimeError('Native release did not finish; no combined publication requested')
 def public_bootstrap_changed(base,key,temp):
  file=temp/'published-installer.py';signature=temp/'published-installer.py.asc'
  fetch(base+'install-flatpak.py',file);fetch(base+'install-flatpak.py.asc',signature)
@@ -52,6 +69,7 @@ def request(run_id,tag):
    # Update auxiliary site files without republishing/downgrading the app.
    tag='v'+live['version'];candidate=[]
    print('Signed app is current but the authenticated bootstrap differs; requesting preservation-only refresh.',flush=True)
+ wait_for_native_release(tag,os.environ.get('TARGET_SOURCE') if candidate else live.get('source_commit'),bool(candidate))
  subprocess.run(['gh','workflow','run','package-publishing.yml','--repo',repo,'--ref','main','-f','tag='+tag,'-F','publish=true',*candidate],check=True)
  print('Requested protected publication; required human review remains enforced.',flush=True)
 

@@ -8,7 +8,7 @@ def api(path):return json.loads(gh('api',path if path.startswith('https://api.gi
 def provenance(run_id,tag):
  assert re.fullmatch(r'\d+',run_id) and re.fullmatch(r'v\d+\.\d+\.\d+',tag)
  run=api('actions/runs/'+run_id);ref=api('git/ref/tags/'+tag)
- assert run['path']=='.github/workflows/release.yml' and run['head_branch']=='main'
+ assert run['path']=='.github/workflows/release.yml' and run['head_branch'] in ['main',tag]
  assert ref['object']['type']=='commit' and ref['object']['sha']==run['head_sha']
  jobs=api('actions/runs/'+run_id+'/jobs?per_page=100')['jobs']
  for name in ['build (ubuntu-24.04, x64)','build (ubuntu-24.04-arm, arm64)']:

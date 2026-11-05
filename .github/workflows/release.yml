@@ -3,7 +3,7 @@ on:
   push:
     tags: ['v*']
     branches: [main]
-    paths: ['package.json', 'packaging/appimage-tools.json', '.github/workflows/release.yml']
+    paths: ['package.json', 'lib/**', 'desktop/**', 'packaging/appimage-tools.json', '.github/workflows/release.yml']
   workflow_dispatch:
     inputs:
       publish:
@@ -98,7 +98,12 @@ jobs:
           merge-multiple: true
       - run: node scripts/merge-release.js
       - run: node scripts/prepare-channels.js
+      - name: Require source-matched Flatpak validation before tagging
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/await-flatpak-validation.py "$GITHUB_SHA"
       - name: Create immutable tag and draft release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -123,6 +128,10 @@ jobs:
           else
             gh release create "v$version" release/*.zip release/*.tar.gz release/*.AppImage release/*.deb release/*.rpm release/install-prebuilt.sh release/SHA256SUMS release/airdrop-update.json --verify-tag --draft --title "Airdrop $version" --generate-notes
           fi
+      - name: Complete original draft payloads without replacing existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/repair-draft-assets.py "$GITHUB_RUN_ID" "v$(node -p 'require("./package.json").version')" release
       - name: Verify draft update payloads before publication
         env:
           GH_TOKEN: ${{ github.token }}
@@ -133,7 +142,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.6.6
+          test "$version" = 1.6.7
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
-          gh workflow run package-publishing.yml --ref main -f "tag=v$version" -F publish=true
+          # The tested Flatpak producer requests the combined protected publish.

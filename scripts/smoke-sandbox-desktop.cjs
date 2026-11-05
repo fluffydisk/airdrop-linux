@@ -129,7 +129,7 @@ const {_electron:electron}=require('playwright-core');
        child.stderr.on('data',chunk=>{errors=(errors+chunk).slice(-8192);});
        child.once('message',message=>log({phase:'reply',ok:message?.ok,code:message?.code,httpStatus:message?.httpStatus}));
        child.once('error',error=>log({phase:'spawn-error',code:/^[A-Z0-9_]+$/.test(error.code||'')?error.code:'UNKNOWN'}));
-       child.once('close',(code,signal)=>log({phase:'close',code,signal,stderrCodes:[...new Set(errors.match(/\b(?:ERR_[A-Z0-9_]+|MODULE_NOT_FOUND|EACCES|ENOENT)\b/g)||[])]}));
+       child.once('close',(code,signal)=>log({phase:'close',code,signal,stderrCodes:[...new Set(errors.match(/\b(?:ERR_[A-Z0-9_]+|MODULE_NOT_FOUND|EACCES|ENOENT)\b/g)||[])],stderrHead:(errors.split('\n').find(line=>line.trim())||'').replace(/https?:\/\/\S+/g,'[address]').replace(/[A-Za-z0-9_-]{40,}/g,'[redacted]').slice(0,400)}));
        return child;
       };
      });
