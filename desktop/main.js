@@ -50,7 +50,10 @@ fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
 const internetAsset=process.platform==='linux'&&require('./core/internet-helper.json').assets[process.arch];
 const tailscaleHelper=[path.resolve(__dirname,'../../../runtime/airdrop-tsnet'),path.join(__dirname,'core/bin/airdrop-tsnet')].find(file=>fs.existsSync(file));
-const publicProbe=require('./core/lib/public-connection-probe').createPublicProbe({request:(...args)=>net.fetch(...args),resolveProxy:url=>session.defaultSession.resolveProxy(url)});
+const probeNode=path.resolve(__dirname,'../../../runtime/node');
+const publicProbe=require('./core/lib/public-connection-probe').createPublicProbe({request:(...args)=>net.fetch(...args),resolveProxy:url=>session.defaultSession.resolveProxy(url),
+  probeResolved:options=>require('./core/lib/public-probe-process').probeInProcess(options,{execPath:fs.existsSync(probeNode)?probeNode:process.execPath,
+    env:fs.existsSync(probeNode)?process.env:{...process.env,ELECTRON_RUN_AS_NODE:'1'}})});
 const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),service:require('./core/connection-service.json'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`,
   probe:gateway=>gateway.secure?publicProbe(gateway):gateway.probe(),
   createTailscaleClient:tailscaleHelper?options=>new (require('./core/lib/tailscale-connection').TailscaleConnection)({...options,helper:tailscaleHelper,directory:path.join(desktopData,'connections')}):undefined,

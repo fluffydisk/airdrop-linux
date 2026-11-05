@@ -55,7 +55,9 @@ After an ordinary DNS failure on the public Quick Tunnel hostname, desktop
 verification can use Cloudflare DNS or Google DNS over HTTPS. Only that public
 hostname is queried; the pairing token is never sent to a resolver. The actual
 HTTPS request retains the original Host/SNI and certificate verification, and
-only public addresses are accepted. A configured system/environment proxy route
+only public addresses are accepted. Native TLS checks run in the bundled Node
+runtime with a parent-enforced deadline, keeping certificate-store work out of
+the desktop event loop. A configured system/environment proxy route
 prevents selecting a direct fallback socket. HTTP denials, certificate errors
 and private relay names never trigger this DNS fallback.
 
