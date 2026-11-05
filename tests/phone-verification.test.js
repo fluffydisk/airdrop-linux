@@ -2,12 +2,12 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const http=require('node:http'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {Devices}=require('../lib/devices');
-async function fixture(t){
- let healthy=true;
+async function fixture(t,options={}){
+ let healthy=options.healthy!==false;
  const backend=http.createServer((req,res)=>{res.writeHead(healthy?200:503,{'Content-Type':'application/json'});res.end(JSON.stringify({push:healthy,share:healthy}));});
  await new Promise(resolve=>backend.listen(0,'127.0.0.1',resolve));
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-phone-verification-'));
- const d=new Devices({directory,backend:'http://127.0.0.1:'+backend.address().port,verificationAttempts:1,verificationDelay:0,
+ const d=new Devices({directory,backend:'http://127.0.0.1:'+backend.address().port,verificationAttempts:options.verificationAttempts??1,verificationDelay:0,
   probe:async()=>{throw Object.assign(Error('DNS error with a private URL that must never enter diagnostics'),{code:'ENOTFOUND'});},createInternetClient:()=>({start(){},stop(){}})});
  t.after(async()=>{await d.stop();backend.closeAllConnections();await new Promise(r=>backend.close(r));await fs.rm(directory,{recursive:true,force:true});});
  await d.initialize();await d.action('internet');await d.receive({status:'checking',origin:'https://phone-check.trycloudflare.com'},d.generation);
@@ -17,6 +17,17 @@ async function fixture(t){
  return {d,request,setHealthy:value=>{healthy=value;}};
 }
 async function ready(d){for(let i=0;i<100&&d.state.status!=='ready';i++)await new Promise(r=>setTimeout(r,5));assert.equal(d.state.status,'ready');}
+test('desktop DNS failure automatically exposes a pending QR and completes only after authenticated peer health',async t=>{
+ const {d,request}=await fixture(t,{verificationAttempts:5});const pending=await d.snapshot();
+ assert.equal(pending.status,'phone-verification');assert.equal(pending.url,'');assert.equal(pending.qr,'');assert.ok(pending.verificationQr);assert.equal(d.verifiedBy,null);
+ const url=new URL(pending.verificationUrl),pairing=await request('/pair/',{method:'POST',body:JSON.stringify({token:url.hash.slice(1)}),headers:{Origin:url.origin}});
+ assert.equal(pairing.status,204);assert.equal(d.state.status,'phone-verification');
+ assert.equal((await request('/push/health',{headers:{Cookie:pairing.headers['set-cookie'][0].split(';')[0]}})).status,200);
+ await ready(d);assert.equal(d.verifiedBy,'phone');assert.equal(d.diagnostics.public.code,'DNS');
+});
+test('automatic QR fallback cannot bypass an unavailable local workspace',async t=>{
+ const {d}=await fixture(t,{verificationAttempts:5,healthy:false});assert.equal(d.state.status,'error');assert.equal(d.state.verificationUrl,undefined);assert.equal(d.diagnostics.local.httpStatus,503);
+});
 test('phone verification needs paired authenticated backend health; pairing alone, foreign origins and unavailable services cannot mark ready',async t=>{
  const {d,request,setHealthy}=await fixture(t);
  assert.equal(d.state.status,'error');assert.equal((await d.snapshot()).canVerifyWithPhone,true);assert.equal(d.diagnostics.local.status,'passed');assert.equal(d.diagnostics.public.code,'DNS');

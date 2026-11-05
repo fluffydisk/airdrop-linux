@@ -118,84 +118,56 @@ const {_electron:electron}=require('playwright-core');
     assert.equal(await page.locator('#advancedConnection').evaluate(el=>el.open),false);
     console.log('flatpak: installed app has the three-step in-app connection wizard, Wi-Fi/free internet choices and editable auto-connect/background preferences; Tailscale login control is absent');
     if(process.env.AIRDROP_TEST_LIVE_INTERNET==='1'){
-     app.on('console',message=>{const value=message.text();if(value.startsWith('AIRDROP_PROBE_TEST_DIAGNOSTIC '))console.log(value);});
-     await app.evaluate(()=>{
-      const cp=process.getBuiltinModule('child_process'),fs=process.getBuiltinModule('fs'),original=cp.fork;
-      const log=value=>console.log('AIRDROP_PROBE_TEST_DIAGNOSTIC '+JSON.stringify(value));
-      cp.fork=(file,args,options)=>{
-       if(!file.endsWith('/public-probe-worker.js'))return original(file,args,options);
-       log({phase:'start',workerExists:fs.existsSync(file),runtimeExists:fs.existsSync(options.execPath),standaloneNode:options.execPath.endsWith('/runtime/node'),runAsNode:options.env?.ELECTRON_RUN_AS_NODE==='1'});
-       const child=original(file,args,{...options,stdio:['ignore','ignore','pipe','ipc']});let errors='';
-       child.stderr.on('data',chunk=>{errors=(errors+chunk).slice(-8192);});
-       child.once('message',message=>log({phase:'reply',ok:message?.ok,code:message?.code,httpStatus:message?.httpStatus}));
-       child.once('error',error=>log({phase:'spawn-error',code:/^[A-Z0-9_]+$/.test(error.code||'')?error.code:'UNKNOWN'}));
-       child.once('close',(code,signal)=>log({phase:'close',code,signal,stderrCodes:[...new Set(errors.match(/\b(?:ERR_[A-Z0-9_]+|MODULE_NOT_FOUND|EACCES|ENOENT)\b/g)||[])],stderrHead:(errors.split('\n').find(line=>line.trim())||'').replace(/https?:\/\/\S+/g,'[address]').replace(/[A-Za-z0-9_-]{40,}/g,'[redacted]').slice(0,400)}));
-       return child;
-      };
-     });
-     await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));
-     let publicState;
-     for(let i=0;i<240;i++){
-      publicState=await page.evaluate(()=>window.airdrop.devices('state'));
-      if(['ready','error'].includes(publicState.status))break;
-      await new Promise(resolve=>setTimeout(resolve,1000));
+     async function stateUntil(statuses){let state;for(let i=0;i<180;i++){state=await page.evaluate(()=>window.airdrop.devices('state'));if(statuses.includes(state.status))return state;await new Promise(r=>setTimeout(r,1000));}throw Error('Connection did not reach '+statuses.join('/')+': '+state.status);}
+     async function pairPeer(address){
+      const url=new URL(address),origin=url.origin;
+      // An unauthenticated entry-page request waits for public DNS/edge
+      // provisioning without producing the authenticated readiness proof.
+      for(let attempt=0;attempt<12;attempt++){
+       try{const response=await fetch(origin+'/pair/',{signal:AbortSignal.timeout(10000)});if(response.status===200)break;if(![502,503,504,530].includes(response.status))throw Error('Pairing page HTTP '+response.status);}
+       catch(error){if(attempt===11||!/ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT|Pairing page HTTP (?:502|503|504|530)/.test([error.code,error.cause?.code,error.message].join(' ')))throw error;}
+       await new Promise(r=>setTimeout(r,2000));
+      }
+      const response=await fetch(origin+'/pair/',{method:'POST',headers:{Origin:origin},body:JSON.stringify({token:url.hash.slice(1)}),signal:AbortSignal.timeout(10000)});
+      assert.equal(response.status,204);return {origin,headers:{Cookie:response.headers.get('set-cookie').split(';')[0]}};
      }
-     assert.equal(publicState.status,'ready',publicState.message);
-     const publicURL=new URL(publicState.url),publicOrigin=publicURL.origin;
-     assert.ok(publicURL.hostname.endsWith('.trycloudflare.com'));
+     async function startInternet(){
+      for(let attempt=0;attempt<3;attempt++){
+       await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));
+       const state=await stateUntil(['ready','phone-verification','error']);
+       if(state.status==='error'&&attempt<2&&/connection component could not be downloaded \(HTTP (?:429|500|502|503|504)\)/.test(state.message)){await new Promise(r=>setTimeout(r,2000));continue;}
+       return state;
+      }
+     }
+     let publicState=await startInternet();
+     assert.notEqual(publicState.status,'error',publicState.message);
+     const firstAddress=publicState.status==='ready'?publicState.url:publicState.verificationUrl;
+     const peer=await pairPeer(firstAddress),publicOrigin=peer.origin,publicHeaders=peer.headers;
+     assert.ok(new URL(publicOrigin).hostname.endsWith('.trycloudflare.com'));
      assert.equal((await fetch(publicOrigin+'/push/health')).status,401);
-     const pairing=await fetch(publicOrigin+'/pair/',{method:'POST',headers:{Origin:publicOrigin},body:JSON.stringify({token:publicURL.hash.slice(1)})});
-     assert.equal(pairing.status,204);const publicHeaders={Cookie:pairing.headers.get('set-cookie').split(';')[0]};
      assert.equal((await fetch(publicOrigin+'/push/health',{headers:publicHeaders})).status,200);
+     publicState=await stateUntil(['ready','error']);assert.equal(publicState.status,'ready',publicState.message);
      const publicFile='flatpak-public-'+Date.now()+'.txt';
      assert.equal((await fetch(publicOrigin+'/push/files/'+publicFile,{method:'PUT',headers:publicHeaders,body:'real Flatpak public sharing'})).status,201);
      assert.equal(await(await fetch(publicOrigin+'/'+publicFile,{headers:publicHeaders})).text(),'real Flatpak public sharing');
-     // Model a desktop-only HTTPS refusal while the real public
-     // tunnel and the paired remote client remain reachable. No response from
-     // the public service or the actual backend is mocked.
-     // A DNS-only mock can legitimately recover from the secure-DNS cache.
-     // Refusal must remain a real failure so this tests the phone fallback.
-     await app.evaluate(({net})=>{globalThis.publicCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')throw Object.assign(Error('Controlled desktop HTTPS refusal'),{code:'ERR_CONNECTION_REFUSED'});return globalThis.publicCheckFetch(input,options);};});
-     try{
-      await page.locator('#deviceVerifyWithPhone').waitFor({state:'visible',timeout:25000});await page.locator('#deviceVerifyWithPhone').click();
-      await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
-      const waiting=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(waiting.status,'phone-verification');assert.equal(waiting.url,'');assert.equal(waiting.qr,'');
-      assert.equal((await fetch(publicOrigin+'/push/health',{headers:publicHeaders})).status,200);
-      await page.locator('#wizardBackground').waitFor({state:'visible'});assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).verifiedBy,'phone');
-      const phoneFile='phone-'+publicFile;
-      assert.equal((await fetch(publicOrigin+'/push/files/'+phoneFile,{method:'PUT',headers:publicHeaders,body:'phone-verified public sharing'})).status,201);
-      assert.equal(await(await fetch(publicOrigin+'/'+phoneFile,{headers:publicHeaders})).text(),'phone-verified public sharing');
-      await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});await page.locator('#wizardContinue').click();
-      console.log('flatpak: real Cloudflare paired-client health and upload/download confirmed phone verification despite a controlled desktop-only HTTPS refusal; no physical phone claim');
-     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.publicCheckFetch;delete globalThis.publicCheckFetch;});}
+     await page.locator('#wizardBackground').waitFor({state:'visible'});await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});await page.locator('#wizardContinue').click();
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
-     console.log('flatpak: actual in-sandbox internet component download, registered Cloudflare tunnel, Electron HTTPS verification, authenticated public pairing and file upload/download passed');
-     // A fresh real tunnel proves app-scoped DNS recovery independently of
-     // phone verification. Only the normal desktop hostname lookup fails;
-     // secure DNS and the certificate-verified HTTPS connection are real.
-     await app.evaluate(({net})=>{globalThis.dnsCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health'){globalThis.dnsCheckOrigin=url.origin;throw Object.assign(Error('Controlled ordinary DNS failure'),{code:'ERR_NAME_NOT_RESOLVED'});}return globalThis.dnsCheckFetch(input,options);};});
+     console.log('flatpak: actual verified component download, registered Cloudflare tunnel, public pairing and exact file upload/download passed');
+     // A fresh real tunnel must automatically expose a pending QR when only
+     // desktop DNS fails. Readiness still requires actual authenticated peer
+     // health, with no changes to certificates or public-service responses.
+     await app.evaluate(({net})=>{globalThis.dnsCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')throw Object.assign(Error('Controlled desktop DNS failure'),{code:'ERR_NAME_NOT_RESOLVED'});return globalThis.dnsCheckFetch(input,options);};});
      try{
-      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));let recovered;
-      for(let i=0;i<240;i++){recovered=await page.evaluate(()=>window.airdrop.devices('state'));if(['ready','error'].includes(recovered.status))break;await new Promise(r=>setTimeout(r,1000));}
-      if(recovered.status!=='ready'){
-       const network=await app.evaluate(async({session,net})=>{
-        const origin=globalThis.dnsCheckOrigin;
-        const proxyKeys=['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy'].filter(key=>!!process.env[key]);
-        const proxy=await session.defaultSession.resolveProxy(origin).then(value=>value.trim().toUpperCase()==='DIRECT'?'direct':'configured',()=> 'unavailable');
-        const resolvers=await Promise.all(['https://cloudflare-dns.com/dns-query','https://dns.google/resolve'].map(async endpoint=>{
-         const url=new URL(endpoint);url.searchParams.set('name',new URL(origin).hostname);url.searchParams.set('type','A');
-         try{const response=await net.fetch(url.href,{headers:{Accept:'application/dns-json'},credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(5000)});const data=await response.json();return {status:response.status,dnsStatus:data.Status,answers:data.Answer?.length||0};}catch(error){return {error:error.code||error.name};}
-        }));return {proxyKeys,proxy,resolvers};
-       });
-       console.log('flatpak: DNS recovery failure diagnostics '+JSON.stringify({checks:recovered.diagnostics,network}));
-      }
-      assert.equal(recovered.status,'ready',recovered.message+' '+JSON.stringify(recovered.diagnostics));assert.equal(recovered.diagnostics.public.transport,'secure-dns');
-      const recoveredURL=new URL(recovered.url),headers={Authorization:'Bearer '+recoveredURL.hash.slice(1)},name='dns-recovery-'+Date.now()+'.txt';
-      assert.equal((await fetch(recoveredURL.origin+'/push/health',{headers})).status,200);
-      assert.equal((await fetch(recoveredURL.origin+'/push/files/'+name,{method:'PUT',headers,body:'secure DNS recovery payload'})).status,201);
-      assert.equal(await(await fetch(recoveredURL.origin+'/'+name,{headers})).text(),'secure DNS recovery payload');
-      console.log('flatpak: real DNS-over-HTTPS recovery, original-host TLS certificate validation and public file upload/download passed after a controlled ordinary DNS failure');
-     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.dnsCheckFetch;delete globalThis.dnsCheckFetch;delete globalThis.dnsCheckOrigin;});await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));}
+      const pending=await startInternet();assert.equal(pending.status,'phone-verification',pending.message);assert.equal(pending.url,'');assert.equal(pending.qr,'');assert.ok(pending.verificationQr);assert.equal(pending.diagnostics.public.code,'DNS');
+      const phone=await pairPeer(pending.verificationUrl);
+      assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).status,'phone-verification','Pairing alone must not mark the connection ready');
+      assert.equal((await fetch(phone.origin+'/push/health',{headers:phone.headers})).status,200);
+      const confirmed=await stateUntil(['ready','error']);assert.equal(confirmed.status,'ready',confirmed.message);assert.equal(confirmed.verifiedBy,'phone');
+      const phoneFile='phone-'+publicFile;
+      assert.equal((await fetch(phone.origin+'/push/files/'+phoneFile,{method:'PUT',headers:phone.headers,body:'automatic phone verification'})).status,201);
+      assert.equal(await(await fetch(phone.origin+'/'+phoneFile,{headers:phone.headers})).text(),'automatic phone verification');
+      console.log('flatpak: desktop DNS failure automatically exposed the pending QR; real authenticated peer health and exact file upload/download completed verification; no physical phone claim');
+     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.dnsCheckFetch;delete globalThis.dnsCheckFetch;});await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));}
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'tailscale'}));
      let loginState;
      for(let i=0;i<80;i++){

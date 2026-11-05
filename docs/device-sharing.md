@@ -51,18 +51,14 @@ transport for desktop HTTPS checks. The wizard distinguishes download, tunnel
 connectivity and endpoint-verification failures. Other providers remain
 selectable while a connection is pending or has failed.
 
-After an ordinary DNS failure on the public Quick Tunnel hostname, desktop
-verification can use Cloudflare DNS or Google DNS over HTTPS. Only that public
-hostname is queried; the pairing token is never sent to a resolver. The actual
-HTTPS request retains the original Host/SNI and certificate verification, and
-only public addresses are accepted. Native TLS checks run in the bundled Node
-runtime with a parent-enforced deadline, keeping certificate-store work out of
-the desktop event loop. A configured system/environment proxy route
-prevents selecting a direct fallback socket. HTTP denials, certificate errors
-and private relay names never trigger this DNS fallback.
+If desktop DNS cannot resolve the public address after a few checks, the app
+automatically shows a pending phone-verification QR. The tunnel must already be
+registered and the local workspace must pass its own health check. The phone can
+use its own Wi-Fi or mobile-data connection to reach the same HTTPS endpoint.
 
 If the local workspace and tunnel are healthy but the desktop cannot reach its
-own HTTPS hostname, **Verify with your phone** shows a pending verification code.
+own HTTPS hostname, DNS failures show a pending QR automatically. **Verify with your phone** also
+provides this option for other desktop-only connection failures.
 Use mobile data if the local Wi-Fi also cannot open that address. A successful
 pairing alone does not mark sharing ready: the paired browser must retrieve a
 valid workspace health response through the public tunnel. Only then does the
