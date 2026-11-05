@@ -4,6 +4,9 @@ ValidGroups = ['Applications/Internet']
 Filters = [
   # Checksum-pinned upstream musl dufs is intentionally static for portability.
   'statically-linked-binary /usr/lib/airdrop-linux/runtime/dufs$',
+  # Optional userspace tsnet is Go code built from verified pinned modules with
+  # CGO_ENABLED=0, so it has no host C-library or privileged VPN dependency.
+  'statically-linked-binary /usr/lib/airdrop-linux/desktop/resources/app/core/bin/airdrop-tsnet$',
   # This upstream Electron helper is shipped mode 0755, never setuid. Chromium
   # uses its user-namespace sandbox; there is no privileged uid transition here.
   'missing-call-to-setgroups-before-setuid /usr/lib/airdrop-linux/desktop/chrome-sandbox$',

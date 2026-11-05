@@ -15,3 +15,6 @@ airdrop-linux: embedded-library zlib [usr/lib/airdrop-linux/runtime/node]
 # ARM64 is classified as static by Ubuntu's lintian; the same binary is used
 # across the supported distributions rather than linking against their libc.
 airdrop-linux: statically-linked-binary [usr/lib/airdrop-linux/runtime/dufs]
+# Optional userspace tsnet is compiled from pinned Go modules with CGO_ENABLED=0
+# for a portable, unprivileged node without a host VPN/C-library dependency.
+airdrop-linux: statically-linked-binary [usr/lib/airdrop-linux/desktop/resources/app/core/bin/airdrop-tsnet]
