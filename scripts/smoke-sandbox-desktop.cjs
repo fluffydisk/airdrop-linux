@@ -160,7 +160,18 @@ const {_electron:electron}=require('playwright-core');
      try{
       await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));let recovered;
       for(let i=0;i<240;i++){recovered=await page.evaluate(()=>window.airdrop.devices('state'));if(['ready','error'].includes(recovered.status))break;await new Promise(r=>setTimeout(r,1000));}
-      assert.equal(recovered.status,'ready',recovered.message);assert.equal(recovered.diagnostics.public.transport,'secure-dns');
+      if(recovered.status!=='ready'){
+       const network=await app.evaluate(async({session,net},origin)=>{
+        const proxyKeys=['HTTP_PROXY','HTTPS_PROXY','ALL_PROXY','http_proxy','https_proxy','all_proxy'].filter(key=>!!process.env[key]);
+        const proxy=await session.defaultSession.resolveProxy(origin).then(value=>value.trim().toUpperCase()==='DIRECT'?'direct':'configured',()=> 'unavailable');
+        const resolvers=await Promise.all(['https://cloudflare-dns.com/dns-query','https://dns.google/resolve'].map(async endpoint=>{
+         const url=new URL(endpoint);url.searchParams.set('name',new URL(origin).hostname);url.searchParams.set('type','A');
+         try{const response=await net.fetch(url.href,{headers:{Accept:'application/dns-json'},credentials:'omit',redirect:'error',cache:'no-store',signal:AbortSignal.timeout(5000)});const data=await response.json();return {status:response.status,dnsStatus:data.Status,answers:data.Answer?.length||0};}catch(error){return {error:error.code||error.name};}
+        }));return {proxyKeys,proxy,resolvers};
+       },recovered.verificationUrl?new URL(recovered.verificationUrl).origin:'https://diagnostic.trycloudflare.com');
+       console.log('flatpak: DNS recovery failure diagnostics '+JSON.stringify({checks:recovered.diagnostics,network}));
+      }
+      assert.equal(recovered.status,'ready',recovered.message+' '+JSON.stringify(recovered.diagnostics));assert.equal(recovered.diagnostics.public.transport,'secure-dns');
       const recoveredURL=new URL(recovered.url),headers={Authorization:'Bearer '+recoveredURL.hash.slice(1)},name='dns-recovery-'+Date.now()+'.txt';
       assert.equal((await fetch(recoveredURL.origin+'/push/health',{headers})).status,200);
       assert.equal((await fetch(recoveredURL.origin+'/push/files/'+name,{method:'PUT',headers,body:'secure DNS recovery payload'})).status,201);
