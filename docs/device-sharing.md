@@ -51,6 +51,19 @@ transport for desktop HTTPS checks. The wizard distinguishes download, tunnel
 connectivity and endpoint-verification failures. Other providers remain
 selectable while a connection is pending or has failed.
 
+If the local workspace and tunnel are healthy but the desktop cannot reach its
+own HTTPS hostname, **Verify with your phone** shows a pending verification code.
+Use mobile data if the local Wi-Fi also cannot open that address. A successful
+pairing alone does not mark sharing ready: the paired browser must retrieve a
+valid workspace health response through the public tunnel. Only then does the
+wizard advance to the background-sharing question. A working phone-verified
+connection is monitored through its local service and tunnel connection state.
+
+**Connection details → Copy connection details** distinguishes local-service,
+DNS, TLS, HTTP and timeout failures without copying sharing tokens, credentials,
+login URLs, public sharing addresses or filesystem paths. Interface summaries
+include adapter names and address families, not the actual IP addresses.
+
 ## Optional embedded Tailscale
 
 The package includes a userspace tsnet node built from pinned Go modules. It

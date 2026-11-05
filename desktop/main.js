@@ -146,7 +146,10 @@ function registerIpc() {
     }
     if(action==='mode'){providerLoginWindow?.close();return devices.action(payload?.mode,payload?.address);}
     if(action==='provider-login')return signInToProvider();
-    if(action==='copy'){if(!devices.state.url)throw Error('No verified sharing link');clipboard.writeText(devices.state.url);return;}
+    if(action==='verify-with-phone')return devices.verifyWithPhone();
+    if(action==='copy-verification'){if(devices.state.status!=='phone-verification'||!devices.state.verificationUrl)throw Error('Start phone verification first.');await clipboard.writeText(devices.state.verificationUrl);return;}
+    if(action==='copy-diagnostics'){const report={version:app.getVersion(),platform:process.platform,architecture:process.arch,localServices:{status:state.status,label:state.label},...devices.connectionReport()};await clipboard.writeText(JSON.stringify(report,null,2));return;}
+    if(action==='copy'){if(!devices.state.url)throw Error('No verified sharing link');await clipboard.writeText(devices.state.url);return;}
     throw Error('Unknown connection action');
   });
   ipcMain.handle('airdrop:quit', event => { ownWindow(event); app.quit(); });

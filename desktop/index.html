@@ -85,6 +85,8 @@
       <p id="providerHint" class="field-help"></p>
       <button class="button" id="applyProvider">Connect using this provider</button>
       <button class="button" id="providerLogin" hidden>Sign in to Tailscale inside Airdrop</button>
+      <button class="button" id="deviceVerifyWithPhone" hidden>Verify with your phone</button>
+      <details id="deviceDiagnostics" hidden><summary>Connection details</summary><pre id="deviceDiagnosticText"></pre><button class="button" id="deviceCopyDiagnostics">Copy connection details</button></details>
       <div class="connection-controls">
         <details id="advancedConnection"><summary>Advanced connection options</summary>
         <p class="field-help">For managed installations only. Normal setup does not require an address or access key.</p>
@@ -129,7 +131,7 @@
     <p id="wizardProviderHint" class="field-help"></p>
     <button class="button button-primary" id="wizardProviderConnect">Connect using this provider</button>
     <button class="button" id="wizardProviderLogin" hidden>Sign in to Tailscale inside Airdrop</button>
-    <p>Choose how to connect. You can switch providers here or in Settings whenever you need.</p>
+    <button class="button" id="verifyWithPhone" hidden>Verify with your phone</button>
     <div id="wizardProgress" class="connection-progress" aria-busy="false">
       <span id="wizardSpinner" class="connection-spinner" aria-hidden="true" hidden></span>
       <div><h2 id="wizardStatus" role="status" aria-live="polite">Preparing your connection…</h2><p id="wizardHint"></p><span id="wizardElapsed" class="connection-elapsed" aria-live="off" hidden></span></div>
@@ -137,7 +139,15 @@
     <div class="clipboard-actions">
       <button class="text-button" id="wizardCancel" hidden>Cancel connection</button>
     </div>
-    <p id="wizardInternetNote" class="field-help">Free internet sharing uses Cloudflare. No account, server or domain is needed. Traffic passes through Cloudflare; this free service has no uptime guarantee.</p>
+    <section id="wizardPhoneVerification" hidden>
+      <h2>Finish checking from your phone</h2>
+      <p>Scan this code with your iPhone or Android. Use mobile data if this Wi-Fi cannot open the address. Airdrop will confirm the connection after your phone reaches the workspace.</p>
+      <img id="verificationQr" width="256" height="256" alt="Scan to verify the connection from your phone">
+      <button class="button" id="copyVerificationLink">Copy verification link</button>
+      <p id="phoneVerificationResult" role="status">Waiting for a verified phone connection…</p>
+    </section>
+    <details id="wizardDiagnostics" hidden><summary>Connection details</summary><pre id="wizardDiagnosticText"></pre><button class="button" id="wizardCopyDiagnostics">Copy connection details</button></details>
+    <p id="wizardInternetNote" class="field-help">Internet sharing passes through Cloudflare; this temporary free service has no uptime guarantee.</p>
     <p id="wizardLanNote" class="field-help">Choose a network you trust. Local sharing is not encrypted; anyone with your private link can access the workspace.</p>
   </section>
   <section id="wizardBackground" hidden>

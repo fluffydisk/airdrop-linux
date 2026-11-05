@@ -2,6 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const {_electron:electron}=require('playwright-core'),express=require('express');
+const http=require('node:http');
 const {createServer}=require('../push-server');
 const {lanAddresses}=require('../lib/device-share');
 const executable=process.env.ELECTRON_PATH||require('../desktop/node_modules/electron');
@@ -49,4 +50,31 @@ test('Electron Flatpak requests background access after connection and opt-in; d
  assert.match(await page.locator('#wizardBackgroundSummary').textContent(),/not granted/);
  const state=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(state.preferences.background,false);assert.equal(state.background.active,false);assert.equal(state.setupComplete,true);
  const closed=app.waitForEvent('close');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());await closed;
+});
+test('Electron offers phone verification after desktop DNS failure, copies safe diagnostics, and advances only after real paired health', {timeout:30000},async t=>{
+ const f=await fixture(t),{app,page}=await f.launch();
+ await page.locator('#wizardProvider').waitFor({state:'visible'});
+ // Controlled provider/DNS responses isolate this UI test from public-service
+ // availability. Pairing and backend health below use the real local gateway.
+ await app.evaluate(({app,net})=>{
+  const requireApp=process.getBuiltinModule('module').createRequire(app.getAppPath()+'/main.js');
+  const Internet=requireApp('./core/lib/internet-connection').InternetConnection;
+  Internet.prototype.start=function(){globalThis.phoneGateway={target:this.target,host:this.proxyHost};this.onState({status:'checking',origin:'https://controlled.trycloudflare.com',message:'Controlled registered tunnel'});};Internet.prototype.stop=async()=>{};
+  const Devices=requireApp('./core/lib/devices').Devices,check=Devices.prototype.check;
+  Devices.prototype.check=function(...args){this.verificationAttempts=1;this.verificationDelay=0;return check.apply(this,args);};
+  const fetch=net.fetch;net.fetch=async(input,options)=>{if(String(input).startsWith('https://controlled.trycloudflare.com/'))throw Object.assign(Error('Controlled DNS failure with private text'),{code:'ERR_NAME_NOT_RESOLVED'});return fetch(input,options);};
+ });
+ await page.locator('#wizardProviderConnect').click();await page.locator('#verifyWithPhone').waitFor({state:'visible'});
+ await page.locator('#wizardDiagnostics').evaluate(el=>el.open=true);await page.locator('#wizardCopyDiagnostics').click();
+ const report=JSON.parse(await app.evaluate(({clipboard})=>clipboard.readText()));assert.equal(report.checks.local.status,'passed');assert.equal(report.checks.public.code,'DNS');assert.ok(!JSON.stringify(report).includes('private text'));assert.ok(!JSON.stringify(report).includes('trycloudflare.com'));
+ await page.locator('#verifyWithPhone').click();await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
+ const candidate=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(candidate.status,'phone-verification');assert.equal(candidate.url,'');assert.equal(await page.locator('#wizardBackground').isVisible(),false);
+ const transport=await app.evaluate(()=>globalThis.phoneGateway),origin=new URL(candidate.verificationUrl).origin;
+ function request(route,{method='GET',body,headers={}}={}){return new Promise((resolve,reject)=>{const req=http.request(new URL(route,transport.target),{method,headers:{Host:transport.host,...headers}},res=>{res.resume();res.on('end',()=>resolve({status:res.statusCode,headers:res.headers}));});req.on('error',reject);req.end(body);});}
+ const paired=await request('/pair/',{method:'POST',headers:{Origin:origin},body:JSON.stringify({token:new URL(candidate.verificationUrl).hash.slice(1)})});assert.equal(paired.status,204);
+ assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).status,'phone-verification');
+ assert.equal((await request('/push/health',{headers:{Cookie:paired.headers['set-cookie'][0].split(';')[0]}})).status,200);
+ await page.locator('#wizardBackground').waitFor({state:'visible'});assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).verifiedBy,'phone');
+ await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
+ assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).setupComplete,true);
 });

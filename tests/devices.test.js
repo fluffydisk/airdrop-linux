@@ -6,7 +6,7 @@ async function fixture(t, saved, options={}){
  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-lifecycle-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
  if(saved)await fs.writeFile(path.join(directory,'devices.json'),JSON.stringify(saved));
  const clients=[];
- const d=new Devices({directory,probe:async()=>{},createClient:options=>{const client={options,starts:0,stops:0,start(){this.starts++;},stop(){this.stops++;}};clients.push(client);return client;},...options});
+ const d=new Devices({directory,probe:async()=>{},probeLocal:async()=>{},createClient:options=>{const client={options,starts:0,stops:0,start(){this.starts++;},stop(){this.stops++;}};clients.push(client);return client;},...options});
  t.after(()=>d.stop());await d.initialize();await d.queue;
  return {d,clients,directory};
 }

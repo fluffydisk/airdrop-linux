@@ -25,5 +25,6 @@
   <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.5.0/assets/airdrop-desktop.png</image></screenshot></screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.6.2" date="2026-11-05"><description><p>Verify internet sharing from a paired phone when desktop DNS or proxy checks fail. Show separate local service, DNS, TLS and HTTP diagnostics.</p></description></release>
     <release version="1.6.1" date="2026-11-05"><description><p>Choose Airdrop, embedded Tailscale or Wi-Fi inside the app. Internet sharing waits for tunnel registration and DNS before showing the pairing code.</p></description></release><release version="1.6.0" date="2026-11-04"/><release version="1.5.1" date="2026-10-28"/><release version="1.5.0" date="2026-10-21"/></releases>
 </component>

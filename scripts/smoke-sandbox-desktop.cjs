@@ -134,6 +134,22 @@ const {_electron:electron}=require('playwright-core');
      const publicFile='flatpak-public-'+Date.now()+'.txt';
      assert.equal((await fetch(publicOrigin+'/push/files/'+publicFile,{method:'PUT',headers:publicHeaders,body:'real Flatpak public sharing'})).status,201);
      assert.equal(await(await fetch(publicOrigin+'/'+publicFile,{headers:publicHeaders})).text(),'real Flatpak public sharing');
+     // Model a desktop-only resolver/proxy failure while the real public
+     // tunnel and the paired remote client remain reachable. No response from
+     // the public service or the actual backend is mocked.
+     await app.evaluate(({net})=>{globalThis.publicCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')throw Object.assign(Error('Controlled desktop resolver failure'),{code:'ERR_NAME_NOT_RESOLVED'});return globalThis.publicCheckFetch(input,options);};});
+     try{
+      await page.locator('#deviceVerifyWithPhone').waitFor({state:'visible',timeout:25000});await page.locator('#deviceVerifyWithPhone').click();
+      await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
+      const waiting=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(waiting.status,'phone-verification');assert.equal(waiting.url,'');assert.equal(waiting.qr,'');
+      assert.equal((await fetch(publicOrigin+'/push/health',{headers:publicHeaders})).status,200);
+      await page.locator('#wizardBackground').waitFor({state:'visible'});assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).verifiedBy,'phone');
+      const phoneFile='phone-'+publicFile;
+      assert.equal((await fetch(publicOrigin+'/push/files/'+phoneFile,{method:'PUT',headers:publicHeaders,body:'phone-verified public sharing'})).status,201);
+      assert.equal(await(await fetch(publicOrigin+'/'+phoneFile,{headers:publicHeaders})).text(),'phone-verified public sharing');
+      await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});await page.locator('#wizardContinue').click();
+      console.log('flatpak: real Cloudflare paired-client health and upload/download confirmed phone verification despite a controlled desktop-only DNS failure; no physical phone claim');
+     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.publicCheckFetch;delete globalThis.publicCheckFetch;});}
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
      console.log('flatpak: actual in-sandbox internet component download, registered Cloudflare tunnel, Electron HTTPS verification, authenticated public pairing and file upload/download passed');
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'tailscale'}));

@@ -27,5 +27,9 @@ test('internet tunnel accepts only the provider HTTPS origin, keeps progress rea
  child.stderr.write('https://bad.trycloudflare.com.evil.example\n');assert.equal(states.some(s=>s.origin),false);
  child.stderr.write(JSON.stringify({message:'https://test-tunnel.trycloudflare.com'})+'\n');assert.equal(states.some(s=>s.origin),false,'an allocated URL is not a connected tunnel');
  child.stderr.write(JSON.stringify({message:'Registered tunnel connection',connIndex:0})+'\n');assert.equal(states.at(-1).origin,'https://test-tunnel.trycloudflare.com');assert.equal(states.at(-1).status,'checking');
+ child.stderr.write(JSON.stringify({message:'Registered tunnel connection',connIndex:1})+'\n');
+ child.stderr.write(JSON.stringify({message:'Unregistered tunnel connection',connIndex:0})+'\n');assert.equal(states.at(-1).status,'checking');
+ child.stderr.write(JSON.stringify({message:'Unregistered tunnel connection',connIndex:1})+'\n');assert.equal(states.at(-1).status,'reconnecting');
+ child.stderr.write(JSON.stringify({message:'Registered tunnel connection',connIndex:2})+'\n');assert.equal(states.at(-1).status,'checking');assert.equal(states.at(-1).origin,'https://test-tunnel.trycloudflare.com');
  await connection.stop();assert.equal(child.exitCode,0);assert.ok(states.some(s=>s.status==='downloading'));
 });

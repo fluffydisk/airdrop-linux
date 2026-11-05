@@ -14,6 +14,7 @@ async function backend(t){
 test('LAN discovery excludes loopback, public and host Tailscale addresses',()=>{
  const i={eth0:[{family:'IPv4',address:'192.168.1.2',internal:false}],lo:[{family:'IPv4',address:'127.0.0.1',internal:true}],tailscale0:[{family:'IPv4',address:'100.64.0.1',internal:false}],public:[{family:'IPv4',address:'8.8.8.8',internal:false}]};
  assert.deepEqual(lanAddresses(i),[{name:'eth0',address:'192.168.1.2'}]);
+ assert.deepEqual(lanAddresses({wifi:[{family:4,address:'192.168.2.3',internal:false}]}),[{name:'wifi',address:'192.168.2.3'}]);
 });
 test('pairing protects the actual proxy; foreign origins, wrong host and stale tokens fail',async t=>{
  const gateway=new ShareGateway({backend:await backend(t)});await gateway.listen();t.after(()=>gateway.close());

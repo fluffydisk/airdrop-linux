@@ -12,7 +12,7 @@
     const same=lastState?.mode===value,progress=lastState&&AirdropConnectionProgress.describe(lastState);
     for(const id of ['applyProvider','wizardProviderConnect']){
       get(id).disabled=busy||!available||(same&&(progress.active||progress.ready));
-      get(id).textContent=same&&progress?.ready?'Connected':same&&progress?.active?'Connecting…':'Connect using this provider';
+      get(id).textContent=same&&progress?.ready?'Connected':same&&progress?.active?'Connecting…':same&&lastState?.status==='error'?'Retry connection':'Connect using this provider';
     }
     get('wizardInternetNote').hidden=value!=='internet';get('wizardLanNote').hidden=value!=='lan';
   }
@@ -57,6 +57,12 @@
       chooseProvider(selectedProvider||state.preferences?.provider||'internet');
       const needsLogin=state.mode==='tailscale'&&!!state.authURL;
       for(const id of ['providerLogin','wizardProviderLogin'])get(id).hidden=!needsLogin;
+      for(const id of ['verifyWithPhone','deviceVerifyWithPhone']){get(id).hidden=!state.canVerifyWithPhone;get(id).disabled=busy;}
+      const phoneVerification=state.status==='phone-verification'&&!!state.verificationQr;
+      get('wizardPhoneVerification').hidden=!phoneVerification;
+      if(phoneVerification)get('verificationQr').src=state.verificationQr;else get('verificationQr').removeAttribute('src');
+      const details=JSON.stringify({provider:state.mode,status:state.status,checks:state.diagnostics||{}},null,2);
+      for(const prefix of ['wizard','device']){get(prefix+'Diagnostics').hidden=!['error','phone-verification'].includes(state.status);get(prefix+'DiagnosticText').textContent=details;}
       if (!preferencesBusy) {
         get('autoConnectPreference').checked = state.preferences?.autoConnect !== false;
         get('backgroundPreference').checked = !!state.preferences?.background;
@@ -134,6 +140,14 @@
   for(const id of ['connectionProvider','wizardProvider'])get(id).onchange=()=>chooseProvider(get(id).value);
   for(const id of ['applyProvider','wizardProviderConnect'])get(id).onclick=()=>mode(selectedProvider||'internet');
   for(const id of ['providerLogin','wizardProviderLogin'])get(id).onclick=()=>window.airdrop.devices('provider-login').catch(error=>{get('wizardError').hidden=false;get('wizardError').textContent=error.message;});
+  for(const id of ['verifyWithPhone','deviceVerifyWithPhone'])get(id).onclick=async()=>{
+    if(busy)return;busy=true;get('wizardError').hidden=true;
+    try{await window.airdrop.devices('verify-with-phone');await render();openWizard();}
+    catch(error){get('wizardError').hidden=false;get('wizardError').textContent=error.message;}
+    finally{busy=false;await render();}
+  };
+  get('copyVerificationLink').onclick=()=>window.airdrop.devices('copy-verification').then(()=>{get('phoneVerificationResult').textContent='Verification link copied. Open it on your phone.';}).catch(()=>{get('phoneVerificationResult').textContent='Reconnect to get a new verification link.';});
+  for(const id of ['wizardCopyDiagnostics','deviceCopyDiagnostics'])get(id).onclick=()=>window.airdrop.devices('copy-diagnostics').then(()=>{get(id).textContent='Connection details copied';}).catch(()=>{get(id).textContent='Could not copy. Try again.';});
   get('connectLan').onclick = () => mode('lan');
   get('disconnectDevices').onclick = () => mode('local');
   for (const id of ['copyDeviceAddress', 'wizardCopy']) get(id).onclick = () => window.airdrop.devices('copy').then(() => { if (id === 'wizardCopy') get('wizardPairingStatus').textContent = 'Connection link copied. Open it on your phone.'; }).catch(() => { get('wizardError').hidden = false; get('wizardError').textContent = 'Reconnect to get a new link.'; });
