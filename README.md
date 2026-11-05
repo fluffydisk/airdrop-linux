@@ -88,9 +88,10 @@ If the same Flatpak ID is already installed, quit it and use `flatpak install
 To uninstall while retaining data, run `flatpak uninstall --user
 io.github.fluffydisk.airdrop-linux`; do not add `--delete-data` unless intended.
 
-On first launch the in-app wizard connects your devices, then asks whether
-sharing should continue after closing the window, and finally shows the phone
-pairing QR. This preference can be changed anytime in Settings. Scan using an
+On first launch the in-app wizard connects your devices, lets you keep the default
+background sharing or turn it off, and shows the phone pairing QR. Background
+sharing requires system permission in Flatpak and can be changed anytime in
+Settings. Closing the window keeps sharing active when permitted; Quit stops it. Scan using an
 iPhone or Android camera to use the mobile web app; no VPN app is required.
 
 Choose **Airdrop (default)** for free internet sharing through Cloudflare Quick

@@ -10,9 +10,9 @@ async function fixture(t, saved, options={}){
  t.after(()=>d.stop());await d.initialize();await d.queue;
  return {d,clients,directory};
 }
-const configured={configured:true,mode:'private',relayUrl:'https://relay.example.com',accessKey:'secret-access-key'};
+const configured={configured:true,mode:'private',relayUrl:'https://relay.example.com',accessKey:'secret-access-key',background:false,backgroundChosen:true};
 test('first open starts setup; configured opens reconnect with background off and keep identity private',async t=>{
- const fresh=await fixture(t);assert.equal(fresh.d.state.status,'setup-required');assert.equal((await fresh.d.snapshot()).preferences.background,false);
+ const fresh=await fixture(t);assert.equal(fresh.d.state.status,'setup-required');assert.equal((await fresh.d.snapshot()).preferences.background,true);
  const f=await fixture(t,configured);assert.equal(f.clients.length,1);assert.equal(f.clients[0].starts,1);
  await f.d.receive({status:'checking',origin:'https://workspace.relay.example.com'},f.d.generation);
  assert.equal(f.d.state.status,'ready');await f.d.queue;
@@ -20,6 +20,11 @@ test('first open starts setup; configured opens reconnect with background off an
  const saved=JSON.parse(await fs.readFile(path.join(f.directory,'devices.json')));assert.equal(saved.onboarded,true);assert.equal((await fs.stat(path.join(f.directory,'devices.json'))).mode&0o777,0o600);
  const key=f.d.preferences.deviceKey;await f.d.stop();const restart=new Devices({directory:f.directory,createClient:opts=>({start(){},stop(){}})});t.after(()=>restart.stop());await restart.initialize();await restart.queue;
  assert.equal(restart.preferences.deviceKey,key);assert.equal(restart.state.mode,'private');
+});
+test('background defaults on for new and previously undecided installs while explicit off choices persist',async t=>{
+ const fresh=await fixture(t);assert.equal(fresh.d.preferences.background,true);
+ const undecided=await fixture(t,{mode:'local',configured:true,background:false,backgroundChosen:false});assert.equal(undecided.d.preferences.background,true);
+ const explicit=await fixture(t,{mode:'local',configured:true,background:false,backgroundChosen:true});assert.equal(explicit.d.preferences.background,false);
 });
 test('auto-connect disabled does not open a tunnel; manual connect works and duplicate connect is idempotent',async t=>{
  const {d,clients}=await fixture(t,{...configured,autoConnect:false});assert.equal(clients.length,0);assert.equal(d.state.status,'local');

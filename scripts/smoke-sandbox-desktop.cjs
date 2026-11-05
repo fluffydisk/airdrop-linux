@@ -113,7 +113,8 @@ const {_electron:electron}=require('playwright-core');
     assert.equal(await page.locator('#wizardProviderConnect').count(),1);
     assert.equal(await page.locator('#wizardProvider option[value="tailscale"]').isDisabled(),false,'the optional Tailscale provider must be included in the installed package');
     assert.equal(await page.locator('#autoConnectPreference').isChecked(),true);
-    assert.equal(await page.locator('#backgroundPreference').isChecked(),false);
+    const backgroundState=await page.evaluate(()=>window.airdrop.devices('state'));
+    await page.waitForFunction(expected=>document.getElementById('backgroundPreference').checked===expected,backgroundState.preferences.background);
     assert.equal(await page.locator('#advancedConnection').evaluate(el=>el.open),false);
     console.log('flatpak: installed app has the three-step in-app connection wizard, Wi-Fi/free internet choices and editable auto-connect/background preferences; Tailscale login control is absent');
     if(process.env.AIRDROP_TEST_LIVE_INTERNET==='1'){
@@ -137,7 +138,7 @@ const {_electron:electron}=require('playwright-core');
      // Model a desktop-only resolver/proxy failure while the real public
      // tunnel and the paired remote client remain reachable. No response from
      // the public service or the actual backend is mocked.
-     await app.evaluate(({net})=>{globalThis.publicCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')throw Object.assign(Error('Controlled desktop resolver failure'),{code:'ERR_NAME_NOT_RESOLVED'});return globalThis.publicCheckFetch(input,options);};});
+     await app.evaluate(({net})=>{globalThis.publicCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if((url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')||['dns.google','cloudflare-dns.com'].includes(url.hostname))throw Object.assign(Error('Controlled desktop resolver failure'),{code:'ERR_NAME_NOT_RESOLVED'});return globalThis.publicCheckFetch(input,options);};});
      try{
       await page.locator('#deviceVerifyWithPhone').waitFor({state:'visible',timeout:25000});await page.locator('#deviceVerifyWithPhone').click();
       await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
@@ -152,6 +153,20 @@ const {_electron:electron}=require('playwright-core');
      }finally{await app.evaluate(({net})=>{net.fetch=globalThis.publicCheckFetch;delete globalThis.publicCheckFetch;});}
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
      console.log('flatpak: actual in-sandbox internet component download, registered Cloudflare tunnel, Electron HTTPS verification, authenticated public pairing and file upload/download passed');
+     // A fresh real tunnel proves app-scoped DNS recovery independently of
+     // phone verification. Only the normal desktop hostname lookup fails;
+     // secure DNS and the certificate-verified HTTPS connection are real.
+     await app.evaluate(({net})=>{globalThis.dnsCheckFetch=net.fetch;net.fetch=async(input,options)=>{const url=new URL(typeof input==='string'?input:input.url);if(url.hostname.endsWith('.trycloudflare.com')&&url.pathname==='/push/health')throw Object.assign(Error('Controlled ordinary DNS failure'),{code:'ERR_NAME_NOT_RESOLVED'});return globalThis.dnsCheckFetch(input,options);};});
+     try{
+      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'internet'}));let recovered;
+      for(let i=0;i<240;i++){recovered=await page.evaluate(()=>window.airdrop.devices('state'));if(['ready','error'].includes(recovered.status))break;await new Promise(r=>setTimeout(r,1000));}
+      assert.equal(recovered.status,'ready',recovered.message);assert.equal(recovered.diagnostics.public.transport,'secure-dns');
+      const recoveredURL=new URL(recovered.url),headers={Authorization:'Bearer '+recoveredURL.hash.slice(1)},name='dns-recovery-'+Date.now()+'.txt';
+      assert.equal((await fetch(recoveredURL.origin+'/push/health',{headers})).status,200);
+      assert.equal((await fetch(recoveredURL.origin+'/push/files/'+name,{method:'PUT',headers,body:'secure DNS recovery payload'})).status,201);
+      assert.equal(await(await fetch(recoveredURL.origin+'/'+name,{headers})).text(),'secure DNS recovery payload');
+      console.log('flatpak: real DNS-over-HTTPS recovery, original-host TLS certificate validation and public file upload/download passed after a controlled ordinary DNS failure');
+     }finally{await app.evaluate(({net})=>{net.fetch=globalThis.dnsCheckFetch;delete globalThis.dnsCheckFetch;});await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));}
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'tailscale'}));
      let loginState;
      for(let i=0;i<80;i++){

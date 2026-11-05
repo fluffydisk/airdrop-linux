@@ -1,6 +1,6 @@
 {
   "name": "airdrop-push",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "File and clipboard sharing with in-app Wi-Fi and optional free internet connections",
   "main": "push-server.js",
   "scripts": {

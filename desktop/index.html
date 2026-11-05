@@ -95,8 +95,8 @@
         <p id="relayKeyHint" class="field-help"></p><button class="button" id="saveRelay">Save connection</button>
         </details><p id="connectionPreferencesResult" class="field-help" role="status" aria-live="polite"></p>
         <label class="connection-preference"><input id="autoConnectPreference" type="checkbox" checked> Connect automatically when Airdrop opens</label>
-        <label class="connection-preference"><input id="backgroundPreference" type="checkbox"> Keep the connection running after closing the window</label>
-        <p id="backgroundHint" class="field-help">With background sharing off, closing the window stops the connection. Reopening Airdrop starts it again when automatic connection is enabled.</p>
+        <label class="connection-preference"><input id="backgroundPreference" type="checkbox" checked> Keep the connection running after closing the window</label>
+        <p id="backgroundHint" class="field-help">Background sharing defaults on. With system permission, your connection continues after closing the window. You can turn it off here.</p>
         <div class="clipboard-actions"><button class="button" id="disconnectDevices">Disconnect</button></div>
         <details class="lan-options"><summary>Wi-Fi network options</summary><p>Same Wi-Fi required. LAN uses unencrypted HTTP.</p><label for="lanInterface">Network</label><select id="lanInterface" aria-label="LAN interface"></select><button class="button" id="connectLan">Start LAN sharing</button></details>
         <div id="deviceProgress" class="connection-progress" aria-busy="false"><span id="deviceSpinner" class="connection-spinner" aria-hidden="true" hidden></span><div><p id="deviceStatus" role="status" aria-live="polite">Checking connection…</p><p id="deviceHint" class="field-help"></p><span id="deviceElapsed" class="connection-elapsed" aria-live="off" hidden></span></div></div>
@@ -153,6 +153,7 @@
   <section id="wizardBackground" hidden>
     <p class="wizard-success">Connection ready</p>
     <h2>Keep sharing when you close the window?</h2>
+    <p id="wizardBackgroundDefault" class="field-help"></p>
     <p>Your phone can still reach this computer while Airdrop runs in the background using your selected provider.</p>
     <div class="wizard-choices">
       <button class="button button-primary" id="wizardBackgroundYes">Keep sharing in the background</button>

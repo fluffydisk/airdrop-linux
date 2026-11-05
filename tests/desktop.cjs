@@ -144,7 +144,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.waitForFunction(() => document.getElementById('settingsResult').textContent.startsWith('Saved:')); await page.screenshot({ path: '.test-artifacts/desktop-settings.png' });
   if (process.env.AIRDROP_TEST_APPIMAGE) assert.equal(await page.locator('#portableNote').isVisible(), true);
   assert.deepEqual(errors, []);
-  const closed = app.waitForEvent('close'); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close()); await closed; app = null;
+  const closed = app.waitForEvent('close'); await app.evaluate(({ app }) => app.quit()); await closed; app = null;
   app = await launch(); const reopened = await app.firstWindow();
   if (await reopened.locator('#connectionWizard').count()) {
     // Setup was explicitly deferred; wait for its async state before dismissal.

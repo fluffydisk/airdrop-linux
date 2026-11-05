@@ -18,10 +18,13 @@ test('Electron first-run wizard connects first, asks background next, then shows
  if(!lanAddresses().length){t.skip('No private LAN interface');return;}
  const f=await fixture(t);let {app,page}=await f.launch();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.locator('#wizardProvider').waitFor({state:'visible'});assert.equal(await page.locator('#wizardProvider').inputValue(),'internet');
+ await page.waitForFunction(()=>document.getElementById('backgroundHint').textContent.includes('stays active'));
+ assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).preferences.background,true);
  assert.equal(await page.locator('#relayUrl').isVisible(),false);assert.equal(await page.locator('#wizardBackground').isVisible(),false);assert.equal(await page.locator('#wizardPairing').isVisible(),false);
  await page.locator('#wizardProvider').selectOption('lan');await page.locator('#wizardProviderConnect').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
  assert.match(await page.locator('#wizardBackground').textContent(),/change this anytime in Settings/);
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).setupComplete,false);
+ const beforeClose=await page.evaluate(()=>window.airdrop.devices('state'));await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false);assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).url,beforeClose.url);await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].show());
  await fs.mkdir('.test-artifacts',{recursive:true});await page.setViewportSize({width:1080,height:840});await page.screenshot({path:'.test-artifacts/wizard-background.png'});
  await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
  let state=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(state.setupComplete,true);assert.equal(state.preferences.background,false);assert.equal(state.status,'ready');
@@ -41,7 +44,7 @@ test('Electron first-run wizard connects first, asks background next, then shows
  await page.locator('#setupDevices').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
  assert.deepEqual(errors,[]);assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
 });
-test('Electron Flatpak requests background access after connection and opt-in; denial is explained and settings stay off', {timeout:30000},async t=>{
+test('Electron Flatpak default background and wizard retry both honor OS denial and keep settings off', {timeout:30000},async t=>{
  if(!lanAddresses().length){t.skip('No private LAN interface');return;}
  const f=await fixture(t,'flatpak'),{app,page}=await f.launch();
  await page.locator('#wizardProvider').selectOption('lan');await page.locator('#wizardProviderConnect').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
@@ -62,18 +65,20 @@ test('Electron offers phone verification after desktop DNS failure, copies safe 
   Internet.prototype.start=function(){globalThis.phoneGateway={target:this.target,host:this.proxyHost};this.onState({status:'checking',origin:'https://controlled.trycloudflare.com',message:'Controlled registered tunnel'});};Internet.prototype.stop=async()=>{};
   const Devices=requireApp('./core/lib/devices').Devices,check=Devices.prototype.check;
   Devices.prototype.check=function(...args){this.verificationAttempts=1;this.verificationDelay=0;return check.apply(this,args);};
-  const fetch=net.fetch;net.fetch=async(input,options)=>{if(String(input).startsWith('https://controlled.trycloudflare.com/'))throw Object.assign(Error('Controlled DNS failure with private text'),{code:'ERR_NAME_NOT_RESOLVED'});return fetch(input,options);};
+  const fetch=net.fetch;net.fetch=async(input,options)=>{const hostname=new URL(String(input)).hostname;if(hostname==='controlled.trycloudflare.com'||['cloudflare-dns.com','dns.google'].includes(hostname))throw Object.assign(Error('Controlled DNS failure with private text'),{code:'ERR_NAME_NOT_RESOLVED'});return fetch(input,options);};
  });
  await page.locator('#wizardProviderConnect').click();await page.locator('#verifyWithPhone').waitFor({state:'visible'});
  await page.locator('#wizardDiagnostics').evaluate(el=>el.open=true);await page.locator('#wizardCopyDiagnostics').click();
  const report=JSON.parse(await app.evaluate(({clipboard})=>clipboard.readText()));assert.equal(report.checks.local.status,'passed');assert.equal(report.checks.public.code,'DNS');assert.ok(!JSON.stringify(report).includes('private text'));assert.ok(!JSON.stringify(report).includes('trycloudflare.com'));
  await page.locator('#verifyWithPhone').click();await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
  const candidate=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(candidate.status,'phone-verification');assert.equal(candidate.url,'');assert.equal(await page.locator('#wizardBackground').isVisible(),false);
+ await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),false);
  const transport=await app.evaluate(()=>globalThis.phoneGateway),origin=new URL(candidate.verificationUrl).origin;
  function request(route,{method='GET',body,headers={}}={}){return new Promise((resolve,reject)=>{const req=http.request(new URL(route,transport.target),{method,headers:{Host:transport.host,...headers}},res=>{res.resume();res.on('end',()=>resolve({status:res.statusCode,headers:res.headers}));});req.on('error',reject);req.end(body);});}
  const paired=await request('/pair/',{method:'POST',headers:{Origin:origin},body:JSON.stringify({token:new URL(candidate.verificationUrl).hash.slice(1)})});assert.equal(paired.status,204);
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).status,'phone-verification');
  assert.equal((await request('/push/health',{headers:{Cookie:paired.headers['set-cookie'][0].split(';')[0]}})).status,200);
+ await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].show());
  await page.locator('#wizardBackground').waitFor({state:'visible'});assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).verifiedBy,'phone');
  await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).setupComplete,true);

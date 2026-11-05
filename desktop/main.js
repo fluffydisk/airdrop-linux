@@ -1,5 +1,5 @@
 'use strict';
-const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard, net } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, dialog, shell, nativeImage, clipboard, net, session } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -50,8 +50,9 @@ fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
 const internetAsset=process.platform==='linux'&&require('./core/internet-helper.json').assets[process.arch];
 const tailscaleHelper=[path.resolve(__dirname,'../../../runtime/airdrop-tsnet'),path.join(__dirname,'core/bin/airdrop-tsnet')].find(file=>fs.existsSync(file));
+const publicProbe=require('./core/lib/public-connection-probe').createPublicProbe({request:(...args)=>net.fetch(...args),resolveProxy:url=>session.defaultSession.resolveProxy(url)});
 const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),service:require('./core/connection-service.json'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`,
-  probe:gateway=>gateway.probe(gateway.secure?{request:net.fetch}:undefined),
+  probe:gateway=>gateway.secure?publicProbe(gateway):gateway.probe(),
   createTailscaleClient:tailscaleHelper?options=>new (require('./core/lib/tailscale-connection').TailscaleConnection)({...options,helper:tailscaleHelper,directory:path.join(desktopData,'connections')}):undefined,
   createInternetClient:internetAsset?options=>new (require('./core/lib/internet-connection').InternetConnection)({...options,directory:path.join(desktopData,'connection-runtime'),asset:internetAsset,request:net.fetch}):undefined});
 let providerLoginWindow;
@@ -354,8 +355,9 @@ else {
     window.on('closed', () => { window = null; });
     window.on('close', event => { if (!quitting && backgroundPolicy.active) { event.preventDefault(); window.hide(); } });
     await devicesReady;
-    backgroundPolicy.set(devices.preferences.background && devices.preferences.backgroundChosen).then(async granted => {
-      if (!quitting && granted !== devices.preferences.background) await devices.configure({background:granted});
+    const backgroundRequest=backgroundPolicy.set(devices.preferences.background),backgroundGeneration=backgroundPolicy.generation;
+    backgroundRequest.then(async granted => {
+      if (!quitting && backgroundGeneration===backgroundPolicy.generation && granted !== devices.preferences.background) await devices.configure({background:granted});
     }).catch(error => console.warn('Background setting unavailable:',error.message));
     await health(); timer = setInterval(health, 5000);
     const journal = await updater.readJournal(paths.root);

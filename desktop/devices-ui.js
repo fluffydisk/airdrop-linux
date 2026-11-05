@@ -3,7 +3,7 @@
   const get = id => document.getElementById(id), wizard = get('connectionWizard');
   let busy = false, polling = false, preferencesBusy = false, initialized = false, interfacesKey = '', startedAt = 0, stage = 'connection', lastState;
   const preferenceControls = ['saveRelay', 'autoConnectPreference', 'backgroundPreference', 'wizardBackgroundYes', 'wizardBackgroundNo'];
-  let selectedProvider,providersKey='';
+  let selectedProvider,providersKey='',shownVerification='';
   const providerText={internet:'Airdrop is the default. Free internet sharing uses Cloudflare, with no account or server to configure. If it fails on your network, select another provider here.',tailscale:'The computer connection runs inside Airdrop. Sign in here with your Tailscale account. Your phone needs Tailscale on the same tailnet; MagicDNS and HTTPS certificates must be enabled for that account.',lan:'Both devices must use the same trusted Wi-Fi. No account is needed. Local sharing uses unencrypted HTTP.',private:'Connect through the managed Airdrop relay configured in Advanced connection options.'};
   function chooseProvider(value){
     selectedProvider=value;for(const id of ['connectionProvider','wizardProvider'])get(id).value=value;
@@ -61,6 +61,8 @@
       const phoneVerification=state.status==='phone-verification'&&!!state.verificationQr;
       get('wizardPhoneVerification').hidden=!phoneVerification;
       if(phoneVerification)get('verificationQr').src=state.verificationQr;else get('verificationQr').removeAttribute('src');
+      if(!phoneVerification)shownVerification='';
+      else if(wizard.open&&shownVerification!==state.verificationUrl){shownVerification=state.verificationUrl;get('wizardPhoneVerification').scrollIntoView?.({block:'start'});}
       const details=JSON.stringify({provider:state.mode,status:state.status,checks:state.diagnostics||{}},null,2);
       for(const prefix of ['wizard','device']){get(prefix+'Diagnostics').hidden=!['error','phone-verification'].includes(state.status);get(prefix+'DiagnosticText').textContent=details;}
       if (!preferencesBusy) {
@@ -69,6 +71,7 @@
       }
       get('relayKeyHint').textContent = state.preferences?.hasAccessKey ? 'A connection credential is saved. Leave empty to keep it.' : 'Automatic setup registers this computer without a shared access key.';
       if (state.background?.message) get('backgroundHint').textContent = state.background.message;
+      get('wizardBackgroundDefault').textContent=state.background?.pending?'Waiting for system background permission…':state.background?.active?'Background sharing is on by default. Keep it on or turn it off below.':'Background sharing is currently off. You can request permission below or change it later in Settings.';
       get('disconnectDevices').hidden = state.mode === 'local' || state.status === 'setup-required';
       get('disconnectDevices').disabled = busy;
       if (active && !startedAt) startedAt = Date.now();

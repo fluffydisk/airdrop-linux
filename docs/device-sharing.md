@@ -51,6 +51,14 @@ transport for desktop HTTPS checks. The wizard distinguishes download, tunnel
 connectivity and endpoint-verification failures. Other providers remain
 selectable while a connection is pending or has failed.
 
+After an ordinary DNS failure on the public Quick Tunnel hostname, desktop
+verification can use Cloudflare DNS or Google DNS over HTTPS. Only that public
+hostname is queried; the pairing token is never sent to a resolver. The actual
+HTTPS request retains the original Host/SNI and certificate verification, and
+only public addresses are accepted. A configured system/environment proxy route
+prevents selecting a direct fallback socket. HTTP denials, certificate errors
+and private relay names never trigger this DNS fallback.
+
 If the local workspace and tunnel are healthy but the desktop cannot reach its
 own HTTPS hostname, **Verify with your phone** shows a pending verification code.
 Use mobile data if the local Wi-Fi also cannot open that address. A successful
@@ -87,18 +95,24 @@ client isolation, VPN routing and host firewalls can prevent access. LAN mode
 uses HTTP and must only be used on a trusted network. The wizard explains this
 before the user starts sharing. Pairing links grant workspace access; keep them
 private. This mode does not silently replace an unsuccessful internet connection.
+Carrier-grade NAT IPv4 addresses can be selected on network interfaces; the host
+Tailscale interface is excluded. Globally routable IPv4 and IPv6-only addresses
+are not advertised through this local HTTP mode.
 
 ## Background behavior
 
-Automatic connection on app open defaults to on. Background sharing defaults to
-off until the user chooses it in the wizard or Settings. With background off,
+Automatic connection on app open defaults to on. Background sharing is requested
+by default for new and previously undecided installations; explicit saved off
+choices are preserved. It can be changed in the wizard or Settings. With background off,
 closing the window stops the connection and invalidates its session. Opening
 Airdrop reconnects using the saved mode. With background on, closing hides the
 window; reopen Airdrop to return. **Quit** always stops the connection and any
 child helper. This preference does not install a login startup task or keep the
 app running after logout/reboot.
 
-Flatpak requests OS background permission only after opt-in. Denial keeps the
+Flatpak requests OS background permission for the default enabled setting. It
+becomes active only after a grant; keeping that choice does not repeat an already
+granted or pending request. Denial keeps the
 setting off and is explained inside the wizard, which still allows foreground
 sharing. Snap also requires its background user service. The setting applies to
 the desktop computer. iPhone/Android browsers may pause when backgrounded; the

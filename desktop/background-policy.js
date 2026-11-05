@@ -1,16 +1,23 @@
 'use strict';
-// Closing the window may keep sharing alive only after explicit opt-in and,
-// for sandboxed packages, a successful OS permission request.
+// Sharing follows the saved/default setting and, for sandboxed packages,
+// still requires a successful OS permission request.
 class BackgroundPolicy {
   constructor({ source, request, snapEnabled = false } = {}) {
     this.source = source; this.request = request; this.snapEnabled = snapEnabled;
     this.active = false; this.pending = false; this.message = ''; this.generation = 0;
   }
-  async set(enabled) {
+  set(enabled){
+    if(enabled&&this.active)return Promise.resolve(true);
+    if(enabled&&this.pending&&this.inflight)return this.inflight;
+    const request=this.change(enabled);this.inflight=request;
+    const settled=()=>{if(this.inflight===request)this.inflight=null;};request.then(settled,settled);
+    return request;
+  }
+  async change(enabled) {
     const generation = ++this.generation;
     this.controller?.abort(); this.active = false; this.pending = false;
     if (!enabled) { this.message = 'Sharing stops when you close Airdrop. It starts again when you reopen the app if automatic connection is enabled.'; return false; }
-    this.pending = true; this.controller = new AbortController();
+    this.pending = true;this.message='Requesting permission to keep sharing when the window closes…';this.controller = new AbortController();
     let granted = false;
     try {
       granted = this.source === 'flatpak' ? await this.request({ signal: this.controller.signal }) : this.source === 'snap' ? this.snapEnabled : true;
