@@ -1,10 +1,12 @@
 # Connect devices inside Airdrop
 
 The first-run wizard handles connection, background sharing and phone pairing
-without sending the user to a terminal, VPN login or server setup page:
+without sending the user to a terminal or server setup page:
 
-1. Choose **Connect over the internet — free** for different networks, or
-   **Connect over Wi-Fi** for the same trusted local network.
+1. Choose a connection provider, then **Connect using this provider**.
+   **Airdrop (default)** gives account-free internet sharing; **Same Wi-Fi**
+   gives a direct local connection. **Tailscale** is an optional account-based
+   alternative. Switch providers in the wizard or **Settings → Device connection**.
 2. Wait for a real authenticated health check. Only then does Airdrop ask
    **Keep sharing when you close the window?** Choose either background sharing
    or sharing only while the app is open. The screen explains that this can be
@@ -14,7 +16,7 @@ without sending the user to a terminal, VPN login or server setup page:
    The desktop confirms pairing only after a successful pairing request.
 
 No Tailscale client/account, purchased server, domain or manually entered access
-key is required for either normal setup option. Advanced operator settings are
+key is required for Airdrop or Wi-Fi. Advanced operator settings are
 collapsed and are not part of the wizard. Setup completion is saved on disk only
 after connection verification and an explicit background choice. Dismissing setup
 does not mark it complete; the wizard returns next time.
@@ -35,13 +37,33 @@ needed. Cloudflare terminates TLS and can read relay traffic. This is not
 end-to-end encryption between devices. Account-free Quick Tunnels have no uptime
 guarantee and are intended for temporary use; they may be unavailable or blocked
 by a network. Airdrop shows errors rather than advertising an unverified QR code.
-Choose Wi-Fi if the free service cannot connect. A new tunnel/app session creates
+Select Tailscale or Wi-Fi if the free service cannot connect. A new tunnel/app session creates
 a new sharing link, so scan a fresh code after restarting. Background sharing
 keeps the current helper and pairing session alive while the window is hidden.
 
 The provider's limitations are documented in its [pinned implementation](https://github.com/cloudflare/cloudflared/blob/2026.10.7/cmd/cloudflared/tunnel/quick_tunnel.go).
 The downloaded component is distributed by Cloudflare; its [Apache 2.0 license](https://github.com/cloudflare/cloudflared/blob/2026.10.7/LICENSE)
 applies. No third-party account credentials are bundled.
+
+Airdrop waits for a registered tunnel before verifying its public address,
+retries while DNS/HTTPS provisioning completes and uses Electron's network
+transport for desktop HTTPS checks. The wizard distinguishes download, tunnel
+connectivity and endpoint-verification failures. Other providers remain
+selectable while a connection is pending or has failed.
+
+## Optional embedded Tailscale
+
+The package includes a userspace tsnet node built from pinned Go modules. It
+runs as the app user without a host VPN daemon, TUN interface, privileged routes
+or host execution. The app opens sign-in in a separate sandboxed window without
+Node integration or the privileged app preload. Only the selected provider runs;
+changing providers stops its process and revokes the previous sharing link.
+
+Tailscale requires an account, MagicDNS and HTTPS certificates enabled for that
+tailnet, and a phone connected to the same tailnet using Tailscale. These are
+requirements of the optional provider; Airdrop's default does not require them.
+The private node verifies its HTTPS endpoint through its own network stack
+before the app shows a QR code. Signing in alone never marks sharing ready.
 
 ## Direct Wi-Fi sharing
 

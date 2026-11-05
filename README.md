@@ -93,9 +93,11 @@ sharing should continue after closing the window, and finally shows the phone
 pairing QR. This preference can be changed anytime in Settings. Scan using an
 iPhone or Android camera to use the mobile web app; no VPN app is required.
 
-Choose direct Wi-Fi or optional free internet sharing through Cloudflare Quick
-Tunnels. No account, purchased server or domain is needed. The free service has
-no uptime guarantee and can read traffic; Wi-Fi remains independent. See
+Choose **Airdrop (default)** for free internet sharing through Cloudflare Quick
+Tunnels, **Same Wi-Fi** for a direct connection, or optional embedded **Tailscale**.
+Switch providers in the wizard or Settings. Airdrop and Wi-Fi need no account,
+purchased server or domain. Tailscale requires an account and a phone joined to
+the same tailnet. The free Cloudflare service has no uptime guarantee and can read traffic; Wi-Fi remains independent. See
 [device sharing](docs/device-sharing.md) for behavior, trust and test limits.
 
 ## Quick start
@@ -116,7 +118,7 @@ The installer automatically:
 - Prints the exact Airdrop HTTPS URL to open on the user's other devices
 - Installs terminal helpers (`airdrop`, `copy-clipboard`, `paste-clipboard`) in `~/.local/bin` and automatically detects Wayland vs. X11 for clipboard access
 
-Choose Wi-Fi or free internet sharing in the first-run wizard. The installer does not install or configure a VPN.
+Choose a provider in the first-run wizard. The installer does not install or configure a host VPN; optional Tailscale runs inside the app.
 
 ### Requirements
 
