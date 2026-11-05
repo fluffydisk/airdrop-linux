@@ -133,7 +133,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.6.4
+          test "$version" = 1.6.5
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           gh workflow run package-publishing.yml --ref main -f "tag=v$version" -F publish=true

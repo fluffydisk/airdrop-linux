@@ -4,10 +4,12 @@ on:
     inputs:
       tag: {description: Expected application release, type: string, required: true, default: v1.5.0}
       fingerprint: {description: Expected public repository signing fingerprint, type: string, required: true, default: 6513D70958397F60D3787A0CB93F4FC1E97CF3AE}
+      dns_runtime: {description: Test current DNS recovery source inside the installed runtime, type: boolean, default: false}
   workflow_call:
     inputs:
       tag: {type: string, required: true}
       fingerprint: {type: string, required: true}
+      dns_runtime: {type: boolean, default: false}
 permissions:
   contents: read
 jobs:
@@ -30,6 +32,7 @@ jobs:
         env:
           EXPECTED_FINGERPRINT: ${{ inputs.fingerprint }}
           RELEASE_TAG: ${{ inputs.tag }}
+          DNS_RUNTIME: ${{ inputs.dns_runtime }}
         run: |
           set -euo pipefail
           sudo bash scripts/ci-ubuntu-mirror.sh
@@ -54,6 +57,10 @@ jobs:
           runtime=$(mktemp -d)
           version=$(XDG_RUNTIME_DIR="$runtime" dbus-run-session -- flatpak run --command=/app/lib/airdrop-linux/runtime/node io.github.fluffydisk.airdrop-linux -p 'require("/app/lib/airdrop-linux/server/package.json").version')
           test "$version" = "${RELEASE_TAG#v}"
+          if [[ "$DNS_RUNTIME" == true ]]; then
+            runtime=$(mktemp -d)
+            XDG_RUNTIME_DIR="$runtime" xvfb-run -a dbus-run-session -- node scripts/test-flatpak-dns-runtime.cjs
+          fi
           runtime=$(mktemp -d)
           XDG_RUNTIME_DIR="$runtime" dbus-run-session -- node scripts/smoke-sandbox.js flatpak
           runtime=$(mktemp -d)
