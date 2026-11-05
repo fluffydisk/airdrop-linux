@@ -4,9 +4,9 @@
 Run only on a disposable CI VM. The explicit --commit rollback below prepares
 an old signed test baseline; it is never part of the user migration procedure.
 """
-import importlib.util,json,os,subprocess,sys,urllib.request
+import importlib.util,json,os,subprocess,sys
 from pathlib import Path
-from flatpak_channel import APP,R2,run
+from flatpak_channel import APP,R2,run,fetch
 from public_flatpak_network import update
 spec=importlib.util.spec_from_file_location('signed_flatpak_tests',Path(__file__).with_name('test-signed-flatpak.py'));tests=importlib.util.module_from_spec(spec);sys.modules[spec.name]=tests;spec.loader.exec_module(tests)
 installer=tests.installer
@@ -23,7 +23,7 @@ assert tests.state('user')==before
 print('VERIFIED: ordinary flatpak update advanced the actual public signed previous revision to the current payload; data/identity fixtures preserved',flush=True)
 run('flatpak','uninstall','--user','--noninteractive',APP)
 bundle=Path(os.environ['RUNNER_TEMP'])/'migration-r2.flatpak'
-with urllib.request.urlopen('https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak') as response:bundle.write_bytes(response.read())
+fetch('https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak',bundle)
 import hashlib
 assert hashlib.sha256(bundle.read_bytes()).hexdigest()=='9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df'
 run('flatpak','install','--user','--noninteractive',bundle)
