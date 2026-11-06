@@ -156,6 +156,9 @@ const {_electron:electron}=require('playwright-core');
      const publicFile='flatpak-public-'+Date.now()+'.txt';
      assert.equal((await fetch(publicOrigin+'/push/files/'+publicFile,{method:'PUT',headers:publicHeaders,body:'real Flatpak public sharing'})).status,201);
      assert.equal(await(await fetch(publicOrigin+'/'+publicFile,{headers:publicHeaders})).text(),'real Flatpak public sharing');
+     // The independent LAN checks explicitly dismissed the first-run dialog.
+     // Reopen it as a user would before asserting its next visible stage.
+     await page.locator('#setupDevices').click();
      await page.locator('#wizardBackground').waitFor({state:'visible'});await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});await page.locator('#wizardContinue').click();
      await page.evaluate(()=>window.airdrop.devices('mode',{mode:'local'}));
      console.log('flatpak: actual verified component download, registered Cloudflare tunnel, public pairing and exact file upload/download passed');

@@ -16,16 +16,21 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
  t.after(async()=>{await browser?.close();await connection.stop();service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(root,{recursive:true,force:true});});
  await connection.initialize();await connection.queue;await connection.action('internet');
  let state;
- for(let i=0;i<130;i++){state=await connection.snapshot();if(['ready','error'].includes(state.status))break;await new Promise(r=>setTimeout(r,1000));}
- assert.equal(state.status,'ready',state.message);assert.ok(new URL(state.url).hostname.endsWith('.trycloudflare.com'));
+ for(let i=0;i<130;i++){state=await connection.snapshot();if(['ready','phone-verification','error'].includes(state.status))break;await new Promise(r=>setTimeout(r,1000));}
+ assert.ok(['ready','phone-verification'].includes(state.status),state.message);
+ const pairingUrl=state.status==='ready'?state.url:state.verificationUrl;
+ assert.ok(new URL(pairingUrl).hostname.endsWith('.trycloudflare.com'));
  assert.equal(state.preferences.hasAccessKey,false);
- const origin=new URL(state.url).origin,token=new URL(state.url).hash.slice(1);
+ const origin=new URL(pairingUrl).origin,token=new URL(pairingUrl).hash.slice(1);
  assert.equal((await fetch(origin+'/push/health')).status,401);
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,chromiumSandbox:true});
  for(const [name,profile] of [['iphone',profiles['iPhone 13']],['android',profiles['Pixel 5']]]){
   const context=await browser.newContext({...profile,acceptDownloads:true});const page=await context.newPage();
   try{
-   await page.goto(state.url);await page.waitForURL('**/ui/');await page.getByText('Connected to your computer',{exact:true}).waitFor();
+   await page.goto(pairingUrl);await page.waitForURL('**/ui/');await page.getByText('Connected to your computer',{exact:true}).waitFor();
+   assert.equal((await page.request.get(origin+'/push/health')).status(),200);
+   for(let i=0;i<50&&(await connection.snapshot()).status!=='ready';i++)await new Promise(r=>setTimeout(r,100));
+   assert.equal((await connection.snapshot()).status,'ready','Actual authenticated phone health must complete pending verification');
    assert.ok((await connection.snapshot()).pairedAt>0);
    const filename='live-'+name+'.txt',payload='Public-service acceptance '+name;
    await page.locator('#fileInput').setInputFiles({name:filename,mimeType:'text/plain',buffer:Buffer.from(payload)});
