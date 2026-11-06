@@ -74,6 +74,7 @@ jobs:
           set -euo pipefail
           export CHROMIUM_PATH=$(command -v google-chrome || command -v chromium)
           npm run test:mobile
+          node --test tests/guest-browser.cjs
           node scripts/test-tsnet-bootstrap.cjs desktop/core/bin/airdrop-tsnet
           AIRDROP_TEST_LIVE_INTERNET=1 node --test tests/internet-live.cjs
       - uses: actions/upload-artifact@v4
@@ -142,7 +143,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.6.7
+          test "$version" = 1.6.8
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           # The tested Flatpak producer requests the combined protected publish.

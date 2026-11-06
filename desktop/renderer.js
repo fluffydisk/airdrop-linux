@@ -281,3 +281,22 @@ document.getElementById('resetPreferences').onclick = () => {
 };
 applyPreferences();
 try { const start = localStorage.getItem('airdrop-start-view'); if (['files','clipboard'].includes(start)) navigate(start); } catch {}
+
+let guestExpiryTimer;
+for(const [id,selectFiles] of [['guestReceive',false],['guestShare',true]]) document.getElementById(id).onclick=async()=>{
+  const result=document.getElementById('guestResult');
+  const buttons=['guestReceive','guestShare','guestStop'].map(id=>document.getElementById(id));
+  buttons.forEach(button=>button.disabled=true);
+  try {
+    const session=await window.airdrop.devices('guest-start',{selectFiles});if(!session)return;
+    clearTimeout(guestExpiryTimer);
+    document.getElementById('guestQr').src=session.qr;
+    document.getElementById('guestSession').hidden=false;
+    document.getElementById('guestSummary').textContent=session.files.length+' selected files available. Uploads go into a separate Guest uploads folder. Expires in 10 minutes.';
+    result.textContent='Scan with the phone camera. Guest access does not include your workspace or clipboard.';
+    guestExpiryTimer=setTimeout(()=>{document.getElementById('guestSession').hidden=true;result.textContent='Guest session expired.';},Math.max(0,session.expires-Date.now()));
+  } catch(error){result.textContent=error.message;}finally{buttons.forEach(button=>button.disabled=false);}
+};
+document.getElementById('guestStop').onclick=async()=>{
+  try{await window.airdrop.devices('guest-stop');clearTimeout(guestExpiryTimer);document.getElementById('guestSession').hidden=true;document.getElementById('guestResult').textContent='Guest access revoked.';}catch(error){document.getElementById('guestResult').textContent=error.message;}
+};

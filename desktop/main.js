@@ -50,7 +50,7 @@ fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
 app.setPath('userData', desktopData);
 const internetAsset=process.platform==='linux'&&require('./core/internet-helper.json').assets[process.arch];
 const tailscaleHelper=[path.resolve(__dirname,'../../../runtime/airdrop-tsnet'),path.join(__dirname,'core/bin/airdrop-tsnet')].find(file=>fs.existsSync(file));
-const devices = new (require('./core/lib/devices').Devices)({directory:path.join(desktopData,'connections'),service:require('./core/connection-service.json'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`,
+const devices = new (require('./core/lib/devices').Devices)({guestRoot:process.env.AIRDROP_SHARE_DIR || paths.files,directory:path.join(desktopData,'connections'),service:require('./core/connection-service.json'),backend:`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}`,
   probe:gateway=>gateway.secure?gateway.probe({request:(...args)=>net.fetch(...args)}):gateway.probe(),
   createTailscaleClient:tailscaleHelper?options=>new (require('./core/lib/tailscale-connection').TailscaleConnection)({...options,helper:tailscaleHelper,directory:path.join(desktopData,'connections')}):undefined,
   createInternetClient:internetAsset?options=>new (require('./core/lib/internet-connection').InternetConnection)({...options,directory:path.join(desktopData,'connection-runtime'),asset:internetAsset,request:net.fetch}):undefined});
@@ -131,6 +131,12 @@ function registerIpc() {
   });
   ipcMain.handle('airdrop:devices',async(event,action,payload)=>{
     ownWindow(event);await devicesReady;
+    if(action==='guest-start'){
+      let sources=[];
+      if(payload?.selectFiles){const chosen=await dialog.showOpenDialog(window,{title:'Choose files for this guest session',properties:['openFile','multiSelections']});if(chosen.canceled)return null;sources=chosen.filePaths;}
+      return devices.startGuest(sources);
+    }
+    if(action==='guest-stop')return devices.stopGuest();
     if(action==='state'){if(devices.state.status==='ready')providerLoginWindow?.close();return {...await devices.snapshot(),background:backgroundPolicy.snapshot()};}
     if(action==='preferences'||action==='finish-setup'){
       if(action==='finish-setup'&&devices.state.status!=='ready')throw Error('Reconnect before finishing setup.');

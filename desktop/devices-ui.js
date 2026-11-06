@@ -44,6 +44,7 @@
     try {
       const state = await window.airdrop.devices('state'); lastState = state;
       const ready = state.status === 'ready' && !!state.url && !!state.qr;
+      if(!ready && get('guestSession'))get('guestSession').hidden=true;
       const progress = AirdropConnectionProgress.describe(state, startedAt ? (Date.now() - startedAt) / 1000 : 0);
       const active = progress.active;
       const key=JSON.stringify(state.providers);

@@ -40,6 +40,7 @@
   <main><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
     <section id="view-transfer" class="view">
       <div class="page-heading"><h1>Transfer</h1></div>
+      <section class="queue-card"><h2>Guest transfer</h2><p>Let someone send files without accessing your workspace. Optionally choose specific files they can download.</p><button class="button button-primary" id="guestReceive">Receive by QR</button> <button class="button" id="guestShare">Share selected files by QR</button><div id="guestSession" hidden><img id="guestQr" width="256" height="256" alt="Scan for guest transfer"><p id="guestSummary"></p><button class="button" id="guestStop">Stop guest transfer</button></div><p id="guestResult" role="status"></p></section>
       <p id="transferDestination">Destination: Airdrop/</p>
       <div id="dropZone" class="drop-zone" tabindex="0" role="group" aria-label="Drop files, paste with Ctrl+V, or press Enter to choose files">
         <div class="drop-orbit" aria-hidden="true"><span class="orbit-dot one"></span><span class="orbit-dot two"></span><div class="upload-symbol"><svg><use href="#i-upload"/></svg></div></div>

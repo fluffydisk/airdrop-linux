@@ -174,3 +174,36 @@ connection refusal to `api.trycloudflare.com:443`; no external phone transfer
 through the free service was established here. Public-service availability and
 real-device acceptance remain separate validation steps. Historical release
 reports describe the old Tailscale implementation and do not validate this flow.
+
+## Guest QR transfers
+
+On **Transfer**, choose **Receive by QR** for uploads only, or **Share selected
+files by QR** to explicitly select downloadable files in the system file picker.
+A verified connection must already be ready. The guest scans this separate QR
+with their phone camera; no app installation or workspace pairing is required.
+
+Guest links expire after ten minutes. Starting another guest session, choosing
+**Stop guest transfer**, disconnecting, or quitting revokes access. Uploads are
+kept in a fresh `Guest uploads-*` directory within the shared files folder.
+Guests cannot list that directory or download its contents. Limits are 100 MiB
+per uploaded file, 100 upload attempts, two simultaneous uploads and 1 GiB of
+uploaded bytes per session. Failed attempts count toward limits.
+
+The `/guest/` interface uses its own backend handler and random credential.
+Guest requests never proxy to the normal workspace backend. Download IDs map
+only to explicitly selected, opened regular files; filenames/paths supplied by
+the guest cannot select downloads. Uploads never overwrite existing files.
+Guest cookies are HttpOnly, SameSite Strict and scoped to `/guest/` (Secure in
+HTTPS mode). The QR secret is removed from the address bar after opening.
+Workspace listing, clipboard, trash, deletion and normal download endpoints
+reject guest credentials. The existing private device-pairing QR still grants
+workspace access and must be reserved for trusted devices.
+
+The selected files remain open until the session ends; editing a selected file
+can change the content offered during the session. This feature uses the active
+connection provider, including its existing LAN/relay trust and availability
+limits. Browser acceptance tests cover uploads, native downloads, revocation and
+mobile layouts using Chromium iPhone/Android emulation; physical Safari/iPhone
+validation remains pending.
+
+Validation: `node --test tests/guest-share.test.js tests/guest-browser.cjs`.
