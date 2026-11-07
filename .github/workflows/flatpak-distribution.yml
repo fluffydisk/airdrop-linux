@@ -46,8 +46,7 @@ jobs:
             test "$GITHUB_REF" = refs/heads/main
           fi
           printf 'tag=%s\n' "$RELEASE_TAG" >> "$GITHUB_OUTPUT"
-      - if: github.event_name != 'pull_request'
-        name: Install pinned official dependency generators
+      - name: Install pinned official dependency generators
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/flatpak-builder-tools"
@@ -85,6 +84,7 @@ jobs:
           module['sources']=[item for item in module['sources'] if not isinstance(item,dict) or item.get('path')!='flatpak/application-id.patch']
           file.write_text(yaml.safe_dump(manifest,sort_keys=False))
           PYTHON
+          flatpak-node-generator --no-devel -r --max-parallel 12 -o packaging/flatpak/generated-npm-sources.json npm package-lock.json
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-inputs
