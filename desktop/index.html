@@ -4,7 +4,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Airdrop</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="core/ui/explorer.css"></head>
 <body>
+<a class="skip-link" href="#mainContent">Skip to workspace</a>
 <svg class="svg-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5m7-7-7 7 7 7"/></symbol>
+<symbol id="i-forward" viewBox="0 0 24 24"><path d="M5 12h14m-7-7 7 7-7 7"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m-7 7 7-7 7 7"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1"/></symbol>
 <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z M22 2 11 13"/></symbol>
 <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
@@ -21,44 +27,45 @@
 </defs></svg>
 <div class="app-shell">
 <aside class="sidebar">
-  <a class="brand" href="#transfer" aria-label="Airdrop home"><span class="brand-mark"><svg><use href="#i-send"/></svg></span><span>Airdrop<span class="brand-caption">FILES. SIMPLY SHARED.</span></span></a>
-  <div class="nav-label">WORKSPACE</div>
+  <a class="brand" href="#transfer" aria-label="Airdrop home"><span class="brand-mark"><svg aria-hidden="true"><use href="#i-send"/></svg></span><span>Airdrop<span class="brand-caption">For Linux</span></span></a>
+
   <nav aria-label="Main navigation">
-    <button class="nav-item selected" data-view="transfer" aria-current="page"><svg><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
-    <button class="nav-item" data-view="files"><svg><use href="#i-folder"/></svg>Files</button>
-    <button class="nav-item" data-view="clipboard"><svg><use href="#i-file"/></svg>Clipboard</button>
-    <button class="nav-item" data-view="settings"><svg><use href="#i-settings"/></svg>Settings</button>
+    <button class="nav-item selected" data-view="transfer" aria-current="page"><svg aria-hidden="true"><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
+    <button class="nav-item" data-view="files"><svg aria-hidden="true"><use href="#i-folder"/></svg>Files</button>
+    <button class="nav-item" data-view="clipboard"><svg aria-hidden="true"><use href="#i-file"/></svg>Clipboard</button>
+    <button class="nav-item" data-view="settings"><svg aria-hidden="true"><use href="#i-settings"/></svg>Settings</button>
   </nav>
   <div class="sidebar-bottom">
-    <button class="nav-item" id="folder"><svg><use href="#i-folder"/></svg>Shared folder<svg class="trailing"><use href="#i-arrow"/></svg></button>
-    <button class="nav-item" id="pwa"><svg><use href="#i-arrow"/></svg>Open web app</button>
-    <div class="device-card"><span class="device-icon"><svg><use href="#i-monitor"/></svg></span><div><strong id="deviceName">This computer</strong><span>Your local workspace</span></div><span class="device-dot"></span></div>
+    <button class="nav-item" id="folder"><svg aria-hidden="true"><use href="#i-folder"/></svg>Shared folder<svg class="trailing"><use href="#i-arrow"/></svg></button>
+    <button class="nav-item" id="pwa"><svg aria-hidden="true"><use href="#i-arrow"/></svg>Open web app</button>
+    <div class="device-card"><span class="device-icon"><svg aria-hidden="true"><use href="#i-monitor"/></svg></span><div><strong id="deviceName">This computer</strong><span>Your local workspace</span></div><span class="device-dot"></span></div>
   </div>
 </aside>
 <div class="workspace">
-  <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><button class="connection connection-button" id="sharingStatus" type="button" aria-label="Open connection settings">Preparing connection…</button><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg><use href="#i-sun"/></svg></button></div></header>
-  <main><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
+  <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><button class="connection connection-button" id="sharingStatus" type="button" aria-label="Open connection settings">Preparing connection…</button><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg aria-hidden="true"><use href="#i-sun"/></svg></button></div></header>
+  <main id="mainContent" tabindex="-1"><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
     <section id="view-transfer" class="view">
-      <div class="page-heading"><h1>Transfer</h1></div>
-      <section class="queue-card"><h2>Guest transfer</h2><p>Let someone send files without accessing your workspace. Optionally choose specific files they can download.</p><button class="button button-primary" id="guestReceive">Receive by QR</button> <button class="button" id="guestShare">Share selected files by QR</button><div id="guestSession" hidden><img id="guestQr" width="256" height="256" alt="Scan for guest transfer"><p id="guestSummary"></p><button class="button" id="guestStop">Stop guest transfer</button></div><p id="guestResult" role="status"></p></section>
+      <div class="page-heading"><h1>Transfer</h1><p>Share with your connected devices. Keep your files close.</p></div>
+
       <p id="transferDestination">Destination: Airdrop/</p>
       <div id="dropZone" class="drop-zone" tabindex="0" role="group" aria-label="Drop files, paste with Ctrl+V, or press Enter to choose files">
-        <div class="drop-orbit" aria-hidden="true"><span class="orbit-dot one"></span><span class="orbit-dot two"></span><div class="upload-symbol"><svg><use href="#i-upload"/></svg></div></div>
+        <div class="drop-orbit" aria-hidden="true"><div class="upload-symbol"><svg aria-hidden="true"><use href="#i-upload"/></svg></div></div>
         <h2>Share files</h2><p>Drop files here or paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
         <button class="button button-primary" id="choose">Choose files<svg class="button-arrow"><use href="#i-arrow"/></svg></button>
         <button class="text-button" id="pasteTransfer">Paste from clipboard</button><span class="drop-caption">Files are shared as soon as you add them.</span>
       </div>
       <section class="queue-card" aria-label="Files to send">
         <div class="section-heading"><div><h2>Transfer status <span class="count-pill" id="fileCount">0</span></h2><p id="queueSummary">Your next transfer starts here.</p></div><button class="text-button" id="clearFiles" hidden>Clear all</button></div>
-        <div id="queueEmpty" class="queue-empty"><svg><use href="#i-file"/></svg><span>Choose, drop or paste something to get started.</span></div>
+        <div id="queueEmpty" class="queue-empty"><svg aria-hidden="true"><use href="#i-file"/></svg><span>Choose, drop or paste something to get started.</span></div>
         <ul id="files" class="file-list"></ul>
-        <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Retry failed files<svg><use href="#i-send"/></svg></button></div>
+        <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Retry failed files<svg aria-hidden="true"><use href="#i-send"/></svg></button></div>
       </section>
+      <details class="guest-transfer"><summary>Share with a guest</summary><p>Let someone send files without accessing your workspace. Optionally choose specific files they can download.</p><button class="button" id="guestReceive">Receive by QR</button> <button class="button" id="guestShare">Share selected files by QR</button><div id="guestSession" hidden><img id="guestQr" width="256" height="256" alt="Scan for guest transfer"><p id="guestSummary"></p><button class="button" id="guestStop">Stop guest transfer</button></div><p id="guestResult" role="status"></p></details>
       <div class="result" id="result" role="status" aria-live="polite" hidden></div>
     </section>
-    <section id="view-files" class="view" hidden><div class="page-heading"><h1>Files &amp; folders.</h1><p>Sort your shared files, paste with Ctrl+V, or drag a file into another application to copy it.</p></div><div id="fileExplorer"></div></section>
+    <section id="view-files" class="view" hidden><div class="page-heading"><h1>Files</h1><p>Sort your shared files, paste with Ctrl+V, or drag a file into another application to copy it.</p></div><div id="fileExplorer"></div></section>
     <section id="view-clipboard" class="view" hidden>
-      <div class="page-heading"><h1>Your shared clipboard.</h1><p>Paste text from this computer, or pick up text shared by another device.</p></div>
+      <div class="page-heading"><h1>Clipboard</h1><p>Paste text from this computer, or pick up text shared by another device.</p></div>
       <section class="settings-card">
         <label class="field-label" for="clipboardText">Clipboard text</label>
         <textarea id="clipboardText" rows="10" placeholder="Paste or type text to share…" spellcheck="false"></textarea>
@@ -73,12 +80,24 @@
       </section>
     </section>
     <section id="view-activity" class="view" hidden>
-      <div class="page-heading"><h1>A little history.</h1><p>The latest files in your shared workspace.</p></div>
+      <div class="page-heading"><h1>Recent files</h1><p>The latest files in your shared workspace.</p></div>
       <section class="queue-card activity-card"><div class="section-heading"><div><h2>Shared files</h2><p>Recent additions, ready on your other devices.</p></div><button class="text-button" id="refreshActivity">Refresh</button></div><ul class="file-list" id="recentFiles"></ul><div class="queue-empty" id="activityEmpty">Nothing here yet. Send your first file.</div></section><div id="activityResult" class="result" role="status" hidden></div>
     </section>
     <section id="view-settings" class="view" hidden>
       <div class="page-heading"><h1>Settings</h1></div>
-    <details id="connectionSettings" class="settings-card" open><summary>Device connection</summary>
+      <section class="settings-card updates-panel" id="updatesSettings" aria-labelledby="updatesHeading">
+        <div class="section-title"><h2 id="updatesHeading">Updates</h2><span id="updateDistribution" class="distribution-label">Installation</span></div>
+        <p class="installed-version">Installed version <strong id="installedVersion">—</strong></p>
+        <p id="updateState" role="status" aria-live="polite">Reading update status…</p>
+        <progress id="updateProgress" max="100" aria-label="Update progress" hidden></progress>
+        <p id="updateInstructions" class="field-help" hidden></p>
+        <p id="portableNote" class="field-help" hidden>AppImage updates are downloaded separately. Quit Airdrop and replace your AppImage after verifying the release checksum. The local server is updated separately.</p>
+        <div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Download and install</button><button class="button" id="copyUpdateInstructions" hidden>Copy update instructions</button><button class="text-button" id="releaseNotes" hidden>View release notes</button></div>
+        <details id="updateDetails" hidden><summary>What’s new</summary><pre id="updateNotes"></pre></details>
+        <div class="update-preference"><label><input type="checkbox" id="automaticUpdates"> Check automatically</label><p class="field-help">Check for stable releases every six hours while Airdrop is open. Updates are never installed automatically.</p><p id="lastUpdateCheck" class="field-help">Not checked this session</p></div>
+      </section>
+
+    <details id="connectionSettings" class="settings-card"><summary>Device connection</summary>
       <p class="field-help">Choose Airdrop, Tailscale or the same Wi-Fi for your iPhone, Android phone or tablet. Airdrop and Wi-Fi do not need a VPN account.</p>
       <button class="button button-primary" id="setupDevices">Connect a device</button>
       <label class="field-label" for="connectionProvider">Connection provider</label>
@@ -106,7 +125,7 @@
         <div id="deviceLink" hidden><label for="deviceAddress">Private sharing link</label><input id="deviceAddress" readonly aria-label="Pairing address"><button class="button" id="copyDeviceAddress">Copy address</button><img id="deviceQr" width="256" height="256" alt="Scan this pairing code on your other device"><p>Scan using your iPhone or Android camera. Keep this link private. For Wi-Fi sharing, both devices need the same network.</p></div>
       </div>
     </details>
-<details class="settings-card"><summary>Advanced: external workspace</summary><div class="settings-icon"><svg><use href="#i-arrow"/></svg></div><h2>External workspace</h2><p>Use Device connection for app-managed sharing through your Airdrop relay or a trusted LAN. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">External address</label><div class="address-field"><input id="url" type="url" placeholder="https://workspace.example.com" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></details>
+<details class="settings-card"><summary>Advanced: external workspace</summary><div class="settings-icon"><svg aria-hidden="true"><use href="#i-arrow"/></svg></div><h2>External workspace</h2><p>Use Device connection for app-managed sharing through your Airdrop relay or a trusted LAN. The address field below is optional for legacy externally managed workspaces.</p><label class="field-label" for="url">External address</label><div class="address-field"><input id="url" type="url" placeholder="https://workspace.example.com" spellcheck="false" autocomplete="off"><button class="button button-primary" id="saveUrl">Save address</button></div><p class="field-help">Saving an address does not verify a connection. A successful check confirms access from this computer only.</p><div id="settingsResult" class="result" role="status" hidden></div><button class="button" id="checkConnection">Check saved address</button><div id="connectionResult" class="result" role="status" aria-live="polite" hidden></div></details>
       <section class="settings-card compact-setting"><div><h2>Appearance</h2><p>A comfortable view, day or night.</p></div><div class="theme-picker" role="group" aria-label="Appearance"><button data-theme-choice="system">System</button><button data-theme-choice="light" class="selected">Light</button><button data-theme-choice="dark">Dark</button></div></section>
       <details class="settings-card"><summary>More preferences</summary><div class="preferences-grid">
 <label>Accent color<select id="accentPreference"><option value="blue">Blue</option><option value="purple">Purple</option><option value="green">Green</option><option value="orange">Orange</option></select></label>
@@ -115,8 +134,8 @@
 <label>Default file order<select id="sortPreference"><option value="name-asc">Name · A–Z</option><option value="name-desc">Name · Z–A</option><option value="date-desc">Date · Newest first</option><option value="date-asc">Date · Oldest first</option><option value="size-desc">Size · Largest first</option><option value="size-asc">Size · Smallest first</option><option value="type-asc">File type</option></select></label>
 <label><input type="checkbox" id="motionPreference"> Reduce animation</label><label><input type="checkbox" id="zipPreference"> Bundle new transfers as ZIP by default</label>
 </div><button class="text-button" id="resetPreferences">Reset appearance and transfer preferences</button><p class="field-help">These preferences stay on this computer.</p></details>
-      <section class="settings-card"><h2>Updates</h2><button id="stopSharing" type="button">Quit desktop</button>
-          <p id="portableNote" hidden>AppImage desktop companion: the local server must be installed separately. Download a replacement AppImage to update this desktop; installed server updates are managed separately.</p><p id="updateState" role="status">Checking version…</p><div class="clipboard-actions"><button class="button" id="checkUpdate">Check for updates</button><button class="button button-primary" id="installUpdate" hidden>Update</button></div></section>
+
+      <button class="text-button" id="stopSharing" type="button">Quit desktop</button>
     </section>
   </main>
   <footer class="workspace-footer"><span><span class="footer-dot"></span> LOCAL FIRST. ALWAYS YOURS.</span><span>Airdrop for Linux</span></footer>

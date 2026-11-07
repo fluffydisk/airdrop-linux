@@ -46,6 +46,8 @@ function navigate(view) {
   document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();
   if (view === 'files') fileExplorer.refresh();
+  const heading = document.querySelector('#view-' + view + ' h1');
+  heading.tabIndex = -1; heading.focus({ preventScroll: true });
 }
 function fileRow(file, removable) {
   const row = document.createElement('li'); row.className = 'file-row';
@@ -132,31 +134,73 @@ const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer
   drag: paths => window.airdrop.drag(paths),
   reveal: directory => window.airdrop.folder(directory),
   download: paths => window.airdrop.explore('download', { paths })
-}, { enabled: () => ['transfer', 'files'].includes(activeView) && !busy,
+}, { icon: name => {
+    const navigation = { Back: 'back', Forward: 'forward', 'Parent folder': 'up', 'Airdrop root': 'home', 'Refresh files': 'refresh' };
+    if (navigation[name]) return icon(navigation[name]);
+    if (name.startsWith('file-')) return icon(name === 'file-directory' ? 'folder' : 'file');
+  }, enabled: () => ['transfer', 'files'].includes(activeView) && !busy,
   choose: () => { if (!busy && !files.length) return window.airdrop.choose().then(select).catch(report); },
   onMessage: text => { if (activeView === 'transfer') message(text); },
   onNavigate: directory => { document.getElementById('transferDestination').textContent = 'Destination: Airdrop/' + directory; }
 });
 window.airdrop.onShowFiles(() => navigate('files'));
 window.airdrop.onDragError?.(error => fileExplorer.say(error));
-let dismissedVersion = '';
+let dismissedVersion = '', latestUpdate = {};
 function updateState(state) {
+  if (!state) return;
+  latestUpdate = state;
+  const managed = state.managed && state.distribution !== 'flatpak';
+  const working = ['checking', 'downloading', 'installing'].includes(state.status);
+  const labels = { script: 'Standalone installer', flatpak: 'Flatpak · signed repository', apt: 'DEB / APT', rpm: 'RPM', snap: 'Snap Store', aur: 'AUR', appimage: 'AppImage' };
   document.getElementById('stopSharing').textContent = ['flatpak','snap'].includes(state.distribution) ? 'Stop sharing and quit' : 'Quit desktop';
-  document.getElementById('updateState').textContent = state.message || `Current version: ${state.current}`;
-  document.getElementById('checkUpdate').disabled = ['checking', 'downloading', 'installing'].includes(state.status);
-  document.getElementById('installUpdate').hidden = !['available','updated'].includes(state.status);
-  document.getElementById('installUpdate').textContent = state.status === 'updated' ? 'Quit to finish update' : state.distribution === 'appimage' ? 'Download AppImage update' : 'Update';
+  document.getElementById('installedVersion').textContent = state.current || '—';
+  document.getElementById('updateDistribution').textContent = labels[state.distribution] || 'Installation';
+  const status = document.getElementById('updateState');
+  status.textContent = state.message || `Current version: ${state.current}`;
+  status.dataset.status = state.status;
+  document.getElementById('checkUpdate').disabled = working || ['updated','recovery'].includes(state.status);
+  const install = document.getElementById('installUpdate');
+  install.hidden = managed || !['available','updated','recovery'].includes(state.status);
+  install.disabled = working;
+  install.textContent = state.status === 'updated' ? 'Quit to finish update' : state.distribution === 'appimage' ? 'Download AppImage' : state.distribution === 'flatpak' ? 'Install with Flatpak' : 'Download and install';
+  if (state.status === 'recovery') install.textContent = 'Restore previous version';
   document.getElementById('portableNote').hidden = state.distribution !== 'appimage';
+  document.getElementById('updateInstructions').hidden = !managed;
+  document.getElementById('updateInstructions').textContent = managed ? `${state.instructions || ''}\nYour package manager controls installation. Its repository may receive this release later.` : '';
+  document.getElementById('copyUpdateInstructions').hidden = !managed;
+  document.getElementById('releaseNotes').hidden = !state.version;
+  document.getElementById('updateDetails').hidden = !state.notes;
+  document.getElementById('updateNotes').textContent = state.notes || '';
+  document.getElementById('automaticUpdates').checked = state.automatic !== false;
+  document.getElementById('lastUpdateCheck').textContent = state.lastChecked ? `Last checked ${new Date(state.lastChecked).toLocaleString()}` : 'Not checked this session';
+  const progress = document.getElementById('updateProgress');
+  progress.hidden = !['downloading','installing'].includes(state.status);
+  if (Number.isFinite(state.progress)) progress.value = state.progress; else progress.removeAttribute('value');
+  document.getElementById('updatesSettings').setAttribute('aria-busy', String(working));
   const show = state.status === 'available' && dismissedVersion !== state.version;
   document.getElementById('updateBanner').hidden = !show;
-  document.getElementById('updateNotice').textContent = state.distribution === 'flatpak' ? 'An Airdrop update is available.' : `Airdrop ${state.version} is available.`;
+  document.getElementById('updateNotice').textContent = `Airdrop ${state.version} is available.`;
   document.getElementById('dismissUpdate').onclick = () => { dismissedVersion = state.version; document.getElementById('updateBanner').hidden = true; };
+}
+async function updateAction(action, payload) {
+  try { const state = await window.airdrop.update(action, payload); updateState(state); }
+  catch (error) {
+    const status = document.getElementById('updateState');
+    status.textContent = (error.message || String(error)).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+    status.dataset.status = 'error';
+    document.getElementById('automaticUpdates').checked = latestUpdate.automatic !== false;
+  }
 }
 window.airdrop.onUpdate(updateState);
 window.airdrop.update('state').then(updateState).catch(report);
-document.getElementById('checkUpdate').onclick = () => window.airdrop.update('check').then(updateState).catch(report);
-document.getElementById('installUpdate').onclick = () => window.airdrop.update(document.getElementById('installUpdate').textContent === 'Quit to finish update' ? 'finish' : 'install').then(updateState).catch(report);
-document.getElementById('showUpdate').onclick = () => navigate('settings');
+document.getElementById('checkUpdate').onclick = () => updateAction('check');
+document.getElementById('installUpdate').onclick = () => updateAction(latestUpdate.status === 'recovery' ? 'recover' : latestUpdate.status === 'updated' ? 'finish' : 'install');
+document.getElementById('releaseNotes').onclick = () => updateAction('release-notes');
+document.getElementById('copyUpdateInstructions').onclick = async () => {
+  await updateAction('copy-instructions');
+};
+document.getElementById('automaticUpdates').onchange = event => updateAction('preferences', event.target.checked);
+document.getElementById('showUpdate').onclick = () => { navigate('settings'); document.getElementById('checkUpdate').focus(); };
 window.airdrop.onStatus(status); window.airdrop.status().then(status).catch(report);
 window.airdrop.settings().then(settings => { document.getElementById('url').value = settings.pwaUrl; document.getElementById('deviceName').textContent = settings.deviceName || 'This computer'; }).catch(report);
 document.querySelectorAll('[data-view]').forEach(button => { button.onclick = () => navigate(button.dataset.view); });

@@ -4,6 +4,8 @@ set -euo pipefail
 [[ "$STORE_CHANNEL" == candidate || "$STORE_CHANNEL" == stable ]]
 [[ "$STORE_ARCH" == amd64 || "$STORE_ARCH" == arm64 ]]
 [[ "$PRODUCER_RUN" =~ ^[0-9]+$ ]]
+[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+expected_version=${RELEASE_TAG#v}
 root=$PWD
 shopt -s nullglob
 artifacts=(validated/*.snap)
@@ -20,7 +22,7 @@ systemctl --user start snapd.session-agent.socket
 sudo snap install airdrop-linux --channel="latest/$STORE_CHANNEL"
 systemctl --user daemon-reload
 read -r version revision tracking < <(snap list --unicode=never airdrop-linux | awk '$1 == "airdrop-linux" {print $2, $3, $4}')
-test "$version" = 1.5.0
+test "$version" = "$expected_version"
 [[ "$revision" =~ ^[0-9]+$ ]]
 test "$tracking" = "latest/$STORE_CHANNEL"
 sudo cmp -- "${artifacts[0]}" "/var/lib/snapd/snaps/airdrop-linux_${revision}.snap"
@@ -40,9 +42,9 @@ xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap background
 xvfb-run -a node scripts/smoke-sandbox-desktop.cjs snap
 cd "$root"
 mkdir -p snap-store-evidence
-jq -n --arg arch "$STORE_ARCH" --arg revision "$revision" --arg channel "$STORE_CHANNEL" \
+jq -n --arg version "$expected_version" --arg arch "$STORE_ARCH" --arg revision "$revision" --arg channel "$STORE_CHANNEL" \
   --arg sha256 "$expected_hash" --arg producer_run "$PRODUCER_RUN" \
-  '{arch:$arch,version:"1.5.0",revision:$revision,channel:$channel,sha256:$sha256,producer_run:$producer_run}' \
+  '{arch:$arch,version:$version,revision:$revision,channel:$channel,sha256:$sha256,producer_run:$producer_run}' \
   > "snap-store-evidence/$STORE_ARCH.json"
 printf 'Store %s %s: revision %s, identical tested payload; CLI, transfer, ZIP and sandboxed desktop lifecycle passed.\n' \
   "$STORE_CHANNEL" "$STORE_ARCH" "$revision" >> "$GITHUB_STEP_SUMMARY"

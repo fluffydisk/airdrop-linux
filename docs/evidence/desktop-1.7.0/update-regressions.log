@@ -1,0 +1,25 @@
+✔ nested folders, uploads, copy, recursive download and persistent trash restore without overwriting (119.02948ms)
+✔ every explorer operation rejects root escapes and intermediate links (16.973694ms)
+✔ opening a file passes only a regular shared file to the system opener (10.592033ms)
+✔ in-flight upload stays on its opened directory when its name becomes an outside symlink (13.991793ms)
+✔ explorer HTTP routes preserve legacy routes and return direct files or recursive ZIPs (176.717429ms)
+✔ nested arrivals notify their relative paths and trash is silent (10.094657ms)
+✔ move keeps same-folder files unchanged, moves without copies, and never overwrites or follows links (6.796442ms)
+✔ permanent trash deletion removes only selected entries, including nested content, without following links (13.420542ms)
+✔ sending an existing file back to its own folder does not create a duplicate (2.495904ms)
+✔ Flatpak check detects same-version new content and rejects malformed/foreign metadata (59.427626ms)
+✔ portal installer surfaces real progress and success; failed or incomplete operations never become success (7.402037ms)
+✔ startup and manual checks await the same completed result; failure clears the pending request (1.726348ms)
+✔ a timed-out portal never reports a late success (5.544032ms)
+✔ AppStream latest release matches the application and lockfile versions (4.397328ms)
+✔ automatic checks honor persisted opt-out, corrupt preferences, transfers and retry interval (10.743005ms)
+✔ managed discovery uses stable release metadata without claiming a package is installable (13.474404ms)
+✔ update view distinguishes package-manager instructions, downloads, recovery and restart (226.807562ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1815.315521
