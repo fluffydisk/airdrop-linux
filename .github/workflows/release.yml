@@ -53,6 +53,7 @@ jobs:
       - run: npm ci
       - name: Verify application and lockfile versions match
         run: node -e "const v=require('./package.json').version;for(const p of ['./desktop/package.json','./package-lock.json','./desktop/package-lock.json']){const x=require(p);if(x.version!==v||(x.packages&&x.packages[''].version!==v))throw Error('Version mismatch in '+p);}"
+      - run: node --test tests/flatpak-version.test.js
       - run: npm test
       - run: npm ci --prefix desktop
       - run: npm run prepare-desktop
