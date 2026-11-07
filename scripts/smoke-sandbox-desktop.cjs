@@ -311,12 +311,23 @@ const {_electron:electron}=require('playwright-core');
     assert.equal((await fetch('http://127.0.0.1:6001/push/health')).status,200);
    }
   }
+  if(channel==='snap') await app.evaluate(({net})=>{
+   globalThis.snapUpdateFetch=net.fetch;
+   net.fetch=async()=>({ok:true,status:200,json:async()=>({tag_name:'v99.0.0',assets:[],body:'Controlled stable release'})});
+  });
   const update=await page.evaluate(()=>window.airdrop.update('check'));
   assert.equal(update.distribution,channel);
   if(channel==='flatpak'){
    const hasChannel=await app.evaluate(()=>process.getBuiltinModule('fs').existsSync('/app/share/airdrop-linux/distribution.json'));
    assert.ok((hasChannel?['current','available']:['error']).includes(update.status),update.message);
-  }else assert.equal(update.status,'managed');
+  }else {
+   assert.equal(update.status,'available');
+   assert.equal(update.managed,true);
+   assert.match(update.instructions,/sudo snap refresh airdrop-linux/);
+   assert.equal(update.package,undefined,'Snap discovery must not supply a standalone installation payload');
+   await assert.rejects(page.evaluate(()=>window.airdrop.update('install')),/snap refresh/);
+   await app.evaluate(({net})=>{net.fetch=globalThis.snapUpdateFetch;delete globalThis.snapUpdateFetch;});
+  }
   if(channel==='snap' && process.argv[3]!=='background') {
    const closed=app.waitForEvent('close',{timeout:15000});
    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close()).catch(error=>{if(!/closed/i.test(error.message))throw error;});
