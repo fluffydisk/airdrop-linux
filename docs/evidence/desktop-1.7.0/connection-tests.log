@@ -1,0 +1,12 @@
+✔ Electron first-run wizard connects first, asks background next, then shows phone pairing and persists the choice (6819.627175ms)
+✔ Electron Flatpak default background and wizard retry both honor OS denial and keep settings off (2897.681676ms)
+✔ Electron automatically shows phone verification after desktop DNS failure and advances only after real paired health (4704.732702ms)
+✔ Electron update screen: stable discovery, package ownership, offline recovery, preferences and responsive keyboard navigation (4049.053861ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21429.158139

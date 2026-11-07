@@ -1,0 +1,18 @@
+✔ Chromium: immediate uploads, ZIP, Android shares, folders, selection, trash, native downloads and real clipboard paste (7237.568257ms)
+✔ mobile guest screen sends files and downloads only explicit selections (4208.465738ms)
+Mobile acceptance: iphone pairing
+Mobile acceptance: iphone upload
+Mobile acceptance: iphone download
+Mobile acceptance: android pairing
+Mobile acceptance: android upload
+Mobile acceptance: android download
+Mobile browser disconnected during android download
+✔ iPhone and Android browser layouts pair without setup fields, upload and download real files (4705.780079ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18543.011105

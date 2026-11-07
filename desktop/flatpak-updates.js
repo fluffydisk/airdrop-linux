@@ -17,22 +17,24 @@ async function check({fetcher=fetch,read=fs.readFile}={}) {
   const available=compare(latest.version,installed.version)>0||(latest.version===installed.version&&latest.revision>installed.revision);
   return {status:available?'available':'current',current:installed.version,version:latest.version,message:available?'An Airdrop update is available.':'Airdrop is up to date.'};
 }
-function install(publish,{spawnProcess=spawn}={}) {
+function install(publish,{spawnProcess=spawn,timeoutMs=20*60*1000}={}) {
   return new Promise((resolve,reject)=>{
     const child=spawnProcess('/app/bin/airdrop-update-portal',[],{stdio:['ignore','pipe','pipe']});
-    let buffer='',terminal=false;
-    const timer=setTimeout(()=>{child.kill();reject(Error('Update timed out. Check your connection and try again.'));},20*60*1000);
+    let buffer='',terminal,settled=false;
+    const fail=error=>{if(settled)return;settled=true;clearTimeout(timer);reject(error);};
+    const timer=setTimeout(()=>{fail(Error('Update timed out. Check your connection and try again.'));child.kill();},timeoutMs);
     child.stderr.on('data',()=>{});
-    child.on('error',error=>{clearTimeout(timer);reject(error);});
+    child.on('error',fail);
     child.stdout.on('data',data=>{
-      buffer+=data;if(buffer.length>65536){child.kill();return;}
+      if(settled)return;
+      buffer+=data;if(buffer.length>65536){fail(Error('Invalid update helper response. Try again.'));child.kill();return;}
       let end;while((end=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,end);buffer=buffer.slice(end+1);const [status,value]=line.split(' ');
-        if(status==='progress')publish({status:'installing',message:`Updating Airdrop… ${Math.max(0,Math.min(100,Number(value)||0))}%`});
-        if(status==='done'){terminal=true;publish({status:'updated',message:'Update installed. Quit and reopen Airdrop to use it.'});}
-        if(status==='empty'){terminal=true;publish({status:'current',message:'No update to install. Try Check for updates again later.'});}
+        if(status==='progress')publish({status:'installing',progress:Math.max(0,Math.min(100,Number(value)||0)),message:`Updating Airdrop… ${Math.max(0,Math.min(100,Number(value)||0))}%`});
+        if(status==='done')terminal={status:'updated',message:'Update installed. Quit and reopen Airdrop to use it.'};
+        if(status==='empty')terminal={status:'current',message:'No update to install. Try Check for updates again later.'};
       }
     });
-    child.on('close',code=>{clearTimeout(timer);if(code===0&&terminal)resolve();else reject(Error('Flatpak could not install the update. It may have been cancelled or require your system software manager.'));});
+    child.on('close',code=>{if(settled)return;clearTimeout(timer);if(code===0&&terminal){settled=true;publish(terminal);resolve();}else fail(Error('Flatpak could not install the update. It may have been cancelled or require your system software manager.'));});
   });
 }
 function singleFlight(operation) {

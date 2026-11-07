@@ -1,6 +1,6 @@
 {
   "name": "airdrop-push",
-  "version": "1.6.8",
+  "version": "1.7.0",
   "description": "File and clipboard sharing with in-app Wi-Fi and optional free internet connections",
   "main": "push-server.js",
   "scripts": {
@@ -20,7 +20,8 @@
     "package:channels": "node scripts/prepare-channels.js",
     "start:relay": "node network/relay/server.js",
     "test:desktop-connection": "node --test tests/desktop-lifecycle.cjs",
-    "test:mobile": "node --test tests/mobile-browser.cjs"
+    "test:mobile": "node --test tests/mobile-browser.cjs",
+    "test:desktop-updates": "node --test tests/desktop-updates.cjs"
   },
   "dependencies": {
     "archiver": "^7.0.1",

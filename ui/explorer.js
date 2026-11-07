@@ -33,6 +33,8 @@
     function say(text) { status.textContent = text; options.onMessage?.(text); }
     function button(parent, text, action, title = text) {
       const control = node('button', text); control.type = 'button'; control.title = title; control.setAttribute('aria-label', title);
+      const customIcon = options.icon?.(title);
+      if (customIcon) control.replaceChildren(customIcon);
       control.onclick = () => Promise.resolve().then(action).catch(error => say(error.message)); parent.append(control); return control;
     }
     if (options.choose) button(nav, 'Upload', options.choose);
@@ -114,6 +116,8 @@
         const checkbox = node('input'); checkbox.type = 'checkbox'; checkbox.checked = selected.has(key); checkbox.setAttribute('aria-label', `Select ${file.name}`);
         checkbox.onclick = event => event.stopPropagation(); checkbox.onchange = () => { if (checkbox.checked) selected.add(key); else selected.delete(key); anchor = index; updateSelection(); };
         const symbol = node('span', symbols[kind(file)], 'explorer-symbol'); symbol.setAttribute('aria-hidden', 'true');
+        const customIcon = options.icon?.('file-' + kind(file));
+        if (customIcon) symbol.replaceChildren(customIcon);
         const details = node('div', undefined, 'explorer-details'); const name = node('span', file.name, 'explorer-name'); name.title = file.name;
         const meta = node('small', trash ? file.path : file.type === 'directory' ? 'Folder' : file.size < 1024 ? `${file.size || 0} B` : file.size < 1024 ** 2 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / 1024 ** 2).toFixed(1)} MB`);
         if (!trash && file.modified) { const date = new Date(file.modified); meta.append(document.createTextNode(' · ' + date.toLocaleDateString())); meta.title = date.toLocaleString(); }

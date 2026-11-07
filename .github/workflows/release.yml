@@ -68,7 +68,14 @@ jobs:
           sudo apt-get install -y ./release/*.deb
           AIRDROP_CODE_DIR=/usr/lib/airdrop-linux node scripts/smoke-managed.js
           ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop xvfb-run -a dbus-run-session -- npm run test:desktop
+          ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop xvfb-run -a dbus-run-session -- npm run test:desktop-updates
           ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop AIRDROP_TEST_OZONE=x11 xvfb-run -a dbus-run-session -- npm run test:desktop-connection
+      - name: Upgrade the actual public v1.6.8 DEB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sudo apt-get remove -y airdrop-linux
+          bash scripts/test-deb-upgrade.sh
       - name: Verify mobile browsers and real free internet sharing
         if: matrix.arch == 'x64'
         run: |
@@ -144,7 +151,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.6.8
+          test "$version" = 1.7.0
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           # The tested Flatpak producer requests the combined protected publish.

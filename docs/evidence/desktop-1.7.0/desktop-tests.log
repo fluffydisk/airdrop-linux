@@ -1,0 +1,13 @@
+dbus-daemon[10044]: [session uid=1000 pid=10044 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.1' (uid=1000 pid=10064 comm="/workspace/airdrop-linux/desktop/node_modules/elec" label="kernel")
+dbus-daemon[10044]: [session uid=1000 pid=10044 pidfd=5] Successfully activated service 'org.a11y.Bus'
+✔ Electron update screen: stable discovery, package ownership, offline recovery, preferences and responsive keyboard navigation (4320.436778ms)
+✔ Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart (17216.949484ms)
+﹣ Electron: real StatusNotifier tray keeps window accessible after close (7.78465ms) # No StatusNotifier watcher in this desktop session
+ℹ tests 3
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 22701.555153

@@ -24,26 +24,33 @@ const backgroundPolicy = new (require('./background-policy').BackgroundPolicy)({
   request:options => require('./background').requestBackground(options), snapEnabled:process.env.AIRDROP_SNAP_BACKGROUND === '1'});
 const updater = require('./core/lib/updater');
 const flatpakUpdates = require('./flatpak-updates');
+const updatePreferences = require('./update-preferences');
+let automaticUpdates = false, lastUpdateAttempt = 0, lastUpdateCheck = null;
 let updateTimer, updateBusy = false;
-let updateState = { distribution: distribution.source, status: 'current', current: app.getVersion(), message: `Airdrop ${app.getVersion()}` };
-function publishUpdate(value) { value = { ...value, distribution: distribution.source }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
+let updateState = { distribution: distribution.source, status: 'idle', current: app.getVersion(), message: 'Check for a newer stable version.' };
+function publishUpdate(value) { value = { current: app.getVersion(), ...value, distribution: distribution.source, managed: distribution.managed, instructions: distribution.message, automatic: automaticUpdates, lastChecked: lastUpdateCheck }; updateState = value; if (window && !window.isDestroyed()) window.webContents.send('airdrop:update-state', value); return value; }
 const checkFlatpak = flatpakUpdates.singleFlight(async () => {
   updateBusy = true; publishUpdate({...updateState,status:'checking',message:'Checking for updates…'});
-  try { return publishUpdate(await flatpakUpdates.check({fetcher:net.fetch})); }
+  try { const result = await flatpakUpdates.check({fetcher:net.fetch}); lastUpdateCheck = Date.now(); return publishUpdate(result); }
   catch (error) { return publishUpdate({...updateState,status:'error',message:error.message}); }
   finally { updateBusy = false; }
 });
 async function checkUpdate() {
+  if (['recovery','updated'].includes(updateState.status)) return updateState;
+  lastUpdateAttempt = Date.now();
   if (distribution.source === 'flatpak') {
     if (updateState.status === 'updated' || (updateBusy && updateState.status === 'installing')) return updateState;
     return checkFlatpak();
   }
-  if (distribution.managed) return publishUpdate({ status: 'managed', current: app.getVersion(), message: distribution.message });
   if (updateBusy) return updateState;
   updateBusy = true; publishUpdate({ ...updateState, status: 'checking', message: 'Checking for updates…' });
-  try { return publishUpdate(await updater.check(app.getVersion())); }
+  try { const result = await updater.check(app.getVersion(), { fetcher: net.fetch, metadataOnly: distribution.managed }); lastUpdateCheck = Date.now(); return publishUpdate(result); }
   catch (error) { return publishUpdate({ status: 'error', current: app.getVersion(), message: error.message }); }
   finally { updateBusy = false; }
+}
+function backgroundUpdate() {
+  if (process.env.AIRDROP_DISABLE_UPDATE_CHECK || quitting) return;
+  if (updatePreferences.due({ automatic: automaticUpdates, busy: updateBusy, sending, lastAttempt: lastUpdateAttempt })) checkUpdate();
 }
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
@@ -159,12 +166,47 @@ function registerIpc() {
     throw Error('Unknown connection action');
   });
   ipcMain.handle('airdrop:quit', event => { ownWindow(event); app.quit(); });
-  ipcMain.handle('airdrop:update', async (event, action) => {
+  ipcMain.handle('airdrop:update', async (event, action, payload) => {
     ownWindow(event);
     if (action === 'state') return updateState;
+    if (action === 'preferences') {
+      const saved = await updatePreferences.write(desktopData, payload);
+      automaticUpdates = saved.automatic;
+      return publishUpdate(updateState);
+    }
+    if (action === 'release-notes') {
+      if (!/^\d+\.\d+\.\d+$/.test(updateState.version || '')) throw Error('Check for updates first');
+      await shell.openExternal(`https://github.com/fluffydisk/airdrop-linux/releases/tag/v${updateState.version}`);
+      return updateState;
+    }
+    if (action === 'copy-instructions') {
+      if (!distribution.managed || !distribution.message) throw Error('This installation has no package-manager instructions');
+      clipboard.writeText(distribution.message);
+      return updateState;
+    }
     if (action === 'check') return checkUpdate();
+    if (action === 'finish' && updateState.status === 'updated' && !distribution.managed) {
+      if (sending) throw Error('Wait for the current transfer to finish before quitting');
+      await require('./core/lib/maintenance').drain(paths.root, 0);
+      return app.quit();
+    }
+    if (action === 'recover') {
+      if (distribution.managed || process.env.APPIMAGE || updateBusy || updateState.status !== 'recovery') throw Error('No interrupted standalone update to recover');
+      if (sending) throw Error('Wait for the current transfer to finish before recovery');
+      updateBusy = true;
+      try {
+        await require('./core/lib/maintenance').drain(paths.root, 0);
+        await updater.recover(paths.root);
+        return publishUpdate({ status: 'updated', message: 'Previous version restored. Quit and reopen Airdrop before trying the update again.' });
+      } catch (error) { return publishUpdate({ status: 'recovery', message: `Recovery failed: ${error.message}` }); }
+      finally { updateBusy = false; }
+    }
     if (distribution.source === 'flatpak') {
-      if (action === 'finish' && updateState.status === 'updated') return app.quit();
+      if (action === 'finish' && updateState.status === 'updated') {
+        if (sending) throw Error('Wait for the current transfer to finish before quitting');
+        await require('./core/lib/maintenance').drain(paths.root, 0);
+        return app.quit();
+      }
       if (action !== 'install' || updateState.status !== 'available' || updateBusy) throw Error('Check for updates first');
       if (sending) throw Error('Wait for the current transfer to finish before updating');
       updateBusy = true; publishUpdate({...updateState,status:'installing',message:'Requesting the Flatpak update…'});
@@ -186,7 +228,7 @@ function registerIpc() {
     const release = updateState;
     publishUpdate({ ...release, status: 'downloading', message: 'Downloading and verifying update…' });
     try {
-      const prepared = await updater.prepare(paths.root, release, { progress: fraction => publishUpdate({ ...release, status: 'downloading', message: `Downloading update: ${Math.round(fraction * 100)}%` }) });
+      const prepared = await updater.prepare(paths.root, release, { progress: fraction => publishUpdate({ ...release, status: 'downloading', progress: Math.round(fraction * 100), message: `Downloading update: ${Math.round(fraction * 100)}%` }) });
       publishUpdate({ ...release, status: 'installing', message: 'Finishing transfers, then restarting Airdrop. Linux may request service-management permission.' });
       while (sending) await new Promise(resolve => setTimeout(resolve, 100));
       await updater.launch(paths.root, prepared, process.pid);
@@ -365,10 +407,15 @@ else {
       if (!quitting && backgroundGeneration===backgroundPolicy.generation && granted !== devices.preferences.background) await devices.configure({background:granted});
     }).catch(error => console.warn('Background setting unavailable:',error.message));
     await health(); timer = setInterval(health, 5000);
+    automaticUpdates = (await updatePreferences.read(desktopData)).automatic;
+    publishUpdate(updateState);
     const journal = await updater.readJournal(paths.root);
-    if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
-    else if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) checkUpdate();
-    if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(checkUpdate, 6 * 60 * 60 * 1000);
+    if (journal && !['complete','rolled-back'].includes(journal.phase) && !distribution.managed && !process.env.APPIMAGE) {
+      automaticUpdates = false;
+      publishUpdate({status:'recovery',message:'An earlier update was interrupted. Restore the previous version before checking again.'});
+    } else if (journal?.phase === 'rolled-back') publishUpdate({ ...updateState, message: `Previous update was rolled back: ${journal.error || 'interrupted installation'}` });
+    // Give setup and transfers priority; timers only discover, never install.
+    if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(backgroundUpdate, 60000);
   }).catch(error => { console.error(error); app.quit(); });
   app.on('window-all-closed', () => { if (!backgroundPolicy.active) app.quit(); });
 }
