@@ -1,0 +1,1 @@
+PASS: actual public 1.6.8 desktop launched sandboxed; its shipped updater checked, verified and activated local 1.7.0; new desktop launched sandboxed; file, clipboard and theme retained. Service-control callbacks were simulated; no production host services touched.

@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder appstream-compose elfutils debugedit dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml
           npm ci --ignore-scripts
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder \
@@ -54,7 +54,7 @@ jobs:
           set -euo pipefail
           runtime=$(mktemp -d)
           XDG_RUNTIME_DIR="$runtime" python3 scripts/validate-flatpak-reference.py \
-            --arch "${{ matrix.arch }}" --builder sdk --output "$RUNNER_TEMP/draft-logs"
+            --arch "${{ matrix.arch }}" --builder native --output "$RUNNER_TEMP/draft-logs"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
