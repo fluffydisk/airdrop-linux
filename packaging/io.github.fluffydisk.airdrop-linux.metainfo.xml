@@ -22,7 +22,7 @@
   <url type="homepage">https://github.com/fluffydisk/airdrop-linux</url>
   <url type="bugtracker">https://github.com/fluffydisk/airdrop-linux/issues</url>
   <url type="help">https://github.com/fluffydisk/airdrop-linux/blob/main/docs/device-sharing.md</url>
-  <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/v1.7.0/docs/evidence/desktop-1.7.0/after-transfer-light.png</image></screenshot></screenshots>
+  <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/ca481425aad9d8748c2cf57c24412e67c2815464/docs/evidence/desktop-1.7.0/after-transfer-light.png</image></screenshot></screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
     <release version="1.7.0" date="2026-11-07"><description><p>Redesigned Linux desktop with accessible light and dark themes, clearer sharing tasks, and distribution-aware updates with automatic check preferences and recovery guidance.</p></description></release>
