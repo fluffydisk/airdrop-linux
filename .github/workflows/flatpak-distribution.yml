@@ -81,6 +81,8 @@ jobs:
           source=module['sources'][0]
           source['url']='https://codeload.github.com/'+os.environ['GITHUB_REPOSITORY']+'/tar.gz/'+os.environ['SOURCE_COMMIT']
           source['sha256']=hashlib.sha256(Path(os.environ['RUNNER_TEMP']+'/application.tar.gz').read_bytes()).hexdigest()
+          # Current upstream already sets the desktop application identity.
+          module['sources']=[item for item in module['sources'] if not isinstance(item,dict) or item.get('path')!='flatpak/application-id.patch']
           file.write_text(yaml.safe_dump(manifest,sort_keys=False))
           PYTHON
       - uses: actions/upload-artifact@v4
