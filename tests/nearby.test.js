@@ -143,3 +143,18 @@ test('native sends and receives participate in the existing update maintenance b
   const sent = await a.send(b.id, [source]); assert.equal(sent.status, 'complete', sent.error);
   await require('../lib/maintenance').drain(a.maintenanceRoot, 0); await require('../lib/maintenance').drain(b.maintenanceRoot, 0);
 });
+test('interface changes rebuild cached DNS-SD addresses without restarting TLS or forgetting trust', { timeout: 20000 }, async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-interface-refresh-'));
+  const a = await new Nearby({ directory: path.join(root, 'a'), inbox: path.join(root, 'a-inbox'), approve: async () => true }).initialize();
+  const b = await new Nearby({ directory: path.join(root, 'b'), inbox: path.join(root, 'b-inbox'), approve: async () => true }).initialize();
+  t.after(async () => { await a.stop(); await b.stop(); await fs.rm(root, { recursive: true, force: true }); });
+  const until = async condition => { const deadline = Date.now() + 8000; while (!condition() && Date.now() < deadline) await new Promise(r => setTimeout(r, 50)); assert.ok(condition()); };
+  await until(() => a.peers.get(b.id)?.online && b.peers.get(a.id)?.online); await a.pair(b.id);
+  const server = a.server, port = a.port, announcer = a.bonjour, seen = b.peers.get(a.id).seen;
+  a.networkInterfaces = () => [{ name: 'changed-interface', address: '192.168.2.25' }];
+  await a.refresh();
+  assert.notEqual(a.bonjour, announcer); assert.equal(a.server, server); assert.equal(a.port, port); assert.ok(a.settings.trusted[b.id]);
+  await until(() => b.peers.get(a.id).seen > seen && a.peers.get(b.id)?.online && b.peers.get(a.id)?.online);
+  const source = path.join(root, 'after-change'); await fs.writeFile(source, 'Still paired after discovery refresh');
+  const sent = await a.send(b.id, [source]); assert.equal(sent.status, 'complete', sent.error);
+});
