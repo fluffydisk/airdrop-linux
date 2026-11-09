@@ -71,6 +71,13 @@ test('interrupted automatic phone preparation cannot stop a replacement tunnel',
  await until(()=>release);await d.receive({status:'reconnecting',message:'Replacing interrupted tunnel'},generation);release();await pending;
  assert.equal(d.generation,generation,'obsolete phone work must not call fail()/stop()');assert.equal(d.state.status,'reconnecting');assert.ok(d.client);assert.equal(d.state.qr,'');
 });
+test('guest QR preparation cannot return a retired tunnel capability after recovery',async t=>{
+ const {d}=await devices(t);await d.receive({status:'checking',origin:'https://first.trycloudflare.com'},d.generation);let release;
+ d.gateway.guest.start=()=>new Promise(r=>{release=r;});
+ const pending=d.startGuest();await until(()=>release);
+ await d.receive({status:'reconnecting'},d.generation);await d.receive({status:'checking',origin:'https://replacement.trycloudflare.com'},d.generation);
+ release({token:'retired-guest-capability',expires:Date.now()+1000,files:[]});await assert.rejects(pending,/Connection changed/);assert.equal(d.state.status,'ready');assert.ok(d.state.url.includes('replacement.trycloudflare.com'));
+});
 test('late failed monitor cannot overwrite a replacement tunnel or a provider switch',async t=>{
  const {d}=await devices(t);await d.receive({status:'checking',origin:'https://first.trycloudflare.com'},d.generation);let reject;
  d.probe=()=>new Promise((_,r)=>{reject=r;});const pending=d.monitorInternet();await until(()=>reject);await d.action('local');reject(new HealthError('TUNNEL','public',530));await pending;assert.equal(d.state.status,'local');assert.equal(d.state.url,'');
