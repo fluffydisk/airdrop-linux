@@ -47,3 +47,13 @@ test('known type-only tsyringe placeholders remain no-op modules without hiding 
  const vm=require('node:vm');const context={};vm.runInNewContext(data,context);assert.deepEqual(context,{});
  assert.equal(await fs.readFile(unexpected,'utf8'),'','unexpected empty scripts remain visible to the package linter');
 });
+test('packaged dependency verification catches missing transitive modules instead of using checkout dependencies', async t => {
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-dependency-closure-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ await fs.writeFile(path.join(root,'package.json'),JSON.stringify({dependencies:{'example-package':'1.0.0'}}));
+ const dir=path.join(root,'node_modules/example-package');await fs.mkdir(dir,{recursive:true});
+ await fs.writeFile(path.join(dir,'index.js'),"module.exports=require('./archive-output-stream');\n");
+ const {verify}=require('../scripts/verify-desktop-dependencies');
+ await assert.rejects(verify(root),/Cannot find module/);
+ await fs.writeFile(path.join(dir,'archive-output-stream.js'),'module.exports = {};\n');
+ assert.equal(await verify(root),1);
+});
