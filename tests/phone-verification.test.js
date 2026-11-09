@@ -50,7 +50,8 @@ test('a phone-verified connection survives blocked desktop self-probes and requi
  const headers={Cookie:paired.headers['set-cookie'][0].split(';')[0]};await request('/push/health',{headers});await ready(d);
  await new Promise(resolve=>setTimeout(resolve,10500));assert.equal(d.state.status,'ready','desktop-only DNS failure must not revoke a phone-verified working connection');
  const generation=d.generation;await d.receive({status:'reconnecting',message:'Tunnel interrupted'},generation);await request('/push/health',{headers});assert.equal(d.state.status,'reconnecting');assert.equal(d.state.url,'');
- await d.receive({status:'checking',origin:url.origin},generation);await request('/push/health',{headers});await ready(d);
+ await d.receive({status:'checking',origin:'https://replacement.trycloudflare.com'},generation);assert.equal((await request('/push/health',{headers})).status,401,'a replacement tunnel requires fresh pairing');
+ const replacement=await d.verifyWithPhone(),fresh=new URL(replacement.verificationUrl);const newPair=await request('/pair/',{method:'POST',body:JSON.stringify({token:fresh.hash.slice(1)}),headers:{Origin:fresh.origin}});await request('/push/health',{headers:{Cookie:newPair.headers['set-cookie'][0].split(';')[0]}});await ready(d);
  await d.action('local');await d.phoneVerified(generation);assert.equal(d.state.status,'local');assert.equal(d.state.url,'');
 });
 test('a missing local workspace prevents phone verification and is distinguished from public DNS failure',async t=>{

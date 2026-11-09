@@ -25,6 +25,7 @@
   <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/ca481425aad9d8748c2cf57c24412e67c2815464/docs/evidence/desktop-1.7.0/after-transfer-light.png</image></screenshot></screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.8.1" date="2026-11-09"><description><p>Recover failed temporary internet tunnels automatically, expire stale QR codes, and reverify replacement connections. Phone verification now expires without authenticated health checks. Preserve Nearby and existing sharing providers.</p></description></release>
     <release version="1.8.0" date="2026-11-09"><description><p>Discover nearby Linux devices automatically, pair once and send files directly to a receive inbox. Accept or decline transfers, opt in to automatic acceptance per device, and resume verified chunks after interruptions. View device transfer history, progress and integrity results. Native ZIP creation now streams.</p></description></release>
     <release version="1.7.0" date="2026-11-07"><description><p>Redesigned Linux desktop with accessible light and dark themes, clearer sharing tasks, and distribution-aware updates with automatic check preferences and recovery guidance.</p></description></release>
     <release version="1.6.8" date="2026-11-07"><description><p>Receive guest uploads using an isolated, time-limited QR session. Share only explicitly selected files without granting workspace or clipboard access.</p></description></release>

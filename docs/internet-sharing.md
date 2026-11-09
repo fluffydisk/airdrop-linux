@@ -1,0 +1,13 @@
+# Internet sharing and temporary QR links
+
+Free internet sharing uses Cloudflare Quick Tunnels without an account. A hostname is temporary: it belongs to one running cloudflared process. Restarting creates a new address. Keep Airdrop running, and scan the new QR after recovery. A screenshot of an earlier QR cannot be remotely withdrawn.
+
+Connection phases are starting/preparing, connecting, verifying (`checking` in the API), ready, interrupted/reconnecting, failed (`error`), and stopped (`local`). Receiving a hostname or registration log never makes sharing ready. A local backend health check and an authenticated round trip through the public address must succeed before the ready link appears.
+
+If desktop DNS cannot resolve the public address, a separately labelled **phone verification** QR is available. It is a test link, not a connected/ready indication. Pairing alone does not verify it: the paired browser must obtain a valid health response from the actual backend. Visible browser clients refresh health every 15 seconds. Phone verification expires after 60 seconds without authenticated health, with checks every 10 seconds. A backgrounded phone may therefore need to verify again. Pending verification times out after two minutes.
+
+Cloudflared exit or loss of its final registered edge connection invalidates the link immediately. An authenticated public health failure also invalidates it (checks every 10 seconds, five-second request deadline). Error 1033 means Cloudflare cannot reach that tunnel; retrying an expired hostname cannot restore it. Airdrop terminates the old child before creating a replacement, with at most four automatic replacements and exponential backoff with jitter. Each replacement rotates pairing credentials and guest access and verifies a fresh hostname. Old health callbacks cannot verify a new tunnel. After exhaustion, choose Retry or Same Wi-Fi. Switching providers and quitting cancel pending recovery.
+
+Closing the desktop window keeps sharing alive only when the existing background policy is active. Quitting or closing with background sharing disabled stops the tunnel and revokes links. Reopening after quitting requires a fresh link. Nearby and Tailscale remain independent of Quick Tunnels. Same Wi-Fi requires a supported private IPv4 interface and uses the existing LAN gateway.
+
+No application can guarantee Cloudflare availability after a successful check. A failure between verification and scanning remains possible; Airdrop detects it and replaces its currently displayed link. Do not reuse an old browser bookmark after reconnecting.
