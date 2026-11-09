@@ -1,5 +1,8 @@
 # Airdrop Linux
 
+
+**New in 1.8:** Linux computers discover each other automatically. Pair once, select a device, and send individual files to its receive inbox with acceptance, verified progress, cancellation and restart-safe resume. [Nearby transfer guide](docs/nearby-transfers.md). Phones keep the working QR/link browser flow.
+
 A file and clipboard sharing system with direct Wi-Fi and optional free internet sharing. It is designed as a private alternative to AirDrop for sharing files and clipboard content between iPad, iPhone, Android, and Linux/desktop devices. It includes an iOS-inspired PWA interface, real Web Push notifications, bidirectional clipboard synchronization, ZIP transfers, and an optional Linux tray companion.
 
 ![Airdrop Linux overview](assets/airdrop-linux-overview.png)

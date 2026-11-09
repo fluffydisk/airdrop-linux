@@ -1,6 +1,8 @@
 'use strict';
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('airdrop', {
+  nearby: (action, payload) => ipcRenderer.invoke('airdrop:nearby', action, payload),
+  onPeerProgress: callback => ipcRenderer.on('airdrop:peer-progress', (event, value) => callback(value)),
   devices: (action,payload) => ipcRenderer.invoke('airdrop:devices',action,payload),
   quit: () => ipcRenderer.invoke('airdrop:quit'),
   readClipboard: () => ipcRenderer.invoke('airdrop:clipboard-read'),
