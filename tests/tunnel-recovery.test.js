@@ -55,6 +55,14 @@ test('failed startup verification never creates a ready QR; transient 502/503 re
  let calls=0;const {d}=await devices(t,{verificationDelay:0,verificationAttempts:4,probe:async()=>{if(++calls<3)throw new HealthError('HTTP','public',calls===1?502:503);}});
  const checking=d.receive({status:'checking',origin:'https://delayed.trycloudflare.com'},d.generation);assert.equal(d.state.qr,'');await checking;assert.equal(calls,3);assert.equal(d.state.status,'ready');
 });
+test('initial HTTP 1033 replaces the hostname instead of repeatedly checking an expired tunnel',async t=>{
+ const {d,reconnects}=await devices(t,{verificationAttempts:1,probe:g=>g.probe({request:async()=>new Response('<h1>Error 1033</h1>',{status:530})})});
+ await d.receive({status:'checking',origin:'https://expired.trycloudflare.com'},d.generation);assert.equal(d.state.status,'reconnecting');assert.equal(reconnects(),1);assert.equal(d.state.qr,'');assert.equal(d.gateway.origin,null);
+});
+test('beginning phone re-verification hides an old ready QR before any asynchronous check',async t=>{
+ const {d}=await devices(t);await d.receive({status:'checking',origin:'https://phone.trycloudflare.com'},d.generation);let release;d.probeLocal=()=>new Promise(r=>{release=r;});
+ const pending=d.beginPhoneVerification(d.generation);assert.equal(d.state.url,'');assert.equal(d.state.qr,'');assert.equal(d.state.status,'checking');release();await pending;assert.equal(d.state.status,'phone-verification');
+});
 test('late failed monitor cannot overwrite a replacement tunnel or a provider switch',async t=>{
  const {d}=await devices(t);await d.receive({status:'checking',origin:'https://first.trycloudflare.com'},d.generation);let reject;
  d.probe=()=>new Promise((_,r)=>{reject=r;});const pending=d.monitorInternet();await until(()=>reject);await d.action('local');reject(new HealthError('TUNNEL','public',530));await pending;assert.equal(d.state.status,'local');assert.equal(d.state.url,'');
