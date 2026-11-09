@@ -53,7 +53,8 @@
         initialized = true;
         get('relayUrl').value = state.preferences?.relayUrl || '';
         selectedProvider=state.preferences?.provider||'internet';
-        if (!state.setupComplete || active) openWizard();
+        // Nearby transfers need no workspace provider setup. The phone/guest
+        // connection wizard opens only when the user requests that workflow.
       }
       chooseProvider(selectedProvider||state.preferences?.provider||'internet');
       const needsLogin=state.mode==='tailscale'&&!!state.authURL;

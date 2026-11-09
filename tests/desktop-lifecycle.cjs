@@ -16,7 +16,7 @@ async function fixture(t,source){
 }
 test('Electron first-run wizard connects first, asks background next, then shows phone pairing and persists the choice', {timeout:60000},async t=>{
  if(!lanAddresses().length){t.skip('No private LAN interface');return;}
- const f=await fixture(t);let {app,page}=await f.launch();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const f=await fixture(t);let {app,page}=await f.launch();await page.locator('#nearbyPhone').click();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.locator('#wizardProvider').waitFor({state:'visible'});assert.equal(await page.locator('#wizardProvider').inputValue(),'internet');
  await page.waitForFunction(()=>document.getElementById('backgroundHint').textContent.includes('stays active'));
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).preferences.background,true);
@@ -46,7 +46,7 @@ test('Electron first-run wizard connects first, asks background next, then shows
 });
 test('Electron Flatpak default background and wizard retry both honor OS denial and keep settings off', {timeout:30000},async t=>{
  if(!lanAddresses().length){t.skip('No private LAN interface');return;}
- const f=await fixture(t,'flatpak'),{app,page}=await f.launch();
+ const f=await fixture(t,'flatpak'),{app,page}=await f.launch();await page.locator('#nearbyPhone').click();
  await page.locator('#wizardProvider').selectOption('lan');await page.locator('#wizardProviderConnect').click();await page.locator('#wizardBackground').waitFor({state:'visible'});
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).background.active,false);
  await page.locator('#wizardBackgroundYes').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
@@ -55,7 +55,7 @@ test('Electron Flatpak default background and wizard retry both honor OS denial 
  const closed=app.waitForEvent('close');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());await closed;
 });
 test('Electron automatically shows phone verification after desktop DNS failure and advances only after real paired health', {timeout:30000},async t=>{
- const f=await fixture(t),{app,page}=await f.launch();
+ const f=await fixture(t),{app,page}=await f.launch();await page.locator('#nearbyPhone').click();
  await page.locator('#wizardProvider').waitFor({state:'visible'});
  // Controlled provider/DNS responses isolate this UI test from public-service
  // availability. Pairing and backend health below use the real local gateway.

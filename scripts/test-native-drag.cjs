@@ -17,7 +17,7 @@ const execute=promisify(execFile);
   app=await electron.launch({executablePath:executable,chromiumSandbox:true,args:[...(process.env.ELECTRON_PATH?[]:[path.resolve('desktop')]),'--ozone-platform=x11'],env:{...process.env,AIRDROP_HOME:root,AIRDROP_DISABLE_TRAY:'1',AIRDROP_DISABLE_UPDATE_CHECK:'1',AIRDROP_FILE_PORT:String(server.address().port),AIRDROP_API_PORT:String(server.address().port)},timeout:30000});
   const source=await app.firstWindow();
   // Independent local functionality test, not a production onboarding bypass.
-  if (await source.locator('#connectionWizard').count()) { await source.locator('#connectionWizard').waitFor({state:'visible'}); await source.evaluate(()=>document.getElementById('wizardContinue').click()); }
+  if (await source.locator('#connectionWizard').isVisible()) { await source.evaluate(()=>document.getElementById('wizardContinue').click()); }
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setBounds({x:0,y:0,width:780,height:760}));
   await source.locator('[data-view="files"]').click();
   const row=source.locator('.explorer-item').filter({hasText:name});await row.scrollIntoViewIfNeeded();
@@ -37,7 +37,8 @@ const execute=promisify(execFile);
   await row.dragTo(row,{targetPosition:{x:box.width/2+25,y:box.height/2+10}});
   await source.waitForFunction(()=>document.querySelector('.explorer-status').textContent==='Move complete');
   await source.waitForFunction(()=>!Array.from(document.querySelectorAll('.explorer-toolbar button')).find(b=>b.textContent==='Select all').disabled);
-  assert.deepEqual((await fs.readdir(path.join(root,'files'))).sort(),['Destination',name].sort());
+  assert.deepEqual((await fs.readdir(path.join(root,'files'))).sort(),['Destination','Received',name].sort());
+  assert.deepEqual(await fs.readdir(path.join(root,'files','Received')),[],'workspace drag must not copy into the direct-receive inbox');
   const original=await fs.stat(path.join(root,'files',name));
   const folder=source.locator('.explorer-item').filter({hasText:'Destination'});
   await row.dragTo(folder);

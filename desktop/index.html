@@ -47,6 +47,17 @@
     <section id="view-transfer" class="view">
       <div class="page-heading"><h1>Transfer</h1><p>Share with your connected devices. Keep your files close.</p></div>
 
+      <section class="settings-card" aria-labelledby="nearbyHeading">
+        <h2 id="nearbyHeading">Nearby &amp; saved devices</h2>
+        <p class="field-help">Open Airdrop 1.8 or later on both Linux computers. Pair once, then send directly over your local network. For phones, use Share with a guest below.</p>
+        <label><input type="checkbox" id="nearbyEnabled" checked> Discover nearby devices and receive requests</label>
+        <p id="nearbyStatus" role="status" aria-live="polite">Looking for devices…</p>
+        <div id="nearbyDevices"></div><button class="button" id="nearbyRefresh">Refresh devices</button>
+        <button class="button" id="nearbyInbox">Open received files</button> <button class="button" id="nearbyPhone">Connect a phone by QR</button>
+        <details><summary>Device preferences</summary><label for="nearbyName">This device’s name</label><input id="nearbyName" maxlength="80"><button class="button" id="nearbySaveName">Save name</button><label for="nearbyConcurrency">Simultaneous transfers</label><select id="nearbyConcurrency"><option>1</option><option selected>2</option><option>3</option><option>4</option></select><button class="button" id="nearbyClearHistory">Clear transfer history and partial downloads</button></details>
+        <label for="sendDestination">Send to</label><select id="sendDestination"><option value="">Shared workspace</option></select>
+        <p class="field-help">Nearby devices receive individual files in their inbox, with acceptance required. Shared workspace keeps the existing file manager.</p>
+      </section>
       <p id="transferDestination">Destination: Airdrop/</p>
       <div id="dropZone" class="drop-zone" tabindex="0" role="group" aria-label="Drop files, paste with Ctrl+V, or press Enter to choose files">
         <div class="drop-orbit" aria-hidden="true"><div class="upload-symbol"><svg aria-hidden="true"><use href="#i-upload"/></svg></div></div>
@@ -60,6 +71,7 @@
         <ul id="files" class="file-list"></ul>
         <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Retry failed files<svg aria-hidden="true"><use href="#i-send"/></svg></button></div>
       </section>
+      <details class="settings-card"><summary>Device transfer history and progress</summary><div id="peerTransfers" aria-live="polite"></div></details>
       <details class="guest-transfer"><summary>Share with a guest</summary><p>Let someone send files without accessing your workspace. Optionally choose specific files they can download.</p><button class="button" id="guestReceive">Receive by QR</button> <button class="button" id="guestShare">Share selected files by QR</button><div id="guestSession" hidden><img id="guestQr" width="256" height="256" alt="Scan for guest transfer"><p id="guestSummary"></p><button class="button" id="guestStop">Stop guest transfer</button></div><p id="guestResult" role="status"></p></details>
       <div class="result" id="result" role="status" aria-live="polite" hidden></div>
     </section>
@@ -194,4 +206,4 @@
   <p id="wizardError" class="field-help" role="alert" hidden></p>
   <button class="button" id="wizardContinue">Set up later</button>
 </dialog>
-<script src="core/ui/explorer.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script></body></html>
+<script src="core/ui/explorer.js"></script><script src="nearby-ui.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script></body></html>

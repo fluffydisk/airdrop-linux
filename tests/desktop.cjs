@@ -24,11 +24,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   t.after(async () => { if (app) await app.close().catch(() => {}); await fileServer.close(); await apiServer.close(); await fs.rm(root, { recursive: true, force: true }); });
   app = await launch(); const page = await app.firstWindow();
   // This suite tests local operations with controlled backend responses, not an authenticated tailnet.
-  if (await page.locator('#connectionWizard').count()) {
-    await page.locator('#connectionWizard').waitFor({state:'visible'});
-    assert.equal(await page.locator('#wizardContinue').isDisabled(),false);
-    await page.evaluate(()=>document.getElementById('wizardContinue').click());
-  } else assert.equal(await page.locator('#view-transfer').isVisible(),true);
+  assert.equal(await page.locator('#connectionWizard').isVisible(), false, 'nearby workflow needs no provider wizard');
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.waitForFunction(() => document.getElementById('health').dataset.status === 'ready');
   assert.equal(await page.evaluate(() => typeof require), 'undefined');
@@ -146,11 +142,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   assert.deepEqual(errors, []);
   const closed = app.waitForEvent('close'); await app.evaluate(({ app }) => app.quit()); await closed; app = null;
   app = await launch(); const reopened = await app.firstWindow();
-  if (await reopened.locator('#connectionWizard').count()) {
-    // Setup was explicitly deferred; wait for its async state before dismissal.
-    await reopened.locator('#wizardContinue').waitFor({state:'visible'});
-    await reopened.locator('#wizardContinue').click();
-  }
+  assert.equal(await reopened.locator('#connectionWizard').isVisible(), false);
   await reopened.locator('[data-view="settings"]').click();
   assert.equal(await reopened.locator('html').getAttribute('data-theme'), 'dark');
   await reopened.waitForFunction(() => document.getElementById('url').value === 'https://desktop.example.ts.net/ui/');

@@ -73,19 +73,23 @@ function renderQueue() {
   document.getElementById('navCount').hidden = !files.length;
   document.getElementById('clearFiles').hidden = !files.length;
   document.getElementById('clearFiles').disabled = busy;
+  document.querySelector('.drop-caption').textContent = document.getElementById('sendDestination').value ? 'Choose files, then select Send to device.' : 'Files are shared to your workspace as soon as you add them.';
   document.getElementById('queueSummary').textContent = files.length ? `${files.length} ${files.length === 1 ? 'file' : 'files'} · ${formatSize(total)} total` : 'Your next transfer starts here.';
-  zipInput.disabled = busy;
+  zipInput.disabled = busy || !!document.getElementById('sendDestination').value;
   document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'One neat package. Up to 100 MiB.';
   sendButton.disabled = busy || !files.length; sendButton.hidden = !files.length;
-  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : 'Retry failed files'), icon('send'));
+  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : document.getElementById('sendDestination').value ? 'Send to device' : 'Send to workspace'), icon('send'));
   document.getElementById('choose').disabled = busy || files.length > 0;
   document.body.classList.toggle('busy', busy);
 }
-let transferTarget = '', transferZip = false;
+let transferTarget = '', transferZip = false, nativeRetry = null;
+window.airdrop.onPeerProgress?.(value => {
+  if (value.status === 'complete' && value.id === nativeRetry?.id) { nativeRetry = null; files = []; renderQueue(); message('Received and verified on the other device.'); }
+});
 async function select(paths) {
   if (!paths.length || busy || files.length) return;
   const version = ++selectionVersion;
-  transferTarget = fileExplorer.directory; transferZip = zipInput.checked;
+  nativeRetry = null; transferTarget = fileExplorer.directory; transferZip = zipInput.checked;
   try {
     const next = await window.airdrop.describe(paths);
     if (version !== selectionVersion || busy) return;
@@ -94,7 +98,7 @@ async function select(paths) {
     if (merged.size > 1000) throw new Error('You can send up to 1000 files at a time.');
     files = [...merged.values()];
     message(''); renderQueue();
-    await sendButton.onclick();
+    if (!document.getElementById('sendDestination').value) await sendButton.onclick();
   } catch (error) { report(error); }
 }
 async function loadActivity() {
@@ -209,7 +213,7 @@ document.getElementById('themeToggle').onclick = () => theme(document.documentEl
 document.querySelectorAll('[data-theme-choice]').forEach(button => { button.onclick = () => theme(button.dataset.themeChoice); });
 document.getElementById('refreshActivity').onclick = loadActivity;
 document.getElementById('choose').onclick = () => { if (!busy) window.airdrop.choose().then(select).catch(report); };
-document.getElementById('clearFiles').onclick = () => { if (!busy) { selectionVersion++; files = []; renderQueue(); message(''); } };
+document.getElementById('clearFiles').onclick = () => { if (!busy) { selectionVersion++; files = []; nativeRetry = null; renderQueue(); message(''); } };
 try { zipInput.checked = localStorage.getItem('airdrop-zip') === 'true'; } catch {}
 zipInput.onchange = () => { try { localStorage.setItem('airdrop-zip', String(zipInput.checked)); } catch {} renderQueue(); };
 const dropZone = document.getElementById('dropZone');
@@ -227,7 +231,14 @@ sendButton.onclick = async () => {
   selectionVersion++; busy = true; renderQueue(); message('Preparing your transfer…', 'pending');
   try {
     const bundled = transferZip;
-    if (bundled && files.reduce((sum, file) => sum + file.size, 0) > MAX_ZIP) throw new Error('ZIP source files exceed 100 MiB. Turn off ZIP and select the files again.');
+    if (!document.getElementById('sendDestination').value && bundled && files.reduce((sum, file) => sum + file.size, 0) > MAX_ZIP) throw new Error('ZIP source files exceed 100 MiB. Turn off ZIP and select the files again.');
+    if (document.getElementById('sendDestination').value) {
+      const targetId = document.getElementById('sendDestination').value;
+      const sent = await window.airdrop.nearby('send', { id: targetId, sources: files.map(file => file.path), ...(nativeRetry?.peer === targetId ? { retryId: nativeRetry.id } : {}) });
+      if (sent.status !== 'complete') { nativeRetry = sent; throw Error(sent.error); }
+      nativeRetry = null;
+      files = []; message('Received and verified on the other device.'); return;
+    }
     const results = await window.airdrop.send(files.map(file => file.path), bundled, transferTarget);
     const failed = results.filter(file => !file.ok);
     message(results.map(file => file.ok ? `Sent: ${file.name}` : `Failed: ${file.name} (${file.error})`).join('; '), failed.length ? 'error' : 'success');

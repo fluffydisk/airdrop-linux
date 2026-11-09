@@ -222,3 +222,7 @@ dialog::backdrop{background:#0b1429a8}
 #fileExplorer .explorer-item.selected{border-color:var(--accent)}
 #fileExplorer .explorer-item:focus-visible{outline-color:var(--accent)}
 #fileExplorer .explorer-item input{accent-color:var(--accent)}
+.nearby-device, .nearby-transfer { padding: 12px 0; border-bottom: 1px solid var(--separator); overflow-wrap: anywhere; }
+.nearby-device label { display: block; margin: 12px 0; }
+#sendDestination, #nearbyName { max-width: 100%; padding: 8px; margin: 8px; font: inherit; }
+.nearby-transfer progress { width: 100%; }

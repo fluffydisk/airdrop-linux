@@ -37,7 +37,7 @@ async function desktop(t){
 }
 test('startup stays usable while the relay connects; Settings owns the only live address',async t=>{
  const {w,set,get,tick}=await desktop(t);w.eval(await fs.readFile('desktop/connection-progress.js','utf8'));w.eval(await fs.readFile('desktop/devices-ui.js','utf8'));await new Promise(r=>setImmediate(r));
- assert.equal(get('connectionWizard').open,true);assert.equal(get('wizardContinue').disabled,false);assert.equal(get('view-transfer').hidden,false);
+ assert.equal(get('connectionWizard').open,false,'nearby transfer opens without provider setup');get('setupDevices').click();assert.equal(get('connectionWizard').open,true);assert.equal(get('wizardContinue').disabled,false);assert.equal(get('view-transfer').hidden,false);
  set({mode:'private',status:'checking',message:'Checking sharing',url:'',qr:''});await tick();assert.equal(get('wizardSpinner').hidden,false);assert.match(get('wizardStatus').textContent,/Verifying sharing/);assert.equal(get('applyProvider').disabled,true);assert.equal(get('deviceLink').hidden,true);
  get('connectionProvider').value='lan';get('connectionProvider').dispatchEvent(new w.Event('change'));assert.equal(get('applyProvider').disabled,false,'a different provider remains selectable during connection');
  get('connectionProvider').value='private';get('connectionProvider').dispatchEvent(new w.Event('change'));
