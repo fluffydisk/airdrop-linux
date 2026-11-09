@@ -18,7 +18,7 @@
     const options = state.devices.filter(d => d.trusted).map(d => { const option = new Option(d.name + (d.online ? ' · Nearby' : ' · Offline'), d.id); option.disabled = !d.online; return option; });
     options.push(new Option('Shared workspace', ''));
     destination.replaceChildren(...options);
-    destination.value = options.some(option => option.value === previous) ? previous : ''; 
+    destination.value = options.some(option => option.value === previous) ? previous : '';
     if (!selectedByUser && !previous) destination.value = options.find(option => option.value && !option.disabled)?.value || '';
     get('zip').disabled = !!destination.value; if (destination.value) get('zip').checked = false;
     document.querySelector('.drop-caption').textContent = destination.value ? 'Choose files, then select Send to device.' : 'Files are shared to your workspace as soon as you add them.';

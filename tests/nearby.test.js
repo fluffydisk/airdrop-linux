@@ -121,3 +121,13 @@ test('large files above the workspace ZIP limit transfer as bounded chunks with 
   assert.equal((await fs.stat(path.join(b.store.inbox, 'large.dat'))).size, sent.bytes);
   console.log(`Large-file integration: ${sent.bytes} bytes, ${Date.now() - started} ms (same-host test, not a physical-network benchmark)`);
 });
+test('cancelled finalization never publishes a file and orphan creation journals do not hide history', async t => {
+  const { a, b } = await fixture(t); await a.pair(b.id);
+  const id = '9'.repeat(32), files = [{ name: 'cancelled.txt', size: 3, hash: hash(Buffer.from('abc')) }];
+  await fs.mkdir(b.store.location(id)); assert.deepEqual(await b.store.history(), []);
+  await b.store.create(id, a.id, files, async () => true);
+  await b.store.chunk(id, a.id, 0, 0, Buffer.from('abc'), files[0].hash);
+  await assert.rejects(b.store.finish(id, a.id, 0, AbortSignal.abort()));
+  assert.deepEqual(await fs.readdir(b.store.inbox), []);
+  await b.store.finish(id, a.id, 0); assert.equal((await b.store.history())[0].status, 'complete');
+});
