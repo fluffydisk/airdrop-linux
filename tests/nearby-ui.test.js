@@ -16,3 +16,15 @@ test('nearby UI selects a paired receiver, exposes scoped auto-accept and resume
   assert.match(w.document.getElementById('peerTransfers').textContent, /10 B \/ 20 B/);
   assert.equal(w.document.querySelector('progress').getAttribute('aria-label'), 'Verified transfer bytes');
 });
+test('a selected device going offline never redirects queued files into the workspace', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' }); t.after(() => dom.window.close());
+  const w = dom.window; let tick;
+  w.setInterval = callback => { tick = callback; };
+  const state = { name: 'Laptop', enabled: true, concurrency: 2, devices: [{ id: 'abc', name: 'Receiver', online: true, trusted: true }], incoming: [], outgoing: [] };
+  w.airdrop = { nearby: async () => state };
+  w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
+  assert.equal(w.document.getElementById('sendDestination').value, 'abc');
+  state.devices[0].online = false; await tick();
+  assert.equal(w.document.getElementById('sendDestination').value, 'abc');
+  assert.match(w.document.getElementById('sendDestination').selectedOptions[0].textContent, /Offline/);
+});

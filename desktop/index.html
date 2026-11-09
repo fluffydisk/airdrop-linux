@@ -58,7 +58,6 @@
         <label for="sendDestination">Send to</label><select id="sendDestination"><option value="">Shared workspace</option></select>
         <p class="field-help">Nearby devices receive individual files in their inbox, with acceptance required. Shared workspace keeps the existing file manager.</p>
       </section>
-      <section class="settings-card"><h2>Device transfers</h2><div id="peerTransfers" aria-live="polite"></div></section>
       <p id="transferDestination">Destination: Airdrop/</p>
       <div id="dropZone" class="drop-zone" tabindex="0" role="group" aria-label="Drop files, paste with Ctrl+V, or press Enter to choose files">
         <div class="drop-orbit" aria-hidden="true"><div class="upload-symbol"><svg aria-hidden="true"><use href="#i-upload"/></svg></div></div>
@@ -72,6 +71,7 @@
         <ul id="files" class="file-list"></ul>
         <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Retry failed files<svg aria-hidden="true"><use href="#i-send"/></svg></button></div>
       </section>
+      <details class="settings-card"><summary>Device transfer history and progress</summary><div id="peerTransfers" aria-live="polite"></div></details>
       <details class="guest-transfer"><summary>Share with a guest</summary><p>Let someone send files without accessing your workspace. Optionally choose specific files they can download.</p><button class="button" id="guestReceive">Receive by QR</button> <button class="button" id="guestShare">Share selected files by QR</button><div id="guestSession" hidden><img id="guestQr" width="256" height="256" alt="Scan for guest transfer"><p id="guestSummary"></p><button class="button" id="guestStop">Stop guest transfer</button></div><p id="guestResult" role="status"></p></details>
       <div class="result" id="result" role="status" aria-live="polite" hidden></div>
     </section>
