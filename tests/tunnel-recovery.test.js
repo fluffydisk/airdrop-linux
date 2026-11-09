@@ -63,6 +63,21 @@ test('beginning phone re-verification hides an old ready QR before any asynchron
  const {d}=await devices(t);await d.receive({status:'checking',origin:'https://phone.trycloudflare.com'},d.generation);let release;d.probeLocal=()=>new Promise(r=>{release=r;});
  const pending=d.beginPhoneVerification(d.generation);assert.equal(d.state.url,'');assert.equal(d.state.qr,'');assert.equal(d.state.status,'checking');release();await pending;assert.equal(d.state.status,'phone-verification');
 });
+test('interrupted automatic phone preparation cannot stop a replacement tunnel',async t=>{
+ let calls=0,release;
+ const {d}=await devices(t,{verificationAttempts:4,verificationDelay:0,probeLocal:async()=>{if(++calls===4)await new Promise(r=>{release=r;});},probe:async()=>{throw Object.assign(Error('DNS'),{code:'ENOTFOUND'});}});
+ const generation=d.generation;
+ const pending=d.receive({status:'checking',origin:'https://old.trycloudflare.com'},generation).catch(error=>{if(generation===d.generation)d.fail(error);});
+ await until(()=>release);await d.receive({status:'reconnecting',message:'Replacing interrupted tunnel'},generation);release();await pending;
+ assert.equal(d.generation,generation,'obsolete phone work must not call fail()/stop()');assert.equal(d.state.status,'reconnecting');assert.ok(d.client);assert.equal(d.state.qr,'');
+});
+test('guest QR preparation cannot return a retired tunnel capability after recovery',async t=>{
+ const {d}=await devices(t);await d.receive({status:'checking',origin:'https://first.trycloudflare.com'},d.generation);let release;
+ d.gateway.guest.start=()=>new Promise(r=>{release=r;});
+ const pending=d.startGuest();await until(()=>release);
+ await d.receive({status:'reconnecting'},d.generation);await d.receive({status:'checking',origin:'https://replacement.trycloudflare.com'},d.generation);
+ release({token:'retired-guest-capability',expires:Date.now()+1000,files:[]});await assert.rejects(pending,/Connection changed/);assert.equal(d.state.status,'ready');assert.ok(d.state.url.includes('replacement.trycloudflare.com'));
+});
 test('late failed monitor cannot overwrite a replacement tunnel or a provider switch',async t=>{
  const {d}=await devices(t);await d.receive({status:'checking',origin:'https://first.trycloudflare.com'},d.generation);let reject;
  d.probe=()=>new Promise((_,r)=>{reject=r;});const pending=d.monitorInternet();await until(()=>reject);await d.action('local');reject(new HealthError('TUNNEL','public',530));await pending;assert.equal(d.state.status,'local');assert.equal(d.state.url,'');

@@ -15,19 +15,49 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
   createInternetClient:options=>new InternetConnection({...options,directory:path.join(root,'runtime'),asset:assets[process.arch]})});
  t.after(async()=>{await browser?.close();await connection.stop();service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(root,{recursive:true,force:true});});
  await connection.initialize();await connection.queue;await connection.action('internet');
+ let dnsRetries=0;
+ const dnsFailure=error=>/ENOTFOUND|EAI_AGAIN|ERR_NAME_NOT_RESOLVED/.test([error.code,error.cause?.code,error.message].join(' '));
+ async function publicEntry(deadline=Date.now()+60000){
+  while(Date.now()<deadline){
+   const current=await connection.snapshot();assert.notEqual(current.status,'error',current.message);
+   if(['ready','phone-verification'].includes(current.status)){
+    if(current.status==='phone-verification'){assert.equal(current.url,'');assert.equal(current.qr,'');}
+    const url=current.status==='ready'?current.url:current.verificationUrl;
+    try{
+     const response=await fetch(new URL('/push/health',url),{signal:AbortSignal.timeout(Math.max(1,Math.min(5000,deadline-Date.now())))});
+     assert.equal(response.status,401,'the actual public gateway must answer; a Cloudflare error page is not success');
+     await response.body?.cancel();
+     const latest=await connection.snapshot();
+     if(url===(latest.status==='ready'?latest.url:latest.verificationUrl))return url;
+    }catch(error){if(!dnsFailure(error))throw error;dnsRetries++;}
+   }
+   await new Promise(r=>setTimeout(r,1000));
+  }
+  throw Error('Independent public client could not resolve and reach the current tunnel within its bounded deadline');
+ }
  let state;
  for(let i=0;i<130;i++){state=await connection.snapshot();if(['ready','phone-verification','error'].includes(state.status))break;await new Promise(r=>setTimeout(r,1000));}
  assert.ok(['ready','phone-verification'].includes(state.status),state.message);
- let pairingUrl=state.status==='ready'?state.url:state.verificationUrl;
+ let pairingUrl=await publicEntry();
  assert.ok(new URL(pairingUrl).hostname.endsWith('.trycloudflare.com'));
  assert.equal(state.preferences.hasAccessKey,false);
  let origin=new URL(pairingUrl).origin,token=new URL(pairingUrl).hash.slice(1);
- assert.equal((await fetch(origin+'/push/health')).status,401);
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,chromiumSandbox:true});
  for(const [name,profile] of [['iphone',profiles['iPhone 13']],['android',profiles['Pixel 5']]]){
   const context=await browser.newContext({...profile,acceptDownloads:true});const page=await context.newPage();
   try{
-   await page.goto(pairingUrl);await page.waitForURL('**/ui/');await page.getByText('Connected to your computer',{exact:true}).waitFor();
+   const deadline=Date.now()+45000;
+   while(true){
+    try{await page.goto(pairingUrl,{timeout:Math.max(1,Math.min(10000,deadline-Date.now()))});break;}
+    catch(error){
+     if(!dnsFailure(error))throw error;
+     dnsRetries++;
+     if(Date.now()>=deadline)throw Error('Independent browser DNS did not recover within 45 seconds');
+     await new Promise(r=>setTimeout(r,1000));
+     pairingUrl=await publicEntry(deadline);origin=new URL(pairingUrl).origin;token=new URL(pairingUrl).hash.slice(1);
+    }
+   }
+   await page.waitForURL('**/ui/');await page.getByText('Connected to your computer',{exact:true}).waitFor();
    assert.equal((await page.request.get(origin+'/push/health')).status(),200);
    for(let i=0;i<50&&(await connection.snapshot()).status!=='ready';i++)await new Promise(r=>setTimeout(r,100));
    assert.equal((await connection.snapshot()).status,'ready','Actual authenticated phone health must complete pending verification');
@@ -47,9 +77,10 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
    assert.equal((await connection.snapshot()).url,'','a terminated child must revoke the ready QR');
    for(let i=0;i<150;i++){state=await connection.snapshot();if(['ready','phone-verification','error'].includes(state.status))break;await new Promise(r=>setTimeout(r,1000));}
    assert.ok(['ready','phone-verification'].includes(state.status),state.message);
-   pairingUrl=state.status==='ready'?state.url:state.verificationUrl;assert.notEqual(new URL(pairingUrl).origin,new URL(oldUrl).origin,'recovery must obtain a fresh Quick Tunnel hostname');
+   pairingUrl=await publicEntry();assert.notEqual(new URL(pairingUrl).origin,new URL(oldUrl).origin,'recovery must obtain a fresh Quick Tunnel hostname');
    origin=new URL(pairingUrl).origin;token=new URL(pairingUrl).hash.slice(1);
   }
  }
+ console.log('Independent clients encountered '+dnsRetries+' bounded DNS provisioning retries; all public authentication and exact file checks remained mandatory.');
  console.log('Verified real Cloudflare tunnel: authenticated public health probe, two mobile browser pairings, uploads and downloads across a real child termination and fresh-hostname recovery. Physical phone/Safari testing is not claimed.');
 });
