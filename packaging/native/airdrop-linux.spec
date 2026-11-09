@@ -1,7 +1,7 @@
 Name: airdrop-linux
 Version: @VERSION@
 Release: 1
-Summary: Private file and clipboard sharing through an Airdrop relay
+Summary: Nearby device, file and clipboard sharing
 Packager: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>
 Group: Applications/Internet
 License: MIT
@@ -19,7 +19,8 @@ Requires: libXrandr.so.2()(64bit), libxkbcommon.so.0()(64bit), libstdc++.so.6()(
 
 %description
 Electron desktop, local Node gateway, CLI and dufs file server.
-Internet sharing uses your own HTTPS Airdrop relay.
+Nearby devices pair once and exchange verified, resumable file transfers.
+Optional internet, Tailscale and guest QR workspace sharing remain available.
 
 %prep
 %build

@@ -73,6 +73,7 @@
   get('sendDestination').addEventListener('change', () => { selectedByUser = true; get('zip').disabled = !!get('sendDestination').value; if (get('sendDestination').value) get('zip').checked = false; });
   get('nearbyConcurrency').onchange = () => action('configure', { concurrency: Number(get('nearbyConcurrency').value) });
   get('nearbyRefresh').onclick = () => action('refresh');
+  get('nearbyPhone').onclick = () => get('setupDevices').click();
   get('nearbyInbox').onclick = () => action('inbox');
   get('nearbyEnabled').onchange = () => action('configure', { enabled: get('nearbyEnabled').checked });
   get('nearbySaveName').onclick = () => action('configure', { name: get('nearbyName').value });

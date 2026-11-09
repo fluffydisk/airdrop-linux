@@ -13,7 +13,7 @@ test('sandboxed Electron discovers, pairs, sends to a chosen device, receives an
   t.after(async () => { await app?.close().catch(() => {}); await peer.stop(); backend.closeAllConnections(); await new Promise(resolve => backend.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
   app = await electron.launch({ executablePath: executable, chromiumSandbox: true, args: [...(process.env.ELECTRON_PATH ? [] : [path.resolve('desktop')]), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')], env: { ...process.env, AIRDROP_HOME: path.join(root, 'desktop-home'), AIRDROP_SHARE_DIR: share, AIRDROP_DISABLE_TRAY: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_API_PORT: String(backend.address().port), AIRDROP_FILE_PORT: String(backend.address().port) }, timeout: 20000 });
   const page = await app.firstWindow(); page.setDefaultTimeout(20000);
-  await page.locator('#wizardContinue').click();
+  assert.equal(await page.locator('#connectionWizard').isVisible(), false, 'discovery starts without a provider wizard');
   await app.evaluate(({ dialog }) => { globalThis.peerDialogs = []; globalThis.receiveChoice = 0; dialog.showMessageBox = async (_, options) => { globalThis.peerDialogs.push(options); return { response: globalThis.receiveChoice }; }; });
   const row = page.locator('.nearby-device').filter({ hasText: 'Other computer' });
   await row.getByRole('button', { name: 'Pair device', exact: true }).click();

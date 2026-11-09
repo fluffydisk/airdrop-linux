@@ -37,3 +37,13 @@ test('immutable dependency duplicates share storage while preserving paths, cont
  assert.equal((await fs.stat(second)).mode&0o777,0o644);
  assert.equal((await fs.stat(executable)).mode&0o777,0o755);
 });
+test('known type-only tsyringe placeholders remain no-op modules without hiding unexpected empty payload files', async t => {
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-type-only-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const dir=path.join(root,'node_modules/tsyringe/dist/esm2015/types');await fs.mkdir(dir,{recursive:true});
+ const type=path.join(dir,'constructor.js');await fs.writeFile(type,'');
+ const unexpected=path.join(root,'truncated.js');await fs.writeFile(unexpected,'');
+ await normalizePayload(root,process.arch);
+ const data=await fs.readFile(type,'utf8');assert.ok(data.length>0);
+ const vm=require('node:vm');const context={};vm.runInNewContext(data,context);assert.deepEqual(context,{});
+ assert.equal(await fs.readFile(unexpected,'utf8'),'','unexpected empty scripts remain visible to the package linter');
+});

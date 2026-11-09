@@ -53,7 +53,7 @@
         <label><input type="checkbox" id="nearbyEnabled" checked> Discover nearby devices and receive requests</label>
         <p id="nearbyStatus" role="status" aria-live="polite">Looking for devices…</p>
         <div id="nearbyDevices"></div><button class="button" id="nearbyRefresh">Refresh devices</button>
-        <button class="button" id="nearbyInbox">Open received files</button>
+        <button class="button" id="nearbyInbox">Open received files</button> <button class="button" id="nearbyPhone">Connect a phone by QR</button>
         <details><summary>Device preferences</summary><label for="nearbyName">This device’s name</label><input id="nearbyName" maxlength="80"><button class="button" id="nearbySaveName">Save name</button><label for="nearbyConcurrency">Simultaneous transfers</label><select id="nearbyConcurrency"><option>1</option><option selected>2</option><option>3</option><option>4</option></select><button class="button" id="nearbyClearHistory">Clear transfer history and partial downloads</button></details>
         <label for="sendDestination">Send to</label><select id="sendDestination"><option value="">Shared workspace</option></select>
         <p class="field-help">Nearby devices receive individual files in their inbox, with acceptance required. Shared workspace keeps the existing file manager.</p>

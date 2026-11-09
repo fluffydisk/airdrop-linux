@@ -78,7 +78,7 @@ function signInToProvider(){
 }
 let devicesReady, nearbyReady;
 const nearby = new (require('./core/lib/nearby').Nearby)({
-  directory: path.join(desktopData, 'nearby'), inbox: path.join(process.env.AIRDROP_SHARE_DIR || paths.files, 'Received'),
+  maintenanceRoot: paths.root, directory: path.join(desktopData, 'nearby'), inbox: path.join(process.env.AIRDROP_SHARE_DIR || paths.files, 'Received'),
   approve: async request => {
     if (!window || window.isDestroyed() || quitting) return false;
     window.show(); window.focus();

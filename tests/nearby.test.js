@@ -131,3 +131,15 @@ test('cancelled finalization never publishes a file and orphan creation journals
   assert.deepEqual(await fs.readdir(b.store.inbox), []);
   await b.store.finish(id, a.id, 0); assert.equal((await b.store.history())[0].status, 'complete');
 });
+test('native sends and receives participate in the existing update maintenance boundary', async t => {
+  const { a, b, root } = await fixture(t); await a.pair(b.id);
+  const source = path.join(root, 'during-update'); await fs.writeFile(source, 'payload');
+  a.maintenanceRoot = path.join(root, 'a-maintenance'); b.maintenanceRoot = path.join(root, 'b-maintenance');
+  for (const device of [a, b]) await fs.mkdir(path.join(device.maintenanceRoot, 'state'), { recursive: true });
+  const marker = d => path.join(d.maintenanceRoot, 'state/update-lock.json');
+  await fs.writeFile(marker(a), '{}'); const denied = await a.send(b.id, [source]); assert.equal(denied.status, 'interrupted'); assert.match(denied.error, /updating/);
+  await fs.rm(marker(a)); await fs.writeFile(marker(b), '{}'); const remoteDenied = await a.send(b.id, [source]); assert.equal(remoteDenied.status, 'interrupted'); assert.match(remoteDenied.error, /updating/);
+  await fs.rm(marker(b));
+  const sent = await a.send(b.id, [source]); assert.equal(sent.status, 'complete', sent.error);
+  await require('../lib/maintenance').drain(a.maintenanceRoot, 0); await require('../lib/maintenance').drain(b.maintenanceRoot, 0);
+});

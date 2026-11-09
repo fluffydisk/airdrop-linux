@@ -14,7 +14,7 @@ test('Electron update screen: stable discovery, package ownership, offline recov
   t.after(async () => { await app?.close().catch(()=>{}); await fs.rm(root,{recursive:true,force:true}); });
   app = await launch(); let page = await app.firstWindow();
   await page.setViewportSize({width:1080,height:840});
-  await page.locator('#wizardContinue').waitFor(); await page.locator('#wizardContinue').click();
+  assert.equal(await page.locator('#connectionWizard').isVisible(), false, 'provider setup does not obstruct updates');
   await page.locator('[data-view="settings"]').click();
   await page.waitForFunction(()=>document.getElementById('updateDistribution').textContent==='DEB / APT');
   await app.evaluate(({net})=>{net.fetch=async()=>({ok:true,status:200,json:async()=>({tag_name:'v99.0.0',body:'Test release notes <script>unsafe()</script>',assets:[]})});});
@@ -48,7 +48,7 @@ test('Electron update screen: stable discovery, package ownership, offline recov
   assert.equal(await page.evaluate(()=>typeof require),'undefined');
   assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox),true);
   await app.close(); app = await launch(); page = await app.firstWindow();
-  await page.locator('#wizardContinue').waitFor(); await page.locator('#wizardContinue').click();
+  assert.equal(await page.locator('#connectionWizard').isVisible(), false, 'provider setup does not obstruct updates');
   await page.locator('[data-view="settings"]').click();
   await page.waitForFunction(async()=>!(await window.airdrop.update('state')).automatic);
   assert.equal(await page.locator('#automaticUpdates').isChecked(),false);

@@ -70,7 +70,14 @@ async function normalizePayload(directory, arch) {
       run(arch===process.arch?'strip':(arch==='arm64'?'aarch64-linux-gnu-strip':'x86_64-linux-gnu-strip'),['--strip-unneeded',file]);
       if(/\.(so(\.\d+)*|bare)$/.test(entry.name))await fs.chmod(file,0o644);
     }else if(/\.(js|cjs|mjs|mts)$/.test(entry.name) || header.toString().startsWith('#!')){
-      const data=await fs.readFile(file,'utf8');
+      let data=await fs.readFile(file,'utf8');
+      // tsyringe ships zero-byte TypeScript type-only ESM modules. Retain
+      // their no-op semantics with an explicit marker so RPM can distinguish
+      // these intentional placeholders from accidentally truncated payloads.
+      if (!data.length && /[\/]node_modules[\/]tsyringe[\/]dist[\/]esm(?:5|2015)[\/](?:types[\/][^\/]+|factories[\/]factory-function)\.js$/.test(file)) {
+        data = '// Intentionally empty: tsyringe TypeScript type-only module.\n';
+        await fs.writeFile(file, data);
+      }
       if(data.startsWith('#!') && /^#![^\n]*\bnode\b/.test(data))await fs.writeFile(file,data.replace(/^#![^\n]*\n/,''));
       if(/\.(js|cjs|mjs|mts)$/.test(entry.name) || /^#![^\n]*\bnode\b/.test(data))await fs.chmod(file,0o644);
     }
