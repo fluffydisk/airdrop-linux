@@ -21,7 +21,7 @@ test('unexpected exit invalidates before retry and only a new registered hostnam
  children[0].kill();assert.equal(states.at(-1).status,'reconnecting');assert.equal(states.at(-1).origin,undefined);
  await until(()=>children.length===2);children[0].log({message:'Registered tunnel connection'});assert.notEqual(states.at(-1).origin,'https://first.trycloudflare.com');
  children[1].log({message:'https://second.trycloudflare.com'});assert.equal(states.at(-1).status,'connecting');children[1].log({message:'Registered tunnel connection'});assert.equal(states.at(-1).origin,'https://second.trycloudflare.com');
- assert.equal(states.at(-1).session,2);await c.stop();
+ assert.equal(states.at(-1).session,2);const count=states.length;children[0].emit('error',Error('delayed old-child error'));assert.equal(states.length,count,'late child errors cannot interrupt a new tunnel');await c.stop();
 });
 test('loss of the last edge connection replaces the tunnel; rapid reconnects cannot create competing children',async t=>{
  const {c,children}=await tunnel(t);register(children[0]);children[0].log({message:'Registered tunnel connection',connIndex:1});children[0].log({message:'Unregistered tunnel connection',connIndex:0});assert.equal(children[0].exitCode,null);
