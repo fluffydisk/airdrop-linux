@@ -30,6 +30,6 @@ test('internet tunnel accepts only the provider HTTPS origin, keeps progress rea
  child.stderr.write(JSON.stringify({message:'Registered tunnel connection',connIndex:1})+'\n');
  child.stderr.write(JSON.stringify({message:'Unregistered tunnel connection',connIndex:0})+'\n');assert.equal(states.at(-1).status,'checking');
  child.stderr.write(JSON.stringify({message:'Unregistered tunnel connection',connIndex:1})+'\n');assert.equal(states.at(-1).status,'reconnecting');
- child.stderr.write(JSON.stringify({message:'Registered tunnel connection',connIndex:2})+'\n');assert.equal(states.at(-1).status,'checking');assert.equal(states.at(-1).origin,'https://test-tunnel.trycloudflare.com');
+ child.stderr.write(JSON.stringify({message:'Registered tunnel connection',connIndex:2})+'\n');assert.equal(states.at(-1).status,'reconnecting');assert.equal(states.at(-1).origin,undefined,'late registration from a terminated child cannot revive its hostname');
  await connection.stop();assert.equal(child.exitCode,0);assert.ok(states.some(s=>s.status==='downloading'));
 });

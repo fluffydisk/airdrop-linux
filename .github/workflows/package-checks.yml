@@ -107,6 +107,12 @@ jobs:
           fi
           CHROMIUM_PATH="$receiver_chromium" ELECTRON_PATH=/usr/lib/airdrop-linux/desktop/Airdrop bash scripts/ci-command.sh Native-drag xvfb-run -a -s '-screen 0 1800x1000x24' dbus-run-session -- node scripts/test-native-drag.cjs
           bash scripts/ci-command.sh DEB-remove sudo apt-get remove -y airdrop-linux
+      - name: Verify real Quick Tunnel pairing and fresh-hostname recovery
+        if: matrix.arch == 'x64'
+        run: |
+          set -euo pipefail
+          export CHROMIUM_PATH=$(command -v google-chrome || command -v chromium)
+          AIRDROP_TEST_LIVE_INTERNET=1 bash scripts/ci-command.sh Quick-Tunnel-recovery node --test tests/internet-live.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: packages-${{ matrix.arch }}

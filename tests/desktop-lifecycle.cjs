@@ -62,10 +62,10 @@ test('Electron automatically shows phone verification after desktop DNS failure 
  await app.evaluate(({app,net})=>{
   const requireApp=process.getBuiltinModule('module').createRequire(app.getAppPath()+'/main.js');
   const Internet=requireApp('./core/lib/internet-connection').InternetConnection;
-  Internet.prototype.start=function(){globalThis.phoneGateway={target:this.target,host:this.proxyHost};this.onState({status:'checking',origin:'https://controlled.trycloudflare.com',message:'Controlled registered tunnel'});};Internet.prototype.stop=async()=>{};
+  Internet.prototype.start=function(){globalThis.testInternet=this;globalThis.phoneGateway={target:this.target,host:this.proxyHost};this.onState({status:'checking',origin:'https://controlled.trycloudflare.com',message:'Controlled registered tunnel'});};Internet.prototype.stop=async()=>{};
   const Devices=requireApp('./core/lib/devices').Devices,check=Devices.prototype.check;
   Devices.prototype.check=function(...args){this.verificationAttempts=4;this.verificationDelay=0;return check.apply(this,args);};
-  const fetch=net.fetch;net.fetch=async(input,options)=>{const hostname=new URL(String(input)).hostname;if(hostname==='controlled.trycloudflare.com'||['cloudflare-dns.com','dns.google'].includes(hostname))throw Object.assign(Error('Controlled DNS failure with private text'),{code:'ERR_NAME_NOT_RESOLVED'});return fetch(input,options);};
+  const fetch=net.fetch;net.fetch=async(input,options)=>{const hostname=new URL(String(input)).hostname;if(hostname.endsWith('.trycloudflare.com')||['cloudflare-dns.com','dns.google'].includes(hostname))throw Object.assign(Error('Controlled DNS failure with private text'),{code:'ERR_NAME_NOT_RESOLVED'});return fetch(input,options);};
  });
  await page.locator('#wizardProviderConnect').click();await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
  await page.locator('#wizardDiagnostics').evaluate(el=>el.open=true);await page.locator('#wizardCopyDiagnostics').click();
@@ -81,4 +81,17 @@ test('Electron automatically shows phone verification after desktop DNS failure 
  await page.locator('#wizardBackground').waitFor({state:'visible'});assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).verifiedBy,'phone');
  await page.locator('#wizardBackgroundNo').click();await page.locator('#wizardPairing').waitFor({state:'visible'});
  assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).setupComplete,true);
+ // An interruption must remove the already displayed ready QR. A replacement
+ // is explicitly pending until a newly paired backend health request succeeds.
+ const oldQr=await page.locator('#wizardQr').getAttribute('src');
+ await app.evaluate(()=>globalThis.testInternet.onState({status:'reconnecting',message:'Controlled tunnel interruption'}));
+ await page.waitForFunction(()=>!document.getElementById('wizardQr').hasAttribute('src'));
+ assert.equal((await page.evaluate(()=>window.airdrop.devices('state'))).url,'');
+ await app.evaluate(()=>globalThis.testInternet.onState({status:'checking',origin:'https://replacement.trycloudflare.com'}));
+ await page.locator('#wizardPhoneVerification').waitFor({state:'visible'});
+ const fresh=await page.evaluate(()=>window.airdrop.devices('state'));assert.equal(fresh.status,'phone-verification');assert.equal(fresh.qr,'');assert.notEqual(fresh.verificationUrl,candidate.verificationUrl);
+ assert.equal((await request('/push/health',{headers:{Cookie:paired.headers['set-cookie'][0].split(';')[0]}})).status,401);
+ const newPair=await request('/pair/',{method:'POST',headers:{Origin:new URL(fresh.verificationUrl).origin},body:JSON.stringify({token:new URL(fresh.verificationUrl).hash.slice(1)})});assert.equal(newPair.status,204);
+ await request('/push/health',{headers:{Cookie:newPair.headers['set-cookie'][0].split(';')[0]}});
+ await page.waitForFunction(()=>document.getElementById('wizardQr').hasAttribute('src'));assert.notEqual(await page.locator('#wizardQr').getAttribute('src'),oldQr);
 });

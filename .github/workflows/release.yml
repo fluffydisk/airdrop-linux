@@ -153,7 +153,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.8.0
+          test "$version" = 1.8.1
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           # The tested Flatpak producer requests the combined protected publish.

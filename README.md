@@ -403,3 +403,5 @@ Pull requests and issues are welcome.
 ## License
 
 MIT
+
+Internet sharing uses temporary Cloudflare Quick Tunnel addresses. Keep Airdrop running while sharing. If the tunnel is interrupted, the old QR expires; wait for verification and scan the fresh code. Same Wi-Fi sharing remains available when Cloudflare is unavailable. [Connection lifecycle and troubleshooting](docs/internet-sharing.md).
