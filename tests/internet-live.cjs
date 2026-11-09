@@ -17,15 +17,14 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
  await connection.initialize();await connection.queue;await connection.action('internet');
  let dnsRetries=0;
  const dnsFailure=error=>/ENOTFOUND|EAI_AGAIN|ERR_NAME_NOT_RESOLVED/.test([error.code,error.cause?.code,error.message].join(' '));
- async function publicEntry(){
-  const deadline=Date.now()+60000;
+ async function publicEntry(deadline=Date.now()+60000){
   while(Date.now()<deadline){
    const current=await connection.snapshot();assert.notEqual(current.status,'error',current.message);
    if(['ready','phone-verification'].includes(current.status)){
     if(current.status==='phone-verification'){assert.equal(current.url,'');assert.equal(current.qr,'');}
     const url=current.status==='ready'?current.url:current.verificationUrl;
     try{
-     const response=await fetch(new URL('/push/health',url),{signal:AbortSignal.timeout(5000)});
+     const response=await fetch(new URL('/push/health',url),{signal:AbortSignal.timeout(Math.max(1,Math.min(5000,deadline-Date.now())))});
      assert.equal(response.status,401,'the actual public gateway must answer; a Cloudflare error page is not success');
      await response.body?.cancel();
      const latest=await connection.snapshot();
@@ -34,7 +33,7 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
    }
    await new Promise(r=>setTimeout(r,1000));
   }
-  throw Error('Independent public client could not resolve and reach the current tunnel within 60 seconds');
+  throw Error('Independent public client could not resolve and reach the current tunnel within its bounded deadline');
  }
  let state;
  for(let i=0;i<130;i++){state=await connection.snapshot();if(['ready','phone-verification','error'].includes(state.status))break;await new Promise(r=>setTimeout(r,1000));}
@@ -49,13 +48,13 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
   try{
    const deadline=Date.now()+45000;
    while(true){
-    try{await page.goto(pairingUrl,{timeout:10000});break;}
+    try{await page.goto(pairingUrl,{timeout:Math.max(1,Math.min(10000,deadline-Date.now()))});break;}
     catch(error){
      if(!dnsFailure(error))throw error;
      dnsRetries++;
      if(Date.now()>=deadline)throw Error('Independent browser DNS did not recover within 45 seconds');
      await new Promise(r=>setTimeout(r,1000));
-     pairingUrl=await publicEntry();origin=new URL(pairingUrl).origin;token=new URL(pairingUrl).hash.slice(1);
+     pairingUrl=await publicEntry(deadline);origin=new URL(pairingUrl).origin;token=new URL(pairingUrl).hash.slice(1);
     }
    }
    await page.waitForURL('**/ui/');await page.getByText('Connected to your computer',{exact:true}).waitFor();
