@@ -29,6 +29,12 @@ successful software-only test result.
   All-bytes-sent is explicitly `outcome-unknown`, not completed delivery. The UI
   asks users to check the receiver before repeating the send. Positive durable
   remote outcome handling remains a stable release gate.
+- An independently written Python/OpenSSL client now verifies complete UKEY2
+  transcript/code agreement, directional keys and encrypted sequences against
+  the compiled helper, then explicit consent, empty/binary Unicode reception and
+  independent hashes. Negative cases cover commitment, MAC, replay and decline.
+  It covers helper receiving only, not Android, BLE, Node publication or the
+  opposite independent role. Both supported CI architectures run the fixture.
 - Connection metadata no longer advertises unimplemented Direct/hotspot roles
   or responds to PACKET_SEND_META experiment variables.
 - Advertisement parsing respects Google's no-name flag, versions 0/1 and TLV
@@ -56,7 +62,7 @@ network namespaces remain the first category even with correct hashes.
 | Milestone | State / next objective | Exit condition |
 | --- | --- | --- |
 | M1 audit | Reproductions and baseline complete | Preserve source refs, logs and honest hardware blockers |
-| M2 hardening | First remediation implemented; broader robustness work pending | Independent complete UKEY2 fixtures/peer, cancellation at every stage, supervision, per-file immutable IPC manifests, publication/crash journal, measured resource/fuzz tests |
+| M2 hardening | First remediation implemented; broader robustness work pending | Independent opposite-role/Google oracle coverage, cancellation at every stage, supervision, per-file immutable IPC manifests, publication/crash journal, measured resource/fuzz tests |
 | M3 discovery | Minimum BLE bootstrap implementation and physical baseline pending | Pixel/Galaxy list Linux, authenticated matching codes and native prompts; no dependence on LAN-only behavior |
 | M4 native files | Same-core traffic only verified | Stock phones exchange corpus both directions with independent hashes and accurate outcomes |
 | M5 physical acceptance | BLOCKED: no phones or radio controllers attached | Complete lab procedure, negative cases, 30 discovery attempts and 100-transfer soak per model/direction |
@@ -123,7 +129,7 @@ changes. A hardware-blocked preview must say Android interoperability unverified
 ## Next execution
 
 Continue on PR #19 without recreating its Samsung/Windows/crypto/staging fixes.
-Complete remaining M2 independent and failure coverage, obtain the M3 physical
+Complete remaining M2 independent opposite-role and failure coverage, obtain the M3 physical
 baseline, then implement minimum BLE behind a development gate. Follow
 quickshare-android-lab.md. Never turn missing hardware into a successful test.
 Do not enable or publish stable native support before the gates above pass.

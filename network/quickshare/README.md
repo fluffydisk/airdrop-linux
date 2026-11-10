@@ -119,3 +119,12 @@ path is for physical acceptance work, not a supported Android release.
 network namespaces on disposable CI VMs, comparing codes and transferred hashes
 in both directions. Both ends use this implementation: success is protocol
 regression evidence and must never be presented as Android interoperability.
+
+`tests/quickshare-independent.py` is a separately written Python client using
+OpenSSL-backed cryptography and test-only protobuf framing, not the Rust core.
+With `python3-cryptography` installed, run it with the same
+`AIRDROP_TEST_QUICKSHARE_HELPER` environment variable. It verifies UKEY2/code and
+directional keys, bad commitment/MAC/replay rejection, declined consent and
+empty/binary Unicode reception with independent hashes. It does not validate
+Android, BLE, the independent receiver role or Node publication. Its explicit
+fixture consent never changes production receiving defaults.
