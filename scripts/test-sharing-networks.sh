@@ -20,6 +20,8 @@ ip link set "${prefix}a" netns "$a"; ip link set "${prefix}b" netns "$b"
 ip -n "$a" link set "${prefix}a" name eth0; ip -n "$b" link set "${prefix}b" name eth0
 ip -n "$a" address add 10.77.1.2/24 dev eth0; ip -n "$b" address add 10.77.1.3/24 dev eth0
 ip -n "$a" link set eth0 up; ip -n "$b" link set eth0 up
+ip -n "$a" route add 224.0.0.0/4 dev eth0
+ip -n "$b" route add 224.0.0.0/4 dev eth0
 for side in a b; do
   if test "$side" = a; then ns="$a"; subnet=3; else ns="$b"; subnet=4; fi
   ip link add "${prefix}u$side" type veth peer name "${prefix}r$side"

@@ -47,7 +47,8 @@ async function run() {
       assert.equal((await fetch(url.origin + '/push/health', { headers })).status, 401);
       assert.equal((await fetch(url.origin + '/guest/upload?name=no', { method: 'PUT', headers, body: 'no' })).status, 403);
     } else {
-      await until(async () => { await peer.refresh(); return peer.peers.get(server.id)?.online; });
+      try { await until(async () => { await peer.refresh(); return peer.peers.get(server.id)?.online; }); }
+      catch (error) { console.error('Discovery diagnostics:', JSON.stringify(await peer.snapshot())); throw error; }
       if (mode === 'normal') await peer.pair(server.id);
       else assert.ok(peer.settings.trusted[server.id]?.endpoint, 'cached endpoint survives a restart without multicast');
       const source = path.join(root, mode + '.txt'), content = Buffer.from('independent namespace transfer: ' + mode);
