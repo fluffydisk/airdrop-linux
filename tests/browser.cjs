@@ -17,7 +17,7 @@ test('Chromium: immediate uploads, ZIP, Android shares, folders, selection, tras
   const app = express(); app.use('/push', service.app); app.use('/ui', express.static(path.resolve('ui')));
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, chromiumSandbox: true });
   t.after(async () => { await browser.close(); service.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
   const context = await browser.newContext({ acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] }); const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));

@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '..');
 const target = path.join(root, 'desktop/core');
 fs.mkdirSync(path.join(target, 'lib'), { recursive: true });
 fs.mkdirSync(path.join(target, 'ui'), { recursive: true });
+fs.cpSync(path.join(root, 'lib/sharing'), path.join(target, 'lib/sharing'), { recursive: true });
 for(const name of ['public-connection-probe.js','public-probe-process.js','public-probe-worker.js'])fs.rmSync(path.join(target,'lib',name),{force:true});
 for (const name of ['nearby.js', 'peer-store.js', 'guest-share.js', 'files.js', 'transfer.js', 'paths.js', 'explorer.js', 'maintenance.js', 'updater.js', 'installation.js', 'backend-control.js', 'device-share.js', 'devices.js', 'connection-health.js', 'relay-client.js', 'relay-protocol.js', 'connection-service.js', 'internet-connection.js', 'tailscale-connection.js']) fs.copyFileSync(path.join(root, 'lib', name), path.join(target, 'lib', name));
 fs.copyFileSync(path.join(root, 'packaging/internet-helper.json'), path.join(target, 'internet-helper.json'));

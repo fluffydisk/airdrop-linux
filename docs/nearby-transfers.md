@@ -16,3 +16,27 @@ If no device appears, check that both apps are open, nearby sharing is enabled, 
 Chunk data is bounded to 1 MiB per request. Receiver staging and complete-file publication happen on the inbox filesystem; private chunk journals can be on another volume. Each chunk is hashed before acknowledgement and rechecked on resume. The receiver checks final size and SHA-256 before exclusively linking a complete file into its inbox. Existing names are numbered rather than overwritten. Data is retained locally for explicit recovery and cleanup.
 
 Competitor patterns evaluated: [LocalSend's discovery/prepare-upload protocol](https://github.com/localsend/protocol), [PairDrop's pairing and browser constraints](https://github.com/schlagmichdoch/PairDrop/blob/master/docs/faq.md), [KDE Connect's identity/pairing model](https://github.com/KDE/kdeconnect-meta/blob/work/protocol-schemas/protocol.md), and [Apple's device-selection/receiver-acceptance flow](https://support.apple.com/en-gb/119857). The implementation is Airdrop Linux's own protocol; no cross-app protocol compatibility is claimed.
+
+## Seamless sharing development
+
+The Transfer view now queues chosen files until Send. Choose **Share link / QR**
+for a browser recipient or when discovery/direct traffic is blocked. Reuse a
+ready connection, or explicitly create an internet link / start trusted LAN
+sharing. The invitation exposes only the selected downloads, expires after ten
+minutes, and cannot upload or access your workspace. Copy checks that the link
+is still current. Stop invitation revokes it. Existing **Share with a guest**
+sessions still support explicit upload/bidirectional workflows.
+
+Nearby now prefers incoming TCP 53318 (configurable in Device preferences); an
+occupied port falls back to a dynamically advertised port. Permit incoming TCP
+and UDP 5353 only through normal OS/network policy. No firewall exception is
+installed automatically. A paired endpoint can reconnect without multicast if
+its saved address/port still works; its certificate must still match.
+
+On-link IPv4 (including public campus subnets) and scoped IPv6 are eligible.
+No discovery traffic is sent to arbitrary off-link addresses, container bridges
+or VPN interfaces. Same SSID does not establish direct reachability. A school
+network may block both discovery and peer traffic; use an independently permitted
+internet route when available. This does not bypass institutional restrictions.
+
+See [current implementation gates](cross-platform-implementation.md).

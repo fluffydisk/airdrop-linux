@@ -73,21 +73,36 @@ function renderQueue() {
   document.getElementById('navCount').hidden = !files.length;
   document.getElementById('clearFiles').hidden = !files.length;
   document.getElementById('clearFiles').disabled = busy;
-  document.querySelector('.drop-caption').textContent = document.getElementById('sendDestination').value ? 'Choose files, then select Send to device.' : 'Files are shared to your workspace as soon as you add them.';
+  document.querySelector('.drop-caption').textContent = document.getElementById('sendDestination').value ? 'Choose files, then select Send to device.' : 'Choose files, choose a recipient, then Send.';
   document.getElementById('queueSummary').textContent = files.length ? `${files.length} ${files.length === 1 ? 'file' : 'files'} · ${formatSize(total)} total` : 'Your next transfer starts here.';
   zipInput.disabled = busy || !!document.getElementById('sendDestination').value;
   document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'One neat package. Up to 100 MiB.';
   sendButton.disabled = busy || !files.length; sendButton.hidden = !files.length;
-  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : document.getElementById('sendDestination').value ? 'Send to device' : 'Send to workspace'), icon('send'));
+  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : document.getElementById('sendDestination').value === 'guest' ? 'Create sharing link' : document.getElementById('sendDestination').value ? 'Send to device' : 'Send to workspace'), icon('send'));
   document.getElementById('choose').disabled = busy || files.length > 0;
   document.body.classList.toggle('busy', busy);
+  window.dispatchEvent(new CustomEvent('airdrop-queue', { detail: { sources: files.map(file => file.path) } }));
 }
+document.getElementById('sendDestination').addEventListener('change', renderQueue);
+document.getElementById('sendDestination').addEventListener('airdrop-destinations-updated', renderQueue);
 let transferTarget = '', transferZip = false, nativeRetry = null;
 window.airdrop.onPeerProgress?.(value => {
   if (value.status === 'complete' && value.id === nativeRetry?.id) { nativeRetry = null; files = []; renderQueue(); message('Received and verified on the other device.'); }
 });
 async function select(paths) {
-  if (!paths.length || busy || files.length) return;
+  if (!paths.length || busy) return;
+  if (activeView === 'files') {
+    busy = true;
+    try {
+      const results = await window.airdrop.send(paths, zipInput.checked, fileExplorer.directory);
+      const failed = results.filter(file => !file.ok);
+      if (failed.length) throw Error(failed.map(file => `${file.name}: ${file.error}`).join('; '));
+      fileExplorer.say('Files added to the shared workspace.'); await fileExplorer.refresh();
+    } catch (error) { report(error); }
+    finally { busy = false; renderQueue(); }
+    return;
+  }
+  if (files.length) return;
   const version = ++selectionVersion;
   nativeRetry = null; transferTarget = fileExplorer.directory; transferZip = zipInput.checked;
   try {
@@ -98,7 +113,6 @@ async function select(paths) {
     if (merged.size > 1000) throw new Error('You can send up to 1000 files at a time.');
     files = [...merged.values()];
     message(''); renderQueue();
-    if (!document.getElementById('sendDestination').value) await sendButton.onclick();
   } catch (error) { report(error); }
 }
 async function loadActivity() {
@@ -143,7 +157,7 @@ const fileExplorer = AirdropExplorer.mount(document.getElementById('fileExplorer
     if (navigation[name]) return icon(navigation[name]);
     if (name.startsWith('file-')) return icon(name === 'file-directory' ? 'folder' : 'file');
   }, enabled: () => ['transfer', 'files'].includes(activeView) && !busy,
-  choose: () => { if (!busy && !files.length) return window.airdrop.choose().then(select).catch(report); },
+  choose: () => { if (!busy && (activeView === 'files' || !files.length)) return window.airdrop.choose().then(select).catch(report); },
   onMessage: text => { if (activeView === 'transfer') message(text); },
   onNavigate: directory => { document.getElementById('transferDestination').textContent = 'Destination: Airdrop/' + directory; }
 });
@@ -232,9 +246,13 @@ sendButton.onclick = async () => {
   try {
     const bundled = transferZip;
     if (!document.getElementById('sendDestination').value && bundled && files.reduce((sum, file) => sum + file.size, 0) > MAX_ZIP) throw new Error('ZIP source files exceed 100 MiB. Turn off ZIP and select the files again.');
+    if (document.getElementById('sendDestination').value === 'guest') {
+      window.dispatchEvent(new CustomEvent('airdrop-invitation', { detail: { sources: files.map(file => file.path) } }));
+      return;
+    }
     if (document.getElementById('sendDestination').value) {
       const targetId = document.getElementById('sendDestination').value;
-      const sent = await window.airdrop.nearby('send', { id: targetId, sources: files.map(file => file.path), ...(nativeRetry?.peer === targetId ? { retryId: nativeRetry.id } : {}) });
+      const sent = await window.airdrop.sharing('send', { recipientId: targetId, sources: files.map(file => file.path), ...(nativeRetry?.peer === targetId ? { retryId: nativeRetry.id } : {}) });
       if (sent.status !== 'complete') { nativeRetry = sent; throw Error(sent.error); }
       nativeRetry = null;
       files = []; message('Received and verified on the other device.'); return;

@@ -14,6 +14,8 @@
     document.getElementById('content').hidden=false;
     status.textContent='Connected · session lasts up to 10 minutes';
     const input=document.getElementById('upload');
+    document.getElementById('uploadSection').hidden=session.allowUploads===false;
+    input.disabled=session.allowUploads===false;
     input.onchange=async()=>{
       input.disabled=true;
       try {

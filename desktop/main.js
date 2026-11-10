@@ -93,6 +93,7 @@ const nearby = new (require('./core/lib/nearby').Nearby)({
   }
 });
 nearby.on('progress', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:peer-progress', value); });
+const sharing = new (require('./core/lib/sharing/broker').SharingBroker)({ nearby, devices });
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
 let window, tray, timer, quitting = false, sending = false;
 let state = { status: 'offline', label: 'Checking services…' };
@@ -144,6 +145,18 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 function registerIpc() {
+  ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
+    ownWindow(event); await devicesReady;
+    if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
+    if (action === 'invitation-stop') return sharing.stopInvitation();
+    if (action === 'invitation-copy') { clipboard.writeText(sharing.invitationLink()); return; }
+    if (action === 'invitation-start' || action === 'send') {
+      if (!payload.retryId && (!Array.isArray(payload.sources) || payload.sources.length > 1000 || !payload.sources.every(p => allowedPaths.has(p)))) throw Error('Choose files first');
+      if (action === 'invitation-start') return sharing.startInvitation(payload);
+      await nearbyReady; return sharing.send(payload);
+    }
+    throw Error('Unknown sharing action');
+  });
   ipcMain.handle('airdrop:nearby', async (event, action, payload = {}) => {
     ownWindow(event); await nearbyReady;
     if (action === 'state') return nearby.snapshot();
@@ -398,7 +411,7 @@ else {
     if (distribution.source === 'snap' && !quitting) {
       event.preventDefault(); quitting = true;
       require('./core/lib/backend-control').request(paths.root,'stop')
-        .then(() => Promise.all([devices.stop(), nearby.stop()])).then(() => app.quit())
+        .then(() => Promise.all([sharing.stopInvitation(), devices.stop(), nearby.stop()])).then(() => app.quit())
         .catch(error => {
           quitting = false;
           console.error('Could not stop sharing:',error.message);
@@ -406,7 +419,7 @@ else {
         });
       return;
     }
-    if(!quitting){event.preventDefault();quitting=true;Promise.all([devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
+    if(!quitting){event.preventDefault();quitting=true;Promise.all([sharing.stopInvitation(), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
     quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
     devicesReady = devices.initialize();

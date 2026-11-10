@@ -49,13 +49,13 @@
 
       <section class="settings-card" aria-labelledby="nearbyHeading">
         <h2 id="nearbyHeading">Nearby &amp; saved devices</h2>
-        <p class="field-help">Open Airdrop 1.8 or later on both Linux computers. Pair once, then send directly over your local network. For phones, use Share with a guest below.</p>
+        <p class="field-help">Open Airdrop 1.8 or later on both Linux computers. Pair once, then send directly over your local network. For phones or restricted networks, choose Share link / QR.</p>
         <label><input type="checkbox" id="nearbyEnabled" checked> Discover nearby devices and receive requests</label>
         <p id="nearbyStatus" role="status" aria-live="polite">Looking for devices…</p>
         <div id="nearbyDevices"></div><button class="button" id="nearbyRefresh">Refresh devices</button>
-        <button class="button" id="nearbyInbox">Open received files</button> <button class="button" id="nearbyPhone">Connect a phone by QR</button>
-        <details><summary>Device preferences</summary><label for="nearbyName">This device’s name</label><input id="nearbyName" maxlength="80"><button class="button" id="nearbySaveName">Save name</button><label for="nearbyConcurrency">Simultaneous transfers</label><select id="nearbyConcurrency"><option>1</option><option selected>2</option><option>3</option><option>4</option></select><button class="button" id="nearbyClearHistory">Clear transfer history and partial downloads</button></details>
-        <label for="sendDestination">Send to</label><select id="sendDestination"><option value="">Shared workspace</option></select>
+        <button class="button" id="nearbyInbox">Open received files</button> <button class="button" id="nearbyLink">Share link / QR</button><button class="button" id="nearbyPhone">Connect a phone by QR</button>
+        <details><summary>Device preferences</summary><label for="nearbyName">This device’s name</label><input id="nearbyName" maxlength="80"><button class="button" id="nearbySaveName">Save name</button><label for="nearbyPort">Incoming TCP port (0 for automatic)</label><input id="nearbyPort" type="number" min="0" max="65535" value="53318"><button class="button" id="nearbySavePort">Save port</button><label for="nearbyConcurrency">Simultaneous transfers</label><select id="nearbyConcurrency"><option>1</option><option selected>2</option><option>3</option><option>4</option></select><button class="button" id="nearbyClearHistory">Clear transfer history and partial downloads</button></details>
+        <label for="sendDestination">Send to</label><select id="sendDestination"><option value="">Shared workspace</option><option value="guest">Share link / QR</option></select>
         <p class="field-help">Nearby devices receive individual files in their inbox, with acceptance required. Shared workspace keeps the existing file manager.</p>
       </section>
       <p id="transferDestination">Destination: Airdrop/</p>
@@ -63,13 +63,21 @@
         <div class="drop-orbit" aria-hidden="true"><div class="upload-symbol"><svg aria-hidden="true"><use href="#i-upload"/></svg></div></div>
         <h2>Share files</h2><p>Drop files here or paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
         <button class="button button-primary" id="choose">Choose files<svg class="button-arrow"><use href="#i-arrow"/></svg></button>
-        <button class="text-button" id="pasteTransfer">Paste from clipboard</button><span class="drop-caption">Files are shared as soon as you add them.</span>
+        <button class="text-button" id="pasteTransfer">Paste from clipboard</button><span class="drop-caption">Choose files, choose a recipient, then Send.</span>
       </div>
       <section class="queue-card" aria-label="Files to send">
         <div class="section-heading"><div><h2>Transfer status <span class="count-pill" id="fileCount">0</span></h2><p id="queueSummary">Your next transfer starts here.</p></div><button class="text-button" id="clearFiles" hidden>Clear all</button></div>
         <div id="queueEmpty" class="queue-empty"><svg aria-hidden="true"><use href="#i-file"/></svg><span>Choose, drop or paste something to get started.</span></div>
         <ul id="files" class="file-list"></ul>
         <div class="send-bar"><label class="zip-option"><input id="zip" type="checkbox"><span class="toggle-track" aria-hidden="true"></span><span><strong>Bundle as ZIP</strong><small id="zipHint">One neat package. Up to 100 MiB.</small></span></label><button class="button button-primary" id="send" disabled>Retry failed files<svg aria-hidden="true"><use href="#i-send"/></svg></button></div>
+      </section>
+      <section id="invitationPanel" class="settings-card" hidden aria-labelledby="invitationTitle">
+        <h2 id="invitationTitle">Share link / QR</h2>
+        <p>Only the files you select are shared. The recipient opens the link in a browser; no app is required.</p>
+        <p id="invitationStatus" role="status" aria-live="polite"></p>
+        <div id="invitationConnections"><p>Internet links pass through Cloudflare while Airdrop is running. Use only a connection permitted on your network. Same Wi-Fi uses unencrypted HTTP and requires direct connectivity.</p><button class="button" id="invitationInternet">Create internet link</button> <button class="button" id="invitationLan">Use same Wi-Fi</button> <button class="text-button" id="invitationSettings">Other connections</button></div>
+        <div id="invitationReady" hidden><img id="invitationQr" width="256" height="256" alt="Scan to download the selected files"><label for="invitationAddress">Link for these files</label><input id="invitationAddress" readonly><button class="button" id="invitationCopy">Copy link</button><p id="invitationDetails"></p></div>
+        <button class="button" id="invitationStop">Stop invitation</button>
       </section>
       <details class="settings-card"><summary>Device transfer history and progress</summary><div id="peerTransfers" aria-live="polite"></div></details>
       <details class="guest-transfer"><summary>Share with a guest</summary><p>Let someone send files without accessing your workspace. Optionally choose specific files they can download.</p><button class="button" id="guestReceive">Receive by QR</button> <button class="button" id="guestShare">Share selected files by QR</button><div id="guestSession" hidden><img id="guestQr" width="256" height="256" alt="Scan for guest transfer"><p id="guestSummary"></p><button class="button" id="guestStop">Stop guest transfer</button></div><p id="guestResult" role="status"></p></details>
@@ -206,4 +214,4 @@
   <p id="wizardError" class="field-help" role="alert" hidden></p>
   <button class="button" id="wizardContinue">Set up later</button>
 </dialog>
-<script src="core/ui/explorer.js"></script><script src="nearby-ui.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script></body></html>
+<script src="core/ui/explorer.js"></script><script src="nearby-ui.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script><script src="sharing-ui.js"></script></body></html>

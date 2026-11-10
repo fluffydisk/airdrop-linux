@@ -3,6 +3,7 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path'), crypto = require('node:crypto');
 const { Nearby, code } = require('../lib/nearby');
 const { CHUNK, hash } = require('../lib/peer-store');
+const { interfaces } = require('../lib/sharing/addresses');
 async function fixture(t, options = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-nearby-'));
   const make = (name, extra) => new Nearby({ directory: path.join(root, name), inbox: path.join(root, name, 'inbox'), name, discovery: false, host: '127.0.0.1', approve: async () => true, ...extra });
@@ -11,6 +12,32 @@ async function fixture(t, options = {}) {
   const connect = () => { a.peers.set(b.id, { id: b.id, name: b.name, address: '127.0.0.1', addresses: ['127.0.0.1'], port: b.port, online: true }); b.peers.set(a.id, { id: a.id, name: a.name, address: '127.0.0.1', addresses: ['127.0.0.1'], port: a.port, online: true }); };
   connect(); return { a, b, root, connect };
 }
+test('IPv6 HTTPS peer connections preserve pairing and verified file publication', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'nearby-ipv6-'));
+  const a = await new Nearby({ directory: path.join(root, 'a'), inbox: path.join(root, 'ai'), host: '127.0.0.1', port: 0, discovery: false, approve: async () => true }).initialize();
+  const b = await new Nearby({ directory: path.join(root, 'b'), inbox: path.join(root, 'bi'), host: '::1', port: 0, discovery: false, approve: async () => true }).initialize();
+  t.after(async () => { await a.stop(); await b.stop(); await fs.rm(root, { recursive: true, force: true }); });
+  a.peers.set(b.id, { id: b.id, addresses: ['::1'], address: '::1', port: b.port, name: 'IPv6 receiver', online: true });
+  await a.pair(b.id);
+  const source = path.join(root, 'v6.txt'); await fs.writeFile(source, 'IPv6 authenticated payload');
+  assert.equal((await a.send(b.id, [source])).status, 'complete');
+  assert.equal(await fs.readFile(path.join(b.store.inbox, 'v6.txt'), 'utf8'), 'IPv6 authenticated payload');
+});
+test('a paired on-link endpoint reconnects after sender restart with discovery disabled', async t => {
+  const address = interfaces().find(entry => require('node:net').isIPv4(entry.address))?.address;
+  assert.ok(address, 'network integration requires an active IPv4 interface');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'nearby-hint-'));
+  const options = { directory: path.join(root, 'a'), inbox: path.join(root, 'ai'), host: address, port: 0, discovery: false, approve: async () => true };
+  let a = await new Nearby(options).initialize();
+  const b = await new Nearby({ ...options, directory: path.join(root, 'b'), inbox: path.join(root, 'bi') }).initialize();
+  t.after(async () => { await a.stop(); await b.stop(); await fs.rm(root, { recursive: true, force: true }); });
+  a.peers.set(b.id, { id: b.id, addresses: [address], address, port: b.port, name: 'Cached receiver', online: true });
+  await a.pair(b.id); const identity = a.id; await a.stop();
+  a = await new Nearby(options).initialize(); await a.refresh();
+  assert.equal(a.id, identity); assert.equal(a.peers.get(b.id).online, true);
+  assert.equal(a.peers.get(b.id).source, 'hint');
+  const server = a.server; await a.configure({ name: 'Renamed without dropping TLS' }); assert.equal(a.server, server);
+});
 test('two independent TLS instances pair, transfer Unicode/empty/duplicate files and persist trust', async t => {
   const { a, b, root, connect } = await fixture(t);
   assert.equal(code(a.id, b.id), code(b.id, a.id));
@@ -65,6 +92,7 @@ test('chunk tampering, wrong peer, invalid metadata, disk full, concurrent write
 test('discovery deduplicates identity, filters unsafe addresses and recovers address changes', async t => {
   const { a, b } = await fixture(t);
   a.peers.clear(); a.refresh = async () => {};
+  a.networkInterfaces = () => [{ name: 'wifi', address: '192.168.1.1', netmask: '255.255.255.0' }, { name: 'wired', address: '10.0.0.1', netmask: '255.255.255.0' }];
   const s = { txt: { id: b.id, name: 'Same name', v: '1' }, addresses: ['8.8.8.8', '127.0.0.1', '192.168.1.2'], port: 1234 };
   a.discovered(s); a.discovered({ ...s, addresses: ['10.0.0.8'], port: 4567 });
   assert.equal(a.peers.size, 1); assert.deepEqual(a.peers.get(b.id).addresses, ['10.0.0.8']);
@@ -151,7 +179,8 @@ test('interface changes rebuild cached DNS-SD addresses without restarting TLS o
   const until = async condition => { const deadline = Date.now() + 8000; while (!condition() && Date.now() < deadline) await new Promise(r => setTimeout(r, 50)); assert.ok(condition()); };
   await until(() => a.peers.get(b.id)?.online && b.peers.get(a.id)?.online); await a.pair(b.id);
   const server = a.server, port = a.port, announcer = a.bonjour, seen = b.peers.get(a.id).seen;
-  a.networkInterfaces = () => [{ name: 'changed-interface', address: '192.168.2.25' }];
+  const currentInterfaces = a.networkInterfaces();
+  a.networkInterfaces = () => [...currentInterfaces, { name: 'changed-interface', address: '192.168.2.25', netmask: '255.255.255.0' }];
   await a.refresh();
   assert.notEqual(a.bonjour, announcer); assert.equal(a.server, server); assert.equal(a.port, port); assert.ok(a.settings.trusted[b.id]);
   await until(() => b.peers.get(a.id).seen > seen && a.peers.get(b.id)?.online && b.peers.get(a.id)?.online);
