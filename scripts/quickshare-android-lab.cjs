@@ -20,6 +20,7 @@ const HELP = `Samsung Galaxy S24+ native Quick Share development lab
   --stop                       Stop only this harness's owned desktop; keep evidence/files
 Options:
   --workspace PATH             Private lab directory (default .cache/quickshare-lab)
+  --ble-native                 Prepare native FEF3/GATT/LE CoC experiment
   --ble-fastinit               Prepare with optional 120-second FE2C sender nudge
   --skip-install               Prepare using already installed locked Node dependencies
   --direction samsung-to-linux|linux-to-samsung
@@ -30,7 +31,7 @@ Options:
   --archive                    Add a local archive of the two sanitized reports
   --non-interactive            Never ask questions; leave unobserved stages untested
 No sudo, ADB, persistent radio/firewall changes or uploads are performed.
-See docs/quickshare-s24-test.md. This baseline is LAN-only, not verified Android support.`;
+See docs/quickshare-s24-test.md. BLE requires --ble-native at prepare; stock Android compatibility remains unverified.`;
 function parse(argv) {
   const result = {}; const operations = ['preflight', 'prepare', 'start', 'status', 'collect', 'stop', 'supervise', 'help'];
   for (let i = 0; i < argv.length; i++) {
@@ -38,7 +39,7 @@ function parse(argv) {
     if (!argv[i].startsWith('--')) throw Error('Expected a --flag');
     if (operations.includes(key)) { if (result.operation) throw Error('Choose one operation'); result.operation = key; }
     else if (['workspace', 'direction', 'case', 'record', 'readback', 'scenario'].includes(key)) { if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw Error('Missing option value'); result[key] = argv[++i]; }
-    else if (['skip-install', 'archive', 'non-interactive', 'ble-fastinit'].includes(key)) result[key] = true;
+    else if (['skip-install', 'archive', 'non-interactive', 'ble-fastinit', 'ble-native'].includes(key)) result[key] = true;
     else throw Error('Unknown lab option: ' + argv[i]);
   }
   if (result.direction && !['samsung-to-linux', 'linux-to-samsung'].includes(result.direction)) throw Error('Invalid direction');
@@ -70,7 +71,7 @@ function printPreflight(value) {
   console.log(JSON.stringify(value, null, 2)); console.log('\n' + instructions(value.system.distro));
   console.log('Rust pin: ' + sync.readFileSync(path.join(ROOT, 'network/quickshare/rust-toolchain.toml'), 'utf8').match(/channel\s*=\s*"([^"]+)"/)?.[1]);
   console.log('Recommended Node: ' + require('../packaging/runtime-sources.json').nodeVersion);
-  console.log(value.helper.capabilities.ble ? 'BLE compiled capability present; physical acceptance required.' : 'BLE receiver bootstrap: not implemented. Samsung visibility is unverified; LAN discovery can still be tested. Absence is not a protocol incompatibility conclusion.');
+  console.log(value.helper.capabilities.ble ? 'BLE discovery/GATT/LE CoC compiled; actual radio registration and stock-device acceptance require runtime evidence.' : 'BLE receiver bootstrap: not implemented. Samsung visibility is unverified; LAN discovery can still be tested. Absence is not a protocol incompatibility conclusion.');
 }
 async function run(command, args, cwd = ROOT) {
   console.log('Running ' + command + ' ' + args.join(' '));
@@ -100,11 +101,11 @@ async function prepare(options) {
   const electronPackage = readJson(path.join(ROOT, 'desktop/node_modules/electron/package.json'));
   const installedVersion = (await fs.readFile(path.join(ROOT, 'desktop/node_modules/electron/dist/version'), 'utf8')).trim();
   if (installedVersion !== electronPackage.version) throw Error('Electron binary does not match its installed package; do not skip its binary installer');
-  await run(process.execPath, [path.join(ROOT, 'scripts/build-quickshare.js'), ...(options['ble-fastinit'] ? ['--ble-fastinit'] : [])]);
+  await run(process.execPath, [path.join(ROOT, 'scripts/build-quickshare.js'), ...(options['ble-fastinit'] ? ['--ble-fastinit'] : []), ...(options['ble-native'] ? ['--ble-native'] : [])]);
   await run(process.execPath, [path.join(ROOT, 'scripts/prepare-desktop.js')]);
   const helper = await hello(); if (!helper.hashMatches || !helper.hello || helper.sourceCommit !== source().commit) throw Error('The built helper does not match the checkout/manifest');
   await prepareFixtures(path.join(root, 'fixtures'));
-  atomicJson(root, 'lab.json', { schema: 1, prepared: true, repository: sync.realpathSync(ROOT), ...source(), run: crypto.randomBytes(16).toString('hex'), preparedAt: new Date().toISOString(), fingerprint: fingerprint(), helperSha256: helper.sha256, helperVersion: helper.version, build: { compilerVersion: helper.compilerVersion, lockSha256: helper.lockSha256, sourceTreeSha256: helper.sourceTreeSha256, profile: helper.profile, ipc: helper.ipc, features: helper.features }, fastInitRequested: options['ble-fastinit'] === true });
+  atomicJson(root, 'lab.json', { schema: 1, prepared: true, repository: sync.realpathSync(ROOT), ...source(), run: crypto.randomBytes(16).toString('hex'), preparedAt: new Date().toISOString(), fingerprint: fingerprint(), helperSha256: helper.sha256, helperVersion: helper.version, build: { compilerVersion: helper.compilerVersion, lockSha256: helper.lockSha256, sourceTreeSha256: helper.sourceTreeSha256, profile: helper.profile, ipc: helper.ipc, features: helper.features }, fastInitRequested: options['ble-fastinit'] === true, bleNativeRequested: options['ble-native'] === true });
   console.log('\nPrepared isolated S24+ lab. No radio, firewall or system services were changed.');
   console.log('Fixtures: ' + path.join(root, 'fixtures') + '\nNext: bash scripts/quickshare-android-lab.sh --start' + (options.workspace ? ' --workspace ' + JSON.stringify(root) : ''));
 }
@@ -162,7 +163,7 @@ async function supervise(options) {
     try { save(); } catch {}
     if (child && Number.isInteger(child.pid) && child.exitCode === null && child.signalCode === null) {
       const stopped = new Promise(resolve => child.once('exit', resolve)); child.kill('SIGTERM');
-      let killTimer; await Promise.race([stopped, new Promise(resolve => { killTimer = setTimeout(resolve, 6000); })]); clearTimeout(killTimer);
+      let killTimer; await Promise.race([stopped, new Promise(resolve => { killTimer = setTimeout(resolve, marker.bleNativeRequested ? 20000 : 6000); })]); clearTimeout(killTimer);
       // In-memory ChildProcess only: never kill stored/reused PIDs or services.
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       await stopped;
@@ -191,7 +192,7 @@ async function supervise(options) {
     const { Bonjour } = require('bonjour-service'); bonjour = new Bonjour();
     browser = bonjour.find({ type: 'FC9F5ED42C8A', protocol: 'tcp' });
     const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('AIRDROP_') && !['ELECTRON_RUN_AS_NODE', 'ELECTRON_PATH', 'ELECTRON_OVERRIDE_DIST_PATH', 'APPIMAGE', 'FLATPAK_ID', 'SNAP', 'NODE_OPTIONS', 'NODE_PATH'].includes(key)));
-    Object.assign(env, { AIRDROP_HOME: path.join(session, 'home'), AIRDROP_SHARE_DIR: path.join(session, 'share'), AIRDROP_CODE_DIR: ROOT, AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_API_PORT: '0', AIRDROP_FILE_PORT: '0', AIRDROP_QUICKSHARE_BLE_FASTINIT: marker.fastInitRequested ? '1' : '0' });
+    Object.assign(env, { AIRDROP_HOME: path.join(session, 'home'), AIRDROP_SHARE_DIR: path.join(session, 'share'), AIRDROP_CODE_DIR: ROOT, AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_API_PORT: '0', AIRDROP_FILE_PORT: '0', AIRDROP_QUICKSHARE_BLE_FASTINIT: marker.fastInitRequested ? '1' : '0', AIRDROP_QUICKSHARE_BLE_NATIVE: marker.bleNativeRequested ? '1' : '0' });
     const electronRoot = path.join(ROOT, 'desktop/node_modules/electron');
     if ((await fs.readFile(path.join(electronRoot, 'path.txt'), 'utf8')).trim() !== 'electron') throw Error('Unexpected development Electron executable');
     const executable = path.join(electronRoot, 'dist/electron');
@@ -214,6 +215,7 @@ async function supervise(options) {
         const state = readJson(path.join(root, 'desktop-state.json'));
         if (state.run !== marker.run) return;
         runtime.bleFastInitState = ['registered-for-120s', 'expired', 'bluez-unavailable', 'bluez-timeout', 'permission-denied', 'not-supported', 'bluetooth-off', 'no-adapter', 'adapter-busy', 'bluez-operation-failed', 'unavailable-or-denied'].includes(state.helper?.bleFastInitState) ? state.helper.bleFastInitState : 'not-requested';
+        runtime.bluetooth = require('../lib/sharing/quickshare').sanitizeBluetooth(state.helper?.bluetooth);
         runtime.capabilities = require('../lib/sharing/lab-evidence').capabilities(state.helper?.capabilities);
         runtime.helperStatus = ['starting', 'ready', 'error', 'stopped', 'disabled'].includes(state.helper?.status) ? state.helper.status : 'error';
         runtime.listenerReachable = runtime.helperStatus === 'ready' && await listener(state.helper.listenerPort);
@@ -234,7 +236,7 @@ async function supervise(options) {
   } catch { await shutdown(true); }
 }
 async function stop(options) {
-  const root = rootFor(options); markerFor(root);
+  const root = rootFor(options), marker = markerFor(root);
   try { await control(root, 'stop'); }
   catch {
     const info = await fs.stat(path.join(root, 'run.lock')).catch(() => null);
@@ -246,7 +248,7 @@ async function stop(options) {
     }
     console.log('No responsive lab supervisor. Stale private control files cleaned; no process was signalled.'); return;
   }
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < (marker.bleNativeRequested ? 100 : 40); i++) {
     if (!await active(root) && !sync.existsSync(path.join(root, 'run.lock')) && !sync.existsSync(path.join(root, 'control.sock'))) break;
     await new Promise(resolve => setTimeout(resolve, 250));
   }

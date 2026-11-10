@@ -37,6 +37,10 @@ pub use hdl::{EndpointInfo, OutboundPayload, TransferState, Visibility};
 pub use manager::SendInfo;
 pub use utils::DeviceType;
 
+pub mod ble_proto {
+    include!(concat!(env!("OUT_DIR"), "/location.nearby.mediums.rs"));
+}
+
 pub mod sharing_nearby {
     include!(concat!(env!("OUT_DIR"), "/sharing.nearby.rs"));
 }
@@ -73,6 +77,8 @@ pub struct RQS {
     ble_sender: broadcast::Sender<()>,
 
     pub port_number: Option<u32>,
+    /// Ephemeral identity shared by all discovery media in this run.
+    pub endpoint_id: Option<[u8; 4]>,
 
     pub message_sender: broadcast::Sender<ChannelMessage>,
 }
@@ -121,6 +127,7 @@ impl RQS {
             visibility_receiver,
             ble_sender,
             port_number,
+            endpoint_id: None,
             message_sender,
         }
     }
@@ -138,6 +145,7 @@ impl RQS {
             .take(4)
             .map(u8::from)
             .collect();
+        self.endpoint_id = Some(endpoint_id[..4].try_into()?);
         let tcp_listener =
             TcpListener::bind(format!("0.0.0.0:{}", self.port_number.unwrap_or(0))).await?;
         let binded_addr = tcp_listener.local_addr()?;

@@ -52,7 +52,7 @@ impl RemoteDeviceInfo {
         let mut endpoint_info: Vec<u8> = vec![((self.device_type.clone() as u8) << 1) & 0b111];
 
         // 16 bytes: unknown random bytes
-        endpoint_info.extend((0..16).map(|_| rand::rng().random_range(0..=255)));
+        endpoint_info.extend_from_slice(ENDPOINT_IDENTITY.as_slice());
 
         // Device name in UTF-8 prefixed with 1-byte length
         let name_chars = utf8_prefix(&self.name, 255).as_bytes();
@@ -61,6 +61,30 @@ impl RemoteDeviceInfo {
 
         endpoint_info
     }
+}
+
+/// Ephemeral discovery correlation only; never a trust or authentication key.
+pub fn discovery_key(endpoint_id: [u8; 4], identity: [u8; 16]) -> String {
+    use sha2::Digest;
+    let hash = Sha256::digest([endpoint_id.as_slice(), identity.as_slice()].concat());
+    format!("ble-{:x}", hash)[..36].to_owned()
+}
+
+pub fn mdns_discovery_key(fullname: &str, encoded_info: &str) -> Option<String> {
+    let label = fullname.split('.').next()?;
+    let instance = URL_SAFE_NO_PAD.decode(label).ok()?;
+    let info = URL_SAFE_NO_PAD.decode(encoded_info).ok()?;
+    if instance.len() != 10
+        || instance[0] != 0x23
+        || instance[5..8] != [0xfc, 0x9f, 0x5e]
+        || info.len() < 17
+    {
+        return None;
+    }
+    Some(discovery_key(
+        instance[1..5].try_into().ok()?,
+        info[1..17].try_into().ok()?,
+    ))
 }
 
 pub fn gen_mdns_name(endpoint_id: [u8; 4]) -> String {

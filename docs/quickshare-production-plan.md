@@ -1,3 +1,9 @@
+Current implementation update: the separately gated FEF3/GATT/LE CoC wrapper
+is described in [the native BLE implementation record](quickshare-ble-implementation.md).
+The default build remains LAN-only; stock S24+ acceptance and authenticated
+LAN upgrade are still unverified/unimplemented respectively. Earlier baseline
+findings below describe the pre-BLE hardware test.
+
 # Native Quick Share execution record
 
 Authoritative scope: implement the owner's 10 November 2026 production plan on

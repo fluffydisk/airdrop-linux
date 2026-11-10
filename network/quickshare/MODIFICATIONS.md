@@ -49,3 +49,20 @@ metadata when the original update requested no public metadata. Keys, codes,
 addresses and payload contents are never part of those diagnostic transitions.
 The adapter preserves them separately from coalesced progress; lab export maps
 session IDs to bounded per-run aliases and allowlists stage names.
+
+
+2026-11-10 native BLE wrapper addition: `src/ble/{bloom,protocol,radio}.rs`
+implements the separate bounded bootstrap described in
+`docs/quickshare-ble-implementation.md`. `bloom.rs` adapts the existing pinned GPL
+`blea.rs` hash/Bloom code; original upstream experimental modules remain disabled.
+Core `src/lib.rs` exposes the run's endpoint ID and new BLE schema module;
+`utils.rs` correlates ephemeral BLE/LAN/connection metadata; `mdns_discovery.rs`
+adds optional route/correlation fields; `outbound.rs` permits a bounded duplex
+without enabling bandwidth upgrade. The former test-only Duplex trait impl is
+now shared with this production development path; its tests are preserved.
+
+`build.rs` additionally compiles `src/proto_src/ble_frames.proto`, copied unchanged
+from google/nearby commit `1bbe8ec1eadd0c08d01db6b634254526141068e6`, path
+`proto/mediums/ble_frames.proto`. Original Google Apache-2.0 attribution and
+license text are retained. Original-input hashes for the earlier GPL vendor pin
+are not rewritten. Binary distribution and Samsung compatibility remain gated.

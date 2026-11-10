@@ -157,3 +157,41 @@ test('consent cannot describe different filenames than the eventual staged paths
   assert.equal(prompted, false);
   assert.deepEqual(await fs.readdir(adapter.inbox), []);
 });
+
+test('GATT-only discovery enters the existing selector without a LAN address or PSM and expires on removal', async t => {
+  const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
+  const adapter = await fixture(t, { bleNative: true, spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe','pipe','pipe'], env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1' } }) });
+  const endpoint = { id: 'ble-' + 'a'.repeat(32), name: 'Galaxy', present: true, transport: 'ble-gatt', discovery_stage: 'gatt-resolved', connectable: true };
+  await adapter.request('fixture-recipient', endpoint); await until(() => adapter.recipients.size === 1);
+  assert.equal(adapter.snapshot().recipients[0].connectionMethod, 'ble-gatt');
+  assert.equal(adapter.snapshot().recipients[0].availability, 'available');
+  const source = path.join(adapter.directory, 'outgoing.txt'); await fs.writeFile(source, 'fixture');
+  await adapter.send({ recipientId: 'quick-share:' + endpoint.id, sources: [source] });
+  assert.equal((await adapter.request('sent')).recipientId, endpoint.id);
+  await adapter.request('fixture-recipient', { ...endpoint, connectable: false, discovery_stage: 'endpoint-decoded' });
+  await until(() => adapter.recipients.get(endpoint.id)?.connectable === false);
+  await assert.rejects(adapter.send({ recipientId: 'quick-share:' + endpoint.id, sources: [] }), /unavailable/);
+  await adapter.request('fixture-recipient', { ...endpoint, present: false }); await until(() => !adapter.recipients.size);
+});
+test('native BLE requires a separate runtime opt-in and diagnostics strip Bluetooth identities', async () => {
+  const adapter = new QuickShare(); adapter.generation = 1;
+  assert.throws(() => adapter.message({ v: 1, event: 'bluetooth', data: {} }, 1), /Unexpected Bluetooth/);
+  adapter.bleNative = true;
+  adapter.message({ v: 1, event: 'bluetooth', data: { stage: 'weave-established', mode: 'compact-gatt', gattBootstrap: true, resolved: 1, address: 'PRIVATE MAC', name: 'PRIVATE PHONE', pin: '1234', packet: 'PRIVATE DATA', controller: { bluez: true, powered: true, address: 'PRIVATE ADDRESS', advertisingInstances: 1 } } }, 1);
+  assert.equal(adapter.snapshot().bluetooth.stage, 'weave-established');
+  assert.equal(adapter.diagnostics().bluetooth.gattBootstrap, true);
+  for (const secret of ['PRIVATE','1234']) assert.equal(JSON.stringify(adapter.diagnostics()).includes(secret), false);
+});
+
+test('coherent BLE and LAN discovery show one recipient and retain BLE fallback when LAN expires', t => {
+  t.mock.method(os, 'networkInterfaces', () => ({ eth0: [{ address: '192.168.20.1', netmask: '255.255.255.0', internal: false }] }));
+  const adapter = new QuickShare({ bleNative: true }); adapter.generation = 1;
+  const key = 'ble-' + 'b'.repeat(32);
+  const bluetooth = { id: key, discovery_key: key, name: 'Galaxy', present: true, transport: 'ble-gatt', discovery_stage: 'gatt-resolved', connectable: true };
+  adapter.message({ v: 1, event: 'recipient', data: bluetooth }, 1);
+  adapter.message({ v: 1, event: 'recipient', data: { id: '192.168.20.2:53319', discovery_key: key, name: 'Galaxy', present: true, ip: '192.168.20.2', port: '53319' } }, 1);
+  assert.equal(adapter.recipients.size, 1); assert.equal(adapter.recipients.get(key).connectionMethod, 'lan');
+  adapter.message({ v: 1, event: 'recipient', data: { id: '192.168.20.2:53319', present: false } }, 1);
+  assert.equal(adapter.recipients.size, 1); assert.equal(adapter.recipients.get(key).connectionMethod, 'ble-gatt');
+  adapter.message({ v: 1, event: 'recipient', data: { ...bluetooth, present: false } }, 1); assert.equal(adapter.recipients.size, 0);
+});

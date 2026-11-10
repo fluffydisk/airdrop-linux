@@ -73,3 +73,14 @@ test('sent bytes without receiver confirmation never render as successful comple
   assert.match(w.document.getElementById('peerTransfers').textContent, /recipient completion unconfirmed/);
   assert.equal(w.document.getElementById('peerTransfers').textContent.includes('Retry / resume'), false);
 });
+
+test('decoded BLE peers stay visible with disabled send controls until a transport is available', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' }); t.after(() => dom.window.close());
+  const w = dom.window;
+  w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { enabled: false, devices: [], incoming: [], outgoing: [] }, quickShare: { enabled: true, recipients: [{ id: 'quick-share:ble-' + 'a'.repeat(32), name: 'Galaxy', availability: 'checking', connectable: false }], transfers: [] } }) };
+  w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
+  assert.match(w.document.querySelector('.nearby-device').textContent, /Checking connection/);
+  assert.equal(w.document.querySelector('.nearby-device button').disabled, true);
+  const option = [...w.document.getElementById('sendDestination').options].find(v => v.value.startsWith('quick-share:'));
+  assert.ok(option); assert.equal(option.disabled, true);
+});

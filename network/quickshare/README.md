@@ -2,8 +2,10 @@
 
 This is an opt-in development component. It is not enabled, installed or shipped
 by the application's current release pipeline. Android/Samsung/Windows physical
-acceptance is pending. The default helper is LAN-only. BLE receiver bootstrap
-and direct wireless are absent; the upstream `experimental` feature is not enabled.
+acceptance is pending. The default helper is LAN-only. A separately opt-in `ble-native` wrapper now
+implements experimental FEF3/GATT/LE CoC discovery and bootstrap; direct wireless
+and authenticated LAN upgrade are absent. The upstream `experimental` feature
+remains disabled. See `docs/quickshare-ble-implementation.md`.
 An optional separate FE2C sender-nudge experiment is described below.
 
 The active execution record is `docs/quickshare-production-plan.md`; the stock
@@ -136,7 +138,16 @@ For the owner's real Galaxy S24+, use `scripts/quickshare-android-lab.sh` and
 adds only a bounded 120-second FE2C sender advertisement after explicit runtime
 request. It never powers a controller, scans or enables upstream wireless code.
 BlueZ failures are classified without raw device data and preserve LAN operation.
-Full FEF3/GATT/weave receiver bootstrap and authenticated LAN upgrade are pending.
+The separate `--ble-native` experiment implements FEF3/GATT/Weave and LE CoC;
+authenticated LAN upgrade remains unimplemented and physical acceptance pending.
 Default IPC is unchanged; named metadata-free protocol diagnostics are an
 explicit `protocolDiagnostics` start capability used by the lab only. They do
 not create transfer/consent state and never carry keys, codes or endpoint data.
+
+
+Build the new experiment with `node scripts/build-quickshare.js --ble-native`.
+Use `AIRDROP_EXPERIMENTAL_QUICK_SHARE=1 AIRDROP_QUICKSHARE_BLE_NATIVE=1` only in the
+source desktop, or prepare the owner lab with `--prepare --ble-native`. Compiling
+BLE support never starts radios by itself. `hello` reports compiled capabilities;
+`bluetooth-preflight` is read-only; runtime `bluetooth` events report actual state.
+Normal packages and the default feature set remain unchanged.

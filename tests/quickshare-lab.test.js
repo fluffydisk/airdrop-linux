@@ -3,7 +3,7 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
 const { Evidence, openLab, atomicJson } = require('../lib/sharing/lab-evidence');
 const { prepareFixtures, hashDirectory, fixtureNames } = require('../scripts/quickshare-lab/fixtures.cjs');
-const { createReport, observations } = require('../scripts/quickshare-lab/report.cjs');
+const { createReport, observations, timeline } = require('../scripts/quickshare-lab/report.cjs');
 const { parse } = require('../scripts/quickshare-android-lab.cjs');
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 's24-lab-test-'));
@@ -107,4 +107,15 @@ test('protocol diagnostics cannot trigger a consent prompt or forward extra help
   adapter.message({ v: 1, event: 'protocol', data: { id: 'diagnostic', direction: 'incoming', protocolStage: 'WaitingForUserConsent', pinCode: '1234', path: '/private/path' } }, adapter.generation);
   assert.equal(adapter.transfers.size, 0); assert.equal(adapter.confirming.size, 0);
   assert.deepEqual(value, { id: 'diagnostic', direction: 'incoming', protocolStage: 'WaitingForUserConsent' });
+});
+
+test('native BLE lab records registration and resolution separately and rejects identities in its report', () => {
+  assert.equal(parse(['--prepare','--ble-native'])['ble-native'], true);
+  const e = new Evidence('a'.repeat(32));
+  e.state({ status: 'ready', capabilities: { ble: true, bleScanning: true, gattBootstrap: true, l2cap: true }, recipients: [], bluetooth: { stage: 'gatt-resolution-failed', gattBootstrap: true, bleAdvertising: true, mode: 'compact-gatt', observed: 5, decoded: 1, resolved: 0, address: 'PRIVATE MAC', pin: '1234', controller: { bluez: true, powered: true, extendedAdvertising: false, advertisingInstances: 1 } } });
+  assert.equal(e.value.helper.bluetooth.mode, 'compact-gatt');
+  assert.equal(e.value.helper.bluetooth.resolved, 0);
+  const exported = timeline(e.value.events);
+  assert.equal(exported.find(v => v.type === 'bluetooth').bluetooth.stage, 'gatt-resolution-failed');
+  for (const secret of ['PRIVATE','1234']) assert.equal(JSON.stringify(exported).includes(secret), false);
 });

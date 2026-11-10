@@ -13,7 +13,8 @@ test('S24 lab prepares, launches actual Electron/helper, collects privately and 
   const unrelated = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
   const cli = (...args) => execute(process.execPath, [script, ...args, '--workspace', root], { cwd: process.cwd(), env: process.env, timeout: 90000, maxBuffer: 1024 * 1024 });
   t.after(async () => { await cli('--stop').catch(() => {}); unrelated.kill('SIGTERM'); await fs.rm(root, { recursive: true, force: true }); });
-  await cli('--prepare', '--skip-install');
+  const native = process.env.AIRDROP_TEST_QUICKSHARE_BLE_NATIVE === '1';
+  await cli('--prepare', '--skip-install', ...(native ? ['--ble-native'] : []));
   const start = await cli('--start'); assert.match(start.stdout, /DEVELOPMENT BUILD/); assert.match(start.stdout, /Airdrop S24 Lab/);
   const status = JSON.parse((await cli('--status')).stdout);
   assert.equal(status.status, 'running'); assert.equal(status.helperStatus, 'ready'); assert.equal(status.listenerReachable, true);
@@ -24,7 +25,10 @@ test('S24 lab prepares, launches actual Electron/helper, collects privately and 
   assert.equal(value.productionAcceptanceEstablished, false);
   assert.equal(value.stages.A.status, 'pass'); assert.equal(value.stages.C.evidence.startsWith('owner-reported'), true);
   assert.equal(value.stages.F.status, 'not-tested'); assert.equal(value.stages.J.status, 'not-tested');
-  assert.equal(value.failure.category, 'DISCOVERY_UNAVAILABLE_BLE_NOT_IMPLEMENTED');
+  assert.equal(value.failure.category, native ? 'SAMSUNG_DISCOVERY_FAILED' : 'DISCOVERY_UNAVAILABLE_BLE_NOT_IMPLEMENTED');
+  assert.equal(marker.bleNativeRequested, native);
+  assert.equal(value.build.capabilities.gattBootstrap, native);
+  if (native) { assert.equal(typeof value.session.bluetooth.stage, 'string'); assert.equal(value.session.runtimeCapabilities.lanListening, true); }
   assert.equal(JSON.stringify(value).includes(root), false); assert.equal(JSON.stringify(value).includes('127.0.0.1'), false);
   await cli('--stop'); assert.equal(unrelated.exitCode, null); process.kill(unrelated.pid, 0);
   for (let i = 0; i < 40 && await listener(port); i++) await new Promise(resolve => setTimeout(resolve, 100));

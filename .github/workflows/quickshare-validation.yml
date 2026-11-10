@@ -35,6 +35,16 @@ jobs:
       - name: Compile and test optional bounded FastInit without enabling upstream wireless
         run: cargo test --workspace --locked --features airdrop-quickshare/ble-fastinit
         working-directory: network/quickshare
+      - name: Native BLE state machines and independent wire oracle (no radio claim)
+        run: |
+          cargo test --workspace --locked --features airdrop-quickshare/ble-native,airdrop-quickshare/ble-fastinit
+          cargo clippy --workspace --locked --features airdrop-quickshare/ble-native,airdrop-quickshare/ble-fastinit
+        working-directory: network/quickshare
+      - run: python3 tests/quickshare-ble-oracle.py
+      - name: Native BLE process lifecycle and graceful unavailable-controller handling
+        run: |
+          node scripts/build-quickshare.js --ble-native
+          AIRDROP_TEST_QUICKSHARE_HELPER="$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" node --test tests/quickshare-ble-native.cjs
       - run: node scripts/build-quickshare.js
       - name: Process boundary and real native lifecycle (no Android claim)
         run: |
@@ -57,3 +67,5 @@ jobs:
           fi
           xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-native.cjs
           xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-desktop.cjs
+          AIRDROP_TEST_QUICKSHARE_BLE_NATIVE=1 xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-native.cjs
+          AIRDROP_TEST_QUICKSHARE_BLE_NATIVE=1 xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-desktop.cjs

@@ -14,6 +14,9 @@ use tokio::sync::{broadcast, mpsc};
 #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
 mod fast_init;
 
+#[cfg(any(feature = "ble-native", test))]
+mod ble;
+
 const IPC_LIMIT: usize = 64 * 1024;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -28,16 +31,24 @@ enum Event {
     Request(Request),
     Protocol(ChannelMessage),
     Recipient(EndpointInfo),
+    #[cfg(all(feature = "ble-native", target_os = "linux"))]
+    Bluetooth(Value),
     End,
 }
 struct Engine {
     service: Option<RQS>,
     sender: Option<mpsc::Sender<SendInfo>>,
     recipients: HashMap<String, EndpointInfo>,
+    recipient_seen: HashMap<String, Instant>,
     transfers: HashMap<String, Value>,
     consent: HashMap<String, Instant>,
     staging: Option<PathBuf>,
     protocol_diagnostics: bool,
+    bluetooth: Value,
+    #[cfg(all(feature = "ble-native", target_os = "linux"))]
+    ble: Option<ble::Runtime>,
+    #[cfg(all(feature = "ble-native", target_os = "linux"))]
+    ble_sessions: HashMap<String, tokio_util::sync::CancellationToken>,
     #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
     fast_init: Option<fast_init::FastInit>,
 }
@@ -47,10 +58,16 @@ impl Engine {
             service: None,
             sender: None,
             recipients: HashMap::new(),
+            recipient_seen: HashMap::new(),
             transfers: HashMap::new(),
             consent: HashMap::new(),
             staging: None,
             protocol_diagnostics: false,
+            bluetooth: json!({"stage":"not-requested","bleScanning":false,"bleAdvertising":false,"gattBootstrap":false,"l2cap":false}),
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            ble: None,
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            ble_sessions: HashMap::new(),
             #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
             fast_init: None,
         }
@@ -85,11 +102,43 @@ impl Engine {
         match req.method.as_str() {
             "hello" => Ok(
                 json!({"protocol":1,"version":env!("CARGO_PKG_VERSION"),"experimental":true,"license":"GPL-3.0-only",
-                "capabilities":{"lan":true,"ble":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
+                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
             ),
+            "bluetooth-preflight" => {
+                #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                {
+                    Ok(ble::probe().await)
+                }
+                #[cfg(not(all(feature = "ble-native", target_os = "linux")))]
+                {
+                    Ok(json!({"compiled":false,"registrationTested":false}))
+                }
+            }
+            "visibility" => {
+                let visible = req.params["visible"]
+                    .as_bool()
+                    .ok_or_else(|| anyhow::anyhow!("INVALID_VISIBILITY"))?;
+                self.service
+                    .as_mut()
+                    .ok_or_else(|| anyhow::anyhow!("NOT_STARTED"))?
+                    .change_visibility(if visible {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Invisible
+                    });
+                #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                if let Some(ble) = &self.ble {
+                    ble.visibility(visible);
+                }
+                Ok(json!({"visible":visible}))
+            }
             "start" => {
                 if self.service.is_some() {
                     bail!("ALREADY_STARTED");
+                }
+                let request_ble = req.params["bleNative"].as_bool().unwrap_or(false);
+                if request_ble && !cfg!(all(feature = "ble-native", target_os = "linux")) {
+                    bail!("BLE_NOT_COMPILED");
                 }
                 let request_fastinit = req.params["bleFastInit"].as_bool().unwrap_or(false);
                 if request_fastinit && !cfg!(all(feature = "ble-fastinit", target_os = "linux")) {
@@ -155,6 +204,17 @@ impl Engine {
                         }
                     }
                 });
+                #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                if request_ble {
+                    self.ble = Some(ble::Runtime::start(
+                        service
+                            .endpoint_id
+                            .ok_or_else(|| anyhow::anyhow!("NO_ENDPOINT"))?,
+                        name.to_owned(),
+                        service.message_sender.clone(),
+                        events.clone(),
+                    ));
+                }
                 let port = service.port_number;
                 self.staging = Some(directory);
                 self.sender = Some(sender);
@@ -185,7 +245,7 @@ impl Engine {
                 Ok(json!({"started":true,"port":port,"bleFastInitState":fastinit_state}))
             }
             "snapshot" => Ok(
-                json!({"recipients": self.recipients.values().collect::<Vec<_>>(), "transfers": self.transfers.values().collect::<Vec<_>>()}),
+                json!({"recipients": self.recipients.values().collect::<Vec<_>>(), "transfers": self.transfers.values().collect::<Vec<_>>(), "bluetooth":self.bluetooth,"runtimeCapabilities":{"lanListening":self.service.is_some(),"lanUpgrade":false,"directWireless":false,"bleScanning":self.bluetooth["bleScanning"]==true,"bleAdvertising":self.bluetooth["bleAdvertising"]==true,"gattBootstrap":self.bluetooth["gattBootstrap"]==true,"l2cap":self.bluetooth["l2cap"]==true}}),
             ),
             "send" => {
                 let target = req.params["recipientId"]
@@ -210,6 +270,24 @@ impl Engine {
                 }
                 if !self.make_room(id) {
                     bail!("HISTORY_FULL");
+                }
+                #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                if endpoint
+                    .transport
+                    .as_deref()
+                    .is_some_and(|t| t.starts_with("ble-"))
+                {
+                    if endpoint.connectable != Some(true) {
+                        bail!("RECIPIENT_NOT_CONNECTABLE");
+                    }
+                    let cancellation = self
+                        .ble
+                        .as_ref()
+                        .ok_or_else(|| anyhow::anyhow!("BLE_NOT_STARTED"))?
+                        .send(target.to_owned(), paths, id.to_owned())?;
+                    self.ble_sessions.insert(id.to_owned(), cancellation);
+                    self.transfers.insert(id.to_owned(),json!({"id":id,"phase":"connecting","direction":"outgoing","created":now_ms()}));
+                    return Ok(json!({"transferId":id}));
                 }
                 let info = SendInfo {
                     id: id.to_owned(),
@@ -241,6 +319,10 @@ impl Engine {
                     bail!("INVALID_TRANSFER");
                 }
                 let action = if req.method == "cancel" {
+                    #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                    if let Some(token) = self.ble_sessions.remove(id) {
+                        token.cancel();
+                    }
                     TransferAction::TransferCancel
                 } else {
                     if !self
@@ -324,6 +406,8 @@ impl Engine {
                     | TransferState::Cancelled
             ) {
                 self.consent.remove(&event.id);
+                #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                self.ble_sessions.remove(&event.id);
             }
         }
         if let Some(meta) = message.metadata {
@@ -347,6 +431,11 @@ impl Engine {
         Some(json!({"v":1,"event":"transfer","data":value}))
     }
     async fn stop(&mut self) {
+        #[cfg(all(feature = "ble-native", target_os = "linux"))]
+        if let Some(mut ble) = self.ble.take() {
+            ble.stop().await;
+        }
+
         #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
         {
             self.fast_init.take();
@@ -439,6 +528,8 @@ async fn main() -> Result<()> {
     let mut ticker = tokio::time::interval(Duration::from_secs(1));
     loop {
         let event = tokio::select! { event = received.recv() => event, _ = ticker.tick() => {
+            let stale:Vec<_>=engine.recipient_seen.iter().filter(|(_,at)|at.elapsed()>=Duration::from_secs(35)).map(|(id,_)|id.clone()).collect();
+            for id in stale{engine.recipient_seen.remove(&id);if let Some(mut endpoint)=engine.recipients.remove(&id){endpoint.present=Some(false);if output(json!({"v":1,"event":"recipient","data":endpoint})).await.is_err(){break;}}}
             let expired: Vec<_> = engine.consent.iter().filter(|(_, deadline)| **deadline <= Instant::now()).map(|(id, _)| id.clone()).collect();
             for id in expired {
                 engine.consent.remove(&id);
@@ -460,6 +551,17 @@ async fn main() -> Result<()> {
             }
             Some(Event::Recipient(endpoint)) => {
                 if endpoint.present == Some(true) {
+                    if endpoint
+                        .transport
+                        .as_deref()
+                        .is_some_and(|t| t.starts_with("ble-"))
+                        && (engine.recipient_seen.len() < 100
+                            || engine.recipient_seen.contains_key(&endpoint.id))
+                    {
+                        engine
+                            .recipient_seen
+                            .insert(endpoint.id.clone(), Instant::now());
+                    }
                     if engine.recipients.len() < 100 || engine.recipients.contains_key(&endpoint.id)
                     {
                         engine
@@ -467,9 +569,36 @@ async fn main() -> Result<()> {
                             .insert(endpoint.id.clone(), endpoint.clone());
                     }
                 } else {
+                    engine.recipient_seen.remove(&endpoint.id);
                     engine.recipients.remove(&endpoint.id);
                 }
                 Some(json!({"v":1,"event":"recipient","data":endpoint}))
+            }
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            Some(Event::Bluetooth(state)) => {
+                if state["stage"] == "adapter-unavailable" {
+                    let gone: Vec<_> = engine
+                        .recipients
+                        .values()
+                        .filter(|e| {
+                            e.transport
+                                .as_deref()
+                                .is_some_and(|t| t.starts_with("ble-"))
+                        })
+                        .cloned()
+                        .collect();
+                    for mut endpoint in gone {
+                        engine.recipients.remove(&endpoint.id);
+                        endpoint.present = Some(false);
+                        output(json!({"v":1,"event":"recipient","data":endpoint})).await?;
+                    }
+                }
+                if let Some(fields) = state.as_object() {
+                    for (key, value) in fields {
+                        engine.bluetooth[key] = value.clone();
+                    }
+                }
+                Some(json!({"v":1,"event":"bluetooth","data":engine.bluetooth}))
             }
             Some(Event::Protocol(message)) => engine.protocol(message),
             _ => break,
@@ -545,5 +674,33 @@ mod tests {
         assert!(engine.make_room("new"));
         assert!(!engine.transfers.contains_key("0"));
         assert_eq!(engine.transfers.len(), 99);
+    }
+    #[cfg(all(feature = "ble-native", target_os = "linux"))]
+    #[tokio::test]
+    async fn cancellation_reaches_a_queued_ble_bootstrap_before_the_session_subscribes() {
+        let mut engine = Engine::new();
+        let token = tokio_util::sync::CancellationToken::new();
+        engine.ble_sessions.insert("pending".into(), token.clone());
+        engine
+            .transfers
+            .insert("pending".into(), json!({"phase":"connecting"}));
+        let service = RQS::new(Visibility::Invisible, None, None, Some("Linux".into()));
+        let _receiver = service.message_sender.subscribe();
+        engine.service = Some(service);
+        let (events, _) = mpsc::channel(1);
+        engine
+            .command(
+                &Request {
+                    v: 1,
+                    id: "cancel".into(),
+                    method: "cancel".into(),
+                    params: json!({"transferId":"pending"}),
+                },
+                &events,
+            )
+            .await
+            .unwrap();
+        assert!(token.is_cancelled());
+        assert!(engine.ble_sessions.is_empty());
     }
 }

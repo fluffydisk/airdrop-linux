@@ -36,7 +36,7 @@
       const label = document.createElement('p'); label.textContent = `${d.name} · ${d.online ? 'Online' : d.availability === 'checking' ? 'Checking connection' : d.availability === 'unreachable' ? 'Discovered · unreachable' : 'Offline'} · ${d.transport === 'quick-share' ? 'Confirm each transfer' : d.trusted ? 'Paired' : 'Not paired'} · ${d.id.slice(0, 8)}`; row.append(label);
       if (d.error) { const detail = document.createElement('p'); detail.textContent = d.error; row.append(detail); }
       if (d.transport === 'quick-share') {
-        row.append(button('Send to this device', () => { selectedByUser = true; destination.value = d.id; destination.dispatchEvent(new Event('change')); get('choose').focus(); }));
+        const send = button('Send to this device', () => { selectedByUser = true; destination.value = d.id; destination.dispatchEvent(new Event('change')); get('choose').focus(); }); send.disabled = !d.online; row.append(send);
         const detail = document.createElement('p'); detail.textContent = 'Experimental Quick Share · compare the code for each transfer · Android validation pending'; row.append(detail);
       }
       else if (!d.trusted) { const pair = button('Pair device', () => action('pair', { id: d.id })); pair.disabled = !d.online; row.append(pair); }

@@ -36,15 +36,15 @@ function helperMetadata() {
     if (!info.isFile() || info.isSymbolicLink()) throw Error('Not a regular helper');
     const actual = sha(fs.readFileSync(files.binary));
     const valid = /^[a-f0-9]{64}$/.test(value.sha256) && actual === value.sha256 && value.arch === process.arch;
-    return { available: true, hashMatches: valid, sha256: actual, sourceCommit: /^[a-f0-9]{40}$/.test(value.applicationCommit) ? value.applicationCommit : null, dirty: value.dirty === true, capabilities: capabilities(value.capabilities), sourceTreeSha256: /^[a-f0-9]{64}$/.test(value.sourceTreeSha256 || '') ? value.sourceTreeSha256 : null, lockSha256: /^[a-f0-9]{64}$/.test(value.lockSha256 || '') ? value.lockSha256 : null, compilerVersion: version(value.compiler), features: Array.isArray(value.features) && value.features.includes('ble-fastinit') ? ['ble-fastinit'] : [], ipc: value.ipc || 1, profile: value.profile === 'debug' ? 'debug' : 'unknown' };
+    return { available: true, hashMatches: valid, sha256: actual, sourceCommit: /^[a-f0-9]{40}$/.test(value.applicationCommit) ? value.applicationCommit : null, dirty: value.dirty === true, capabilities: capabilities(value.capabilities), sourceTreeSha256: /^[a-f0-9]{64}$/.test(value.sourceTreeSha256 || '') ? value.sourceTreeSha256 : null, lockSha256: /^[a-f0-9]{64}$/.test(value.lockSha256 || '') ? value.lockSha256 : null, compilerVersion: version(value.compiler), features: Array.isArray(value.features) ? value.features.filter(v => ['ble-fastinit', 'ble-native'].includes(v)) : [], ipc: value.ipc || 1, profile: value.profile === 'debug' ? 'debug' : 'unknown' };
   } catch { return { available: false, hashMatches: false, capabilities: capabilities() }; }
 }
-async function hello() {
+async function hello(method = 'hello') {
   const result = helperMetadata(); if (!result.hashMatches) return { ...result, hello: false };
   return new Promise(resolve => {
     const child = spawn(helperFiles().binary, [], { stdio: ['pipe', 'pipe', 'ignore'] }); let bytes = '', settled = false;
     const finish = value => { if (settled) return; settled = true; clearTimeout(timer); child.stdin.end(); child.kill('SIGTERM'); resolve(value); };
-    const timer = setTimeout(() => finish({ ...result, hello: false }), 4000);
+    const timer = setTimeout(() => finish({ ...result, hello: false }), method === 'hello' ? 4000 : 7000);
     child.on('error', () => finish({ ...result, hello: false }));
     child.on('exit', () => { if (!settled) finish({ ...result, hello: false }); });
     child.stdin.on('error', () => {});
@@ -53,11 +53,12 @@ async function hello() {
       if (!bytes.includes('\n')) return;
       try {
         const value = JSON.parse(bytes.slice(0, bytes.indexOf('\n')));
-        if (value.id !== 'lab-preflight' || value.v !== 1 || value.result?.protocol !== 1) throw Error();
+        if (value.id !== 'lab-preflight' || value.v !== 1 || (method === 'hello' && value.result?.protocol !== 1)) throw Error();
+        if (method === 'bluetooth-preflight') { finish({ ...result, bluetooth: require('../../lib/sharing/quickshare').sanitizeBluetooth({ controller: value.result }).controller || { bluez: false, registrationTested: false } }); return; }
         finish({ ...result, hello: true, version: /^\d+\.\d+\.\d+$/.test(value.result.version || '') ? value.result.version : 'unknown', capabilities: capabilities(value.result.capabilities) });
       } catch { finish({ ...result, hello: false }); }
     });
-    child.stdin.end(JSON.stringify({ v: 1, id: 'lab-preflight', method: 'hello', params: {} }) + '\n');
+    child.stdin.end(JSON.stringify({ v: 1, id: 'lab-preflight', method, params: {} }) + '\n');
   });
 }
 function read(file) { try { return fs.readFileSync(file, 'utf8').trim(); } catch { return ''; } }
@@ -91,6 +92,7 @@ async function preflight() {
   const deps = Object.fromEntries(['cargo', 'rustc', 'npm', 'protoc', 'cc', 'pkg-config', 'git'].map(cmd => [cmd, probe(cmd, [cmd === 'protoc' ? '--version' : '--version'], ['cargo', 'rustc'].includes(cmd) ? path.join(ROOT, 'network/quickshare') : ROOT).ok]));
   const dbus = probe('pkg-config', ['--exists', 'dbus-1']).ok;
   const helper = await hello();
+  if (helper.capabilities.ble) helper.bluetooth = (await hello('bluetooth-preflight')).bluetooth;
   return { source: { ...source(), fingerprint: fingerprint() }, system: { distro: id, distroVersion: /^[0-9.]{1,24}$/.test(release.VERSION_ID || '') ? release.VERSION_ID : null, arch: process.arch, kernel: os.release().replace(/[^A-Za-z0-9._+-]/g, '').slice(0, 100), desktop, displayAvailable: !!(process.env.DISPLAY || process.env.WAYLAND_DISPLAY) }, versions: { node: process.versions.node, electron: version(read(path.join(ROOT, 'desktop/node_modules/electron/dist/version'))), npm: version(probe('npm', ['--version']).output), cargo: version(probe('cargo', ['--version'], path.join(ROOT, 'network/quickshare')).output), rustc: version(probe('rustc', ['--version'], path.join(ROOT, 'network/quickshare')).output), networkManager: version(probe('nmcli', ['--version']).output), bluez: version(probe('bluetoothctl', ['--version']).output) }, dependencies: { ...deps, dbusDevelopment: dbus, electronBinary: fs.existsSync(path.join(ROOT, 'desktop/node_modules/electron/dist/electron')) }, services: { networkManager: probe('systemctl', ['is-active', '--quiet', 'NetworkManager']).ok, bluez: probe('systemctl', ['is-active', '--quiet', 'bluetooth']).ok }, adapters: adapters(), applications: applications(), helper };
 }
 function instructions(distro) {

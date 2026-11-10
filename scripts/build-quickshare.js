@@ -2,10 +2,10 @@
 // Development artifact only. Production packaging deliberately does not call this.
 const fs = require('node:fs/promises'), path = require('node:path'), crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
-async function build({ bleFastInit = false } = {}) {
+async function build({ bleFastInit = false, bleNative = false } = {}) {
   if (process.platform !== 'linux' || !['x64', 'arm64'].includes(process.arch)) throw Error('Unsupported Quick Share helper platform');
   const root = path.resolve(__dirname, '..'), cwd = path.join(root, 'network/quickshare');
-  execFileSync('cargo', ['build', '--locked', '--bin', 'airdrop-quickshare', ...(bleFastInit ? ['--features', 'ble-fastinit'] : [])], { cwd, stdio: 'inherit' });
+  execFileSync('cargo', ['build', '--locked', '--bin', 'airdrop-quickshare', ...((bleFastInit || bleNative) ? ['--features', [bleFastInit && 'ble-fastinit', bleNative && 'ble-native'].filter(Boolean).join(',')] : [])], { cwd, stdio: 'inherit' });
   const cargo = JSON.parse(execFileSync('cargo', ['metadata', '--locked', '--no-deps', '--format-version', '1'], { cwd, encoding: 'utf8' }));
   const output = path.join(root, '.cache/quickshare', process.arch); await fs.mkdir(output, { recursive: true });
   const target = path.join(output, 'airdrop-quickshare');
@@ -16,12 +16,12 @@ async function build({ bleFastInit = false } = {}) {
     // running executable (ETXTBSY) or expose a partially copied helper.
     await fs.rename(next, target);
   } finally { await fs.unlink(next).catch(error => { if (error.code !== 'ENOENT') throw error; }); }
-  const metadata = { schema: 1, arch: process.arch, experimental: true, sha256: crypto.createHash('sha256').update(await fs.readFile(target)).digest('hex'), source: 'fb9c8f9502e5313e3d788aa3498659773ef12d28', capabilities: { lan: true, ble: false, direct: false } };
+  const metadata = { schema: 1, arch: process.arch, experimental: true, sha256: crypto.createHash('sha256').update(await fs.readFile(target)).digest('hex'), source: 'fb9c8f9502e5313e3d788aa3498659773ef12d28', capabilities: { lan: true, ble: bleNative, bleScanning: bleNative, bleAdvertising: bleNative, gattBootstrap: bleNative, l2cap: bleNative, lanListening: true, lanUpgrade: false, directWireless: false, direct: false } };
   metadata.applicationCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   metadata.dirty = !!execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: root, encoding: 'utf8' }).trim();
   metadata.lockSha256 = crypto.createHash('sha256').update(await fs.readFile(path.join(cwd, 'Cargo.lock'))).digest('hex');
   metadata.compiler = execFileSync('rustc', ['-Vv'], { cwd, encoding: 'utf8' }).trim();
-  metadata.profile = 'debug'; metadata.features = bleFastInit ? ['ble-fastinit'] : []; metadata.ipc = 1;
+  metadata.profile = 'debug'; metadata.features = [bleFastInit && 'ble-fastinit', bleNative && 'ble-native'].filter(Boolean); metadata.ipc = 1;
   metadata.capabilities.bleFastInit = bleFastInit;
   const sourceHash = crypto.createHash('sha256');
   async function hashSources(directory, relative = '') {
@@ -43,7 +43,7 @@ async function build({ bleFastInit = false } = {}) {
   console.log('Verified development helper prepared. Stable builds remain disabled.');
 }
 if (require.main === module) {
-  if (process.argv.slice(2).some(flag => flag !== '--ble-fastinit')) throw Error('Unknown Quick Share build option');
-  build({ bleFastInit: process.argv.includes('--ble-fastinit') }).catch(error => { console.error(error.message); process.exitCode = 1; });
+  if (process.argv.slice(2).some(flag => !['--ble-fastinit', '--ble-native'].includes(flag))) throw Error('Unknown Quick Share build option');
+  build({ bleFastInit: process.argv.includes('--ble-fastinit'), bleNative: process.argv.includes('--ble-native') }).catch(error => { console.error(error.message); process.exitCode = 1; });
 }
 module.exports = { build };

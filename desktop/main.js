@@ -105,6 +105,7 @@ const quickshare = new (require('./core/lib/sharing/quickshare').QuickShare)({
   enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1',
   helper: path.join(quickshareDirectory, 'airdrop-quickshare'), sha256: quickshareMetadata.sha256,
   bleFastInit: process.env.AIRDROP_QUICKSHARE_BLE_FASTINIT === '1',
+  bleNative: process.env.AIRDROP_QUICKSHARE_BLE_NATIVE === '1',
   directory: path.join(desktopData, 'quickshare'), inbox: nearby.store.inbox,
   ...(quickshareLab ? { name: 'Airdrop S24 Lab', port: 0, protocolDiagnostics: true } : {}),
   approve: request => quickshareLab ? quickshareLab.approve(() => nearby.approve(request)) : nearby.approve(request)

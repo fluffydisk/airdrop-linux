@@ -2,7 +2,7 @@
 
 The Google-authored protocol schemas (`device_to_device_messages.proto`,
 `offline_wire_formats.proto`, `securegcm.proto`, `securemessage.proto`,
-`ukey.proto`) preserve their Apache-2.0 notices. See `licenses/Apache-2.0.txt`.
+`ukey.proto`, and the newly imported `ble_frames.proto`) preserve their Apache-2.0 notices. See `licenses/Apache-2.0.txt`.
 
 `vendor/rqs_lib/src/proto_src/wire_format.proto` instead retains Copyright 2020
 The Chromium Authors and its BSD-style notice. The BSD redistribution conditions
@@ -20,3 +20,11 @@ The core's upstream source and GPL license are recorded in `README.md`,
 are pinned in `Cargo.lock`; their source licenses/notices must accompany any
 future native binary edition's source/SBOM delivery. This file does not claim
 that the unshipped native edition has completed its dependency license audit.
+
+
+`ble_frames.proto` is copied unchanged from Google Nearby
+`1bbe8ec1eadd0c08d01db6b634254526141068e6`, `proto/mediums/ble_frames.proto`,
+under its embedded Copyright 2020 Google LLC / Apache-2.0 notice. The local BLE
+wrapper's Bloom implementation is adapted from the already pinned GPL core,
+not relicensed as Apache. Bada source was inspected for protocol comparison;
+no Bada application implementation was vendored.

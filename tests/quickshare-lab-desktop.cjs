@@ -12,7 +12,7 @@ test('lab desktop identifies the build, preserves consent/sandbox and prevents n
   await prepareFixtures(path.join(root, 'fixtures'));
   let app;
   t.after(async () => { await app?.close().catch(() => {}); await fs.rm(root, { recursive: true, force: true }); });
-  const env = { ...process.env, AIRDROP_HOME: path.join(root, 'sessions', run, 'home'), AIRDROP_SHARE_DIR: path.join(root, 'sessions', run, 'share'), AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_QUICKSHARE_BLE_FASTINIT: '0' };
+  const env = { ...process.env, AIRDROP_HOME: path.join(root, 'sessions', run, 'home'), AIRDROP_SHARE_DIR: path.join(root, 'sessions', run, 'share'), AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_QUICKSHARE_BLE_FASTINIT: '0', AIRDROP_QUICKSHARE_BLE_NATIVE: process.env.AIRDROP_TEST_QUICKSHARE_BLE_NATIVE === '1' ? '1' : '0' };
   app = await electron.launch({ executablePath: require('../desktop/node_modules/electron'), chromiumSandbox: true, args: [path.resolve('desktop'), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')], env });
   const page = await app.firstWindow(); page.setDefaultTimeout(15000);
   await page.locator('#quickshareLab').waitFor({ state: 'visible' });

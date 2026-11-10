@@ -14,11 +14,12 @@ Normal installed Airdrop data and personal files are not used by this harness.
 
 ```sh
 bash scripts/quickshare-android-lab.sh --preflight
-bash scripts/quickshare-android-lab.sh --prepare
+bash scripts/quickshare-android-lab.sh --prepare --ble-native
 ```
 
 `--preflight` reads local system/build facts, hashes the helper if present and
-performs its hello-only capability check (no receiver/radio starts). It never
+performs its hello capability check and, for a native BLE build, a read-only
+BlueZ capability probe (no advertisement registration, connection or scan starts). It never
 installs dependencies or changes networking. It prints distro-specific package
 instructions if tools are missing. Install system packages yourself, reviewing
 any OS permission prompt. Rust must match `network/quickshare/rust-toolchain.toml`;
@@ -46,6 +47,34 @@ Generated disposable files are in `.cache/quickshare-lab/fixtures`:
 The lab file picker starts in this fixture folder, and lab sends refuse personal files or modified fixture bytes.
 No large file is generated automatically. Existing changed fixtures are not
 overwritten: choose a new workspace instead.
+
+## Native BLE checkpoints before sending
+
+The development panel separates **compiled** support from runtime state:
+
+1. `compact-gatt` means the compact FEF3 advertisement registered after the GATT
+   service; `dual` additionally means an extended full advertisement registered.
+   A local registration is not proof of emission or Samsung visibility.
+2. Scanning is duty-cycled: active/paused alternation is expected. Observed packets
+   precede endpoint decoding, GATT resolution and a selectable recipient.
+3. `gatt-resolution-failed` identifies metadata resolution failure.
+   `gatt-connection-pending`, `weave-established`, `l2cap-connection-pending` and
+   `l2cap-established` identify bootstrap progress. A transport connection still
+   is not authentication or file acceptance.
+4. Compare fresh verification codes in both native UIs, then explicitly accept.
+   Existing authentication/consent states and transfer failures remain visible.
+   Linux sends remain completion-unconfirmed until the phone outcome is recorded.
+
+No advertisement/scan/GATT state should be active after `--stop`. If Bluetooth is
+already off, the helper must keep its LAN listener available and report the BLE
+failure. Use normal OS settings to enable Bluetooth yourself. Do not run the app
+as root or modify BlueZ policy to hide a failure.
+
+Use `lab-small.txt` first: BLE has a fifteen-minute session limit and no negotiated
+LAN upgrade in this build. Larger files can use the existing direct LAN path.
+For a LAN comparison, stop, then prepare again **without** `--ble-native`, start a
+fresh session and collect it separately. Existing commands retain their interface.
+See [implementation limits](quickshare-ble-implementation.md).
 
 ## 2. Prepare the S24+
 
@@ -302,3 +331,39 @@ that did not work. No physical result is assumed until you return it. We will
 correlate that evidence, fix the relevant stage, add a regression and give you a
 new exact commit for the next S24+ attempt. Pixel and production release gates
 remain separate; owner-assisted Samsung testing is an ongoing checkpoint.
+
+
+## Controlled comparison matrix
+
+Collect a separate fresh session for each condition; keep both devices nearby,
+unlocked and in Everyone/Receive mode as appropriate.
+
+| Network | Samsung Apple-sharing setting | Purpose |
+| --- | --- | --- |
+| Ordinary Wi-Fi/LAN without client isolation | Off, then on if available | Reference BLE discovery/bootstrap and direct LAN behavior; record each result independently. |
+| Samsung-hosted hotspot | Off, then on if available | Separate association/multicast behavior from the reference network. A hotspot failure alone establishes neither incompatibility nor a Samsung bug. |
+| Existing school/guest network | Optional later comparison | Avoid using this as the controlled reference. |
+
+Apple-sharing is only a comparison variable in Samsung's native UI. This code
+implements no Apple AWDL/AirDrop path. If the setting is absent, record
+`not-available`; do not install another sharing application.
+
+For each direction record discovery, GATT/CoC bootstrap, authenticated/code-matched
+connection, acceptance, byte transfer, receiver outcome and independent fixture
+hashes separately. A listed device or `weave-established` must not be recorded as
+a completed authenticated transfer. If the phone cannot select an empty file,
+leave that case untested and continue with `lab-small.txt`.
+
+The normal collection command remains:
+
+```sh
+bash scripts/quickshare-android-lab.sh --status
+bash scripts/quickshare-android-lab.sh --collect --archive
+bash scripts/quickshare-android-lab.sh --stop
+```
+
+Return the two reports and optional sanitized archive printed by `--collect`.
+Keep each comparison's output before preparing another run. Reports include
+fixed local BLE stages/counts and capability flags, never Bluetooth identities,
+keys, verification codes, personal files, raw logs or packet captures. Nothing
+uploads automatically. Do not attach the whole private session workspace.

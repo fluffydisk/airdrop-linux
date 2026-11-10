@@ -24,6 +24,14 @@ pub struct EndpointInfo {
     /// a hint and the marker that this endpoint is reachable over BLE.
     pub ble_addr: Option<String>,
     pub ble_psm: Option<u16>,
+    #[serde(default)]
+    pub transport: Option<String>,
+    #[serde(default)]
+    pub discovery_stage: Option<String>,
+    #[serde(default)]
+    pub connectable: Option<bool>,
+    #[serde(default)]
+    pub discovery_key: Option<String>,
 }
 
 pub struct MDnsDiscovery {
@@ -97,6 +105,8 @@ impl MDnsDiscovery {
                                             present: Some(true),
                                             ble_addr: None,
                                             ble_psm: None,
+                                            discovery_key:crate::utils::mdns_discovery_key(&fullname,n.val_str()),
+                                            ..Default::default()
                                         };
                                         info!("ServiceResolved: Resolved a new service: {:?}", ei);
                                         cache.insert(fullname.clone(), ei.clone());

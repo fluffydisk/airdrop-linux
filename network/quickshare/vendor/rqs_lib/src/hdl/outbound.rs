@@ -72,6 +72,17 @@ impl WifiUpgradable for TcpStream {
     }
 }
 
+// Bounded BLE bridges do not support bandwidth upgrade. This deliberately
+// leaves the dormant network-management/upgrade implementation disabled.
+impl WifiUpgradable for tokio::io::DuplexStream {
+    fn is_low_bandwidth(&self) -> bool {
+        false
+    }
+    fn upgrade_to_tcp(&mut self, _tcp: TcpStream) -> bool {
+        false
+    }
+}
+
 /// Read one plaintext `[u32 len][frame]` message (the new TCP channel during a
 /// bandwidth upgrade, before encryption resumes).
 async fn read_plain_frame<R: tokio::io::AsyncRead + Unpin>(
@@ -329,7 +340,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
         // Advertise only the implemented LAN capability. Direct-network roles
         // require their own runtime capability negotiation and acceptance tests.
         let medium_metadata = Some(location_nearby_connections::MediumMetadata {
-            ip_address: crate::utils::local_ipv4().map(|ip| ip.to_vec()),
+            ip_address: if self.mediums.contains(&(Medium::WifiLan as i32)) {
+                crate::utils::local_ipv4().map(|ip| ip.to_vec())
+            } else {
+                None
+            },
             ..Default::default()
         });
         let request = location_nearby_connections::OfflineFrame {
@@ -2191,14 +2206,6 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
 #[cfg(test)]
 mod payload_regressions {
     use super::*;
-    impl WifiUpgradable for tokio::io::DuplexStream {
-        fn is_low_bandwidth(&self) -> bool {
-            false
-        }
-        fn upgrade_to_tcp(&mut self, _: TcpStream) -> bool {
-            false
-        }
-    }
     fn authenticated_bytes_frame(total: i64, body: Vec<u8>) -> SecureMessage {
         let offline = OfflineFrame {
             v1: Some(location_nearby_connections::V1Frame {
