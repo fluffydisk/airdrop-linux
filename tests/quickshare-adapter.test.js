@@ -27,6 +27,15 @@ test('verified helper has bounded IPC and its crash invalidates pending operatio
   await adapter.request('crash'); await until(() => adapter.status === 'error');
   assert.equal(adapter.child, null); assert.equal(adapter.recipients.size, 0);
 });
+test('a broken helper input pipe fails pending requests without an unhandled stream error', async t => {
+  const adapter = await fixture(t);
+  const result = adapter.request('pending');
+  adapter.child.stdin.emit('error', Object.assign(Error('broken pipe'), { code: 'EPIPE' }));
+  await assert.rejects(result, /disconnected/);
+  assert.equal(adapter.status, 'error');
+  assert.equal(adapter.requests.size, 0);
+  await until(() => adapter.child === null);
+});
 test('only consented, complete, privately staged regular files are published; duplicate completion cannot overwrite', async t => {
   const adapter = await fixture(t, { approve: async request => { assert.equal(request.code, '1234'); return true; } });
   const data = { id: 'transfer1', phase: 'awaiting-acceptance', direction: 'incoming', files: ['photo.txt'], name: 'Android', total: 5, bytes: 0, pinCode: '1234' };

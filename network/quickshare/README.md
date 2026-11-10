@@ -5,6 +5,11 @@ by the application's current release pipeline. Android/Samsung/Windows physical
 acceptance is pending. BLE and direct wireless are absent from the helper build;
 the upstream `experimental` Cargo feature is not enabled.
 
+Runtime packagers exclude the entire `network/quickshare` and
+`.cache/quickshare` trees, including untracked build outputs. They reject a helper
+binary copied into another runtime directory. The complete experimental source
+and its GPL license remain available in this repository's source archive.
+
 The application remains Node/Electron. The helper owns Quick Share's native wire
 protocol and communicates using version-1 JSON Lines over inherited pipes.
 There is no local control HTTP server, account login or name-based auto-accept.

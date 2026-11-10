@@ -52,6 +52,11 @@ It does not download or enable a helper in stable packages. The opt-in path adds
 Quick Share recipients to the existing picker and compares codes for each
 receive; it grants no persistent trust or resume capability.
 
+The runtime packaging copy filter excludes the experimental source/build trees
+and rejects misplaced helper binaries. This applies to native channel payloads,
+portable releases and the standalone installer bundle. Source archives preserve
+the complete GPL-covered helper source and license.
+
 Initial resource/path tests, IPC tests and same-host lifecycle tests are software
 evidence. They do not establish Pixel, Samsung or Windows interoperability.
 The dedicated native workflow tests x64 and ARM64. Android enablement, independent
