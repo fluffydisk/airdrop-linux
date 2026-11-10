@@ -46,6 +46,29 @@ impl Engine {
             staging: None,
         }
     }
+    fn make_room(&mut self, id: &str) -> bool {
+        if self.transfers.contains_key(id) || self.transfers.len() < 100 {
+            return true;
+        }
+        let oldest = self
+            .transfers
+            .iter()
+            .filter(|(_, value)| {
+                matches!(
+                    value["phase"].as_str(),
+                    Some("complete" | "interrupted" | "declined" | "cancelled")
+                )
+            })
+            .min_by_key(|(_, value)| value["created"].as_u64().unwrap_or(0))
+            .map(|(id, _)| id.clone());
+        if let Some(oldest) = oldest {
+            self.transfers.remove(&oldest);
+            self.consent.remove(&oldest);
+            true
+        } else {
+            false
+        }
+    }
     async fn command(&mut self, req: &Request, events: &mpsc::Sender<Event>) -> Result<Value> {
         if req.v != 1 || req.id.is_empty() || req.id.len() > 128 {
             bail!("INVALID_REQUEST");
@@ -135,6 +158,7 @@ impl Engine {
                 let endpoint = self
                     .recipients
                     .get(target)
+                    .cloned()
                     .ok_or_else(|| anyhow::anyhow!("RECIPIENT_UNAVAILABLE"))?;
                 let paths: Vec<String> = serde_json::from_value(req.params["files"].clone())?;
                 validate_sources(&paths)?;
@@ -148,7 +172,7 @@ impl Engine {
                 {
                     bail!("INVALID_TRANSFER");
                 }
-                if self.transfers.len() >= 100 {
+                if !self.make_room(id) {
                     bail!("HISTORY_FULL");
                 }
                 let info = SendInfo {
@@ -169,7 +193,7 @@ impl Engine {
                     .await?;
                 self.transfers.insert(
                     id.to_owned(),
-                    json!({"id":id,"phase":"connecting","direction":"outgoing"}),
+                    json!({"id":id,"phase":"connecting","direction":"outgoing","created":now_ms()}),
                 );
                 Ok(json!({"transferId":id}))
             }
@@ -217,7 +241,7 @@ impl Engine {
             .transfers
             .get(&event.id)
             .cloned()
-            .unwrap_or_else(|| json!({"id":event.id}));
+            .unwrap_or_else(|| json!({"id":event.id,"created":now_ms()}));
         let mut value = previous;
         value["direction"] = json!(if message.kind == TransferKind::Inbound {
             "incoming"
@@ -263,7 +287,7 @@ impl Engine {
             }
             value["stagedPaths"] = json!(meta.saved_paths);
         }
-        if self.transfers.len() >= 100 && !self.transfers.contains_key(&event.id) {
+        if !self.make_room(&event.id) {
             return None;
         }
         self.transfers.insert(event.id, value.clone());
@@ -274,6 +298,12 @@ impl Engine {
             let _ = tokio::time::timeout(Duration::from_secs(5), service.stop()).await;
         }
     }
+}
+fn now_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 fn validate_sources(paths: &[String]) -> Result<()> {
     if paths.is_empty() || paths.len() > rqs_lib::receive_safety::MAX_FILES {
@@ -387,10 +417,10 @@ async fn main() -> Result<()> {
             Some(Event::Protocol(message)) => engine.protocol(message),
             _ => break,
         };
-        if let Some(value) = value {
-            if output(value).await.is_err() {
-                break;
-            }
+        if let Some(value) = value
+            && output(value).await.is_err()
+        {
+            break;
         }
     }
     engine.stop().await;
@@ -425,5 +455,19 @@ mod tests {
         let reply = engine.command(&request, &events).await.unwrap();
         assert_eq!(reply["capabilities"]["direct"], false);
         assert!(engine.service.is_none());
+    }
+    #[test]
+    fn history_evicts_terminal_records_without_aborting_active_transfers() {
+        let mut engine = Engine::new();
+        for i in 0..100 {
+            engine
+                .transfers
+                .insert(i.to_string(), json!({"phase":"transferring", "created":i}));
+        }
+        assert!(!engine.make_room("new"));
+        engine.transfers.get_mut("0").unwrap()["phase"] = json!("complete");
+        assert!(engine.make_room("new"));
+        assert!(!engine.transfers.contains_key("0"));
+        assert_eq!(engine.transfers.len(), 99);
     }
 }

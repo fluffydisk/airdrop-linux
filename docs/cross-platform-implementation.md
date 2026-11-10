@@ -121,6 +121,12 @@ relay. Tray acceptance skipped where no StatusNotifier watcher was available.
 
 No physical phone, Wi-Fi Direct, BLE or Apple AirDrop result is recorded.
 
+The development helper revision additionally passed 215 Node tests, 11 Rust
+tests (including published cryptographic vectors), and real compiled-helper
+startup/shutdown. Its new namespace regression exposed the inherited empty-file
+final-frame bug; the local source fixes that path and fails truncated sources.
+CI must verify the complete native transfer path before this is marked confirmed.
+
 ## Architecture and ownership
 
 `desktop/main.js` owns the broker, existing Nearby/Devices lifecycles and optional
@@ -162,8 +168,10 @@ stdin/stdout with version 1, request IDs, deadlines and finite frames; no contro
 port is opened. Receive consent expires and never persists. Helper exit interrupts
 only that transport; Linux and browser routes remain usable. Staging/publication
 uses exclusive creation, safe names, regular-file checks and no-follow behavior;
-full aborted-transfer cleanup and adversarial resource testing remain native
-release gates rather than claimed finished security certification.
+consented manifests are immutable, and completion/cancel/crash cleans owned
+staging without following symlinks. Adversarial resource/fuzz and physical
+recovery testing remain native release gates rather than claimed finished
+security certification.
 
 ## School-network diagnosis
 

@@ -1704,25 +1704,22 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                             };
 
                             info!("> Currently sending {:?}", curr_state.file_url);
-                            if curr_state.bytes_transferred == curr_state.total_size {
-                                debug!("File {current} finished");
-                                self.update_state(
-                                    |e| {
-                                        e.transferred_files.remove(&current);
-                                    },
-                                    false,
-                                )
-                                .await;
-                                break;
-                            }
-
                             if curr_state.file.is_none() {
                                 warn!("File {current} is none");
                                 break;
                             }
 
-                            let mut buffer = vec![0u8; payload_buf_len];
+                            // An empty file still needs an explicit final frame.
+                            // Bound reads to the introduced size if a source grows.
+                            let remaining = curr_state.total_size - curr_state.bytes_transferred;
+                            if remaining < 0 {
+                                return Err(anyhow!("Source size changed"));
+                            }
+                            let mut buffer = vec![0u8; payload_buf_len.min(remaining as usize)];
                             let bytes_read = curr_state.file.as_ref().unwrap().read(&mut buffer)?;
+                            if bytes_read == 0 && remaining > 0 {
+                                return Err(anyhow!("Source was truncated during transfer"));
+                            }
 
                             (
                                 InternalFileInfo {

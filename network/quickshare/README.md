@@ -77,6 +77,11 @@ excluded AGPL frontend.
   and PKCS#7 padding; RFC 4231 and NIST SP 800-38A fixtures plus malformed inputs.
 - Anonymous Android mDNS metadata is discoverable without granting trust; select
   an on-link address when advertisements include multiple interfaces.
+- Empty-file final frames and bounded source reads; fail a transfer if a source
+  is truncated instead of looping indefinitely.
+- Consent manifests cannot change paths/count/total before publication. Completed,
+  cancelled and abandoned staging is removed within the owned private root;
+  cleanup never follows symlinks. Terminal history rolls over at 100 records.
 
 The fork is not yet a security-certified implementation. Physical interop,
 independent cryptographic fixtures/fuzzing, comprehensive

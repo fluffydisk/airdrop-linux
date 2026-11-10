@@ -56,17 +56,18 @@ function peer(namespace, helper) {
     }
   };
 }
-async function until(check, peers) {
+async function until(check, peers, stage = 'native protocol state') {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
     for (const p of peers) p.check();
     const result = check(); if (result) return result;
     await new Promise(resolve => setTimeout(resolve, 25));
   }
-  throw Error('Timed out waiting for native protocol state');
+  const states = peers.map(p => [...p.transfers.values()].map(({ direction, phase, bytes, total }) => ({ direction, phase, bytes, total })));
+  throw Error(`Timed out waiting for ${stage}: ${JSON.stringify(states)}`);
 }
 
-test('native helpers discover, compare codes and exchange binary/empty/unicode files across independent networks', { timeout: 120000 }, async t => {
+test('native helpers discover, compare codes and exchange binary/empty/unicode files across independent network namespaces', { timeout: 120000 }, async t => {
   assert.equal(process.getuid(), 0, 'Use a disposable VM with namespace privileges');
   const helper = process.env.AIRDROP_TEST_QUICKSHARE_HELPER; assert.ok(helper);
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'quickshare-wire-'));
@@ -97,7 +98,7 @@ test('native helpers discover, compare codes and exchange binary/empty/unicode f
   for (const [name, bytes] of data) { const file = path.join(directory, name); await fs.writeFile(file, bytes); sources.push(file); }
   for (const [sender, receiver] of [[peers[0], peers[1]], [peers[1], peers[0]]]) {
     const otherName = 'wire-peer-' + (receiver === peers[0] ? 0 : 1);
-    const recipient = await until(() => [...sender.recipients.values()].find(d => d.name === otherName), peers);
+    const recipient = await until(() => [...sender.recipients.values()].find(d => d.name === otherName), peers, 'recipient discovery');
     const transferId = crypto.randomUUID();
     await sender.request('send', { recipientId: recipient.id, files: sources, transferId });
     const incoming = await until(() => [...receiver.transfers.values()].find(s => s.direction === 'incoming' && s.phase === 'awaiting-acceptance'), peers);
@@ -106,7 +107,7 @@ test('native helpers discover, compare codes and exchange binary/empty/unicode f
     assert.ok(/^\d{4}$/.test(incoming.pinCode) && incoming.pinCode === outgoing.pinCode, 'Both endpoints must derive the same fresh comparison code');
     for (const file of incoming.stagedPaths || []) await assert.rejects(fs.stat(file), { code: 'ENOENT' });
     await receiver.request('respond', { transferId: incoming.id, accept: true });
-    const complete = await until(() => receiver.transfers.get(incoming.id)?.phase === 'complete' && receiver.transfers.get(incoming.id), peers);
+    const complete = await until(() => receiver.transfers.get(incoming.id)?.phase === 'complete' && receiver.transfers.get(incoming.id), peers, 'receiver completion');
     assert.equal(complete.stagedPaths.length, data.size);
     for (const file of complete.stagedPaths) {
       const bytes = await fs.readFile(file), expected = data.get(path.basename(file)); assert.ok(expected);
