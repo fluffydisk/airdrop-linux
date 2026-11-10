@@ -161,6 +161,7 @@ async function openPwa() {
 function registerIpc() {
   ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
     ownWindow(event); await devicesReady;
+    if (action === 'diagnostics') return quickshare.diagnostics();
     if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
     if (action === 'cancel') return payload.transport === 'quick-share' ? quickshare.cancel(payload.id) : nearby.cancel(payload.id);
     if (action === 'invitation-stop') return sharing.stopInvitation();

@@ -27,6 +27,18 @@ test('bounded history evicts old terminal records while retaining active transfe
   assert.equal(adapter.transfers.has('0'), false); assert.equal(adapter.transfers.size, 99);
   assert.equal(adapter.transfers.get('1').phase, 'transferring');
 });
+
+test('diagnostics export only capability and queue state, never peer or file secrets', () => {
+  const adapter = new QuickShare(); adapter.status = 'error'; adapter.error = 'private error';
+  adapter.capabilities = { lan: true, ble: false, token: 'private token' };
+  adapter.recipients.set('private identity', { name: 'private name', ip: '10.0.0.2' });
+  adapter.transfers.set('private transfer', { phase: 'transferring', pinCode: '1234', files: ['/private/path'] });
+  const value = adapter.diagnostics();
+  assert.equal(value.counts.active, 1); assert.equal(value.counts.recipients, 1);
+  assert.equal(value.errorCode, 'HELPER_UNAVAILABLE');
+  const json = JSON.stringify(value);
+  for (const secret of ['private', '1234', '10.0.0.2']) assert.equal(json.includes(secret), false);
+});
 test('verified helper has bounded IPC and its crash invalidates pending operations', async t => {
   const adapter = await fixture(t);
   assert.equal(adapter.snapshot().status, 'ready');
@@ -115,4 +127,33 @@ test('a forged completion without consent cannot publish a file or grant persist
   await until(() => adapter.status === 'error');
   assert.deepEqual(await fs.readdir(adapter.inbox), []);
   assert.equal(adapter.snapshot().capabilities.persistentTrust || false, false);
+  assert.notEqual(adapter.transfers.get('forged').phase, 'complete');
+});
+
+test('terminal transfers ignore late progress and completion, including coalesced events', async t => {
+  const adapter = await fixture(t);
+  for (const phase of ['cancelled', 'declined', 'interrupted', 'complete']) {
+    const value = { id: 'terminal-' + phase, direction: 'outgoing', phase, files: ['file.txt'] };
+    await adapter.transfer(value, adapter.generation);
+    await adapter.transfer({ ...value, phase: 'transferring' }, adapter.generation);
+    await adapter.transfer({ ...value, phase: 'complete' }, adapter.generation);
+    assert.equal(adapter.transfers.get(value.id).phase, phase);
+  }
+  const value = { id: 'queued-cancel', direction: 'outgoing', files: ['file.txt'] };
+  adapter.drainingTransfers = true;
+  adapter.message({ v: 1, event: 'transfer', data: { ...value, phase: 'cancelled' } }, adapter.generation);
+  adapter.message({ v: 1, event: 'transfer', data: { ...value, phase: 'complete' } }, adapter.generation);
+  adapter.drainingTransfers = false;
+  await adapter.drainTransfers();
+  assert.equal(adapter.transfers.get(value.id).phase, 'cancelled');
+});
+
+test('consent cannot describe different filenames than the eventual staged paths', async t => {
+  let prompted = false;
+  const adapter = await fixture(t, { approve: async () => { prompted = true; return true; } });
+  const source = path.join(adapter.staging, 'f'.repeat(32), 'different.txt');
+  await adapter.request('fixture', { id: 'renamed', direction: 'incoming', phase: 'awaiting-acceptance', files: ['photo.txt'], stagedPaths: [source], total: 0, pinCode: '1234' });
+  await until(() => adapter.status === 'error');
+  assert.equal(prompted, false);
+  assert.deepEqual(await fs.readdir(adapter.inbox), []);
 });

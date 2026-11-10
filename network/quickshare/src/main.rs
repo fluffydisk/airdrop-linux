@@ -56,7 +56,7 @@ impl Engine {
             .filter(|(_, value)| {
                 matches!(
                     value["phase"].as_str(),
-                    Some("complete" | "interrupted" | "declined" | "cancelled")
+                    Some("complete" | "interrupted" | "declined" | "cancelled" | "outcome-unknown")
                 )
             })
             .min_by_key(|(_, value)| value["created"].as_u64().unwrap_or(0))
@@ -237,6 +237,14 @@ impl Engine {
         let Message::Client(message) = event.msg else {
             return None;
         };
+        if self.transfers.get(&event.id).is_some_and(|v| {
+            matches!(
+                v["phase"].as_str(),
+                Some("complete" | "interrupted" | "declined" | "cancelled" | "outcome-unknown")
+            )
+        }) {
+            return None;
+        }
         let previous = self
             .transfers
             .get(&event.id)
@@ -253,6 +261,7 @@ impl Engine {
                 TransferState::WaitingForUserConsent => "awaiting-acceptance",
                 TransferState::ReceivingFiles | TransferState::SendingFiles => "transferring",
                 TransferState::Finished => "complete",
+                TransferState::Sent => "outcome-unknown",
                 TransferState::Cancelled => "cancelled",
                 TransferState::Rejected => "declined",
                 TransferState::Disconnected => "interrupted",
@@ -266,6 +275,7 @@ impl Engine {
             if matches!(
                 state,
                 TransferState::Finished
+                    | TransferState::Sent
                     | TransferState::Disconnected
                     | TransferState::Rejected
                     | TransferState::Cancelled

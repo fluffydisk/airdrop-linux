@@ -114,6 +114,6 @@ test('native helpers discover, compare codes and exchange binary/empty/unicode f
       const hash = value => crypto.createHash('sha256').update(value).digest('hex');
       assert.equal(hash(bytes), hash(expected));
     }
-    await until(() => sender.transfers.get(transferId)?.phase === 'complete', peers);
+    await until(() => sender.transfers.get(transferId)?.phase === 'outcome-unknown', peers);
   }
 });

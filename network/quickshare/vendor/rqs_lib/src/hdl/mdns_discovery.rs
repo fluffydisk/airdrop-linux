@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use std::collections::HashMap;
 
 use mdns_sd::{ServiceDaemon, ServiceEvent};

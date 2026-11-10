@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc::Receiver;
@@ -180,6 +181,7 @@ impl TcpServer {
         #[cfg(all(feature = "experimental", target_os = "linux"))]
         let socket = crate::hdl::MigratableStream::Tcp(socket);
 
+        let report_id = si.id.clone();
         let mut or = OutboundRequest::new(
             self.endpoint_id,
             socket,
@@ -197,7 +199,7 @@ impl TcpServer {
         // Send UKEY init
         or.send_ukey2_client_init().await?;
 
-        self.drive_outbound(ctk, or, si.addr).await;
+        self.drive_outbound(ctk, or, report_id).await;
         Ok(())
     }
 
@@ -342,7 +344,7 @@ impl TcpServer {
                                     break;
                                 }
 
-                                if or.state.state != TransferState::Finished && or.state.state != TransferState::Cancelled {
+                                if !matches!(or.state.state, TransferState::Finished | TransferState::Sent | TransferState::Cancelled) {
                                     let _ = self.sender.clone().send(ChannelMessage {
                                         id: report_id.clone(),
                                         msg: channel::Message::Client(MessageClient {
@@ -365,5 +367,56 @@ impl TcpServer {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    #[tokio::test]
+    async fn outbound_handshake_failure_preserves_transfer_uuid() {
+        let bad_peer = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = bad_peer.local_addr().unwrap().to_string();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let (sender, mut observed) = tokio::sync::broadcast::channel(20);
+        let (_, receiver) = tokio::sync::mpsc::channel(1);
+        let server = TcpServer::new(*b"test", listener, sender, receiver).unwrap();
+        let peer = tokio::spawn(async move {
+            let (mut socket, _) = bad_peer.accept().await.unwrap();
+            for _ in 0..2 {
+                let length = socket.read_u32().await.unwrap() as usize;
+                assert!(length < 65536);
+                let mut bytes = vec![0; length];
+                socket.read_exact(&mut bytes).await.unwrap();
+            }
+            socket.write_all(&u32::MAX.to_be_bytes()).await.unwrap();
+        });
+        let id = "e74a58b6-299e-4aa0-aeb7-f5f32ea70a6e";
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            server.connect(
+                CancellationToken::new(),
+                SendInfo {
+                    id: id.into(),
+                    name: "fixture".into(),
+                    addr: address,
+                    ob: crate::OutboundPayload::Files(vec![]),
+                    ble: false,
+                },
+            ),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        peer.await.unwrap();
+        let mut failed = false;
+        while let Ok(message) = observed.try_recv() {
+            assert_eq!(message.id, id);
+            if let channel::Message::Client(client) = message.msg {
+                failed |= client.state == Some(TransferState::Disconnected);
+            }
+        }
+        assert!(failed, "the original transfer must receive its failure");
     }
 }

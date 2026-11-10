@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 
@@ -54,12 +55,9 @@ impl RemoteDeviceInfo {
         endpoint_info.extend((0..16).map(|_| rand::rng().random_range(0..=255)));
 
         // Device name in UTF-8 prefixed with 1-byte length
-        let mut name_chars = self.name.as_bytes().to_vec();
-        if name_chars.len() > 255 {
-            name_chars.truncate(255);
-        }
+        let name_chars = utf8_prefix(&self.name, 255).as_bytes();
         endpoint_info.push(name_chars.len() as u8);
-        endpoint_info.extend(name_chars);
+        endpoint_info.extend_from_slice(name_chars);
 
         endpoint_info
     }
@@ -89,6 +87,14 @@ pub fn gen_mdns_name(endpoint_id: [u8; 4]) -> String {
 pub static ENDPOINT_IDENTITY: once_cell::sync::Lazy<[u8; 16]> =
     once_cell::sync::Lazy::new(|| rand::rng().random());
 
+pub(crate) fn utf8_prefix(name: &str, maximum: usize) -> &str {
+    let mut end = name.len().min(maximum);
+    while !name.is_char_boundary(end) {
+        end -= 1;
+    }
+    &name[..end]
+}
+
 pub fn gen_mdns_endpoint_info(device_type: u8, device_name: &str) -> String {
     let mut record = Vec::new();
 
@@ -98,7 +104,7 @@ pub fn gen_mdns_endpoint_info(device_type: u8, device_name: &str) -> String {
 
     record.extend_from_slice(ENDPOINT_IDENTITY.as_slice());
 
-    let device_name = device_name.as_bytes();
+    let device_name = utf8_prefix(device_name, 255).as_bytes();
     let length = device_name.len() as u8;
     record.push(length);
     record.extend_from_slice(device_name);
@@ -107,24 +113,47 @@ pub fn gen_mdns_endpoint_info(device_type: u8, device_name: &str) -> String {
 }
 
 pub fn parse_mdns_endpoint_info(encoded_str: &str) -> Result<(DeviceType, String), anyhow::Error> {
+    if encoded_str.len() > 8192 {
+        return Err(anyhow!("Advertisement too large"));
+    }
     let decoded_bytes = URL_SAFE_NO_PAD.decode(encoded_str)?;
     if decoded_bytes.len() < 17 {
         return Err(anyhow!("Invalid data length"));
     }
 
+    if decoded_bytes[0] >> 5 > 1 {
+        return Err(anyhow!("Unsupported advertisement version"));
+    }
     let device_type = (decoded_bytes[0] >> 1) & 0x7;
     // Some Android advertisements carry only the identity prefix. An absent
     // display name must not hide an otherwise usable endpoint; it is not trust.
     if decoded_bytes.len() == 17 {
         return Ok((DeviceType::from_raw_value(device_type), String::new()));
     }
-    let name_length = decoded_bytes[17] as usize;
-    if 18 + name_length > decoded_bytes.len() {
+    // Google sharing/advertisement.cc: bit 4 set means no name. Bytes after
+    // the identity are TLVs in that case, not a name-length byte.
+    let has_name = decoded_bytes[0] & 0x10 == 0;
+    let name_length = if has_name {
+        decoded_bytes[17] as usize
+    } else {
+        0
+    };
+    let name_start = if has_name { 18 } else { 17 };
+    if name_start + name_length > decoded_bytes.len() {
         return Err(anyhow!("Invalid name length"));
     }
 
-    let device_name_bytes = &decoded_bytes[18..18 + name_length];
+    let device_name_bytes = &decoded_bytes[name_start..name_start + name_length];
     let device_name = String::from_utf8(device_name_bytes.to_vec())?;
+    let mut offset = name_start + name_length;
+    while decoded_bytes.len() - offset >= 2 {
+        let length = decoded_bytes[offset + 1] as usize;
+        offset += 2;
+        if length > decoded_bytes.len() - offset {
+            return Err(anyhow!("Invalid advertisement TLV length"));
+        }
+        offset += length;
+    }
 
     Ok((DeviceType::from_raw_value(device_type), device_name))
 }
@@ -136,6 +165,30 @@ pub async fn stream_read_exact<S: tokio::io::AsyncRead + Unpin>(
     match socket.read_exact(buf).await {
         Ok(_) => Ok(()),
         Err(e) => Err(e.into()),
+    }
+}
+
+/// Prefix bytes survive cancellation by the control-message select branch.
+/// AsyncReadExt::read is cancellation-safe; read_exact on a stack buffer is not.
+#[derive(Debug, Default)]
+pub(crate) struct LengthPrefix {
+    bytes: [u8; 4],
+    used: usize,
+}
+impl LengthPrefix {
+    pub(crate) async fn read<S: tokio::io::AsyncRead + Unpin>(
+        &mut self,
+        socket: &mut S,
+    ) -> std::io::Result<[u8; 4]> {
+        while self.used < self.bytes.len() {
+            let n = socket.read(&mut self.bytes[self.used..]).await?;
+            if n == 0 {
+                return Err(std::io::ErrorKind::UnexpectedEof.into());
+            }
+            self.used += n;
+        }
+        self.used = 0;
+        Ok(self.bytes)
     }
 }
 
@@ -372,5 +425,37 @@ mod tests {
         prefix[17] = 4;
         assert!(parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&prefix)).is_err());
         assert!(parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&prefix[..16])).is_err());
+    }
+
+    #[test]
+    fn google_reference_name_flag_versions_and_tlv_lengths() {
+        // Reference: google/nearby@e71e92b sharing/advertisement.cc.
+        // Source-based fixtures, not an executed Google/Android peer test.
+        let mut bytes = vec![0; 17];
+        bytes[0] = 0x32; // v1, no name, phone
+        bytes.extend_from_slice(&[0x7f, 2, 0xaa, 0xbb]);
+        let parsed = parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&bytes)).unwrap();
+        assert_eq!(parsed, (DeviceType::Phone, String::new()));
+        bytes[18] = 3;
+        assert!(parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&bytes)).is_err());
+        bytes.truncate(17);
+        bytes[0] = 0x52; // unsupported v2
+        assert!(parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&bytes)).is_err());
+        bytes[0] = 0x22;
+        bytes.extend_from_slice(&[3, b'P', b'i', b'x', 0x7f, 1, 0]);
+        assert_eq!(
+            parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&bytes))
+                .unwrap()
+                .1,
+            "Pix"
+        );
+    }
+
+    #[test]
+    fn emitted_names_never_wrap_length_or_split_utf8() {
+        let name = "🙂".repeat(100);
+        let encoded = gen_mdns_endpoint_info(1, &name);
+        let (_, decoded) = parse_mdns_endpoint_info(&encoded).unwrap();
+        assert_eq!(decoded, "🙂".repeat(63));
     }
 }

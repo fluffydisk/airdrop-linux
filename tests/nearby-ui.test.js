@@ -52,3 +52,24 @@ test('experimental Quick Share recipients have Send but no persistent trust or r
   row.querySelector('button').click(); await new Promise(r => setImmediate(r));
   assert.equal(w.document.getElementById('sendDestination').value, 'quick-share:10.0.0.2:123');
 });
+
+test('Quick Share helper errors remain visible when Linux Nearby is off', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' });
+  t.after(() => dom.window.close()); const w = dom.window;
+  w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { enabled: false, devices: [], incoming: [], outgoing: [] }, quickShare: {
+    enabled: true, status: 'error', error: 'The helper stopped.', recipients: [], transfers: []
+  } }) };
+  w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
+  assert.match(w.document.getElementById('nearbyStatus').textContent, /Quick Share unavailable: The helper stopped/);
+});
+
+test('sent bytes without receiver confirmation never render as successful completion', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' });
+  t.after(() => dom.window.close()); const w = dom.window;
+  w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { enabled: true, devices: [], incoming: [], outgoing: [] }, quickShare: {
+    enabled: true, recipients: [], transfers: [{ id: 'sent', name: 'Phone', direction: 'outgoing', phase: 'outcome-unknown', files: ['photo.jpg'] }]
+  } }) };
+  w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
+  assert.match(w.document.getElementById('peerTransfers').textContent, /recipient completion unconfirmed/);
+  assert.equal(w.document.getElementById('peerTransfers').textContent.includes('Retry / resume'), false);
+});

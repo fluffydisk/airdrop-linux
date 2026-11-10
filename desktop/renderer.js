@@ -93,7 +93,8 @@ function peerProgress(value) {
   if (value.status === 'complete' && value.id === nativeRetry?.id) {
     nativeRetry = null; files = []; renderQueue();
     message(value.transport === 'quick-share' ? 'Quick Share transfer completed.' : 'Received and verified on the other device.');
-  } else if (value.id === nativeRetry?.id && ['interrupted','declined','cancelled'].includes(value.status)) {
+  } else if (value.id === nativeRetry?.id && ['interrupted','declined','cancelled','outcome-unknown'].includes(value.status)) {
+    if (value.status === 'outcome-unknown') { message('Files sent. Recipient completion is unconfirmed; check the receiving device before sending again.'); return; }
     message(value.error || 'Transfer ' + value.status + '. Select Send to try again.', 'error');
   }
 }

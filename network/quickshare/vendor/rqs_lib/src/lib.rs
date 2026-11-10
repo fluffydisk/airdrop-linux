@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 #[macro_use]
 extern crate log;
 
@@ -22,6 +23,7 @@ use crate::hdl::BleListener;
 use crate::hdl::MDnsServer;
 use crate::manager::TcpServer;
 
+mod bytes_payload;
 pub mod channel;
 pub mod errors;
 pub mod hdl;
