@@ -35,6 +35,18 @@ test('verified helper has bounded IPC and its crash invalidates pending operatio
   await adapter.request('crash'); await until(() => adapter.status === 'error');
   assert.equal(adapter.child, null); assert.equal(adapter.recipients.size, 0);
 });
+test('a fast progress burst remains bounded and preserves the latest state and completion', async t => {
+  const adapter = await fixture(t);
+  for (let bytes = 0; bytes < 10000; bytes++) {
+    adapter.message({ v: 1, event: 'transfer', data: { id: 'burst', direction: 'outgoing', phase: 'transferring', files: ['file.txt'], bytes, total: 10000 } }, adapter.generation);
+  }
+  assert.ok(adapter.pendingTransfers.size <= 1, 'Slow journal writes cannot accumulate a promise per progress event');
+  adapter.message({ v: 1, event: 'transfer', data: { id: 'burst', direction: 'outgoing', phase: 'complete', files: ['file.txt'], bytes: 10000, total: 10000 } }, adapter.generation);
+  await adapter.events;
+  assert.equal(adapter.transfers.get('burst').phase, 'complete');
+  assert.equal(adapter.transfers.get('burst').bytes, 10000);
+  assert.equal(adapter.pendingTransfers.size, 0);
+});
 test('a broken helper input pipe fails pending requests without an unhandled stream error', async t => {
   const adapter = await fixture(t);
   const result = adapter.request('pending');

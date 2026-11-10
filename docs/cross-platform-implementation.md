@@ -9,7 +9,7 @@ for hardware, commands, acceptance cells and usability targets.
 
 ## A — Seamless sharing
 
-Implemented on `feat/seamless-sharing`:
+Merged to main in PR #18, with v1.9.0 release preparation merged in PR #20:
 
 - Application-owned sharing broker wraps the existing Nearby and guest engines.
 - Transfer queues files until Send. Files-view uploads still copy immediately
@@ -121,11 +121,14 @@ relay. Tray acceptance skipped where no StatusNotifier watcher was available.
 
 No physical phone, Wi-Fi Direct, BLE or Apple AirDrop result is recorded.
 
-The development helper revision additionally passed 215 Node tests, 11 Rust
+The development helper revision additionally passed 215 Node tests, 12 Rust
 tests (including published cryptographic vectors), and real compiled-helper
 startup/shutdown. Its new namespace regression exposed the inherited empty-file
 final-frame bug; the local source fixes that path and fails truncated sources.
-CI must verify the complete native transfer path before this is marked confirmed.
+The complete native transfer regression subsequently passed on x64 and ARM64 in
+[workflow 42783011046](https://github.com/fluffydisk/airdrop-linux/actions/runs/42783011046).
+Both endpoints run this implementation, so Android interoperability is still
+unverified.
 
 ## Architecture and ownership
 
@@ -236,9 +239,34 @@ service. No setuid Electron, broad passwordless sudo or bundled-binary assumptio
 
 Release A as a minor semantic version after stable checks, with matching root,
 desktop, locks and package manifests, release notes and same-source artifacts.
-The current release workflow intentionally pins publication to `1.8.1`; a new
-version needs a reviewed update of that exact publication guard, not its removal.
+The release workflow intentionally pins publication to `1.9.0`; each new version
+needs a reviewed update of that exact publication guard, not its removal.
 Do not overwrite old releases/tags or route managed installs through portable
 updates. Native previews have distinct prerelease tags/opt-in flags and must not
 replace stable installations. Signed APT/RPM/Flatpak publication requires actual
 protected signing access; disposable-key CI validates the machinery only.
+
+## Prioritized continuation checklist
+
+- [x] Merge the independently validated Linux/browser sharing work (#18).
+- [x] Prepare and merge the v1.9.0 version, sandboxed AppImage acceptance and
+  runtime helper exclusion gates (#20); monitor production publication separately.
+- [x] Build the disabled Quick Share foundation, consent-bound staging/cleanup,
+  bounded history, cryptographic input hardening and two-namespace regressions.
+- [ ] Finish independent protocol fixtures, bounded fuzzing, full-disk/slow-peer/
+  repeated-crash resource tests and cryptographic review for draft #19.
+- [ ] Obtain the physical Pixel/Galaxy lab and validate both native directions.
+  If a phone needs BLE to activate discovery, bring validated BLE discovery
+  forward; a working LAN wire engine alone is not a shippable phone experience.
+- [ ] Complete corresponding-source/SBOM/license review and architecture-specific
+  signed native-helper previews with per-package host/sandbox acceptance.
+- [ ] Validate BlueZ controller support and owned NetworkManager direct-wireless
+  leases/checkpoints before enabling wireless conveniences.
+- [ ] Run the bounded dedicated-radio Apple research independently; never make
+  Android release depend on general AWDL support.
+
+Ready-to-use continuation goal:
+
+```text
+/goal Finish Quick Share draft PR #19 against main using docs/cross-platform-implementation.md, docs/native-protocol-decisions.md and docs/native-transport-validation.md. Complete adversarial/resource validation and native Pixel/Galaxy acceptance, then prepare a legally complete signed helper preview. Preserve Linux/browser sharing, require fresh consent, and keep unavailable hardware results blocked. Enable BLE/direct wireless only after separate host/package validation. Keep Apple research independent. Respect existing release/signing/review gates and never claim untested interoperability.
+```

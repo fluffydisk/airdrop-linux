@@ -82,6 +82,8 @@ excluded AGPL frontend.
 - Consent manifests cannot change paths/count/total before publication. Completed,
   cancelled and abandoned staging is removed within the owned private root;
   cleanup never follows symlinks. Terminal history rolls over at 100 records.
+- Progress snapshots coalesce while disk writes run; pending work is bounded by
+  transfer count instead of growing once per received progress event.
 
 The fork is not yet a security-certified implementation. Physical interop,
 independent cryptographic fixtures/fuzzing, comprehensive
