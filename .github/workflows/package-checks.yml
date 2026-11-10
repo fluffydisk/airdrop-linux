@@ -44,9 +44,17 @@ jobs:
           cc -Wall -Wextra -Werror packaging/flatpak/update-portal.c -o "$RUNNER_TEMP/airdrop-update-portal" $(pkg-config --cflags --libs gio-2.0)
           dbus-run-session -- /usr/bin/python3 scripts/test-update-portal.py "$RUNNER_TEMP/airdrop-update-portal"
       - name: Chromium integration
+        timeout-minutes: 15
         run: |
           npx playwright-core install --with-deps chromium
-          CHROMIUM_PATH="$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')" bash scripts/ci-command.sh Chromium npm run test:browser
+          test_chromium=$(node -e 'process.stdout.write(require("playwright-core").chromium.executablePath())')
+          test_profile="$RUNNER_TEMP/airdrop-chromium-test.apparmor"
+          if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+            node scripts/desktop-apparmor.js "$test_chromium" > "$test_profile"
+            sudo apparmor_parser --replace "$test_profile"
+            trap 'sudo apparmor_parser --remove "$test_profile"' EXIT
+          fi
+          CHROMIUM_PATH="$test_chromium" bash scripts/ci-command.sh Chromium npm run test:browser
       - run: npm ci --prefix desktop
       - run: npm run prepare-desktop && npm run package --prefix desktop
       - name: Build all channel payloads

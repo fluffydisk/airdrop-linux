@@ -10,15 +10,16 @@ const JSZip = require('jszip');
 const { createServer } = require('../push-server');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(fn) { for (let i = 0; i < 150; i++) { if (await fn()) return; await sleep(50); } throw new Error('Timed out waiting for files'); }
-test('Chromium: immediate uploads, ZIP, Android shares, folders, selection, trash, native downloads and real clipboard paste', async t => {
+test('Chromium: immediate uploads, ZIP, Android shares, folders, selection, trash, native downloads and real clipboard paste', { timeout: 90000 }, async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-browser-'));
   const share = path.join(root, 'files'); await fs.mkdir(share);
   const service = createServer({ watchDir: share, stateDir: path.join(root, 'state'), watch: false });
   const app = express(); app.use('/push', service.app); app.use('/ui', express.static(path.resolve('ui')));
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, chromiumSandbox: true });
-  t.after(async () => { await browser.close(); service.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
+  let browser;
+  t.after(async () => { await browser?.close(); service.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
+  browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', headless: true, chromiumSandbox: true, timeout: 20000 });
   const context = await browser.newContext({ acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] }); const page = await context.newPage();
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '/ui/'); await page.evaluate(() => navigator.serviceWorker.ready); await page.reload();
