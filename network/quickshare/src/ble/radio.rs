@@ -807,9 +807,12 @@ where
     Ok((vec![legacy], "compact-gatt"))
 }
 
+fn receiver_data_update(event: &bluer::DeviceEvent) -> bool {
+    matches!(event,bluer::DeviceEvent::PropertyChanged(bluer::DeviceProperty::ServiceData(data)) if data.contains_key(&SERVICE))
+}
 type ScanStream = std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + std::marker::Send>>;
 /// Avoid bluer's unrestricted per-device watcher set and cache replay. Only
-/// ServiceData/RSSI updates refresh known devices; at most 128 watchers live
+/// FEF3 ServiceData updates refresh known devices; at most 128 watchers live
 /// during each short scan lease.
 async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
     let addresses = bounded(adapter.device_addresses()).await?;
@@ -829,9 +832,7 @@ async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
                             let relevant=!cached || bounded(device.service_data()).await.ok().flatten().is_some_and(|d|d.contains_key(&SERVICE));
                             if relevant && let Ok(events)=bounded(device.events()).await {
                                 state.3.insert(addr);
-                                state.2.push(events.filter_map(move |event|futures::future::ready(match event {
-                                    bluer::DeviceEvent::PropertyChanged(bluer::DeviceProperty::ServiceData(_)|bluer::DeviceProperty::Rssi(_))=>Some(addr),_=>None
-                                })).boxed());
+                                state.2.push(events.filter_map(move |event|futures::future::ready(receiver_data_update(&event).then_some(addr))).boxed());
                             }
                         }
                     if !cached {return Some((AdapterEvent::DeviceAdded(addr),state));}
@@ -1659,5 +1660,21 @@ mod tests {
         .await;
         assert!(result.is_err());
         assert_eq!(calls, 1);
+    }
+    #[test]
+    fn unrelated_rssi_changes_cannot_keep_a_cached_receiver_alive() {
+        use bluer::{DeviceEvent, DeviceProperty};
+        assert!(!receiver_data_update(&DeviceEvent::PropertyChanged(
+            DeviceProperty::Rssi(-20)
+        )));
+        assert!(!receiver_data_update(&DeviceEvent::PropertyChanged(
+            DeviceProperty::Connected(true)
+        )));
+        assert!(!receiver_data_update(&DeviceEvent::PropertyChanged(
+            DeviceProperty::ServiceData([(Uuid::nil(), vec![1])].into())
+        )));
+        assert!(receiver_data_update(&DeviceEvent::PropertyChanged(
+            DeviceProperty::ServiceData([(SERVICE, vec![0x41])].into())
+        )));
     }
 }

@@ -60,7 +60,8 @@ bandwidth-upgrade machinery.
   selectable without a LAN address or PSM. An optional slot-read error does not
   discard a separately decoded full advertisement with usable GATT socket
   characteristics; resolved-slot counts advance only for actual decoded slots.
-- BlueZ cache replay is excluded from fresh observations. Recipients expire after
+- BlueZ cache replay and unrelated RSSI/connection changes are excluded from
+  fresh receiver observations; only FEF3 service-data updates refresh a peer. Recipients expire after
   35 seconds without fresh evidence, including an independent helper-side expiry
   if an event is dropped. Endpoint identity correlates address rotation and
   deduplicates LAN/BLE selector rows; LAN is preferred while available, with BLE
