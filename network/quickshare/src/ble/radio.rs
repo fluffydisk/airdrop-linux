@@ -722,6 +722,7 @@ async fn dial_gatt(
     events: mpsc::Sender<Event>,
     connections: Connections,
 ) -> Result<()> {
+    phase(&events, "gatt-connection-pending");
     let device = adapter.device(target.addr)?;
     ensure!(
         !bounded(device.is_connected()).await?,
@@ -775,6 +776,37 @@ fn advert(data: Vec<u8>, extended: bool) -> Advertisement {
         ..Default::default()
     }
 }
+/// A partial dual registration must release its extended instance before
+/// retrying a legacy-only header. The header never announces an extended
+/// instance that was not successfully registered and retained.
+async fn advertise_receiver<H, F, Fut>(
+    full: &[u8],
+    psm: Option<u16>,
+    extended: bool,
+    mut register: F,
+) -> Result<(Vec<H>, &'static str)>
+where
+    F: FnMut(Advertisement) -> Fut,
+    Fut: std::future::Future<Output = Result<H>>,
+{
+    let full_handle = if extended {
+        register(advert(full.to_vec(), true)).await.ok()
+    } else {
+        None
+    };
+    if let Some(handle) = full_handle {
+        if let Ok(legacy) = register(advert(header(full, true, psm), false)).await {
+            return Ok((vec![handle, legacy], "dual"));
+        }
+        drop(handle);
+        // Handle teardown schedules BlueZ UnregisterAdvertisement. Give that
+        // task a turn before requesting the replacement instance.
+        tokio::task::yield_now().await;
+    }
+    let legacy = register(advert(header(full, false, psm), false)).await?;
+    Ok((vec![legacy], "compact-gatt"))
+}
+
 type ScanStream = std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + std::marker::Send>>;
 /// Avoid bluer's unrestricted per-device watcher set and cache replay. Only
 /// ServiceData/RSSI updates refresh known devices; at most 128 watchers live
@@ -868,6 +900,9 @@ async fn run(
     > = None;
     let mut next_scan = Instant::now();
     let mut next_advert = Instant::now();
+    // SupportedInstances already reports slots remaining, not a total.
+    let mut extended_enabled = caps["extendedAdvertising"] == true
+        && caps["advertisingInstances"].as_u64().unwrap_or(1) >= 2;
     let mut targets: HashMap<String, Target> = HashMap::new();
     let mut attempts: HashMap<Address, Instant> = HashMap::new();
 
@@ -894,27 +929,15 @@ async fn run(
                 if now>=next_advert {
                     advertisements.clear();state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                     if *visibility.borrow() && app.is_some() {
-                        // Register GATT and bind the PSM before announcing either.
-                        // BlueZ SupportedInstances already reports remaining slots.
-                        let available=caps["advertisingInstances"].as_u64().unwrap_or(1);
-                        let extended=caps["extendedAdvertising"]==true && available>=2;
-                        let mut full_registered=false;
-                        if extended&& let Ok(h)=bounded(adapter.advertise(advert(full.clone(),true))).await{
-                            advertisements.push(h);
-                            full_registered=true;
+                        match advertise_receiver(&full,psm,extended_enabled,|a|bounded(adapter.advertise(a))).await {
+                            Ok((handles,mode))=>{
+                                advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);
+                                if mode=="compact-gatt"{extended_enabled=false;}
+                            }
+                            Err(_)=>{extended_enabled=false;state["stage"]=json!("advertisement-registration-failed");}
                         }
-                        if let Ok(h)=bounded(adapter.advertise(advert(header(&full,full_registered,psm),false))).await {
-                            advertisements.push(h);
-                            state["bleAdvertising"]=json!(true);
-                            state["mode"]=json!(if full_registered{
-                            "dual"}
-                            else{
-                            "compact-gatt"}
-                            );
-                        }
-                        else {advertisements.clear();state["stage"]=json!("advertisement-registration-failed");}
                     }
-                    next_advert=now+Duration::from_secs(30);emit(events,&state);
+                    next_advert=now+Duration::from_secs(if state["bleAdvertising"]==true || !*visibility.borrow(){30}else{2});emit(events,&state);
                 }
                 // Duty-cycle scanning to leave connection/advertising airtime. No
                 // assumption that a controller can actively scan and advertise.
@@ -1568,5 +1591,73 @@ mod tests {
             panic!("wrong event")
         };
         assert_eq!(message.state, Some(TransferState::Cancelled));
+    }
+    #[tokio::test]
+    async fn partial_dual_registration_releases_full_before_compact_fallback() {
+        struct Handle {
+            number: usize,
+            dropped: Arc<Mutex<Vec<usize>>>,
+        }
+        impl Drop for Handle {
+            fn drop(&mut self) {
+                self.dropped.lock().unwrap().push(self.number);
+            }
+        }
+        let full = receiver(*b"AB12", "Linux", None).unwrap();
+        let dropped = Arc::new(Mutex::new(Vec::new()));
+        let mut calls = 0;
+        let (handles, mode) = advertise_receiver(&full, None, true, |a| {
+            calls += 1;
+            if calls == 1 {
+                assert!(a.secondary_channel.is_some());
+            }
+            if calls == 2 {
+                assert_eq!(a.service_data[&SERVICE][0] & 16, 16);
+                return std::future::ready(Err(anyhow::anyhow!("second instance unavailable")));
+            }
+            if calls == 3 {
+                assert_eq!(*dropped.lock().unwrap(), [1]);
+                assert!(a.secondary_channel.is_none());
+                assert_eq!(a.service_data[&SERVICE][0] & 16, 0);
+            }
+            std::future::ready(Ok(Handle {
+                number: calls,
+                dropped: dropped.clone(),
+            }))
+        })
+        .await
+        .unwrap();
+        assert_eq!(calls, 3);
+        assert_eq!(mode, "compact-gatt");
+        assert_eq!(handles.len(), 1);
+        drop(handles);
+        assert_eq!(*dropped.lock().unwrap(), [1, 3]);
+    }
+    #[tokio::test]
+    async fn unsupported_controller_modes_never_claim_an_unregistered_advertisement() {
+        let full = receiver(*b"AB12", "Linux", None).unwrap();
+        let mut calls = 0;
+        let (handles, mode) = advertise_receiver(&full, None, true, |a| {
+            calls += 1;
+            std::future::ready(if a.secondary_channel.is_some() {
+                Err(anyhow::anyhow!("extended unsupported"))
+            } else {
+                Ok(calls)
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(calls, 2);
+        assert_eq!(mode, "compact-gatt");
+        assert_eq!(handles, [2]);
+        let mut calls = 0;
+        let result = advertise_receiver(&full, None, false, |a| {
+            calls += 1;
+            assert!(a.secondary_channel.is_none());
+            std::future::ready(Err::<usize, _>(anyhow::anyhow!("advertising unsupported")))
+        })
+        .await;
+        assert!(result.is_err());
+        assert_eq!(calls, 1);
     }
 }

@@ -34,8 +34,10 @@ bandwidth-upgrade machinery.
 - Capability-driven dual mode: when BlueZ reports 1M secondary-channel support
   and two available instances, register the extended full advertisement first,
   then a legacy header whose extended bit reflects actual registration. A
-  rejected extended instance falls back to compact/GATT. If the compact instance
-  fails, remove the other instance and report registration failure.
+  rejected extended instance falls back to compact/GATT. If the second instance
+  fails after the full instance registered, release that partial registration
+  before retrying a compact-only header with its extended bit clear. Persistent
+  failure reports advertising off and retries compact-only after two seconds.
 - No BR/EDR address or instant-connection blob is copied from a phone. A dynamic
   LE PSM is announced only after its listening socket exists. GATT registration
   precedes receiver advertising. Registration is not connection evidence.
