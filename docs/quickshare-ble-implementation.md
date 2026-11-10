@@ -55,7 +55,9 @@ bandwidth-upgrade machinery.
 - FEF3 scanning decodes full advertisements or resolves compact headers through
   GATT slots. A decoded full peer without a usable transport remains visible
   with Send disabled. A GATT-only peer with the two socket characteristics is
-  selectable without a LAN address or PSM.
+  selectable without a LAN address or PSM. An optional slot-read error does not
+  discard a separately decoded full advertisement with usable GATT socket
+  characteristics; resolved-slot counts advance only for actual decoded slots.
 - BlueZ cache replay is excluded from fresh observations. Recipients expire after
   35 seconds without fresh evidence, including an independent helper-side expiry
   if an event is dropped. Endpoint identity correlates address rotation and

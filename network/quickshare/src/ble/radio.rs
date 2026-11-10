@@ -216,6 +216,7 @@ struct Target {
     addr: Address,
     addr_type: AddressType,
     gatt: bool,
+    resolved: bool,
     seen: Instant,
 }
 fn endpoint(t: &Target, present: bool) -> EndpointInfo {
@@ -240,7 +241,7 @@ fn endpoint(t: &Target, present: bool) -> EndpointInfo {
             .into(),
         ),
         discovery_stage: Some(
-            if t.gatt {
+            if t.resolved {
                 "gatt-resolved"
             } else {
                 "endpoint-decoded"
@@ -665,8 +666,10 @@ async fn characteristics(
             let slot = (0..slots.min(15))
                 .any(|s| uuid == Uuid::from_u128((s as u128) << 96 | 0x000030008000000000000000));
             if slot {
-                let bytes = bounded(c.read()).await?;
-                if bytes.len() <= MAX_ADVERT
+                // An optional slot failure must not hide an independently
+                // decoded full advertisement with usable socket characteristics.
+                if let Ok(bytes) = bounded(c.read()).await
+                    && bytes.len() <= MAX_ADVERT
                     && let Ok(a) = Advert::decode(&bytes)
                     && a.visible
                 {
@@ -963,7 +966,7 @@ async fn run(
                 state["observed"]=json!(state["observed"].as_u64().unwrap_or(0).saturating_add(1));
                 let parsed=Advert::decode(bytes);let h=Header::decode(bytes).ok();
                 if parsed.is_err() && h.is_none(){continue}
-                let now=Instant::now();let mut gatt=false;
+                let now=Instant::now();let mut gatt=false;let mut resolved=false;
             if let Some(header)=&h
                 && let Some((hash,key))=headers.get(&addr)
                     && *hash==header.hash&& let Some(target)=targets.get_mut(key){target.seen=now;report(events,target,true);continue}
@@ -975,14 +978,14 @@ async fn run(
                     phase(events,"gatt-resolution-pending");
                     match resolve(&adapter,addr,h.as_ref().map(|h|h.slots).unwrap_or(1),&connections).await {
                         Ok((slot,available))=>{
-                            gatt=available;
+                            gatt=available;resolved=slot.is_some();
                             if let Some(mut slot)=slot{
                                 if let Some(h)=&h&& slot.psm.is_none(){
                                     slot.psm=h.psm;
                                 }
                                 ad=Some(slot);
                             }
-                            state["resolved"]=json!(state["resolved"].as_u64().unwrap_or(0).saturating_add(1));
+                            if resolved{state["resolved"]=json!(state["resolved"].as_u64().unwrap_or(0).saturating_add(1));}
                         }
                         ,
                         Err(_)=>{phase(events,"gatt-resolution-failed");if ad.is_none(){continue}}
@@ -992,7 +995,7 @@ async fn run(
                 let key=ad.key();if targets.len()>=100 && !targets.contains_key(&key){continue}
                 let addr_type=match bounded(device.address_type()).await? {AddressType::BrEdr=>AddressType::LePublic,t=>t};
                 let t=Target{
-                advert:ad,addr,addr_type,gatt,seen:now}
+                advert:ad,addr,addr_type,gatt,resolved,seen:now}
                 ;
                 report(events,&t,true);
                 if let Some(h)=h&& (headers.len()<100||headers.contains_key(&addr)){
@@ -1500,6 +1503,7 @@ mod tests {
             addr: Address::any(),
             addr_type: AddressType::LeRandom,
             gatt: true,
+            resolved: true,
             seen: Instant::now(),
         };
         let e = endpoint(&target, true);
@@ -1509,6 +1513,12 @@ mod tests {
         assert!(e.ble_psm.is_none());
         target.seen = Instant::now() - TTL;
         assert!(target.seen.elapsed() >= TTL);
+        target.resolved = false;
+        assert_eq!(
+            endpoint(&target, true).discovery_stage.as_deref(),
+            Some("endpoint-decoded")
+        );
+        assert_eq!(endpoint(&target, true).connectable, Some(true));
         target.gatt = false;
         assert_eq!(endpoint(&target, true).connectable, Some(false));
     }
