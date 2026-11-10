@@ -2,6 +2,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 contextBridge.exposeInMainWorld('airdrop', {
   sharing: (action, payload) => ipcRenderer.invoke('airdrop:sharing', action, payload),
+  onSharingVerification: callback => ipcRenderer.on('airdrop:sharing-verification', (_, value) => callback(value)),
   nearby: (action, payload) => ipcRenderer.invoke('airdrop:nearby', action, payload),
   onPeerProgress: callback => ipcRenderer.on('airdrop:peer-progress', (event, value) => callback(value)),
   devices: (action,payload) => ipcRenderer.invoke('airdrop:devices',action,payload),

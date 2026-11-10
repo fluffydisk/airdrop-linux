@@ -85,10 +85,21 @@ function renderQueue() {
 }
 document.getElementById('sendDestination').addEventListener('change', renderQueue);
 document.getElementById('sendDestination').addEventListener('airdrop-destinations-updated', renderQueue);
+const latestPeerUpdates = new Map();
 let transferTarget = '', transferZip = false, nativeRetry = null;
-window.airdrop.onPeerProgress?.(value => {
-  if (value.status === 'complete' && value.id === nativeRetry?.id) { nativeRetry = null; files = []; renderQueue(); message('Received and verified on the other device.'); }
-});
+function peerProgress(value) {
+  latestPeerUpdates.set(value.id, value);
+  if (latestPeerUpdates.size > 100) latestPeerUpdates.delete(latestPeerUpdates.keys().next().value);
+  if (value.status === 'complete' && value.id === nativeRetry?.id) {
+    nativeRetry = null; files = []; renderQueue();
+    message(value.transport === 'quick-share' ? 'Quick Share transfer completed.' : 'Received and verified on the other device.');
+  } else if (value.id === nativeRetry?.id && ['interrupted','declined','cancelled'].includes(value.status)) {
+    message(value.error || 'Transfer ' + value.status + '. Select Send to try again.', 'error');
+  }
+}
+window.airdrop.onPeerProgress?.(peerProgress);
+window.airdrop.onSharingVerification?.(value => message(`Compare code ${value.code} with ${value.name || 'the receiving device'}, then accept on that device.`));
+
 async function select(paths) {
   if (!paths.length || busy) return;
   if (activeView === 'files') {
@@ -252,7 +263,13 @@ sendButton.onclick = async () => {
     }
     if (document.getElementById('sendDestination').value) {
       const targetId = document.getElementById('sendDestination').value;
-      const sent = await window.airdrop.sharing('send', { recipientId: targetId, sources: files.map(file => file.path), ...(nativeRetry?.peer === targetId ? { retryId: nativeRetry.id } : {}) });
+      const sent = await window.airdrop.sharing('send', { recipientId: targetId, sources: files.map(file => file.path), ...(nativeRetry?.peer === targetId && nativeRetry?.transport !== 'quick-share' ? { retryId: nativeRetry.id } : {}) });
+      if (sent.transferId) {
+        nativeRetry = { id: sent.transferId, peer: targetId, transport: 'quick-share' };
+        message('Quick Share started. Compare the confirmation code and accept on the receiving device.', 'pending');
+        if (latestPeerUpdates.has(sent.transferId)) peerProgress(latestPeerUpdates.get(sent.transferId));
+        return;
+      }
       if (sent.status !== 'complete') { nativeRetry = sent; throw Error(sent.error); }
       nativeRetry = null;
       files = []; message('Received and verified on the other device.'); return;

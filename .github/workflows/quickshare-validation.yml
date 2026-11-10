@@ -1,0 +1,39 @@
+name: Experimental Quick Share foundation
+on:
+  pull_request:
+    paths: ['network/quickshare/**', 'lib/sharing/**', 'tests/quickshare*', 'tests/fixtures/quickshare*', 'scripts/build-quickshare.js', '.github/workflows/quickshare-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  helper:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.12.0'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler pkg-config libdbus-1-dev
+      - run: npm ci --ignore-scripts
+      - run: cargo fmt --all --check
+        working-directory: network/quickshare
+      - run: cargo test --workspace --locked
+        working-directory: network/quickshare
+      - run: cargo clippy --workspace --locked
+        working-directory: network/quickshare
+      - run: node scripts/build-quickshare.js
+      - name: Process boundary and real native lifecycle (no Android claim)
+        run: |
+          node --test tests/quickshare-adapter.test.js
+          AIRDROP_TEST_QUICKSHARE_HELPER="$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" node --test tests/quickshare-native.cjs
+      - name: Independent-network native protocol regression (same implementation, no Android claim)
+        timeout-minutes: 5
+        run: sudo env "PATH=$PATH" "AIRDROP_TEST_QUICKSHARE_HELPER=$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" node --test tests/quickshare-protocol.cjs

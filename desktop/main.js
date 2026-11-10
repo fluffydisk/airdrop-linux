@@ -50,7 +50,7 @@ async function checkUpdate() {
 }
 function backgroundUpdate() {
   if (process.env.AIRDROP_DISABLE_UPDATE_CHECK || quitting) return;
-  if (updatePreferences.due({ automatic: automaticUpdates, busy: updateBusy, sending: sending || nearby.busy, lastAttempt: lastUpdateAttempt })) checkUpdate();
+  if (updatePreferences.due({ automatic: automaticUpdates, busy: updateBusy, sending: sending || (nearby.busy || quickshare.busy), lastAttempt: lastUpdateAttempt })) checkUpdate();
 }
 const desktopData = process.env.AIRDROP_DESKTOP_USER_DATA || paths.desktopData;
 fs.mkdirSync(desktopData, { recursive: true, mode: 0o700 });
@@ -76,24 +76,38 @@ function signInToProvider(){
   login.on('closed',()=>{providerLoginWindow=null;});
   login.loadURL(url.href);
 }
-let devicesReady, nearbyReady;
+let devicesReady, nearbyReady, quickshareReady;
 const nearby = new (require('./core/lib/nearby').Nearby)({
   maintenanceRoot: paths.root, directory: path.join(desktopData, 'nearby'), inbox: path.join(process.env.AIRDROP_SHARE_DIR || paths.files, 'Received'),
   approve: async request => {
     if (!window || window.isDestroyed() || quitting) return false;
     window.show(); window.focus();
     const pairing = request.type === 'pair';
+    const approval = new AbortController(), expiry = setTimeout(() => approval.abort(), 55000); expiry.unref();
+    try {
     const response = await dialog.showMessageBox(window, {
-      type: 'question', buttons: [pairing ? 'Pair device' : 'Accept files', 'Decline'], defaultId: 1, cancelId: 1,
+      signal: approval.signal, type: 'question', buttons: [pairing ? 'Pair device' : 'Accept files', 'Decline'], defaultId: 1, cancelId: 1,
       message: pairing ? `Pair with “${request.name}”?` : `Receive files from “${request.name}”?`,
       detail: pairing ? `Compare this code on both devices: ${request.code}\nOnly pair if the codes match. Pairing permits file transfer requests, with acceptance required. It grants no workspace or clipboard access.` :
-        `${request.files.length} files · ${request.files.reduce((n, f) => n + f.size, 0).toLocaleString()} bytes\n${request.files.slice(0, 8).map(f => f.name).join('\n')}\nSaved to Airdrop/Received. Requests expire after 60 seconds.`
+        `${request.code ? 'Compare this code on both devices: ' + request.code + '\n' : ''}${request.files.length} files · ${(request.total ?? request.files.reduce((n, f) => n + (f.size || 0), 0)).toLocaleString()} bytes\n${request.files.slice(0, 8).map(f => f.name).join('\n')}\nSaved to Airdrop/Received. Requests expire after 60 seconds.`
     });
     return response.response === 0;
+    } finally { clearTimeout(expiry); }
   }
 });
 nearby.on('progress', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:peer-progress', value); });
-const sharing = new (require('./core/lib/sharing/broker').SharingBroker)({ nearby, devices });
+const quickshareDirectory = path.resolve(__dirname, '../.cache/quickshare', process.arch);
+let quickshareMetadata = {};
+try { quickshareMetadata = JSON.parse(fs.readFileSync(path.join(quickshareDirectory, 'helper.json'), 'utf8')); } catch {}
+const quickshare = new (require('./core/lib/sharing/quickshare').QuickShare)({
+  enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1',
+  helper: path.join(quickshareDirectory, 'airdrop-quickshare'), sha256: quickshareMetadata.sha256,
+  directory: path.join(desktopData, 'quickshare'), inbox: nearby.store.inbox,
+  approve: request => nearby.approve(request)
+});
+quickshare.on('progress', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:peer-progress', { ...value, status: value.phase }); });
+quickshare.on('verification', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:sharing-verification', value); });
+const sharing = new (require('./core/lib/sharing/broker').SharingBroker)({ nearby, devices, quickShare: quickshare });
 const shareDir = process.env.AIRDROP_SHARE_DIR || paths.files;
 let window, tray, timer, quitting = false, sending = false;
 let state = { status: 'offline', label: 'Checking services…' };
@@ -148,12 +162,14 @@ function registerIpc() {
   ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
     ownWindow(event); await devicesReady;
     if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
+    if (action === 'cancel') return payload.transport === 'quick-share' ? quickshare.cancel(payload.id) : nearby.cancel(payload.id);
     if (action === 'invitation-stop') return sharing.stopInvitation();
     if (action === 'invitation-copy') { clipboard.writeText(sharing.invitationLink()); return; }
     if (action === 'invitation-start' || action === 'send') {
-      if (!payload.retryId && (!Array.isArray(payload.sources) || payload.sources.length > 1000 || !payload.sources.every(p => allowedPaths.has(p)))) throw Error('Choose files first');
+      if ((!payload.retryId || payload.recipientId?.startsWith('quick-share:')) && (!Array.isArray(payload.sources) || payload.sources.length > 1000 || !payload.sources.every(p => allowedPaths.has(p)))) throw Error('Choose files first');
       if (action === 'invitation-start') return sharing.startInvitation(payload);
-      await nearbyReady; return sharing.send(payload);
+      if (payload.recipientId?.startsWith('quick-share:')) await quickshareReady; else await nearbyReady;
+      return sharing.send(payload);
     }
     throw Error('Unknown sharing action');
   });
@@ -230,13 +246,13 @@ function registerIpc() {
     }
     if (action === 'check') return checkUpdate();
     if (action === 'finish' && updateState.status === 'updated' && !distribution.managed) {
-      if (sending || nearby.busy) throw Error('Wait for the current transfer to finish before quitting');
+      if (sending || (nearby.busy || quickshare.busy)) throw Error('Wait for the current transfer to finish before quitting');
       await require('./core/lib/maintenance').drain(paths.root, 0);
       return app.quit();
     }
     if (action === 'recover') {
       if (distribution.managed || process.env.APPIMAGE || updateBusy || updateState.status !== 'recovery') throw Error('No interrupted standalone update to recover');
-      if (sending || nearby.busy) throw Error('Wait for the current transfer to finish before recovery');
+      if (sending || (nearby.busy || quickshare.busy)) throw Error('Wait for the current transfer to finish before recovery');
       updateBusy = true;
       try {
         await require('./core/lib/maintenance').drain(paths.root, 0);
@@ -247,12 +263,12 @@ function registerIpc() {
     }
     if (distribution.source === 'flatpak') {
       if (action === 'finish' && updateState.status === 'updated') {
-        if (sending || nearby.busy) throw Error('Wait for the current transfer to finish before quitting');
+        if (sending || (nearby.busy || quickshare.busy)) throw Error('Wait for the current transfer to finish before quitting');
         await require('./core/lib/maintenance').drain(paths.root, 0);
         return app.quit();
       }
       if (action !== 'install' || updateState.status !== 'available' || updateBusy) throw Error('Check for updates first');
-      if (sending || nearby.busy) throw Error('Wait for the current transfer to finish before updating');
+      if (sending || (nearby.busy || quickshare.busy)) throw Error('Wait for the current transfer to finish before updating');
       updateBusy = true; publishUpdate({...updateState,status:'installing',message:'Requesting the Flatpak update…'});
       try { await flatpakUpdates.install(value=>publishUpdate({...updateState,...value})); }
       catch(error){publishUpdate({...updateState,status:'error',message:error.message});}
@@ -274,7 +290,7 @@ function registerIpc() {
     try {
       const prepared = await updater.prepare(paths.root, release, { progress: fraction => publishUpdate({ ...release, status: 'downloading', progress: Math.round(fraction * 100), message: `Downloading update: ${Math.round(fraction * 100)}%` }) });
       publishUpdate({ ...release, status: 'installing', message: 'Finishing transfers, then restarting Airdrop. Linux may request service-management permission.' });
-      while (sending || nearby.busy) await new Promise(resolve => setTimeout(resolve, 100));
+      while (sending || (nearby.busy || quickshare.busy)) await new Promise(resolve => setTimeout(resolve, 100));
       await nearby.stop();
       await updater.launch(paths.root, prepared, process.pid);
       quitting = true; app.quit();
@@ -411,7 +427,7 @@ else {
     if (distribution.source === 'snap' && !quitting) {
       event.preventDefault(); quitting = true;
       require('./core/lib/backend-control').request(paths.root,'stop')
-        .then(() => Promise.all([sharing.stopInvitation(), devices.stop(), nearby.stop()])).then(() => app.quit())
+        .then(() => Promise.all([sharing.stop(), devices.stop(), nearby.stop()])).then(() => app.quit())
         .catch(error => {
           quitting = false;
           console.error('Could not stop sharing:',error.message);
@@ -419,12 +435,13 @@ else {
         });
       return;
     }
-    if(!quitting){event.preventDefault();quitting=true;Promise.all([sharing.stopInvitation(), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
+    if(!quitting){event.preventDefault();quitting=true;Promise.all([sharing.stop(), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
     quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
     devicesReady = devices.initialize();
     nearbyReady = nearby.initialize().catch(error => { console.error('Nearby unavailable:', error.message); throw error; });
     nearbyReady.catch(() => {});
+    quickshareReady = quickshare.start().catch(error => { quickshare.failure(error.message, false); });
     Menu.setApplicationMenu(null);
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
       icon: path.join(__dirname, 'core/ui/icon-192.png'),

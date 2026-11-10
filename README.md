@@ -407,3 +407,11 @@ Pull requests and issues are welcome.
 MIT
 
 Internet sharing uses temporary Cloudflare Quick Tunnel addresses. Keep Airdrop running while sharing. If the tunnel is interrupted, the old QR expires; wait for verification and scan the fresh code. Same Wi-Fi sharing remains available when Cloudflare is unavailable. [Connection lifecycle and troubleshooting](docs/internet-sharing.md).
+
+## Component licenses
+
+The application core is MIT. The optional development Quick Share helper and
+its vendored protocol core are GPLv3, with preserved third-party notices. It is
+not included or enabled in current release packages. See the [helper provenance,
+licensing and release gates](network/quickshare/README.md). An integrated native
+helper edition must not be described as MIT-only.
