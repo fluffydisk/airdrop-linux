@@ -48,7 +48,7 @@ jobs:
       - run: node scripts/build-quickshare.js
       - name: Process boundary and real native lifecycle (no Android claim)
         run: |
-          node --test tests/quickshare-adapter.test.js tests/quickshare-lab.test.js
+          node --test tests/quickshare-adapter.test.js tests/quickshare-lab.test.js tests/quickshare-deep-diagnostic.test.js
           AIRDROP_TEST_QUICKSHARE_HELPER="$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" node --test tests/quickshare-native.cjs
       - name: Independent Python protocol client (not Android acceptance)
         run: AIRDROP_TEST_QUICKSHARE_HELPER="$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" /usr/bin/python3 tests/quickshare-independent.py

@@ -353,6 +353,16 @@ impl Engine {
     }
     fn protocol(&mut self, event: ChannelMessage) -> Option<Value> {
         if let Message::Protocol { kind, stage } = &event.msg {
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            {
+                let name = format!("{stage:?}");
+                if name == "ReceivedConnectionRequest" {
+                    ble::diagnostics::inc("nearby_connection_message")
+                }
+                if name.contains("Ukey") {
+                    ble::diagnostics::inc("ukey2_progress")
+                }
+            }
             return self.protocol_diagnostics.then(|| json!({"v":1,"event":"protocol","data":{
                 "id":event.id, "direction":if *kind == TransferKind::Inbound {"incoming"} else {"outgoing"},
                 "protocolStage":format!("{stage:?}")
@@ -381,6 +391,20 @@ impl Engine {
             "outgoing"
         });
         if let Some(state) = message.state {
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            {
+                let key = match state {
+                    TransferState::Disconnected => "protocol_disconnected",
+                    TransferState::Rejected => "protocol_rejected",
+                    TransferState::Cancelled => "protocol_cancelled",
+                    TransferState::ReceivingFiles => "protocol_receiving",
+                    TransferState::SendingFiles => "protocol_sending",
+                    TransferState::Finished => "protocol_complete",
+                    TransferState::Sent => "protocol_completion_unconfirmed",
+                    _ => "",
+                };
+                ble::diagnostics::inc(key);
+            }
             value["protocolStage"] = json!(format!("{state:?}"));
             value["phase"] = json!(match state {
                 TransferState::WaitingForUserConsent => "awaiting-acceptance",
@@ -529,7 +553,9 @@ async fn main() -> Result<()> {
     loop {
         let event = tokio::select! { event = received.recv() => event, _ = ticker.tick() => {
             let stale:Vec<_>=engine.recipient_seen.iter().filter(|(_,at)|at.elapsed()>=Duration::from_secs(35)).map(|(id,_)|id.clone()).collect();
-            for id in stale{engine.recipient_seen.remove(&id);if let Some(mut endpoint)=engine.recipients.remove(&id){endpoint.present=Some(false);if output(json!({"v":1,"event":"recipient","data":endpoint})).await.is_err(){break;}}}
+            for id in stale{
+                #[cfg(all(feature="ble-native",target_os="linux"))] ble::diagnostics::inc("helper_recipient_expired");
+                engine.recipient_seen.remove(&id);if let Some(mut endpoint)=engine.recipients.remove(&id){endpoint.present=Some(false);if output(json!({"v":1,"event":"recipient","data":endpoint})).await.is_err(){break;}}}
             let expired: Vec<_> = engine.consent.iter().filter(|(_, deadline)| **deadline <= Instant::now()).map(|(id, _)| id.clone()).collect();
             for id in expired {
                 engine.consent.remove(&id);
@@ -550,6 +576,8 @@ async fn main() -> Result<()> {
                 }
             }
             Some(Event::Recipient(endpoint)) => {
+                #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                ble::diagnostics::inc("helper_recipient_received");
                 if endpoint.present == Some(true) {
                     if endpoint
                         .transport
@@ -564,9 +592,14 @@ async fn main() -> Result<()> {
                     }
                     if engine.recipients.len() < 100 || engine.recipients.contains_key(&endpoint.id)
                     {
+                        #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                        ble::diagnostics::inc("helper_recipient_published");
                         engine
                             .recipients
                             .insert(endpoint.id.clone(), endpoint.clone());
+                    } else {
+                        #[cfg(all(feature = "ble-native", target_os = "linux"))]
+                        ble::diagnostics::inc("helper_recipient_capacity_rejected");
                     }
                 } else {
                     engine.recipient_seen.remove(&endpoint.id);
@@ -598,6 +631,7 @@ async fn main() -> Result<()> {
                         engine.bluetooth[key] = value.clone();
                     }
                 }
+                engine.bluetooth["diagnostics"] = ble::diagnostics::current().snapshot();
                 Some(json!({"v":1,"event":"bluetooth","data":engine.bluetooth}))
             }
             Some(Event::Protocol(message)) => engine.protocol(message),

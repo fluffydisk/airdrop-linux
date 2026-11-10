@@ -173,6 +173,7 @@ function registerIpc() {
   ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
     ownWindow(event); await devicesReady;
     if (action === 'diagnostics') return quickshare.diagnostics();
+    if (action === 'diagnostic-rendered' && quickshareLab) {const d=require('./core/lib/sharing/quickshare-diagnostics');d.increment(quickshare.pipeline,'renderer_publications');for(const k of ['ready','unready'])quickshare.pipeline['renderer_'+k]=d.integer(payload?.[k],100);return;}
     if (action === 'lab-info') return quickshareLab?.info() || { enabled: false };
     if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
     if (action === 'cancel') return payload.transport === 'quick-share' ? quickshare.cancel(payload.id) : nearby.cancel(payload.id);

@@ -367,3 +367,14 @@ Keep each comparison's output before preparing another run. Reports include
 fixed local BLE stages/counts and capability flags, never Bluetooth identities,
 keys, verification codes, personal files, raw logs or packet captures. Nothing
 uploads automatically. Do not attach the whole private session workspace.
+
+## Deep USB-assisted debugging
+
+For new discovery-boundary investigations, use the [deep diagnostic runner](quickshare-deep-diagnostic.md). It extends this lab without changing these commands:
+
+```bash
+bash scripts/quickshare-android-lab.sh --diagnose --adb --direction linux-to-samsung --network ordinary --duration 180 --archive
+bash scripts/quickshare-android-lab.sh --diagnose --adb --direction samsung-to-linux --network ordinary --duration 180 --archive
+```
+
+The corrected `4a68dd4` report confirms startup/mDNS, but no Samsung attribution, discovery, connection or transfer. Its 72 FEF3 observations and zero decoded/resolved/ready counters do not establish a root cause. The new reports preserve pre-teardown peaks, show strict parser rejection reasons and separate Android visibility limits, GATT metadata, Weave/LE CoC, IPC and renderer stages. See the linked guide for USB authorization, fixture readback, comparison environments and sanitized collection instructions.

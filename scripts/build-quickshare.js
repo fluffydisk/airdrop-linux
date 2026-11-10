@@ -36,7 +36,8 @@ async function build({ bleFastInit = false, bleNative = false } = {}) {
       } else throw Error('Unsupported Quick Share source entry');
     }
   }
-  await hashSources(cwd); metadata.sourceTreeSha256 = sourceHash.digest('hex');
+  await hashSources(cwd); sourceHash.update(await fs.readFile(path.join(root,'lib/sharing/quickshare-diagnostic-schema.json')));
+  metadata.sourceTreeSha256 = sourceHash.digest('hex');
   const nextMetadata = path.join(output, '.helper-' + crypto.randomBytes(8).toString('hex') + '.json');
   try { await fs.writeFile(nextMetadata, JSON.stringify(metadata, null, 2) + '\n', { flag: 'wx', mode: 0o600 }); await fs.rename(nextMetadata, path.join(output, 'helper.json')); }
   finally { await fs.unlink(nextMetadata).catch(error => { if (error.code !== 'ENOENT') throw error; }); }

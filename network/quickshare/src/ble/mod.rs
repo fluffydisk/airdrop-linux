@@ -7,3 +7,6 @@ pub mod protocol;
 mod radio;
 #[cfg(all(feature = "ble-native", target_os = "linux"))]
 pub use radio::*;
+
+#[cfg(all(feature = "ble-native", target_os = "linux"))]
+pub mod diagnostics;

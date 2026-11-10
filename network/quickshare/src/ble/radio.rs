@@ -1,5 +1,6 @@
 // GPL-3.0-only. Native BlueZ integration, bounded independently of dormant upstream
 // experimental network-management code. No power/pairing/policy changes.
+use super::diagnostics::{self as diag, inc};
 use super::protocol::*;
 use crate::Event;
 use anyhow::{Result, bail, ensure};
@@ -31,12 +32,29 @@ const SESSION_LIMIT: Duration = Duration::from_secs(15 * 60);
 const SERVICE: Uuid = Uuid::from_u128(0x0000fef300001000800000805f9b34fb);
 
 async fn bounded<T>(f: impl std::future::Future<Output = Result<T, bluer::Error>>) -> Result<T> {
-    Ok(timeout(DBUS, f).await??)
+    match timeout(DBUS, f).await {
+        Ok(Ok(v)) => Ok(v),
+        Ok(Err(e)) => {
+            diag::dbus_error(&e.kind);
+            Err(e.into())
+        }
+        Err(e) => {
+            inc("dbus_timeout");
+            Err(e.into())
+        }
+    }
 }
 fn emit(events: &mpsc::Sender<Event>, state: &Value) {
-    let _ = events.try_send(Event::Bluetooth(state.clone()));
+    let mut state = state.clone();
+    state["diagnostics"] = diag::current().snapshot();
+    if events.try_send(Event::Bluetooth(state)).is_err() {
+        inc("diagnostic_event_dropped");
+    }
 }
 fn phase(events: &mpsc::Sender<Event>, stage: &'static str) {
+    if stage == "weave-established" {
+        inc("weave_established")
+    }
     let method = match stage {
         "weave-established" | "gatt-connection-pending" => Some("ble-gatt"),
         "l2cap-established" | "l2cap-connection-pending" => Some("ble-l2cap"),
@@ -60,9 +78,10 @@ pub async fn probe() -> Value {
         let powered=adapter.is_powered().await?;
         let slots=adapter.supported_advertising_instances().await.ok();
         let active=adapter.active_advertising_instances().await.ok();
+        let lengths=adapter.supported_advertising_capabilities().await.ok().flatten();
         let extended=adapter.supported_advertising_secondary_channels().await.ok().flatten().is_some_and(|s|s.contains(&SecondaryChannel::OneM));
         Ok::<_,bluer::Error>(json!({
-        "bluez":true,"powered":powered,"advertisingInstances":slots,"activeInstances":active,"extendedAdvertising":extended,"registrationTested":false}
+        "bluez":true,"powered":powered,"maxAdvertisementLength":lengths.as_ref().map(|v|v.max_advertisement_length),"maxScanResponseLength":lengths.as_ref().map(|v|v.max_scan_response_length),"advertisingInstances":slots,"activeInstances":active,"extendedAdvertising":extended,"registrationTested":false}
         ))
     }).await;
     match result {
@@ -94,11 +113,11 @@ impl Connections {
         Ok(())
     }
     async fn release(&self, device: &bluer::Device) {
-        if timeout(DBUS, device.disconnect())
-            .await
-            .is_ok_and(|r| r.is_ok())
-            && let Ok(mut owned) = self.0.lock()
-        {
+        let released = bounded(device.disconnect()).await.is_ok();
+        if !released {
+            inc("gatt_disconnect_failed")
+        }
+        if released && let Ok(mut owned) = self.0.lock() {
             owned.remove(&device.address());
         }
     }
@@ -152,6 +171,9 @@ impl Runtime {
                 owned.cleanup().await;
                 while let Ok(request) = rx.try_recv() {
                     failed(&sender, &request.id, TransferKind::Outbound);
+                }
+                if result.is_err() {
+                    inc("runtime_failed")
                 }
                 let mut state = initial();
                 state["stage"] = json!(if result.is_ok() {
@@ -253,7 +275,16 @@ fn endpoint(t: &Target, present: bool) -> EndpointInfo {
     }
 }
 fn report(events: &mpsc::Sender<Event>, t: &Target, present: bool) {
-    let _ = events.try_send(Event::Recipient(endpoint(t, present)));
+    inc(
+        if events
+            .try_send(Event::Recipient(endpoint(t, present)))
+            .is_ok()
+        {
+            "recipient_ipc_queued"
+        } else {
+            "recipient_ipc_dropped"
+        },
+    );
 }
 struct Ingress {
     tx: mpsc::Sender<(Address, Vec<u8>)>,
@@ -287,6 +318,7 @@ async fn application(
     permits: Arc<Semaphore>,
     visibility: watch::Receiver<bool>,
 ) -> Result<GattService> {
+    inc("gatt_registration_requested");
     let workers = TaskTracker::new();
     let notification_workers = workers.clone();
     let shutdown = cancel.clone();
@@ -307,11 +339,14 @@ async fn application(
                             let full = full.clone();
                             let visible = read_visibility.clone();
                             Box::pin(async move {
+                                inc("incoming_gatt_read");
                                 if !*visible.borrow() {
+                                    inc("incoming_gatt_read_rejected");
                                     return Err(ReqError::NotPermitted);
                                 }
                                 let at = req.offset as usize;
                                 if at > full.len() {
+                                    inc("incoming_gatt_read_rejected");
                                     return Err(ReqError::InvalidOffset);
                                 }
                                 Ok(full[at..].to_vec())
@@ -330,7 +365,9 @@ async fn application(
                             let gate = writes.clone();
                             let visible = write_visibility.clone();
                             Box::pin(async move {
+                                inc("incoming_gatt_write");
                                 if !*visible.borrow() {
+                                    inc("incoming_gatt_write_rejected");
                                     return Err(ReqError::NotPermitted);
                                 }
                                 if req.offset != 0
@@ -338,12 +375,17 @@ async fn application(
                                     || data.is_empty()
                                     || data.len() > 20
                                 {
+                                    inc("incoming_gatt_write_rejected");
                                     return Err(ReqError::InvalidValueLength);
                                 }
                                 let gate = gate.lock().map_err(|_| ReqError::Failed)?;
-                                let ingress = gate.as_ref().ok_or(ReqError::NotPermitted)?;
+                                let ingress = gate.as_ref().ok_or_else(|| {
+                                    inc("incoming_gatt_write_rejected");
+                                    ReqError::NotPermitted
+                                })?;
                                 if ingress.tx.try_send((req.device_address, data)).is_err() {
                                     ingress.cancel.cancel();
+                                    inc("gatt_ingress_overflow");
                                     return Err(ReqError::InProgress);
                                 }
                                 Ok(())
@@ -369,13 +411,16 @@ async fn application(
                             let permits = permits.clone();
                             let workers = notification_workers.clone();
                             Box::pin(async move {
+                                inc("incoming_notification_setup");
                                 let Ok(permit) = permits.try_acquire_owned() else {
+                                    inc("incoming_notification_busy");
                                     return;
                                 };
                                 let (tx, rx) = mpsc::channel(32);
                                 {
                                     let Ok(mut g) = gate.lock() else { return };
                                     if g.is_some() {
+                                        inc("incoming_notification_busy");
                                         return;
                                     }
                                     *g = Some(Ingress {
@@ -425,10 +470,14 @@ async fn gatt_server(
 ) -> Result<()> {
     phase(&events, "gatt-connection-pending");
     let (peer, packet) = timeout(Duration::from_secs(10), rx.recv())
-        .await?
+        .await
+        .inspect_err(|_| inc("weave_timeout"))?
         .ok_or_else(|| anyhow::anyhow!("closed"))?;
+    inc("weave_requested");
     let mut weave = Weave::new();
-    let confirm = weave.accept(&packet, true)?;
+    let confirm = weave
+        .accept(&packet, true)
+        .inspect_err(|_| inc("weave_failed"))?;
     timeout(DBUS, notifier.notify(confirm)).await??;
     phase(&events, "weave-established");
     let (core, bridge) = tokio::io::duplex(65536);
@@ -657,40 +706,80 @@ async fn characteristics(
     let mut found = None;
     let mut write = None;
     let mut notify = None;
+    let mut service_found = false;
     for service in bounded(device.services()).await? {
         if bounded(service.uuid()).await? != SERVICE {
             continue;
         }
+        service_found = true;
+        inc("gatt_service_discovered");
         for c in bounded(service.characteristics()).await? {
             let uuid = bounded(c.uuid()).await?;
             let slot = (0..slots.min(15))
                 .any(|s| uuid == Uuid::from_u128((s as u128) << 96 | 0x000030008000000000000000));
             if slot {
-                // An optional slot failure must not hide an independently
-                // decoded full advertisement with usable socket characteristics.
-                if let Ok(bytes) = bounded(c.read()).await
-                    && bytes.len() <= MAX_ADVERT
-                    && let Ok(a) = Advert::decode(&bytes)
-                    && a.visible
-                {
-                    found = Some(a)
+                inc("gatt_slot_found");
+                match bounded(c.read()).await {
+                    Ok(bytes) => {
+                        inc("gatt_slot_read_success");
+                        match Advert::decode(&bytes) {
+                            Ok(a) if a.visible => {
+                                inc("gatt_slot_decoded");
+                                found = Some(a)
+                            }
+                            Ok(_) => {
+                                inc("visibility_rejected");
+                                inc("gatt_slot_rejected")
+                            }
+                            Err(e) => {
+                                diag::reject("slot", &e);
+                                inc("gatt_slot_rejected")
+                            }
+                        }
+                    }
+                    Err(_) => inc("gatt_slot_read_failure"),
                 }
             }
-            if uuid == WRITE.parse::<Uuid>()? {
-                let flags = bounded(c.flags()).await?;
-                if flags.write {
-                    write = Some(c.clone())
-                }
+            if uuid == WRITE.parse::<Uuid>()? && bounded(c.flags()).await?.write {
+                inc("gatt_write_capability");
+                write = Some(c.clone())
             }
             if uuid == NOTIFY.parse::<Uuid>()? {
                 let flags = bounded(c.flags()).await?;
+                if flags.notify {
+                    inc("gatt_notify_capability")
+                }
+                if flags.indicate {
+                    inc("gatt_indicate_capability")
+                }
                 if flags.notify || flags.indicate {
                     notify = Some(c)
                 }
             }
         }
     }
+    if !service_found {
+        inc("gatt_service_missing")
+    }
+    inc(if write.is_some() && notify.is_some() {
+        "gatt_characteristics_present"
+    } else {
+        "gatt_characteristics_missing"
+    });
     Ok((found, write.zip(notify)))
+}
+async fn connect_gatt(device: &bluer::Device) -> Result<()> {
+    inc("gatt_connection_attempted");
+    match bounded(device.connect()).await {
+        Ok(()) => {
+            inc("gatt_connection_succeeded");
+            Ok(())
+        }
+        Err(e) => {
+            inc("gatt_connection_failed");
+            Err(e)
+        }
+    }
 }
 async fn resolve(
     adapter: &Adapter,
@@ -700,18 +789,27 @@ async fn resolve(
 ) -> Result<(Option<Advert>, bool)> {
     let device = adapter.device(addr)?;
     ensure!(
-        !bounded(device.is_connected()).await?,
+        !{
+            let connected = bounded(device.is_connected()).await?;
+            if connected {
+                inc("gatt_existing_acl_refused")
+            }
+            connected
+        },
         "existing ACL not owned by us"
     );
     connections.claim(&device)?;
     let result = timeout(DBUS, async {
-        device.connect().await?;
+        connect_gatt(&device).await?;
         let (a, c) = characteristics(&device, slots).await?;
         Ok::<_, anyhow::Error>((a, c.is_some()))
     })
     .await;
     connections.release(&device).await;
-    result?
+    result.inspect_err(|_| {
+        inc("gatt_resolution_timeout");
+        inc("dbus_timeout");
+    })?
 }
 async fn dial_gatt(
     adapter: Adapter,
@@ -725,12 +823,18 @@ async fn dial_gatt(
     phase(&events, "gatt-connection-pending");
     let device = adapter.device(target.addr)?;
     ensure!(
-        !bounded(device.is_connected()).await?,
+        !{
+            let connected = bounded(device.is_connected()).await?;
+            if connected {
+                inc("gatt_existing_acl_refused")
+            }
+            connected
+        },
         "existing ACL not owned by us"
     );
     connections.claim(&device)?;
     let result = timeout(SESSION_LIMIT, async {
-        bounded(device.connect()).await?;
+        connect_gatt(&device).await?;
         let (advert, chars) = timeout(DBUS, characteristics(&device, 1)).await??;
         if let Some(a) = advert {
             ensure!(a.key() == target.advert.key(), "endpoint rotated");
@@ -738,12 +842,16 @@ async fn dial_gatt(
         let (write, notify) = chars.ok_or_else(|| anyhow::anyhow!("GATT transport missing"))?;
         let input = bounded(notify.notify()).await?;
         tokio::pin!(input);
+        inc("weave_requested");
         bounded(write.write(&[0x80, 0, 1, 0, 1, 0, 20])).await?;
         let confirmation = timeout(Duration::from_secs(10), input.next())
-            .await?
+            .await
+            .inspect_err(|_| inc("weave_timeout"))?
             .ok_or_else(|| anyhow::anyhow!("GATT closed"))?;
         let mut weave = Weave::new();
-        weave.accept(&confirmation, false)?;
+        weave
+            .accept(&confirmation, false)
+            .inspect_err(|_| inc("weave_failed"))?;
         phase(&events, "weave-established");
         let (core, bridge) = tokio::io::duplex(65536);
         let (output, mut packets) = mpsc::channel::<Vec<u8>>(8);
@@ -798,6 +906,7 @@ where
         if let Ok(legacy) = register(advert(header(full, true, psm), false)).await {
             return Ok((vec![handle, legacy], "dual"));
         }
+        inc("advertisement_released");
         drop(handle);
         // Handle teardown schedules BlueZ UnregisterAdvertisement. Give that
         // task a turn before requesting the replacement instance.
@@ -816,6 +925,9 @@ type ScanStream = std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + s
 /// during each short scan lease.
 async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
     let addresses = bounded(adapter.device_addresses()).await?;
+    if addresses.len() > 1024 {
+        inc("scan_cache_limit")
+    }
     ensure!(addresses.len() <= 1024, "Bluetooth cache limit");
     let known: HashSet<_> = addresses.into_iter().collect();
     let discovery = bounded(adapter.discover_devices()).await?.boxed();
@@ -826,7 +938,8 @@ async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
         loop {tokio::select! {
             event=state.1.next()=>match event {
                 Some(AdapterEvent::DeviceAdded(addr))=>{
-                    let cached=state.4.remove(&addr);
+                    let cached=state.4.remove(&addr);if cached{inc("cache_replay_suppressed")}
+                    if state.3.len()>=128{inc("scan_watcher_limit")}
                     if !state.3.contains(&addr) && state.3.len()<128
                         && let Ok(device)=state.0.device(addr) {
                             let relevant=!cached || bounded(device.service_data()).await.ok().flatten().is_some_and(|d|d.contains_key(&SERVICE));
@@ -856,9 +969,13 @@ async fn run(
 ) -> Result<()> {
     let (endpoint_id, name) = local;
     let _cancel_on_return = cancel.clone().drop_guard();
-    let session = timeout(DBUS, bluer::Session::new()).await??;
+    let session = bounded(bluer::Session::new()).await?;
     let adapter = bounded(session.default_adapter()).await?;
-    ensure!(bounded(adapter.is_powered()).await?, "bluetooth off");
+    if !bounded(adapter.is_powered()).await? {
+        inc("adapter_powered_off");
+        bail!("bluetooth off")
+    }
+    inc("adapter_ready");
     bounded(adapter.set_discovery_filter(bluer::DiscoveryFilter {
         // Some BlueZ/controller combinations omit ServiceData UUIDs from the
         // UUID discovery filter. Inspect FEF3 in received service data instead.
@@ -876,6 +993,11 @@ async fn run(
     let permits = Arc::new(Semaphore::new(4));
     let mut tasks = JoinSet::new();
     let l2cap = bind_l2cap(&adapter).await.ok();
+    inc(if l2cap.is_some() {
+        "l2cap_bind_success"
+    } else {
+        "l2cap_bind_failure"
+    });
     let psm = l2cap.as_ref().map(|(_, p)| *p);
     let full = receiver(endpoint_id, name, psm)?;
     let app = application(
@@ -889,6 +1011,11 @@ async fn run(
     )
     .await
     .ok();
+    inc(if app.is_some() {
+        "gatt_registration_success"
+    } else {
+        "gatt_registration_failure"
+    });
     state["gattBootstrap"] = json!(app.is_some());
     if app.is_none() {
         state["stage"] = json!("gatt-registration-failed");
@@ -899,6 +1026,7 @@ async fn run(
     let mut scan: Option<
         std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + std::marker::Send>>,
     > = None;
+    let mut scan_started = Instant::now();
     let mut next_scan = Instant::now();
     let mut next_advert = Instant::now();
     // SupportedInstances already reports slots remaining, not a total.
@@ -913,27 +1041,28 @@ async fn run(
     loop {
         tokio::select! {
             _=cancel.cancelled()=>break,
-            _=visibility.changed()=>{advertisements.clear();next_advert=Instant::now();}
+            _=visibility.changed()=>{diag::current().count("advertisement_released",advertisements.len() as u64);advertisements.clear();next_advert=Instant::now();}
             _=tasks.join_next(),if !tasks.is_empty()=>{},
             _=ticker.tick()=>{
                 let now=Instant::now();
                 if now.duration_since(last_health)>=Duration::from_secs(2) {
-                    ensure!(bounded(adapter.is_powered()).await?,"adapter off");
+                    match bounded(adapter.is_powered()).await{Ok(true)=>{},Ok(false)=>{inc("adapter_powered_off");bail!("adapter off")},Err(e)=>{if e.downcast_ref::<bluer::Error>().is_some_and(|e|matches!(e.kind,bluer::ErrorKind::DoesNotExist|bluer::ErrorKind::NotAvailable)){inc("adapter_disappeared")}else{inc("adapter_health_failed")}return Err(e)}}
                     last_health=now;
                 }
                 let expired:Vec<_>=targets.iter().filter(|(_,t)|now.duration_since(t.seen)>=TTL).map(|(k,_)|k.clone()).collect();
                 for key in expired {
-                    if let Some(t)=targets.remove(&key){
+                    if let Some(t)=targets.remove(&key){inc("candidate_expired");
                     report(events,&t,false)}
                 }
+                state["ready"]=json!(targets.values().filter(|t|t.gatt||t.advert.psm.is_some()).count());
                 attempts.retain(|_,at|now.duration_since(*at)<Duration::from_secs(10));headers.retain(|_,(_,key)|targets.contains_key(key));
                 if now>=next_advert {
-                    advertisements.clear();state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
+                    diag::current().count("advertisement_released",advertisements.len() as u64);advertisements.clear();state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                     if *visibility.borrow() && app.is_some() {
-                        match advertise_receiver(&full,psm,extended_enabled,|a|bounded(adapter.advertise(a))).await {
+                        match advertise_receiver(&full,psm,extended_enabled,|a|async {inc("advertisement_registration_requested");let r=bounded(adapter.advertise(a)).await;inc(if r.is_ok(){"advertisement_registration_success"}else{"advertisement_registration_failure"});r}).await {
                             Ok((handles,mode))=>{
                                 advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);
-                                if mode=="compact-gatt"{extended_enabled=false;}
+                                if mode=="compact-gatt"{if extended_enabled{inc("advertisement_compact_fallback")}extended_enabled=false;}
                             }
                             Err(_)=>{extended_enabled=false;state["stage"]=json!("advertisement-registration-failed");}
                         }
@@ -943,16 +1072,16 @@ async fn run(
                 // Duty-cycle scanning to leave connection/advertising airtime. No
                 // assumption that a controller can actively scan and advertise.
                 if now>=next_scan {
-                    if scan.is_some(){scan=None;state["bleScanning"]=json!(false);next_scan=now+Duration::from_secs(7);}
+                    if scan.is_some(){diag::current().scan_close(scan_started);inc("scan_pause_regular");scan=None;state["bleScanning"]=json!(false);next_scan=now+Duration::from_secs(7);}
                     else if permits.available_permits()==4 {
-                        match scan_events(&adapter).await{
+                        inc("scan_start_requested");match scan_events(&adapter).await{
                             Ok(s)=>{
-                                scan=Some(Box::pin(s));
+                                inc("scan_start_success");diag::current().scan_open();scan_started=Instant::now();scan=Some(Box::pin(s));
                                 state["bleScanning"]=json!(true);
                                 next_scan=now+Duration::from_secs(3);
                             }
                             ,Err(_)=>{
-                                state["stage"]=json!("scan-start-failed");
+                                inc("scan_start_failure");state["stage"]=json!("scan-start-failed");
                                 next_scan=now+Duration::from_secs(7);
                             }
                         }
@@ -960,7 +1089,7 @@ async fn run(
                     emit(events,&state);
                 }
                 if permits.available_permits()<4 && scan.is_some(){
-                    scan=None;
+                    diag::current().scan_close(scan_started);inc("scan_pause_session");scan=None;
                     state["bleScanning"]=json!(false);
                     next_scan=now+Duration::from_secs(7);
                     emit(events,&state);
@@ -971,11 +1100,11 @@ async fn run(
                     Some(AdapterEvent::DeviceAdded(addr))=>addr,Some(AdapterEvent::DeviceRemoved(addr))=>{
                         let gone:Vec<_>=targets.iter().filter(|(_,t)|t.addr==addr).map(|(k,_)|k.clone()).collect();
                         for key in gone{
-                            if let Some(t)=targets.remove(&key){
+                            if let Some(t)=targets.remove(&key){inc("candidate_removed");
                             report(events,&t,false)}
                         }
                     continue}
-                    ,Some(_)=>continue,None=>{
+                    ,Some(_)=>continue,None=>{inc("scan_event_stream_closed");diag::current().scan_close(scan_started);
                         scan=None;
                     continue}
                 }
@@ -988,21 +1117,22 @@ async fn run(
             continue}
             ;
                 state["observed"]=json!(state["observed"].as_u64().unwrap_or(0).saturating_add(1));
-                let parsed=Advert::decode(bytes);let h=Header::decode(bytes).ok();
-                if parsed.is_err() && h.is_none(){continue}
+                let (parsed,header_result)=diag::current().parse_observation(addr,bytes);
+                let h=header_result.ok();
+                if parsed.is_err() && h.is_none(){emit(events,&state);continue}
                 let now=Instant::now();let mut gatt=false;let mut resolved=false;
             if let Some(header)=&h
                 && let Some((hash,key))=headers.get(&addr)
-                    && *hash==header.hash&& let Some(target)=targets.get_mut(key){target.seen=now;report(events,target,true);continue}
+                    && *hash==header.hash&& let Some(target)=targets.get_mut(key){inc("header_cache_hit");target.seen=now;report(events,target,true);emit(events,&state);continue}
                 let mut ad=parsed.ok();
                 if ad.as_ref().is_none_or(|a|a.psm.is_none()) {
-                    if attempts.contains_key(&addr) || attempts.len()>=100 {continue}attempts.insert(addr,now);
+                    if attempts.contains_key(&addr) || attempts.len()>=100 {inc("gatt_resolution_throttled");emit(events,&state);continue}attempts.insert(addr,now);
                     // Drop our discovery lease during GATT resolution.
-                    scan=None;state["bleScanning"]=json!(false);next_scan=now+Duration::from_secs(7);
-                    phase(events,"gatt-resolution-pending");
+                    if scan.is_some(){diag::current().scan_close(scan_started)}inc("scan_pause_session");scan=None;state["bleScanning"]=json!(false);next_scan=now+Duration::from_secs(7);
+                    inc("gatt_resolution_requested");phase(events,"gatt-resolution-pending");
                     match resolve(&adapter,addr,h.as_ref().map(|h|h.slots).unwrap_or(1),&connections).await {
                         Ok((slot,available))=>{
-                            gatt=available;resolved=slot.is_some();
+                            inc("gatt_resolution_success");gatt=available;resolved=slot.is_some();
                             if let Some(mut slot)=slot{
                                 if let Some(h)=&h&& slot.psm.is_none(){
                                     slot.psm=h.psm;
@@ -1012,11 +1142,12 @@ async fn run(
                             if resolved{state["resolved"]=json!(state["resolved"].as_u64().unwrap_or(0).saturating_add(1));}
                         }
                         ,
-                        Err(_)=>{phase(events,"gatt-resolution-failed");if ad.is_none(){continue}}
+                        Err(_)=>{inc("gatt_resolution_failure");phase(events,"gatt-resolution-failed");if ad.is_none(){continue}}
                     }
                 }
-                let Some(ad)=ad else{continue};if !ad.visible || ad.endpoint==endpoint_id{continue}
-                let key=ad.key();if targets.len()>=100 && !targets.contains_key(&key){continue}
+                let Some(ad)=ad else{inc("transport_unavailable");emit(events,&state);continue};if !ad.visible{inc("visibility_rejected");emit(events,&state);continue}
+                if ad.endpoint==endpoint_id{inc("self_suppressed");emit(events,&state);continue}inc("endpoint_decoded");inc(if ad.psm.is_some()||gatt{"transport_ready"}else{"transport_unavailable"});
+                let key=ad.key();if targets.len()>=100 && !targets.contains_key(&key){inc("candidate_capacity_rejected");emit(events,&state);continue}
                 let addr_type=match bounded(device.address_type()).await? {AddressType::BrEdr=>AddressType::LePublic,t=>t};
                 let t=Target{
                 advert:ad,addr,addr_type,gatt,resolved,seen:now}
@@ -1039,7 +1170,7 @@ async fn run(
                 continue}
                 ;
                 let Ok(permit)=permits.clone().try_acquire_owned() else{failed(sender,&request.id,TransferKind::Outbound);continue};
-                scan=None;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                if scan.is_some(){diag::current().scan_close(scan_started)}inc("scan_pause_session");scan=None;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
                 let adapter=adapter.clone();
                 let sender=sender.clone();
                 let events=events.clone();
@@ -1068,7 +1199,7 @@ async fn run(
                 });
             }
             accepted=async{match &l2cap{Some((listener,_))=>listener.accept().await,None=>std::future::pending().await}}=>{
-                let (socket,_)=accepted?;
+                let (socket,_)=accepted?;inc("l2cap_incoming");
                 if !*visibility.borrow(){
                 continue}
                 let Ok(permit)=permits.clone().try_acquire_owned() else{
@@ -1094,7 +1225,11 @@ async fn run(
         }
     }
     cancel.cancel();
+    if scan.is_some() {
+        diag::current().scan_close(scan_started)
+    }
     drop(scan);
+    diag::current().count("advertisement_released", advertisements.len() as u64);
     drop(advertisements);
     if let Some(app) = &app {
         app.cancel.cancel();
@@ -1125,7 +1260,11 @@ async fn bind_l2cap(adapter: &Adapter) -> Result<(bluer::l2cap::StreamListener, 
     ))?;
     let listener = socket.listen(4)?;
     let psm = listener.as_ref().local_addr()?.psm;
-    ensure!(valid_psm(psm), "invalid bound PSM");
+    if !valid_psm(psm) {
+        inc("l2cap_psm_rejected");
+        bail!("invalid bound PSM")
+    }
+    inc("l2cap_psm_accepted");
     Ok((listener, psm))
 }
 async fn packet_read<S: AsyncRead + Unpin>(s: &mut S) -> Result<Vec<u8>> {
@@ -1215,7 +1354,12 @@ async fn serve_l2cap(
     events: mpsc::Sender<Event>,
     id: String,
 ) -> Result<()> {
-    let framed = timeout(Duration::from_secs(10), l2cap_accept(&mut socket, full)).await??;
+    let framed = timeout(Duration::from_secs(10), l2cap_accept(&mut socket, full))
+        .await
+        .inspect_err(|_| {
+            inc("l2cap_bootstrap_rejected");
+        })?
+        .inspect_err(|_| inc("l2cap_bootstrap_rejected"))?;
     phase(&events, "l2cap-established");
     let (core, bridge) = tokio::io::duplex(65536);
     session(
@@ -1235,7 +1379,11 @@ async fn open_l2cap(
         .advert
         .psm
         .ok_or_else(|| anyhow::anyhow!("missing PSM"))?;
-    ensure!(valid_psm(psm), "invalid PSM");
+    if !valid_psm(psm) {
+        inc("l2cap_psm_rejected");
+        bail!("invalid PSM")
+    }
+    inc("l2cap_psm_accepted");
     let socket = Socket::<Stream>::new_stream()?;
     socket.set_security(Security {
         level: SecurityLevel::Low,
@@ -1247,11 +1395,32 @@ async fn open_l2cap(
         AddressType::LePublic,
         0,
     ))?;
-    let mut stream = timeout(
+    inc("l2cap_connection_attempted");
+    let connection = timeout(
         DBUS,
         socket.connect(SocketAddr::new(target.addr, target.addr_type, psm)),
     )
-    .await??;
+    .await;
+    let mut stream = match connection {
+        Ok(Ok(s)) => {
+            inc("l2cap_connection_succeeded");
+            s
+        }
+        Err(_) => {
+            inc("l2cap_connection_failed");
+            inc("l2cap_connection_timeout");
+            bail!("LE CoC timeout")
+        }
+        Ok(Err(e)) => {
+            inc("l2cap_connection_failed");
+            inc(match e.kind() {
+                std::io::ErrorKind::PermissionDenied => "l2cap_connection_permission_denied",
+                std::io::ErrorKind::ConnectionRefused => "l2cap_connection_refused",
+                _ => "l2cap_connection_io_error",
+            });
+            bail!("LE CoC connect failed")
+        }
+    };
     timeout(DBUS, async {
         if framed {
             packet_write(&mut stream, &[3]).await?;
@@ -1359,6 +1528,34 @@ async fn socket_pump<S: AsyncRead + AsyncWrite + Unpin>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test(start_paused = true)]
+    async fn dbus_errors_are_categorized_without_exporting_messages() {
+        let before = diag::current().snapshot();
+        let failure = bluer::Error {
+            kind: bluer::ErrorKind::NotAuthorized,
+            message: "AA:BB:CC:DD:EE:FF private-file.txt token-secret".into(),
+        };
+        assert!(bounded(async { Err::<(), _>(failure) }).await.is_err());
+        assert!(
+            bounded(std::future::pending::<Result<(), bluer::Error>>())
+                .await
+                .is_err()
+        );
+        let after = diag::current().snapshot();
+        assert!(
+            after["counters"]["dbus_permission_denied"]
+                .as_u64()
+                .unwrap()
+                > before["counters"]["dbus_permission_denied"]
+                    .as_u64()
+                    .unwrap_or(0)
+        );
+        assert!(
+            after["counters"]["dbus_timeout"].as_u64().unwrap()
+                > before["counters"]["dbus_timeout"].as_u64().unwrap_or(0)
+        );
+        assert!(!after.to_string().contains("private"));
+    }
     #[tokio::test]
     async fn independent_l2cap_command_peer() {
         for framed in [false, true] {

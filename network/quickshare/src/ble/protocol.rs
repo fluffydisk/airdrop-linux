@@ -14,6 +14,81 @@ pub const WRITE: &str = "00000100-0004-1000-8000-001a11000101";
 pub const NOTIFY: &str = "00000100-0004-1000-8000-001a11000102";
 pub const INTRO: &[u8] = &[0, 0, 0, 8, 1, 18, 7, 10, 3, 0xfc, 0x9f, 0x5e, 16, 2];
 
+/// Typed rejection reasons expose validation boundaries without exposing input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DecodeError {
+    InvalidLength,
+    UnsupportedVersion,
+    UnsupportedSocketVersion,
+    UnsupportedFastFormat,
+    InvalidServiceHash,
+    BloomMismatch,
+    MissingFields,
+    InvalidFlagsPsm,
+    InvalidEndpointMetadata,
+    UnknownFieldsRejected,
+    InvalidEncoding,
+    UnsupportedSlots,
+    UnsupportedPcp,
+}
+impl DecodeError {
+    pub fn code(self) -> &'static str {
+        match self {
+            Self::InvalidLength => "invalid_length",
+            Self::UnsupportedVersion => "unsupported_version",
+            Self::UnsupportedSocketVersion => "unsupported_socket_version",
+            Self::UnsupportedFastFormat => "unsupported_fast_format",
+            Self::InvalidServiceHash => "invalid_service_hash",
+            Self::BloomMismatch => "bloom_mismatch",
+            Self::MissingFields => "missing_fields",
+            Self::InvalidFlagsPsm => "invalid_flags_psm",
+            Self::InvalidEndpointMetadata => "invalid_endpoint_metadata",
+            Self::UnknownFieldsRejected => "unknown_fields_rejected",
+            Self::InvalidEncoding => "invalid_encoding",
+            Self::UnsupportedSlots => "unsupported_slots",
+            Self::UnsupportedPcp => "unsupported_pcp",
+        }
+    }
+}
+impl std::fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.code())
+    }
+}
+impl std::error::Error for DecodeError {}
+macro_rules! check {
+    ($condition:expr,$reason:ident) => {
+        if !$condition {
+            return Err(DecodeError::$reason);
+        }
+    };
+}
+/// Diagnostic-only recognition. Never turns an unsupported packet into a peer.
+pub fn well_formed_fast_candidate(b: &[u8]) -> bool {
+    if b.len() < 2
+        || b.len() > MAX_ADVERT
+        || b[0] >> 5 != 2
+        || (b[0] >> 2) & 7 != 2
+        || b[0] & 2 == 0
+    {
+        return false;
+    }
+    let n = b[1] as usize;
+    if n < 6 || 2 + n > b.len() {
+        return false;
+    }
+    let body = &b[2..2 + n];
+    if body[0] != 0x23 || !body[1..5].iter().all(u8::is_ascii_alphanumeric) {
+        return false;
+    }
+    let info = body[5] as usize;
+    if info < 17 || 6 + info > body.len() {
+        return false;
+    }
+    (b.len() == 2 + n || b.len() == 4 + n)
+        && parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&body[6..6 + info])).is_ok()
+}
+
 pub fn valid_psm(psm: u16) -> bool {
     (0x80..=0xff).contains(&psm)
 }
@@ -24,38 +99,42 @@ pub struct Header {
     pub hash: [u8; 4],
 }
 impl Header {
-    pub fn decode(bytes: &[u8]) -> Result<Self> {
+    pub fn decode(bytes: &[u8]) -> std::result::Result<Self, DecodeError> {
         let decoded;
         let b = if bytes.len() == 15 || bytes.len() == 17 {
             bytes
         } else {
-            ensure!(bytes.len() <= 24, "header length");
-            decoded = URL_SAFE_NO_PAD.decode(bytes)?;
+            check!(bytes.len() <= 24, InvalidLength);
+            decoded = URL_SAFE_NO_PAD
+                .decode(bytes)
+                .map_err(|_| DecodeError::InvalidEncoding)?;
             &decoded
         };
-        ensure!(
-            (b.len() == 15 || b.len() == 17) && b[0] >> 5 == 2 && b[0] & 15 > 0,
-            "header format"
-        );
-        ensure!(
+        check!(b.len() == 15 || b.len() == 17, InvalidLength);
+        check!(b[0] >> 5 == 2, UnsupportedVersion);
+        check!(b[0] & 15 > 0, UnsupportedSlots);
+        check!(
             bloom_positions(b"NearbySharing", 80)
                 .iter()
                 .all(|p| b[1 + p / 8] & (1 << (p % 8)) != 0),
-            "foreign service"
+            BloomMismatch
         );
         let psm = if b.len() == 17 {
             Some(u16::from_be_bytes([b[15], b[16]])).filter(|p| *p != 0)
         } else {
             None
         };
-        ensure!(psm.is_none_or(valid_psm), "invalid PSM");
+        check!(psm.is_none_or(valid_psm), InvalidFlagsPsm);
         Ok(Self {
             slots: b[0] & 15,
             psm,
-            hash: b[11..15].try_into()?,
+            hash: b[11..15]
+                .try_into()
+                .map_err(|_| DecodeError::MissingFields)?,
         })
     }
 }
+
 #[derive(Clone, Debug)]
 pub struct Advert {
     pub endpoint: [u8; 4],
@@ -66,62 +145,62 @@ pub struct Advert {
     pub visible: bool,
 }
 impl Advert {
-    pub fn decode(b: &[u8]) -> Result<Self> {
-        ensure!(
-            b.len() >= 8
-                && b.len() <= MAX_ADVERT
-                && b[0] >> 5 == 2
-                && (b[0] >> 2) & 7 == 2
-                && b[0] & 2 == 0,
-            "medium format"
-        );
-        ensure!(b[1..4] == HASH, "foreign service");
-        let len = u32::from_be_bytes(b[4..8].try_into()?) as usize;
-        ensure!(len >= 9 && len <= b.len() - 8, "medium length");
+    pub fn decode(b: &[u8]) -> std::result::Result<Self, DecodeError> {
+        check!(b.len() >= 8 && b.len() <= MAX_ADVERT, InvalidLength);
+        check!(b[0] >> 5 == 2, UnsupportedVersion);
+        check!((b[0] >> 2) & 7 == 2, UnsupportedSocketVersion);
+        check!(b[0] & 2 == 0, UnsupportedFastFormat);
+        check!(b[1..4] == HASH, InvalidServiceHash);
+        let len = u32::from_be_bytes(b[4..8].try_into().map_err(|_| DecodeError::MissingFields)?)
+            as usize;
+        check!(len >= 9 && len <= b.len() - 8, InvalidLength);
         let data = &b[8..8 + len];
-        ensure!(data[0] == 0x23 && data[1..4] == HASH, "endpoint format");
-        let endpoint: [u8; 4] = data[4..8].try_into()?;
-        ensure!(
+        check!(data[0] == 0x23, UnsupportedPcp);
+        check!(data[1..4] == HASH, InvalidServiceHash);
+        let endpoint: [u8; 4] = data[4..8]
+            .try_into()
+            .map_err(|_| DecodeError::MissingFields)?;
+        check!(
             endpoint.iter().all(u8::is_ascii_alphanumeric),
-            "endpoint id"
+            InvalidEndpointMetadata
         );
         let n = data[8] as usize;
-        ensure!(n >= 17 && n <= data.len() - 9, "endpoint length");
+        check!(n >= 17 && n <= data.len() - 9, InvalidLength);
         let info = &data[9..9 + n];
-        let (kind, name) = parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(info))?;
-        ensure!(
+        let (kind, name) = parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(info))
+            .map_err(|_| DecodeError::InvalidEndpointMetadata)?;
+        check!(
             name.len() <= 80 && !name.chars().any(char::is_control),
-            "endpoint name"
+            InvalidEndpointMetadata
         );
         let tail = &b[8 + len..];
         let mut psm = None;
         if tail.len() > 2 {
             let mask = tail[2];
             let mut at = 3;
-            ensure!(mask & !3 == 0, "unknown extra fields");
+            check!(mask & !3 == 0, UnknownFieldsRejected);
             if mask & 1 != 0 {
-                ensure!(tail.len() >= at + 2, "PSM truncated");
+                check!(tail.len() >= at + 2, MissingFields);
                 let p = u16::from_be_bytes([tail[at], tail[at + 1]]);
-                ensure!(p == 0 || valid_psm(p), "invalid PSM");
+                check!(p == 0 || valid_psm(p), InvalidFlagsPsm);
                 psm = Some(p).filter(|p| *p != 0);
                 at += 2;
             }
             if mask & 2 != 0 {
-                let size = *tail
-                    .get(at)
-                    .ok_or_else(|| anyhow::anyhow!("extra truncated"))?
-                    as usize;
+                let size = *tail.get(at).ok_or(DecodeError::MissingFields)? as usize;
                 at += 1;
-                ensure!(tail.len() >= at + size, "extra length");
+                check!(tail.len() >= at + size, MissingFields);
                 at += size;
             }
-            ensure!(tail.len() == at, "extra trailing bytes");
+            check!(tail.len() == at, UnknownFieldsRejected);
         } else {
-            ensure!(tail.is_empty() || tail.len() == 2, "token truncated");
+            check!(tail.is_empty() || tail.len() == 2, MissingFields);
         }
         Ok(Self {
             endpoint,
-            identity: info[1..17].try_into()?,
+            identity: info[1..17]
+                .try_into()
+                .map_err(|_| DecodeError::MissingFields)?,
             name,
             kind,
             psm,
@@ -350,6 +429,91 @@ pub fn acknowledgement(size: usize) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn exact_rejection_reasons_do_not_relax_formats() {
+        let full = receiver(*b"AB12", "Linux", None).unwrap();
+        let h = header(&full, false, None);
+        let mut b = full.clone();
+        b[0] = 0x68;
+        assert_eq!(
+            Advert::decode(&b).unwrap_err(),
+            DecodeError::UnsupportedVersion
+        );
+        b = full.clone();
+        b[0] = 0x44;
+        assert_eq!(
+            Advert::decode(&b).unwrap_err(),
+            DecodeError::UnsupportedSocketVersion
+        );
+        b = full.clone();
+        b[0] |= 2;
+        assert_eq!(
+            Advert::decode(&b).unwrap_err(),
+            DecodeError::UnsupportedFastFormat
+        );
+        b = full.clone();
+        b[1] ^= 1;
+        assert_eq!(
+            Advert::decode(&b).unwrap_err(),
+            DecodeError::InvalidServiceHash
+        );
+        b = full.clone();
+        b[12] = 0;
+        assert_eq!(
+            Advert::decode(&b).unwrap_err(),
+            DecodeError::InvalidEndpointMetadata
+        );
+        b = full.clone();
+        *b.last_mut().unwrap() = 4;
+        assert_eq!(
+            Advert::decode(&b).unwrap_err(),
+            DecodeError::UnknownFieldsRejected
+        );
+        let mut bad = h.clone();
+        bad[0] &= 0xf0;
+        assert_eq!(
+            Header::decode(&bad).unwrap_err(),
+            DecodeError::UnsupportedSlots
+        );
+        bad = h.clone();
+        bad[1..11].fill(0);
+        assert_eq!(
+            Header::decode(&bad).unwrap_err(),
+            DecodeError::BloomMismatch
+        );
+        bad = h.clone();
+        bad.extend([0, 1]);
+        assert_eq!(
+            Header::decode(&bad).unwrap_err(),
+            DecodeError::InvalidFlagsPsm
+        );
+        assert_eq!(
+            Header::decode(b"!").unwrap_err(),
+            DecodeError::InvalidEncoding
+        );
+        assert_eq!(Advert::decode(&[]).unwrap_err(), DecodeError::InvalidLength);
+    }
+    #[test]
+    fn well_formed_unsupported_fast_shape_is_diagnostic_only() {
+        let info = URL_SAFE_NO_PAD
+            .decode(gen_mdns_endpoint_info(3, "Linux"))
+            .unwrap();
+        let mut body = vec![0x23];
+        body.extend(b"AB12");
+        body.push(info.len() as u8);
+        body.extend(info);
+        let mut fast = vec![0x4a, body.len() as u8];
+        fast.extend(body);
+        assert!(well_formed_fast_candidate(&fast));
+        assert_eq!(
+            Advert::decode(&fast).unwrap_err(),
+            DecodeError::UnsupportedFastFormat
+        );
+        assert!(Header::decode(&fast).is_err());
+        for n in 0..fast.len() {
+            assert!(!well_formed_fast_candidate(&fast[..n]));
+        }
+    }
     #[test]
     fn coherent_identity_and_header() {
         let f = receiver(*b"AB12", "Linux 한", None).unwrap();

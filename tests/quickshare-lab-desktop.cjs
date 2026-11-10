@@ -21,6 +21,7 @@ test('lab desktop identifies the build, preserves consent/sandbox and prevents n
   assert.equal(await page.locator('#nearbyLink').isVisible(), false);
   assert.equal(await page.locator('#nearbyPhone').isVisible(), false);
   await page.waitForFunction(() => document.getElementById('sendDestination').options[0].textContent.includes('native Quick Share'));
+  await page.waitForFunction(async () => (await window.airdrop.sharing('diagnostics')).pipeline.renderer_publications > 0);
   const choices = await page.locator('#sendDestination').textContent(); assert.equal(choices.includes('Shared workspace'), false); assert.equal(choices.includes('Share link'), false);
   await fs.mkdir('.test-artifacts', { recursive: true });
   await page.locator('#quickshareLab').scrollIntoViewIfNeeded(); await page.screenshot({ path: '.test-artifacts/quickshare-s24-lab.png' });

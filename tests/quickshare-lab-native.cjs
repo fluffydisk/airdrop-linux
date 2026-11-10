@@ -43,4 +43,13 @@ test('S24 lab prepares, launches actual Electron/helper, collects privately and 
   const fresh = JSON.parse(await fs.readFile(path.join(root, 'reports/quickshare-test-results.json')));
   assert.equal(fresh.stages.C.status, 'not-tested', 'previous trial observations cannot carry over');
   await cli('--stop'); process.kill(unrelated.pid, 0);
+  if(native){
+    await cli('--diagnose','--direction','linux-to-samsung','--duration','10','--network','ordinary','--archive','--skip-install');
+    const deep=JSON.parse(await fs.readFile(path.join(root,'reports/quickshare-deep-diagnostic.json')));
+    assert.equal(deep.build.helperHashVerified,true);assert.equal(deep.build.sourceVerified,true);
+    assert.equal(deep.captureOutcome,'completed');assert.equal(deep.shutdown.classification,'clean-stop');
+    assert.equal(deep.transfer.outcome,'unconfirmed');assert.equal(deep.samsungCompatibilityEstablished,false);
+    assert.equal(JSON.stringify(deep).includes(root),false);
+    await assert.rejects(fs.lstat(path.join(root,'control.sock')),{code:'ENOENT'});
+  }
 });

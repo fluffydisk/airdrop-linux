@@ -24,6 +24,12 @@ Options:
   --ble-fastinit               Prepare with optional 120-second FE2C sender nudge
   --skip-install               Prepare using already installed locked Node dependencies
   --direction samsung-to-linux|linux-to-samsung
+  --diagnose [--adb] --direction linux-to-samsung|samsung-to-linux
+                               Bounded deep diagnostic (isolated .cache/quickshare-deep-lab)
+  --duration 10..600            Observation seconds (default 180)
+  --authorize-adb              Explicit read-only USB diagnostic consent; RSA authorization still required
+  --network ordinary|hotspot|school|other  Owner-selected environment
+  --apple-sharing on|off|not-available     Separate comparison session
   --case lab-small.txt|batch|all  Select the fixture(s) whose hashes should be checked
   --scenario ordinary|decline|cancel|interrupt
   --record C=pass,E=unknown     Noninteractive owner observations, stages C through I
@@ -33,18 +39,21 @@ Options:
 No sudo, ADB, persistent radio/firewall changes or uploads are performed.
 See docs/quickshare-s24-test.md. BLE requires --ble-native at prepare; stock Android compatibility remains unverified.`;
 function parse(argv) {
-  const result = {}; const operations = ['preflight', 'prepare', 'start', 'status', 'collect', 'stop', 'supervise', 'help'];
+  const result = {}; const operations = ['preflight', 'prepare', 'start', 'status', 'collect', 'stop', 'supervise', 'diagnose', 'help'];
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, '');
     if (!argv[i].startsWith('--')) throw Error('Expected a --flag');
     if (operations.includes(key)) { if (result.operation) throw Error('Choose one operation'); result.operation = key; }
-    else if (['workspace', 'direction', 'case', 'record', 'readback', 'scenario'].includes(key)) { if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw Error('Missing option value'); result[key] = argv[++i]; }
-    else if (['skip-install', 'archive', 'non-interactive', 'ble-fastinit', 'ble-native'].includes(key)) result[key] = true;
+    else if (['workspace', 'direction', 'case', 'record', 'readback', 'scenario', 'duration', 'network', 'apple-sharing'].includes(key)) { if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw Error('Missing option value'); result[key] = argv[++i]; }
+    else if (['skip-install', 'archive', 'non-interactive', 'ble-fastinit', 'ble-native', 'adb', 'authorize-adb'].includes(key)) result[key] = true;
     else throw Error('Unknown lab option: ' + argv[i]);
   }
   if (result.direction && !['samsung-to-linux', 'linux-to-samsung'].includes(result.direction)) throw Error('Invalid direction');
   if (result.case && !['batch', 'all', ...fixtureNames].includes(result.case)) throw Error('Choose an exact generated fixture name, batch or all');
   if (result.scenario && !['ordinary', 'decline', 'cancel', 'interrupt'].includes(result.scenario)) throw Error('Invalid scenario');
+  if (result.duration && (!/^\d{1,3}$/.test(result.duration)||Number(result.duration)<10||Number(result.duration)>600)) throw Error('Duration must be 10–600 seconds');
+  if(result.network && !['ordinary','hotspot','school','other'].includes(result.network))throw Error('Invalid network scenario');
+  if(result['apple-sharing'] && !['on','off','not-available'].includes(result['apple-sharing']))throw Error('Invalid Apple sharing comparison');
   return result;
 }
 function rootFor(options) { return path.resolve(options.workspace || path.join(ROOT, '.cache/quickshare-lab')); }
@@ -141,7 +150,7 @@ async function start(options) {
   console.log('Compiled discovery capabilities: ' + JSON.stringify(helper.capabilities));
   console.log('Native receiver name: Airdrop S24 Lab\nReceived files: ' + path.join(session, 'share/Received') + '\nUSB readback folder: ' + path.join(session, 'readback'));
   console.log(JSON.stringify(runtime, null, 2));
-  console.log('BLE receiver bootstrap is not implemented. Helper startup and local advertisements do not prove Samsung discovery or native transfer compatibility.');
+  console.log(marker.bleNativeRequested ? 'Experimental BLE/GATT requested. Registration is not proof of radio emission, Samsung discovery or authenticated transfer.' : 'LAN-only helper. Prepare with --ble-native for experimental BLE/GATT; startup does not prove Samsung compatibility.');
   console.log('Use --status while testing, --collect for evidence, and --stop to close only this lab.');
 }
 function listener(port) {
@@ -212,7 +221,7 @@ async function supervise(options) {
     const poll = async () => {
       if (pollBusy || stopping) return; pollBusy = true;
       try {
-        const state = readJson(path.join(root, 'desktop-state.json'));
+        const state = readJson(path.join(root, 'desktop-state.json'), 32 * 1024 * 1024);
         if (state.run !== marker.run) return;
         runtime.bleFastInitState = ['registered-for-120s', 'expired', 'bluez-unavailable', 'bluez-timeout', 'permission-denied', 'not-supported', 'bluetooth-off', 'no-adapter', 'adapter-busy', 'bluez-operation-failed', 'unavailable-or-denied'].includes(state.helper?.bleFastInitState) ? state.helper.bleFastInitState : 'not-requested';
         runtime.bluetooth = require('../lib/sharing/quickshare').sanitizeBluetooth(state.helper?.bluetooth);
@@ -302,6 +311,7 @@ async function collect(options) {
 async function main(argv = process.argv.slice(2)) {
   const options = parse(argv);
   switch (options.operation) {
+    case 'diagnose': await require('./quickshare-lab/diagnose.cjs').diagnose(options, module.exports); break;
     case 'preflight': printPreflight(await preflight()); break;
     case 'prepare': await prepare(options); break;
     case 'start': await start(options); break;
@@ -312,5 +322,5 @@ async function main(argv = process.argv.slice(2)) {
     default: console.log(HELP);
   }
 }
-if (require.main === module) main().catch(error => { console.error('Lab operation failed: ' + error.message + '\nRun --preflight or see docs/quickshare-s24-test.md. No raw diagnostics were exported.'); process.exitCode = 1; });
 module.exports = { main, parse, rootFor, markerFor, control, prepare, start, stop, collect, listener };
+if (require.main === module) main().catch(error => { console.error('Lab operation failed: ' + error.message + '\nRun --preflight or see docs/quickshare-s24-test.md. No raw diagnostics were exported.'); process.exitCode = 1; });

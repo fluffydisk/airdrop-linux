@@ -16,7 +16,7 @@
     get('nearbyEnabled').checked = state.enabled; get('nearbyConcurrency').value = String(state.concurrency);
     if (document.activeElement !== get('nearbyPort')) get('nearbyPort').value = state.preferredPort ?? 53318;
     get('nearbyStatus').textContent = state.quickShareError ? 'Quick Share unavailable: ' + state.quickShareError : state.pairing ? `Pairing with ${state.pairing.name}. Compare code on both devices: ${state.pairing.code}. Waiting for acceptance…` : !state.enabled ? 'Nearby sharing is off. Share link / QR is still available.' : state.discoveryError || (state.devices.some(d => d.online) ? 'Direct local network · encrypted · no internet relay' : 'No reachable nearby devices yet. This network may limit discovery or direct connections. Choose Share link / QR to use another permitted route.');
-    if (laboratory && !state.quickShareError) get('nearbyStatus').textContent = state.devices.some(d => d.online) ? 'Native Quick Share recipients are available. Compare codes for every transfer.' : 'No native Quick Share recipients yet. Keep Samsung Receive visible. BLE/GATT receiver bootstrap is not implemented.';
+    if (laboratory && !state.quickShareError) get('nearbyStatus').textContent = state.devices.some(d => d.online) ? 'Native Quick Share recipients are available. Compare codes for every transfer.' : 'No native Quick Share recipients yet. Keep Samsung Receive visible. Review BLE decoding and GATT stages in the diagnostic report.';
     const destination = get('sendDestination'), previous = destination.value;
     const options = state.devices.filter(d => d.trusted || d.transport === 'quick-share').map(d => { const option = new Option(d.name + (d.online ? d.transport === 'quick-share' ? ' · Quick Share (experimental)' : ' · Nearby' : ' · Offline'), d.id); option.disabled = !d.online; return option; });
     if (laboratory) options.unshift(new Option('Choose a native Quick Share recipient', ''));
@@ -26,6 +26,7 @@
       missing.disabled = true; options.unshift(missing);
     }
     destination.replaceChildren(...options);
+    if(laboratory) void window.airdrop.sharing('diagnostic-rendered',{ready:state.devices.filter(d=>d.transport==='quick-share'&&d.online).length,unready:state.devices.filter(d=>d.transport==='quick-share'&&!d.online).length}).catch(()=>{});
     destination.value = options.some(option => option.value === previous) ? previous : '';
     if (!selectedByUser && !previous) destination.value = state.devices.find(device => device.trusted && device.online)?.id || '';
     get('zip').disabled = !!destination.value; if (destination.value) get('zip').checked = false;
