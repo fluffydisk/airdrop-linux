@@ -10,8 +10,7 @@ use bytes::Bytes;
 use hmac::{Hmac, Mac};
 use libaes::{AES_256_KEY_LEN, Cipher};
 use p256::ecdh::diffie_hellman;
-use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
-use p256::{EncodedPoint, PublicKey};
+use p256::elliptic_curve::sec1::ToEncodedPoint;
 use prost::Message;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
@@ -1692,25 +1691,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         &mut self,
         raw_peer_key: GenericPublicKey,
     ) -> Result<(), anyhow::Error> {
-        let peer_p256_key = raw_peer_key
-            .ec_p256_public_key
-            .ok_or_else(|| anyhow!("Missing required fields"))?;
-
-        let mut bytes = vec![0x04];
-        // Ensure no more than 32 bytes for the keys
-        if peer_p256_key.x.len() > 32 {
-            bytes.extend_from_slice(&peer_p256_key.x[peer_p256_key.x.len() - 32..]);
-        } else {
-            bytes.extend_from_slice(&peer_p256_key.x);
-        }
-        if peer_p256_key.y.len() > 32 {
-            bytes.extend_from_slice(&peer_p256_key.y[peer_p256_key.y.len() - 32..]);
-        } else {
-            bytes.extend_from_slice(&peer_p256_key.y);
-        }
-
-        let encoded_point = EncodedPoint::from_bytes(bytes)?;
-        let peer_key = PublicKey::from_encoded_point(&encoded_point).unwrap();
+        let peer_key = crate::utils::decode_p256_public_key(raw_peer_key)?;
         let priv_key = self.state.private_key.as_ref().unwrap();
 
         let dhs = diffie_hellman(priv_key.to_nonzero_scalar(), peer_key.as_affine());

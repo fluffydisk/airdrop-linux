@@ -146,6 +146,37 @@ pub fn gen_ecdsa_keypair() -> (SecretKey, PublicKey) {
     (secret_key, public_key)
 }
 
+pub fn decode_p256_public_key(
+    raw: crate::securemessage::GenericPublicKey,
+) -> Result<PublicKey, anyhow::Error> {
+    if raw.r#type != crate::securemessage::PublicKeyType::EcP256 as i32 {
+        return Err(anyhow!("Unsupported public key type"));
+    }
+    let key = raw
+        .ec_p256_public_key
+        .ok_or_else(|| anyhow!("Missing P-256 public key"))?;
+    let mut encoded = [0u8; 65];
+    encoded[0] = 4;
+    decode_coordinate(&key.x, &mut encoded[1..33])?;
+    decode_coordinate(&key.y, &mut encoded[33..])?;
+    PublicKey::from_sec1_bytes(&encoded).map_err(|_| anyhow!("Invalid P-256 point"))
+}
+
+fn decode_coordinate(bytes: &[u8], target: &mut [u8]) -> Result<(), anyhow::Error> {
+    // Java's positive BigInteger encoding may add one leading zero. Accept
+    // shorter unsigned coordinates with left padding, never truncate data.
+    let bytes = if bytes.len() == 33 && bytes[0] == 0 {
+        &bytes[1..]
+    } else {
+        bytes
+    };
+    if bytes.is_empty() || bytes.len() > 32 {
+        return Err(anyhow!("Invalid P-256 coordinate"));
+    }
+    target[32 - bytes.len()..].copy_from_slice(bytes);
+    Ok(())
+}
+
 pub fn encode_point(unsigned: Bytes) -> Result<Vec<u8>, anyhow::Error> {
     let big_int = BigUint::from_bytes_be(&unsigned)
         .to_bigint()
@@ -270,6 +301,43 @@ pub fn is_not_self_ip(ip_address: &Ipv4Addr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn p256_generator_and_signed_coordinates_decode_but_invalid_peer_points_never_panic() {
+        use crate::securemessage::{EcP256PublicKey, GenericPublicKey};
+        // NIST P-256 generator coordinates, independently specified by the curve.
+        let x = hex::decode("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296")
+            .unwrap();
+        let y = hex::decode("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5")
+            .unwrap();
+        let make = |x, y| GenericPublicKey {
+            r#type: 1,
+            ec_p256_public_key: Some(EcP256PublicKey { x, y }),
+            ..Default::default()
+        };
+        let expected = decode_p256_public_key(make(x.clone(), y.clone())).unwrap();
+        let mut signed = vec![0];
+        signed.extend_from_slice(&x);
+        assert_eq!(
+            decode_p256_public_key(make(signed, y.clone())).unwrap(),
+            expected
+        );
+        for (x, y) in [
+            (vec![0; 32], vec![0; 32]),
+            (vec![1; 33], y.clone()),
+            (vec![0; 34], y.clone()),
+            (Vec::new(), y),
+        ] {
+            assert!(decode_p256_public_key(make(x, y)).is_err());
+        }
+        assert!(
+            decode_p256_public_key(GenericPublicKey {
+                r#type: 2,
+                ..Default::default()
+            })
+            .is_err()
+        );
+    }
 
     #[test]
     fn test_gen_and_parse_mdns_info() {
