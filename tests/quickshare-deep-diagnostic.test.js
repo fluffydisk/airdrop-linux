@@ -644,7 +644,7 @@ test(
     assert.equal(report.android.status, "unauthorized");
     assert.equal(report.captureOutcome, "blocked");
     assert.equal(report.transfer.outcome, "unconfirmed");
-    assert.equal(fs.existsSync(path.join(workspace, "lab.json")), false);
+    assert.equal(JSON.parse(await fsp.readFile(path.join(workspace,"lab.json"))).prepared,false);
     assert.equal(fs.existsSync(path.join(workspace, "diagnose.lock")), false);
     noSecrets(report);
   },

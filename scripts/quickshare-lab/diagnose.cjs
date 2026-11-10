@@ -4,7 +4,11 @@ const fs = require("node:fs"),
   path = require("node:path");
 const readline = require("node:readline");
 const { performance } = require("node:perf_hooks");
-const { readJson, ownedDirectory } = require("../../lib/sharing/lab-evidence");
+const {
+  readJson,
+  ownedDirectory,
+  atomicJson,
+} = require("../../lib/sharing/lab-evidence");
 const env = require("./environment.cjs");
 const { Android } = require("./adb.cjs");
 const deep = require("./deep-report.cjs");
@@ -56,6 +60,25 @@ async function diagnose(options, lab) {
   const lock = path.join(root, "diagnose.lock");
   const lockFd = fs.openSync(lock, "wx", 0o600);
   fs.closeSync(lockFd);
+  // Initialize only an otherwise empty workspace while holding our lock. The
+  // existing preparer requires a repository marker before accepting nonempty
+  // directories. Never adopt unrelated contents or fabricate a prepared build.
+  try {
+    if (fs.readdirSync(root).every((name) => name === "diagnose.lock")) {
+      const crypto = require("node:crypto");
+      atomicJson(root, "lab.json", {
+        schema: 1,
+        repository: fs.realpathSync(env.ROOT),
+        ...env.source(),
+        run: crypto.randomBytes(16).toString("hex"),
+        prepared: false,
+      });
+    }
+  } catch (e) {
+    fs.unlinkSync(lock);
+    throw e;
+  }
+
   const opts = { ...options, workspace: root, "ble-native": true };
   const input = {
     direction: options.direction || "linux-to-samsung",

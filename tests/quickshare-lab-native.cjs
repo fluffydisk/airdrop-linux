@@ -11,7 +11,8 @@ test('S24 lab prepares, launches actual Electron/helper, collects privately and 
   assert.ok(process.env.DISPLAY || process.env.WAYLAND_DISPLAY, 'Run with Xvfb or a graphical session; keep sandboxing enabled');
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 's24-lab-native-'));
   const unrelated = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
-  const cli = (...args) => execute(process.execPath, [script, ...args, '--workspace', root], { cwd: process.cwd(), env: process.env, timeout: 90000, maxBuffer: 1024 * 1024 });
+  const cliAt = (workspace,...args) => execute(process.execPath, [script, ...args, '--workspace', workspace], { cwd: process.cwd(), env: process.env, timeout: 90000, maxBuffer: 1024 * 1024 });
+  const cli=(...args)=>cliAt(root,...args);
   t.after(async () => { await cli('--stop').catch(() => {}); unrelated.kill('SIGTERM'); await fs.rm(root, { recursive: true, force: true }); });
   const native = process.env.AIRDROP_TEST_QUICKSHARE_BLE_NATIVE === '1';
   await cli('--prepare', '--skip-install', ...(native ? ['--ble-native'] : []));
@@ -44,12 +45,14 @@ test('S24 lab prepares, launches actual Electron/helper, collects privately and 
   assert.equal(fresh.stages.C.status, 'not-tested', 'previous trial observations cannot carry over');
   await cli('--stop'); process.kill(unrelated.pid, 0);
   if(native){
-    await cli('--diagnose','--direction','linux-to-samsung','--duration','10','--network','ordinary','--archive','--skip-install');
-    const deep=JSON.parse(await fs.readFile(path.join(root,'reports/quickshare-deep-diagnostic.json')));
+    const deepRoot=path.join(root,'fresh-deep');
+    await cliAt(deepRoot,'--diagnose','--direction','linux-to-samsung','--duration','10','--network','ordinary','--archive','--skip-install');
+    const deep=JSON.parse(await fs.readFile(path.join(deepRoot,'reports/quickshare-deep-diagnostic.json')));
     assert.equal(deep.build.helperHashVerified,true);assert.equal(deep.build.sourceVerified,true);
     assert.equal(deep.captureOutcome,'completed');assert.equal(deep.shutdown.classification,'clean-stop');
     assert.equal(deep.transfer.outcome,'unconfirmed');assert.equal(deep.samsungCompatibilityEstablished,false);
     assert.equal(JSON.stringify(deep).includes(root),false);
-    await assert.rejects(fs.lstat(path.join(root,'control.sock')),{code:'ENOENT'});
+    await assert.rejects(fs.lstat(path.join(deepRoot,'control.sock')),{code:'ENOENT'});
+    assert.equal((await fs.readdir(deepRoot)).includes('diagnose.lock'),false);
   }
 });
