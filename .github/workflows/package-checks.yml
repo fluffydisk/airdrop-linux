@@ -240,6 +240,7 @@ jobs:
           path: Airdrop.flatpak
   snap:
     needs: native
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -261,14 +262,15 @@ jobs:
         run: sudo snap install snapcraft --classic --channel=8.x/stable
       - run: npm ci
       - name: Build and exercise strict Snap
-        timeout-minutes: 20
+        timeout-minutes: 35
         env:
           PACKAGE_ARCH: ${{ matrix.target.arch }}
         run: |
+          trap 'snap_result=$?; snap changes > "$RUNNER_TEMP/snap-changes.log" 2>&1 || true; df -h > "$RUNNER_TEMP/snap-disk.log"; free -m > "$RUNNER_TEMP/snap-memory.log"; exit "$snap_result"' EXIT
           node scripts/prepare-channels.js --local
           mkdir -p snap-build/snap
           cp "release/local-submissions/snap/snapcraft-$PACKAGE_ARCH.yaml" snap-build/snap/snapcraft.yaml
-          (cd snap-build && bash ../scripts/ci-command.sh Snap-build timeout --kill-after=30s 12m sudo snapcraft pack --destructive-mode)
+          (cd snap-build && /usr/bin/time -v -o "$RUNNER_TEMP/snap-resource.log" bash ../scripts/ci-command.sh Snap-build timeout --kill-after=30s 25m sudo snapcraft pack --destructive-mode) 2>&1 | tee "$RUNNER_TEMP/snapcraft.log"
           # This is our locally built, unsigned test artifact; store content snaps
           # retain their normal assertion/signature verification.
           # snapd currently gates user-scoped daemons behind this feature flag.
@@ -297,3 +299,10 @@ jobs:
         with:
           name: snap-${{ matrix.target.arch }}
           path: snap-build/*.snap
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snap-diagnostics-${{ matrix.target.arch }}
+          path: |
+            ${{ runner.temp }}/snap*.log
+            snap-build/.snapcraft/log/**

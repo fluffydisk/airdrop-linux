@@ -1,7 +1,10 @@
 name: Experimental Quick Share foundation
 on:
   pull_request:
-    paths: ['network/quickshare/**', 'lib/sharing/**', 'tests/quickshare*', 'tests/fixtures/quickshare*', 'scripts/build-quickshare.js', '.github/workflows/quickshare-validation.yml']
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_call:
   workflow_dispatch:
 permissions:
   contents: read
