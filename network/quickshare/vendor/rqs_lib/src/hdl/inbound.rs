@@ -1902,20 +1902,28 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
     where
         F: FnOnce(&mut InnerState),
     {
+        let previous = self.state.state.clone();
         f(&mut self.state);
 
-        if !inform {
+        if !inform && previous == self.state.state {
             return;
         }
 
         trace!("Sending msg into the channel");
         let _ = self.sender.send(ChannelMessage {
             id: self.state.id.clone(),
-            msg: channel::Message::Client(MessageClient {
-                kind: TransferKind::Inbound,
-                state: Some(self.state.state.clone()),
-                metadata: self.state.transfer_metadata.clone(),
-            }),
+            msg: if inform {
+                channel::Message::Client(MessageClient {
+                    kind: TransferKind::Inbound,
+                    state: Some(self.state.state.clone()),
+                    metadata: self.state.transfer_metadata.clone(),
+                })
+            } else {
+                channel::Message::Protocol {
+                    kind: TransferKind::Inbound,
+                    stage: self.state.state.clone(),
+                }
+            },
         });
         // Add a small sleep timer to allow the Tokio runtime to have
         // some spare time to process channel's message. Otherwise it
@@ -2305,5 +2313,50 @@ mod framing_regressions {
         let mut body = [0; 2];
         stream_read_exact(&mut req.socket, &mut body).await.unwrap();
         assert_eq!(body, [8, 1]);
+    }
+}
+
+#[cfg(test)]
+mod diagnostics_tests {
+    use super::*;
+    #[tokio::test]
+    async fn handshake_transitions_emit_only_state_not_private_metadata() {
+        let (socket, _peer) = tokio::io::duplex(64);
+        let (sender, mut observed) = tokio::sync::broadcast::channel(10);
+        let mut request = InboundRequest::new(socket, "test-session".into(), sender);
+        request.state.pin_code = Some("1234".into());
+        request.state.transfer_metadata = Some(TransferMetadata {
+            id: "private-id".into(),
+            source: None,
+            pin_code: Some("1234".into()),
+            payload_kind: TransferPayloadKind::Files,
+            payload_preview: None,
+            payload: None,
+            destination: Some("/private/path".into()),
+            saved_paths: None,
+            total_bytes: 0,
+            ack_bytes: 0,
+        });
+        request
+            .update_state(
+                |state| state.state = TransferState::ReceivedConnectionRequest,
+                false,
+            )
+            .await;
+        let message = observed.recv().await.unwrap();
+        let channel::Message::Protocol { kind, stage } = message.msg.clone() else {
+            panic!("Expected diagnostic event");
+        };
+        assert_eq!(kind, TransferKind::Inbound);
+        assert_eq!(stage, TransferState::ReceivedConnectionRequest);
+        assert!(!format!("{message:?}").contains("1234"));
+        assert!(!format!("{message:?}").contains("/private"));
+        request
+            .update_state(|state| state.server_seq += 1, false)
+            .await;
+        assert!(
+            observed.try_recv().is_err(),
+            "key/sequence changes are not diagnostic state transitions"
+        );
     }
 }

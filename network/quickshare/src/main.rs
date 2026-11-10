@@ -11,6 +11,9 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{broadcast, mpsc};
 
+#[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
+mod fast_init;
+
 const IPC_LIMIT: usize = 64 * 1024;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -34,6 +37,9 @@ struct Engine {
     transfers: HashMap<String, Value>,
     consent: HashMap<String, Instant>,
     staging: Option<PathBuf>,
+    protocol_diagnostics: bool,
+    #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
+    fast_init: Option<fast_init::FastInit>,
 }
 impl Engine {
     fn new() -> Self {
@@ -44,6 +50,9 @@ impl Engine {
             transfers: HashMap::new(),
             consent: HashMap::new(),
             staging: None,
+            protocol_diagnostics: false,
+            #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
+            fast_init: None,
         }
     }
     fn make_room(&mut self, id: &str) -> bool {
@@ -76,11 +85,15 @@ impl Engine {
         match req.method.as_str() {
             "hello" => Ok(
                 json!({"protocol":1,"version":env!("CARGO_PKG_VERSION"),"experimental":true,"license":"GPL-3.0-only",
-                "capabilities":{"lan":true,"ble":false,"direct":false,"resume":false,"persistentTrust":false}}),
+                "capabilities":{"lan":true,"ble":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
             ),
             "start" => {
                 if self.service.is_some() {
                     bail!("ALREADY_STARTED");
+                }
+                let request_fastinit = req.params["bleFastInit"].as_bool().unwrap_or(false);
+                if request_fastinit && !cfg!(all(feature = "ble-fastinit", target_os = "linux")) {
+                    bail!("FASTINIT_NOT_COMPILED");
                 }
                 let directory = req.params["staging"]
                     .as_str()
@@ -146,7 +159,30 @@ impl Engine {
                 self.staging = Some(directory);
                 self.sender = Some(sender);
                 self.service = Some(service);
-                Ok(json!({"started":true,"port":port}))
+                self.protocol_diagnostics =
+                    req.params["protocolDiagnostics"].as_bool().unwrap_or(false);
+                let fastinit_state = if request_fastinit {
+                    #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
+                    {
+                        match tokio::time::timeout(Duration::from_secs(4), fast_init::register())
+                            .await
+                        {
+                            Ok(Ok(handle)) => {
+                                self.fast_init = Some(handle);
+                                "registered-for-120s"
+                            }
+                            Ok(Err(code)) => code,
+                            Err(_) => "bluez-timeout",
+                        }
+                    }
+                    #[cfg(not(all(feature = "ble-fastinit", target_os = "linux")))]
+                    {
+                        "not-compiled"
+                    }
+                } else {
+                    "not-requested"
+                };
+                Ok(json!({"started":true,"port":port,"bleFastInitState":fastinit_state}))
             }
             "snapshot" => Ok(
                 json!({"recipients": self.recipients.values().collect::<Vec<_>>(), "transfers": self.transfers.values().collect::<Vec<_>>()}),
@@ -234,6 +270,12 @@ impl Engine {
         }
     }
     fn protocol(&mut self, event: ChannelMessage) -> Option<Value> {
+        if let Message::Protocol { kind, stage } = &event.msg {
+            return self.protocol_diagnostics.then(|| json!({"v":1,"event":"protocol","data":{
+                "id":event.id, "direction":if *kind == TransferKind::Inbound {"incoming"} else {"outgoing"},
+                "protocolStage":format!("{stage:?}")
+            }}));
+        }
         let Message::Client(message) = event.msg else {
             return None;
         };
@@ -257,6 +299,7 @@ impl Engine {
             "outgoing"
         });
         if let Some(state) = message.state {
+            value["protocolStage"] = json!(format!("{state:?}"));
             value["phase"] = json!(match state {
                 TransferState::WaitingForUserConsent => "awaiting-acceptance",
                 TransferState::ReceivingFiles | TransferState::SendingFiles => "transferring",
@@ -304,6 +347,10 @@ impl Engine {
         Some(json!({"v":1,"event":"transfer","data":value}))
     }
     async fn stop(&mut self) {
+        #[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
+        {
+            self.fast_init.take();
+        }
         if let Some(mut service) = self.service.take() {
             let _ = tokio::time::timeout(Duration::from_secs(5), service.stop()).await;
         }
@@ -465,6 +512,25 @@ mod tests {
         let reply = engine.command(&request, &events).await.unwrap();
         assert_eq!(reply["capabilities"]["direct"], false);
         assert!(engine.service.is_none());
+    }
+    #[test]
+    fn diagnostics_are_opt_in_and_never_request_early_consent() {
+        let mut engine = Engine::new();
+        let event = ChannelMessage {
+            id: "diagnostic-session".into(),
+            msg: Message::Protocol {
+                kind: TransferKind::Inbound,
+                stage: TransferState::WaitingForUserConsent,
+            },
+        };
+        assert!(engine.protocol(event.clone()).is_none());
+        engine.protocol_diagnostics = true;
+        let value = engine.protocol(event).unwrap();
+        assert_eq!(value["event"], "protocol");
+        assert_eq!(value["data"]["protocolStage"], "WaitingForUserConsent");
+        assert!(engine.transfers.is_empty());
+        assert!(engine.consent.is_empty());
+        assert!(value["data"]["pinCode"].is_null());
     }
     #[test]
     fn history_evicts_terminal_records_without_aborting_active_transfers() {

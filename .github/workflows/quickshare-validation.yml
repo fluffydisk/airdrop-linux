@@ -24,7 +24,7 @@ jobs:
         with:
           toolchain: '1.99.1'
           components: rustfmt, clippy
-      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler pkg-config libdbus-1-dev python3-cryptography
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler pkg-config libdbus-1-dev python3-cryptography xvfb dbus-x11
       - run: npm ci --ignore-scripts
       - run: cargo fmt --all --check
         working-directory: network/quickshare
@@ -32,13 +32,28 @@ jobs:
         working-directory: network/quickshare
       - run: cargo clippy --workspace --locked
         working-directory: network/quickshare
+      - name: Compile and test optional bounded FastInit without enabling upstream wireless
+        run: cargo test --workspace --locked --features airdrop-quickshare/ble-fastinit
+        working-directory: network/quickshare
       - run: node scripts/build-quickshare.js
       - name: Process boundary and real native lifecycle (no Android claim)
         run: |
-          node --test tests/quickshare-adapter.test.js
+          node --test tests/quickshare-adapter.test.js tests/quickshare-lab.test.js
           AIRDROP_TEST_QUICKSHARE_HELPER="$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" node --test tests/quickshare-native.cjs
       - name: Independent Python protocol client (not Android acceptance)
         run: AIRDROP_TEST_QUICKSHARE_HELPER="$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" /usr/bin/python3 tests/quickshare-independent.py
       - name: Independent-network native protocol regression (same implementation, no Android claim)
         timeout-minutes: 5
         run: sudo env "PATH=$PATH" "AIRDROP_TEST_QUICKSHARE_HELPER=$PWD/.cache/quickshare/$(node -p process.arch)/airdrop-quickshare" node --test tests/quickshare-protocol.cjs
+      - run: npm ci --prefix desktop --ignore-scripts
+      - run: node desktop/node_modules/electron/install.js
+      - name: Actual S24 lab prepare/start/report/stop with Electron sandbox
+        run: |
+          profile="$RUNNER_TEMP/s24-electron.apparmor"
+          if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+            node scripts/desktop-apparmor.js "$(node -p 'require("./desktop/node_modules/electron")')" > "$profile"
+            sudo apparmor_parser --replace "$profile"
+            trap 'sudo apparmor_parser --remove "$profile"' EXIT
+          fi
+          xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-native.cjs
+          xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-desktop.cjs

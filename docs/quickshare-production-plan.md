@@ -65,7 +65,7 @@ network namespaces remain the first category even with correct hashes.
 | M2 hardening | First remediation implemented; broader robustness work pending | Independent opposite-role/Google oracle coverage, cancellation at every stage, supervision, per-file immutable IPC manifests, publication/crash journal, measured resource/fuzz tests |
 | M3 discovery | Minimum BLE bootstrap implementation and physical baseline pending | Pixel/Galaxy list Linux, authenticated matching codes and native prompts; no dependence on LAN-only behavior |
 | M4 native files | Same-core traffic only verified | Stock phones exchange corpus both directions with independent hashes and accurate outcomes |
-| M5 physical acceptance | BLOCKED: no phones or radio controllers attached | Complete lab procedure, negative cases, 30 discovery attempts and 100-transfer soak per model/direction |
+| M5 physical acceptance | Awaiting owner-assisted S24+ evidence; Pixel still unavailable | Complete lab procedure, negative cases, 30 discovery attempts and 100-transfer soak per model/direction |
 | M6 distribution | Stable exclusion preserved; native packaging not implemented | All six formats/architectures run the actual helper; matching corresponding source, notices/SBOM and required legal review |
 | M7 release | BLOCKED by M3–M6 | Required checks/signing, package upgrades/rollback, real Android evidence bound to final artifacts |
 
@@ -133,3 +133,17 @@ Complete remaining M2 independent opposite-role and failure coverage, obtain the
 baseline, then implement minimum BLE behind a development gate. Follow
 quickshare-android-lab.md. Never turn missing hardware into a successful test.
 Do not enable or publish stable native support before the gates above pass.
+
+## Owner-assisted S24+ checkpoint
+
+The owner now supplies a physical Galaxy S24+. Do not terminate engineering only
+because the cloud has no phone. Use `scripts/quickshare-android-lab.sh` and
+`docs/quickshare-s24-test.md` for prepare/start/observe/collect/stop, then diagnose
+and iterate from returned evidence. Harness tests are automated software results,
+never a stock Samsung success. Pixel and stable release gates remain outstanding.
+
+An optional separate `ble-fastinit` wrapper feature sends a bounded FE2C sender
+nudge. It does not enable the vendored experimental feature, register FEF3/GATT,
+scan, change adapter power or orchestrate networks. Full receiver bootstrap and
+LAN upgrade remain pending. No native Bluetooth transfer or Samsung BLE success
+has been claimed.

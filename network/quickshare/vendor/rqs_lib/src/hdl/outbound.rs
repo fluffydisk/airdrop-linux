@@ -2159,19 +2159,27 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
     where
         F: FnOnce(&mut InnerState),
     {
+        let previous = self.state.state.clone();
         f(&mut self.state);
 
-        if !inform {
+        if !inform && previous == self.state.state {
             return;
         }
 
         let _ = self.sender.send(ChannelMessage {
             id: self.state.id.clone(),
-            msg: channel::Message::Client(MessageClient {
-                kind: TransferKind::Outbound,
-                state: Some(self.state.state.clone()),
-                metadata: self.state.transfer_metadata.clone(),
-            }),
+            msg: if inform {
+                channel::Message::Client(MessageClient {
+                    kind: TransferKind::Outbound,
+                    state: Some(self.state.state.clone()),
+                    metadata: self.state.transfer_metadata.clone(),
+                })
+            } else {
+                channel::Message::Protocol {
+                    kind: TransferKind::Outbound,
+                    stage: self.state.state.clone(),
+                }
+            },
         });
         // Add a small sleep timer to allow the Tokio runtime to have
         // some spare time to process channel's message. Otherwise it

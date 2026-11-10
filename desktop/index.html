@@ -44,6 +44,12 @@
 <div class="workspace">
   <header class="topbar"><span class="breadcrumb">Workspace <span>/</span> <strong id="viewLabel">Transfer</strong></span><div class="topbar-actions"><button class="connection connection-button" id="sharingStatus" type="button" aria-label="Open connection settings">Preparing connection…</button><span class="connection" id="health" data-status="offline" role="status">Checking services…</span><button class="icon-button" id="themeToggle" aria-label="Switch to light theme" title="Switch theme"><svg aria-hidden="true"><use href="#i-sun"/></svg></button></div></header>
   <main id="mainContent" tabindex="-1"><div class="result" id="updateBanner" hidden><span id="updateNotice"></span> <button class="button" id="showUpdate">View update</button> <button class="text-button" id="dismissUpdate">Dismiss</button></div>
+    <aside id="quickshareLab" class="result" hidden aria-label="Quick Share development laboratory">
+      <strong>Samsung S24+ lab — DEVELOPMENT BUILD</strong>
+      <p id="labBuild"></p><p id="labRuntime" aria-live="polite"></p>
+      <p id="labCapabilities"></p><p id="labFolders"></p>
+      <p>Use the Transfer recipient selector for native Quick Share. Workspace-server warnings refer to other features; this lab does not start those servers.</p>
+    </aside>
     <section id="view-transfer" class="view">
       <div class="page-heading"><h1>Transfer</h1><p>Share with your connected devices. Keep your files close.</p></div>
 
@@ -214,4 +220,4 @@
   <p id="wizardError" class="field-help" role="alert" hidden></p>
   <button class="button" id="wizardContinue">Set up later</button>
 </dialog>
-<script src="core/ui/explorer.js"></script><script src="nearby-ui.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script><script src="sharing-ui.js"></script></body></html>
+<script src="core/ui/explorer.js"></script><script src="nearby-ui.js"></script><script src="renderer.js"></script><script src="connection-progress.js"></script><script src="devices-ui.js"></script><script src="sharing-ui.js"></script><script src="quickshare-lab-ui.js"></script></body></html>

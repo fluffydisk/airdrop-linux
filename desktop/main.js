@@ -15,6 +15,7 @@ const { workspaceUrl, checkConnection } = require('./connection');
 const { openFolder, dragFiles, withPortalFiles, retrieveClipboardFiles } = require('./file-integration');
 const paths = getPaths();
 const distribution = require('./core/lib/installation').distribution();
+const quickshareLab = require('./core/lib/sharing/lab-evidence').openLab({ directory: process.env.AIRDROP_QUICKSHARE_LAB_DIR, repository: path.resolve(__dirname, '..'), packaged: app.isPackaged, enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1' });
 if (process.platform === 'linux' && distribution.managed) {
   // Match the installed desktop file for portal identity and window grouping.
   app.setDesktopName('io.github.fluffydisk.airdrop-linux.desktop');
@@ -78,6 +79,7 @@ function signInToProvider(){
 }
 let devicesReady, nearbyReady, quickshareReady;
 const nearby = new (require('./core/lib/nearby').Nearby)({
+  ...(quickshareLab ? { name: 'Airdrop S24 Lab', port: 0 } : {}),
   maintenanceRoot: paths.root, directory: path.join(desktopData, 'nearby'), inbox: path.join(process.env.AIRDROP_SHARE_DIR || paths.files, 'Received'),
   approve: async request => {
     if (!window || window.isDestroyed() || quitting) return false;
@@ -89,7 +91,7 @@ const nearby = new (require('./core/lib/nearby').Nearby)({
       signal: approval.signal, type: 'question', buttons: [pairing ? 'Pair device' : 'Accept files', 'Decline'], defaultId: 1, cancelId: 1,
       message: pairing ? `Pair with “${request.name}”?` : `Receive files from “${request.name}”?`,
       detail: pairing ? `Compare this code on both devices: ${request.code}\nOnly pair if the codes match. Pairing permits file transfer requests, with acceptance required. It grants no workspace or clipboard access.` :
-        `${request.code ? 'Compare this code on both devices: ' + request.code + '\n' : ''}${request.files.length} files · ${(request.total ?? request.files.reduce((n, f) => n + (f.size || 0), 0)).toLocaleString()} bytes\n${request.files.slice(0, 8).map(f => f.name).join('\n')}\nSaved to Airdrop/Received. Requests expire after 60 seconds.`
+        `${request.code ? 'Compare this code on both devices: ' + request.code + '\n' : ''}${request.files.length} files · ${(request.total ?? request.files.reduce((n, f) => n + (f.size || 0), 0)).toLocaleString()} bytes\n${request.files.slice(0, 8).map(f => f.name).join('\n')}\n${quickshareLab ? 'Saved to the private lab inbox shown in the development panel.' : 'Saved to Airdrop/Received.'} Requests expire after 60 seconds.`
     });
     return response.response === 0;
     } finally { clearTimeout(expiry); }
@@ -102,9 +104,12 @@ try { quickshareMetadata = JSON.parse(fs.readFileSync(path.join(quickshareDirect
 const quickshare = new (require('./core/lib/sharing/quickshare').QuickShare)({
   enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1',
   helper: path.join(quickshareDirectory, 'airdrop-quickshare'), sha256: quickshareMetadata.sha256,
+  bleFastInit: process.env.AIRDROP_QUICKSHARE_BLE_FASTINIT === '1',
   directory: path.join(desktopData, 'quickshare'), inbox: nearby.store.inbox,
-  approve: request => nearby.approve(request)
+  ...(quickshareLab ? { name: 'Airdrop S24 Lab', port: 0, protocolDiagnostics: true } : {}),
+  approve: request => quickshareLab ? quickshareLab.approve(() => nearby.approve(request)) : nearby.approve(request)
 });
+quickshareLab?.attach(quickshare);
 quickshare.on('progress', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:peer-progress', { ...value, status: value.phase }); });
 quickshare.on('verification', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:sharing-verification', value); });
 const sharing = new (require('./core/lib/sharing/broker').SharingBroker)({ nearby, devices, quickShare: quickshare });
@@ -117,6 +122,11 @@ function ownWindow(event) {
   if (!window || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('Invalid IPC sender');
 }
 async function health() {
+  if (quickshareLab) {
+    state = { status: 'lab', label: 'Native Quick Share lab · workspace servers off' };
+    if (window && !window.isDestroyed()) window.webContents.send('airdrop:status', state);
+    return state;
+  }
   const check = async url => {
     try { return (await fetch(url, { signal: AbortSignal.timeout(3000) })).ok; } catch { return false; }
   };
@@ -140,7 +150,7 @@ async function readSettings() {
     const saved = JSON.parse(await fs.promises.readFile(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
     pwaUrl = workspaceUrl(saved.pwaUrl);
   } catch {}
-  return { pwaUrl, deviceName: os.hostname() };
+  return { pwaUrl, deviceName: quickshareLab ? 'Airdrop S24 Lab' : os.hostname() };
 }
 async function openPwa() {
   if(devices.state.mode !== 'local')return shell.openExternal(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`);
@@ -162,12 +172,15 @@ function registerIpc() {
   ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
     ownWindow(event); await devicesReady;
     if (action === 'diagnostics') return quickshare.diagnostics();
+    if (action === 'lab-info') return quickshareLab?.info() || { enabled: false };
     if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
     if (action === 'cancel') return payload.transport === 'quick-share' ? quickshare.cancel(payload.id) : nearby.cancel(payload.id);
     if (action === 'invitation-stop') return sharing.stopInvitation();
     if (action === 'invitation-copy') { clipboard.writeText(sharing.invitationLink()); return; }
     if (action === 'invitation-start' || action === 'send') {
+      if (quickshareLab && (action !== 'send' || !payload.recipientId?.startsWith('quick-share:'))) throw Error('This laboratory tests native Quick Share only. Choose a Quick Share recipient.');
       if ((!payload.retryId || payload.recipientId?.startsWith('quick-share:')) && (!Array.isArray(payload.sources) || payload.sources.length > 1000 || !payload.sources.every(p => allowedPaths.has(p)))) throw Error('Choose files first');
+      if (quickshareLab) quickshareLab.authorizeSources(payload.sources);
       if (action === 'invitation-start') return sharing.startInvitation(payload);
       if (payload.recipientId?.startsWith('quick-share:')) await quickshareReady; else await nearbyReady;
       return sharing.send(payload);
@@ -184,6 +197,7 @@ function registerIpc() {
     if (action === 'cancel-incoming') return nearby.store.cancel(payload.id, payload.peer);
     if (action === 'inbox') return shell.openPath(nearby.store.inbox);
     if (action === 'send') {
+      if (quickshareLab) throw Error('This laboratory tests native Quick Share only. Use the Quick Share recipient selector.');
       if (!payload.retryId && (!Array.isArray(payload.sources) || !payload.sources.length || payload.sources.length > 1000 || !payload.sources.every(p => allowedPaths.has(p)))) throw Error('Choose files first');
       return nearby.send(payload.id, payload.sources, payload.retryId);
     }
@@ -199,6 +213,7 @@ function registerIpc() {
   });
   ipcMain.handle('airdrop:devices',async(event,action,payload)=>{
     ownWindow(event);await devicesReady;
+    if (quickshareLab && !['state', 'preferences'].includes(action)) throw Error('Use native Quick Share in the laboratory Transfer view; connection providers are not part of this test.');
     if(action==='guest-start'){
       let sources=[];
       if(payload?.selectFiles){const chosen=await dialog.showOpenDialog(window,{title:'Choose files for this guest session',properties:['openFile','multiSelections']});if(chosen.canceled)return null;sources=chosen.filePaths;}
@@ -305,7 +320,7 @@ function registerIpc() {
   ipcMain.handle('airdrop:clipboard-share', (event, text) => { ownWindow(event); return operation(() => writeSharedClipboard(shareDir, text)); });
   ipcMain.handle('airdrop:choose', async event => {
     ownWindow(event);
-    const result = await dialog.showOpenDialog(window, { properties: ['openFile', 'multiSelections'] });
+    const result = await dialog.showOpenDialog(window, { properties: ['openFile', 'multiSelections'], ...(quickshareLab ? { defaultPath: path.join(quickshareLab.root, 'fixtures') } : {}) });
     for (const file of result.filePaths) allowedPaths.add(file);
     return result.filePaths;
   });
@@ -317,6 +332,7 @@ function registerIpc() {
   });
   ipcMain.handle('airdrop:send', async (event, sources, zip, destination = '') => {
     ownWindow(event);
+    if (quickshareLab) throw Error('Workspace sends are disabled in this native Quick Share laboratory.');
     if (sending) throw new Error('A transfer is already running');
     if (!Array.isArray(sources) || !sources.length || sources.length > 1000 || !sources.every(file => allowedPaths.has(file)) || typeof zip !== 'boolean') throw new Error('Choose files first');
     sending = true;
@@ -436,13 +452,13 @@ else {
         });
       return;
     }
-    if(!quitting){event.preventDefault();quitting=true;Promise.all([sharing.stop(), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
+    if(!quitting){event.preventDefault();quitting=true;quickshareLab?.evidence.event('shutdown-requested');Promise.all([sharing.stop(), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
     quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
     devicesReady = devices.initialize();
     nearbyReady = nearby.initialize().catch(error => { console.error('Nearby unavailable:', error.message); throw error; });
     nearbyReady.catch(() => {});
-    quickshareReady = quickshare.start().catch(error => { quickshare.failure(error.message, false); });
+    quickshareReady = quickshare.start().catch(error => { quickshare.failure(error.message, false); }).finally(() => quickshareLab?.ready());
     Menu.setApplicationMenu(null);
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
       icon: path.join(__dirname, 'core/ui/icon-192.png'),
@@ -453,6 +469,11 @@ else {
     window.webContents.session.setPermissionRequestHandler((contents, permission, callback) => callback(false));
     registerIpc();
     await window.loadFile(path.join(__dirname, 'index.html'));
+    if (quickshareLab) {
+      const title = 'Airdrop S24 Lab — DEVELOPMENT ' + quickshareLab.marker.commit.slice(0, 12);
+      window.setTitle(title);
+      window.on('page-title-updated', event => { event.preventDefault(); window.setTitle(title); });
+    }
     // Without a StatusNotifier host, stay a normal window application.
     if (!process.env.AIRDROP_DISABLE_TRAY) {
       try {
@@ -483,4 +504,5 @@ else {
     if (!process.env.AIRDROP_DISABLE_UPDATE_CHECK) updateTimer = setInterval(backgroundUpdate, 60000);
   }).catch(error => { console.error(error); app.quit(); });
   app.on('window-all-closed', () => { if (!backgroundPolicy.active) app.quit(); });
+  app.once('will-quit', () => quickshareLab?.close());
 }

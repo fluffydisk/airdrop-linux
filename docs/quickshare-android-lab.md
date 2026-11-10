@@ -1,7 +1,9 @@
 # Stock Android native Quick Share acceptance
 
-Status: BLOCKED, no physical Android/Windows peer or Bluetooth/Wi-Fi controller
-is attached to the cloud environment. This document is a procedure, not results.
+The cloud still has no physical radio/phone, but the owner has a Galaxy S24+.
+Use [the S24+ harness and guide](quickshare-s24-test.md) for owner-assisted trials;
+acceptance is awaiting that evidence, not permanently blocked. This document is
+a general procedure, not a record of successful tests.
 
 Use stock Pixel and Galaxy, x64 and ARM64 Linux hosts, configurable AP, Ethernet
 and real Bluetooth controllers. Windows Quick Share is secondary. Record a run

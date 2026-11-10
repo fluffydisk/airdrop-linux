@@ -15,6 +15,7 @@ Files modified by Airdrop Linux, recorded 2026-11-10:
 | File under vendor/rqs_lib | Changes |
 | --- | --- |
 | Cargo.toml | Locked Git dependencies; disabled default wireless features; release profile moved to workspace root |
+| src/channel.rs | Separate typed protocol diagnostics containing no transfer metadata |
 | src/lib.rs | Local receive directory; headless modules and feature guard |
 | src/manager.rs | Bounded incoming sessions/timeouts; correct outgoing UUID on failure |
 | src/utils.rs | Anonymous advertisements, validated P-256 coordinates, persistent frame prefix, version/name/TLV bounds |
@@ -35,3 +36,16 @@ dependency license/SBOM review, final-package source/binary provenance,
 installation-information assessment and required specialist review remain gates.
 IPC separation is not a copyleft exemption. See THIRD-PARTY-NOTICES.md for the
 Chromium schema's distinct BSD terms and remaining historical mapping question.
+
+2026-11-10 owner-assisted lab addition: wrapper `src/fast_init.rs` borrows FE2C
+advertisement bytes from upstream core_lib/src/hdl/blea.rs at the same pin,
+retaining GPL terms. The new wrapper feature uses bluer/D-Bus only for a bounded
+sender advertisement, with vendored libdbus for portable development builds.
+Dependency/source obligations for any binary distribution still need audit.
+It does not enable the upstream experimental GATT/L2CAP/hotspot paths.
+
+Owner-lab diagnostics also publish named protocol state transitions without any
+metadata when the original update requested no public metadata. Keys, codes,
+addresses and payload contents are never part of those diagnostic transitions.
+The adapter preserves them separately from coalesced progress; lab export maps
+session IDs to bounded per-run aliases and allowlists stage names.

@@ -16,6 +16,8 @@ name = "airdrop-quickshare"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bluer",
+ "dbus",
  "rqs_lib",
  "serde",
  "serde_json",

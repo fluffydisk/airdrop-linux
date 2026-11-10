@@ -10,14 +10,17 @@
   };
   const button = (text, run) => { const b = document.createElement('button'); b.className = 'button'; b.textContent = text; b.onclick = async () => { b.disabled = true; try { await run(); } finally { b.disabled = false; } }; return b; };
   function renderDevices(state) {
-    const key = JSON.stringify([state.devices, state.enabled, state.discoveryError, state.quickShareError, state.concurrency, state.pairing, state.port]);
+    const laboratory = document.body.dataset.quickshareLab === 'true';
+    const key = JSON.stringify([laboratory, state.devices, state.enabled, state.discoveryError, state.quickShareError, state.concurrency, state.pairing, state.port]);
     if (key === devicesKey) return; devicesKey = key;
     get('nearbyEnabled').checked = state.enabled; get('nearbyConcurrency').value = String(state.concurrency);
     if (document.activeElement !== get('nearbyPort')) get('nearbyPort').value = state.preferredPort ?? 53318;
     get('nearbyStatus').textContent = state.quickShareError ? 'Quick Share unavailable: ' + state.quickShareError : state.pairing ? `Pairing with ${state.pairing.name}. Compare code on both devices: ${state.pairing.code}. Waiting for acceptance…` : !state.enabled ? 'Nearby sharing is off. Share link / QR is still available.' : state.discoveryError || (state.devices.some(d => d.online) ? 'Direct local network · encrypted · no internet relay' : 'No reachable nearby devices yet. This network may limit discovery or direct connections. Choose Share link / QR to use another permitted route.');
+    if (laboratory && !state.quickShareError) get('nearbyStatus').textContent = state.devices.some(d => d.online) ? 'Native Quick Share recipients are available. Compare codes for every transfer.' : 'No native Quick Share recipients yet. Keep Samsung Receive visible. BLE/GATT receiver bootstrap is not implemented.';
     const destination = get('sendDestination'), previous = destination.value;
     const options = state.devices.filter(d => d.trusted || d.transport === 'quick-share').map(d => { const option = new Option(d.name + (d.online ? d.transport === 'quick-share' ? ' · Quick Share (experimental)' : ' · Nearby' : ' · Offline'), d.id); option.disabled = !d.online; return option; });
-    options.push(new Option('Share link / QR', 'guest'), new Option('Shared workspace', ''));
+    if (laboratory) options.unshift(new Option('Choose a native Quick Share recipient', ''));
+    else options.push(new Option('Share link / QR', 'guest'), new Option('Shared workspace', ''));
     if (previous && !options.some(option => option.value === previous)) {
       const missing = new Option('Unavailable recipient · choose another device or Share link / QR', previous);
       missing.disabled = true; options.unshift(missing);
@@ -86,6 +89,7 @@
         state.outgoing = [...state.outgoing, ...records.filter(s => s.direction === 'outgoing')];
         state.incoming = [...state.incoming, ...records.filter(s => s.direction === 'incoming')];
       }
+      if (document.body.dataset.quickshareLab === 'true') state.devices = state.devices.filter(d => d.transport === 'quick-share');
       if (document.activeElement !== get('nearbyName')) get('nearbyName').value = state.name;
       renderDevices(state); renderTransfers(state);
     } catch (e) { get('nearbyStatus').textContent = 'Nearby sharing unavailable: ' + e.message; }
@@ -101,6 +105,7 @@
   get('nearbySaveName').onclick = () => action('configure', { name: get('nearbyName').value });
   get('nearbySavePort').onclick = () => action('configure', { port: Number(get('nearbyPort').value) });
   get('nearbyClearHistory').onclick = () => action('configure', { clearHistory: true });
+  window.addEventListener('airdrop-lab-mode', () => refresh());
   window.airdrop.onPeerProgress?.(() => refresh());
   refresh(); setInterval(refresh, 1500);
 })();

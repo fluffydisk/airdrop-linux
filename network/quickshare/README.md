@@ -2,8 +2,9 @@
 
 This is an opt-in development component. It is not enabled, installed or shipped
 by the application's current release pipeline. Android/Samsung/Windows physical
-acceptance is pending. BLE and direct wireless are absent from the helper build;
-the upstream `experimental` Cargo feature is not enabled.
+acceptance is pending. The default helper is LAN-only. BLE receiver bootstrap
+and direct wireless are absent; the upstream `experimental` feature is not enabled.
+An optional separate FE2C sender-nudge experiment is described below.
 
 The active execution record is `docs/quickshare-production-plan.md`; the stock
 device procedure is `docs/quickshare-android-lab.md`. Minimum BLE bootstrap is
@@ -128,3 +129,14 @@ directional keys, bad commitment/MAC/replay rejection, declined consent and
 empty/binary Unicode reception with independent hashes. It does not validate
 Android, BLE, the independent receiver role or Node publication. Its explicit
 fixture consent never changes production receiving defaults.
+
+For the owner's real Galaxy S24+, use `scripts/quickshare-android-lab.sh` and
+`docs/quickshare-s24-test.md`. The optional wrapper `ble-fastinit` feature
+(`node scripts/build-quickshare.js --ble-fastinit`, or lab prepare with that flag)
+adds only a bounded 120-second FE2C sender advertisement after explicit runtime
+request. It never powers a controller, scans or enables upstream wireless code.
+BlueZ failures are classified without raw device data and preserve LAN operation.
+Full FEF3/GATT/weave receiver bootstrap and authenticated LAN upgrade are pending.
+Default IPC is unchanged; named metadata-free protocol diagnostics are an
+explicit `protocolDiagnostics` start capability used by the lab only. They do
+not create transfer/consent state and never carry keys, codes or endpoint data.
