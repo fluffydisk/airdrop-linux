@@ -27,6 +27,7 @@ pub mod errors;
 pub mod hdl;
 pub mod manager;
 pub mod receive_safety;
+mod secure_payload;
 pub const AIRDROP_LAN_ONLY: bool = !cfg!(feature = "experimental");
 pub mod utils;
 

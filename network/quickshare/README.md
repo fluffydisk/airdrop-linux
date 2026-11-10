@@ -73,6 +73,10 @@ excluded AGPL frontend.
   exit on a closed discovery channel.
 - Bounded incoming connections with unique request IDs and inactivity timeout.
 - Normal helper output contains only JSON IPC; upstream logging is unregistered.
+- Constant-time MAC verification before parsing/decryption, strict CBC dimensions
+  and PKCS#7 padding; RFC 4231 and NIST SP 800-38A fixtures plus malformed inputs.
+- Anonymous Android mDNS metadata is discoverable without granting trust; select
+  an on-link address when advertisements include multiple interfaces.
 
 The fork is not yet a security-certified implementation. Physical interop,
 independent cryptographic fixtures/fuzzing, comprehensive
@@ -88,3 +92,8 @@ from `.cache/quickshare/<arch>`; normal releases do not include that directory.
 Quick Share recipients appear in the existing picker, acceptance compares a
 fresh code, and helper failure preserves the Linux/browser routes. This opt-in
 path is for physical acceptance work, not a supported Android release.
+
+`tests/quickshare-protocol.cjs` additionally runs two compiled helpers in separate
+network namespaces on disposable CI VMs, comparing codes and transferred hashes
+in both directions. Both ends use this implementation: success is protocol
+regression evidence and must never be presented as Android interoperability.

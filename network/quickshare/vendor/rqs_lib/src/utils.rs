@@ -108,11 +108,16 @@ pub fn gen_mdns_endpoint_info(device_type: u8, device_name: &str) -> String {
 
 pub fn parse_mdns_endpoint_info(encoded_str: &str) -> Result<(DeviceType, String), anyhow::Error> {
     let decoded_bytes = URL_SAFE_NO_PAD.decode(encoded_str)?;
-    if decoded_bytes.len() < 19 {
+    if decoded_bytes.len() < 17 {
         return Err(anyhow!("Invalid data length"));
     }
 
     let device_type = (decoded_bytes[0] >> 1) & 0x7;
+    // Some Android advertisements carry only the identity prefix. An absent
+    // display name must not hide an otherwise usable endpoint; it is not trust.
+    if decoded_bytes.len() == 17 {
+        return Ok((DeviceType::from_raw_value(device_type), String::new()));
+    }
     let name_length = decoded_bytes[17] as usize;
     if 18 + name_length > decoded_bytes.len() {
         return Err(anyhow!("Invalid name length"));
@@ -279,5 +284,25 @@ mod tests {
 
         assert_eq!(parse_info.1, device_name);
         assert_eq!(parse_info.0, device_type);
+    }
+
+    #[test]
+    fn anonymous_and_empty_android_advertisements_are_accepted_but_truncated_names_are_rejected() {
+        let mut prefix = vec![0; 17];
+        prefix[0] = 2;
+        assert_eq!(
+            parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&prefix)).unwrap(),
+            (DeviceType::Phone, String::new())
+        );
+        prefix.push(0);
+        assert_eq!(
+            parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&prefix))
+                .unwrap()
+                .1,
+            ""
+        );
+        prefix[17] = 4;
+        assert!(parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&prefix)).is_err());
+        assert!(parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(&prefix[..16])).is_err());
     }
 }

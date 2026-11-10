@@ -593,26 +593,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
         &mut self,
         smsg: &SecureMessage,
     ) -> Result<(), anyhow::Error> {
-        let mut hmac = HmacSha256::new_from_slice(self.state.recv_hmac_key.as_ref().unwrap())?;
-        hmac.update(&smsg.header_and_body);
-        if !hmac
-            .finalize()
-            .into_bytes()
-            .as_slice()
-            .eq(smsg.signature.as_slice())
-        {
-            return Err(anyhow!("hmac!=signature"));
-        }
-
-        let header_and_body = HeaderAndBody::decode(&*smsg.header_and_body)?;
-
-        let msg_data = header_and_body.body;
-        let key = self.state.decrypt_key.as_ref().unwrap();
-
-        let mut cipher = Cipher::new_256(key[..AES_256_KEY_LEN].try_into()?);
-        cipher.set_auto_padding(true);
-        let decrypted = cipher.cbc_decrypt(header_and_body.header.iv(), &msg_data);
-
+        let decrypted = crate::secure_payload::decrypt(
+            &smsg,
+            self.state
+                .recv_hmac_key
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing MAC key"))?,
+            self.state
+                .decrypt_key
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing decryption key"))?,
+        )?;
         let d2d_msg = DeviceToDeviceMessage::decode(&*decrypted)?;
 
         let seq = self.get_client_seq_inc().await;
@@ -1029,21 +1020,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
         stream_read_exact(&mut self.socket, &mut data).await?;
 
         let smsg = SecureMessage::decode(&*data)?;
-        let mut hmac = HmacSha256::new_from_slice(self.state.recv_hmac_key.as_ref().unwrap())?;
-        hmac.update(&smsg.header_and_body);
-        if !hmac
-            .finalize()
-            .into_bytes()
-            .as_slice()
-            .eq(smsg.signature.as_slice())
-        {
-            return Err(anyhow!("hmac!=signature"));
-        }
-        let header_and_body = HeaderAndBody::decode(&*smsg.header_and_body)?;
-        let key = self.state.decrypt_key.as_ref().unwrap();
-        let mut cipher = Cipher::new_256(key[..AES_256_KEY_LEN].try_into()?);
-        cipher.set_auto_padding(true);
-        let decrypted = cipher.cbc_decrypt(header_and_body.header.iv(), &header_and_body.body);
+        let decrypted = crate::secure_payload::decrypt(
+            &smsg,
+            self.state
+                .recv_hmac_key
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing MAC key"))?,
+            self.state
+                .decrypt_key
+                .as_ref()
+                .ok_or_else(|| anyhow!("Missing decryption key"))?,
+        )?;
         let d2d_msg = DeviceToDeviceMessage::decode(&*decrypted)?;
 
         let seq = self.get_client_seq_inc().await;

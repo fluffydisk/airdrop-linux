@@ -64,15 +64,10 @@ impl MDnsDiscovery {
                                         continue;
                                     }
 
-                                    let ip = match ip_hash.iter().next() {
-                                        Some(i) => i,
+                                    let ip = match ip_hash.iter().find(|ip| is_not_self_ip(ip) && crate::utils::same_subnet(ip.octets()) && !ip.is_multicast() && !ip.is_loopback() && !ip.is_link_local() && !ip.is_unspecified()) {
+                                        Some(i) => *i,
                                         None => continue,
                                     };
-
-                                    // Check that the IP is not a "self IP"
-                                    if !is_not_self_ip(ip) || !crate::utils::same_subnet(ip.octets()) || ip.is_multicast() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified() {
-                                        continue;
-                                    }
 
                                     // Decode the "n" text properties
                                     let n = match info.get_property("n") {
@@ -85,6 +80,7 @@ impl MDnsDiscovery {
                                         Ok(r) => r,
                                         Err(_) => continue
                                     };
+                                    let dn = if dn.is_empty() { format!("Nearby device {ip}") } else { dn };
 
                                     let ip_port = format!("{ip}:{port}");
                                     let fullname = info.get_fullname().to_string();
