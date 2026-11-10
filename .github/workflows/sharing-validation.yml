@@ -1,8 +1,6 @@
 name: Sharing validation
 on:
   pull_request:
-  push:
-    branches: [feat/seamless-sharing]
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,6 +17,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm ci --prefix desktop
+      - run: node desktop/node_modules/electron/install.js
       - run: npm run prepare-desktop
       - name: Sandboxed desktop and browser acceptance
         env:
