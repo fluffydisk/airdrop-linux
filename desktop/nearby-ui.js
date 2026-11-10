@@ -10,21 +10,28 @@
   };
   const button = (text, run) => { const b = document.createElement('button'); b.className = 'button'; b.textContent = text; b.onclick = async () => { b.disabled = true; try { await run(); } finally { b.disabled = false; } }; return b; };
   function renderDevices(state) {
-    const key = JSON.stringify([state.devices, state.enabled, state.discoveryError, state.concurrency, state.pairing]);
+    const key = JSON.stringify([state.devices, state.enabled, state.discoveryError, state.concurrency, state.pairing, state.port]);
     if (key === devicesKey) return; devicesKey = key;
     get('nearbyEnabled').checked = state.enabled; get('nearbyConcurrency').value = String(state.concurrency);
-    get('nearbyStatus').textContent = state.pairing ? `Pairing with ${state.pairing.name}. Compare code on both devices: ${state.pairing.code}. Waiting for acceptance…` : !state.enabled ? 'Nearby sharing is off.' : state.discoveryError || (state.devices.some(d => d.online) ? 'Direct local network · encrypted · no internet relay' : 'No nearby devices found. Open Airdrop on the other computer. For phones or networks that block discovery, use a guest QR session.');
+    if (document.activeElement !== get('nearbyPort')) get('nearbyPort').value = state.preferredPort ?? 53318;
+    get('nearbyStatus').textContent = state.pairing ? `Pairing with ${state.pairing.name}. Compare code on both devices: ${state.pairing.code}. Waiting for acceptance…` : !state.enabled ? 'Nearby sharing is off. Share link / QR is still available.' : state.discoveryError || (state.devices.some(d => d.online) ? 'Direct local network · encrypted · no internet relay' : 'No reachable nearby devices yet. This network may limit discovery or direct connections. Choose Share link / QR to use another permitted route.');
     const destination = get('sendDestination'), previous = destination.value;
     const options = state.devices.filter(d => d.trusted).map(d => { const option = new Option(d.name + (d.online ? ' · Nearby' : ' · Offline'), d.id); option.disabled = !d.online; return option; });
-    options.push(new Option('Shared workspace', ''));
+    options.push(new Option('Share link / QR', 'guest'), new Option('Shared workspace', ''));
+    if (previous && !options.some(option => option.value === previous)) {
+      const missing = new Option('Unavailable recipient · choose another device or Share link / QR', previous);
+      missing.disabled = true; options.unshift(missing);
+    }
     destination.replaceChildren(...options);
     destination.value = options.some(option => option.value === previous) ? previous : '';
-    if (!selectedByUser && !previous) destination.value = options.find(option => option.value && !option.disabled)?.value || '';
+    if (!selectedByUser && !previous) destination.value = state.devices.find(device => device.trusted && device.online)?.id || '';
     get('zip').disabled = !!destination.value; if (destination.value) get('zip').checked = false;
-    document.querySelector('.drop-caption').textContent = destination.value ? 'Choose files, then select Send to device.' : 'Files are shared to your workspace as soon as you add them.';
+    destination.dispatchEvent(new CustomEvent('airdrop-destinations-updated'));
+    document.querySelector('.drop-caption').textContent = 'Choose files, choose a recipient, then Send.';
     get('nearbyDevices').replaceChildren(...state.devices.map(d => {
       const row = document.createElement('div'); row.className = 'nearby-device';
-      const label = document.createElement('p'); label.textContent = `${d.name} · ${d.online ? 'Online' : 'Offline'} · ${d.trusted ? 'Paired' : 'Not paired'} · ${d.id.slice(0, 8)}`; row.append(label);
+      const label = document.createElement('p'); label.textContent = `${d.name} · ${d.online ? 'Online' : d.availability === 'checking' ? 'Checking connection' : d.availability === 'unreachable' ? 'Discovered · unreachable' : 'Offline'} · ${d.trusted ? 'Paired' : 'Not paired'} · ${d.id.slice(0, 8)}`; row.append(label);
+      if (d.error) { const detail = document.createElement('p'); detail.textContent = d.error; row.append(detail); }
       if (!d.trusted) { const pair = button('Pair device', () => action('pair', { id: d.id })); pair.disabled = !d.online; row.append(pair); }
       else {
         const send = button('Send to this device', () => { selectedByUser = true; destination.value = d.id; destination.dispatchEvent(new Event('change')); get('choose').scrollIntoView?.({ block: 'center', behavior: 'smooth' }); get('choose').focus(); }); send.disabled = !d.online; row.append(send);
@@ -74,9 +81,11 @@
   get('nearbyConcurrency').onchange = () => action('configure', { concurrency: Number(get('nearbyConcurrency').value) });
   get('nearbyRefresh').onclick = () => action('refresh');
   get('nearbyPhone').onclick = () => get('setupDevices').click();
+  get('nearbyLink').onclick = () => { get('sendDestination').value = 'guest'; get('sendDestination').dispatchEvent(new Event('change')); };
   get('nearbyInbox').onclick = () => action('inbox');
   get('nearbyEnabled').onchange = () => action('configure', { enabled: get('nearbyEnabled').checked });
   get('nearbySaveName').onclick = () => action('configure', { name: get('nearbyName').value });
+  get('nearbySavePort').onclick = () => action('configure', { port: Number(get('nearbyPort').value) });
   get('nearbyClearHistory').onclick = () => action('configure', { clearHistory: true });
   window.airdrop.onPeerProgress?.(() => refresh());
   refresh(); setInterval(refresh, 1500);

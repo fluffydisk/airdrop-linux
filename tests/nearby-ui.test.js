@@ -28,3 +28,13 @@ test('a selected device going offline never redirects queued files into the work
   assert.equal(w.document.getElementById('sendDestination').value, 'abc');
   assert.match(w.document.getElementById('sendDestination').selectedOptions[0].textContent, /Offline/);
 });
+test('empty discovery keeps an explicit QR/link choice and does not automatically select an internet invitation', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' }); t.after(() => dom.window.close());
+  const w = dom.window;
+  w.airdrop = { nearby: async () => ({ devices: [], outgoing: [], incoming: [], enabled: true }) };
+  w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
+  assert.equal(w.document.getElementById('sendDestination').value, '');
+  assert.match(w.document.getElementById('nearbyStatus').textContent, /may limit/);
+  w.document.getElementById('nearbyLink').click();
+  assert.equal(w.document.getElementById('sendDestination').value, 'guest');
+});

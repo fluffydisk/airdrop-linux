@@ -1,0 +1,35 @@
+name: Sharing validation
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sharing:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26.12.0'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y xvfb dbus-x11 nftables iproute2
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm ci --prefix desktop
+      - run: node desktop/node_modules/electron/install.js
+      - run: npm run prepare-desktop
+      - name: Sandboxed desktop and browser acceptance
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
+        run: |
+          profile="$RUNNER_TEMP/sharing-electron.apparmor"
+          if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+            node scripts/desktop-apparmor.js "$(node -p 'require("./desktop/node_modules/electron")')" > "$profile"
+            sudo apparmor_parser --replace "$profile"
+            trap 'sudo apparmor_parser --remove "$profile"' EXIT
+          fi
+          xvfb-run -a dbus-run-session -- node --test tests/nearby-desktop.cjs tests/desktop.cjs
+          node --test tests/guest-browser.cjs
+      - name: Independent network namespaces
+        run: sudo env PATH="$PATH" bash scripts/test-sharing-networks.sh

@@ -29,4 +29,11 @@ test('mobile guest screen sends files and downloads only explicit selections', {
   await gateway.guest.close();await page.reload();await page.getByText('This guest session is unavailable. Ask for a new QR code.').waitFor();
   await context.close();
  }
+ const downloadOnly=await gateway.guest.start([path.join(root,'selected ü.txt')],{allowUploads:false});
+ const context=await browser.newContext({acceptDownloads:true}),page=await context.newPage();
+ await page.goto(gateway.origin+'/guest/#'+downloadOnly.token);await page.locator('#content').waitFor({state:'visible'});
+ assert.equal(await page.locator('#uploadSection').isVisible(),false);
+ assert.equal(await page.locator('#upload').isDisabled(),true);
+ const response=await context.request.put(gateway.origin+'/guest/upload?name=not-authorized',{data:'no'});assert.equal(response.status(),403);
+ await context.close();
 });

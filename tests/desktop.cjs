@@ -14,7 +14,7 @@ async function mockServer() {
   server.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   return { port: server.address().port, set: value => { ready = value; }, close: () => new Promise(resolve => server.close(resolve)) };
 }
-test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image paste, downloads, status and restart', async t => {
+test('Electron: explicit Transfer send, workspace uploads, ZIP, clipboard, downloads and restart', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'airdrop-desktop-test-'));
   const share = path.join(root, 'files'); await fs.mkdir(share);
   const fileServer = await mockServer(), apiServer = await mockServer();
@@ -38,6 +38,7 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   const node = await cdp.send('DOM.querySelector', { nodeId: document.root.nodeId, selector: '#osFile' });
   await cdp.send('DOM.setFileInputFiles', { nodeId: node.nodeId, files: [source] });
   await page.evaluate(() => { const transfer = new DataTransfer(); transfer.items.add(document.getElementById('osFile').files[0]); document.getElementById('dropZone').dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer: transfer })); document.getElementById('osFile').remove(); });
+  await page.locator('#send').click();
   await page.waitForFunction(() => document.getElementById('result').textContent.startsWith('Sent:'));
   assert.equal(await fs.readFile(path.join(share, 'ü,a.txt'), 'utf8'), 'desktop payload');
   await app.evaluate(({ shell }) => { globalThis.openedFiles = []; shell.openPath = async file => { globalThis.openedFiles.push(file); return ''; }; });
@@ -78,12 +79,13 @@ test('Electron: immediate chooser/drop uploads, ZIP, folders, native text/image 
   await page.locator('#zip').check();
   await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, source);
   await page.locator('#choose').click();
+  await page.locator('#send').click();
   await page.waitForFunction(() => document.getElementById('result').textContent.includes('.zip'));
   const zipName = (await fs.readdir(share)).find(name => name.endsWith('.zip'));
   assert.equal(await (await JSZip.loadAsync(await fs.readFile(path.join(share, zipName)))).file('ü,a.txt').async('string'), 'desktop payload');
   const large = path.join(root, 'large.bin'); const handle = await fs.open(large, 'w'); await handle.truncate(100 * 1024 * 1024 + 1); await handle.close();
   await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, large);
-  await page.locator('#choose').click(); await page.waitForFunction(() => document.getElementById('result').textContent.includes('exceed 100 MiB'));
+  await page.locator('#choose').click(); await page.locator('#send').click(); await page.waitForFunction(() => document.getElementById('result').textContent.includes('exceed 100 MiB'));
   assert.equal(await page.locator('#zip').isChecked(), true); assert.equal((await fs.readdir(share)).includes('large.bin'), false);
   await page.locator('#clearFiles').click();
   await page.locator('[data-view="files"]').click(); const manager = page.locator('#fileExplorer');
