@@ -5,18 +5,27 @@ umask 022
 python3 -c 'import socket; assert [n for _,n in socket.if_nameindex()] == ["lo"], "Build must be offline"'
 app=/app/lib/airdrop-linux
 mkdir -p "$app/server/scripts" "$app/server/ui" "$app/desktop"
-cp -a push-server.js package.json package-lock.json lib bin network "$app/server/"
+node - "$app" <<'JS'
+const path=require('node:path'),{copyReleaseInput}=require('./scripts/release-inputs');
+const app=process.argv[2];
+(async()=>{
+  for(const name of ['push-server.js','package.json','package-lock.json','lib','bin','network'])await copyReleaseInput(name,path.join(app,'server',name));
+  await copyReleaseInput('electron-runtime',path.join(app,'desktop'));
+})().catch(error=>{console.error(error.message);process.exitCode=1;});
+JS
 cp scripts/{managed-runtime,migrate-layout,register-install}.js "$app/server/scripts/"
 cp ui/zip.js "$app/server/ui/"
 cp -a ui "$app/"
-cp -a electron-runtime/. "$app/desktop/"
 mv "$app/desktop/electron" "$app/desktop/Airdrop"
 # Zypak supplies the sandbox integration; the upstream SUID helper is unused.
 rm -f "$app/desktop/chrome-sandbox" "$app/desktop/resources/default_app.asar"
 desktop="$app/desktop/resources/app"
 mkdir -p "$desktop"
 node scripts/prepare-desktop.js
-cp -a desktop/. "$desktop/"
+node - "$desktop" <<'JS'
+const {copyReleaseInput}=require('./scripts/release-inputs');
+copyReleaseInput('desktop',process.argv[2]).catch(error=>{console.error(error.message);process.exitCode=1;});
+JS
 for component in "$app/server" "$desktop" "$PWD/build-tools"; do
   npm ci --prefix "$component" --offline --omit=dev --ignore-scripts --no-audit --no-fund --registry=http://127.0.0.1:9
 done

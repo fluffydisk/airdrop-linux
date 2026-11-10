@@ -10,6 +10,7 @@ seen-files.json
 
 # Dependencies
 node_modules/
+network/quickshare/target/
 
 # Shared files themselves (not part of the app)
 AirdropShare/*

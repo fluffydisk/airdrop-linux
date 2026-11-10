@@ -1,7 +1,7 @@
 # Airdrop Linux
 
 
-**In development:** recipient-first transfers and download-only Share link / QR invitations, with on-link IPv4/IPv6 discovery and saved endpoint reconnection. [Implementation and validation status](docs/cross-platform-implementation.md). Android Quick Share and Apple AirDrop are not yet advertised as supported.
+**Version 1.9.0:** recipient-first transfers and download-only Share link / QR invitations, with on-link IPv4/IPv6 discovery and saved endpoint reconnection. [Implementation and validation status](docs/cross-platform-implementation.md). Android Quick Share and Apple AirDrop are not yet advertised as supported.
 
 **New in 1.8:** Linux computers discover each other automatically. Pair once, select a device, and send individual files to its receive inbox with acceptance, verified progress, cancellation and restart-safe resume. [Nearby transfer guide](docs/nearby-transfers.md). Phones keep the working QR/link browser flow.
 
