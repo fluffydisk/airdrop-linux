@@ -70,6 +70,16 @@ excluded AGPL frontend.
 - Normal helper output contains only JSON IPC; upstream logging is unregistered.
 
 The fork is not yet a security-certified implementation. Physical interop,
-independent cryptographic fixtures/fuzzing, disk-space preflight, comprehensive
+independent cryptographic fixtures/fuzzing, comprehensive
 crash/resource testing and stable-release packaging remain explicit gates in
 `docs/cross-platform-implementation.md`. Do not enable this in stable builds.
+
+## Application development integration
+
+From the repository root, run `node scripts/build-quickshare.js` with Cargo/protoc
+available, then `npm run prepare-desktop`. Start the development desktop with
+`AIRDROP_EXPERIMENTAL_QUICK_SHARE=1`. The app uses only the hash-matched helper
+from `.cache/quickshare/<arch>`; normal releases do not include that directory.
+Quick Share recipients appear in the existing picker, acceptance compares a
+fresh code, and helper failure preserves the Linux/browser routes. This opt-in
+path is for physical acceptance work, not a supported Android release.

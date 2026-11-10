@@ -837,7 +837,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
 
                     let file = match std::fs::OpenOptions::new()
                         .read(true)
-                        .custom_flags(libc::O_NOFOLLOW)
+                        .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
                         .open(f)
                     {
                         Ok(_f) => _f,

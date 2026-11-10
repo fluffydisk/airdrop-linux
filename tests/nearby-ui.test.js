@@ -38,3 +38,17 @@ test('empty discovery keeps an explicit QR/link choice and does not automaticall
   w.document.getElementById('nearbyLink').click();
   assert.equal(w.document.getElementById('sendDestination').value, 'guest');
 });
+test('experimental Quick Share recipients have Send but no persistent trust or resume controls', async t => {
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' }); t.after(() => dom.window.close());
+  const w = dom.window;
+  w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { name: 'Linux', enabled: true, devices: [], incoming: [], outgoing: [] }, quickShare: {
+    enabled: true, recipients: [{ id: 'quick-share:10.0.0.2:123', name: 'Galaxy', availability: 'available' }], transfers: [{ id: 'session', name: 'Galaxy', direction: 'outgoing', phase: 'interrupted', files: ['photo.jpg'], transport: 'quick-share' }]
+  } }) };
+  w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
+  const row = w.document.querySelector('.nearby-device');
+  assert.match(row.textContent, /Confirm each transfer/);
+  assert.equal(row.querySelector('input[type=checkbox]'), null);
+  assert.equal(w.document.getElementById('peerTransfers').textContent.includes('Retry / resume'), false);
+  row.querySelector('button').click(); await new Promise(r => setImmediate(r));
+  assert.equal(w.document.getElementById('sendDestination').value, 'quick-share:10.0.0.2:123');
+});

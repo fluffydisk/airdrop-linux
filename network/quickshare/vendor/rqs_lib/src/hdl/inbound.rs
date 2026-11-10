@@ -71,6 +71,37 @@ mod dest_name_tests {
             "data.tmp"
         );
     }
+    #[tokio::test]
+    async fn unsafe_or_unbounded_introductions_never_create_receive_files() {
+        use crate::hdl::InboundRequest;
+        use crate::sharing_nearby::{FileMetadata, IntroductionFrame, V1Frame};
+        use tokio::sync::broadcast;
+        for (name, size) in [
+            ("../escape", 1),
+            ("/absolute", 1),
+            ("ok.txt", -1),
+            ("ok.txt", i64::MAX),
+        ] {
+            let (socket, _peer) = tokio::io::duplex(4096);
+            let (sender, _) = broadcast::channel(10);
+            let mut request = InboundRequest::new(socket, "fixture".into(), sender);
+            let frame = V1Frame {
+                introduction: Some(IntroductionFrame {
+                    file_metadata: vec![FileMetadata {
+                        name: Some(name.into()),
+                        size: Some(size),
+                        payload_id: Some(1),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            assert!(request.process_introduction(&frame).await.is_err());
+            assert!(request.state.transferred_files.is_empty());
+            assert!(request.receive_directory.is_none());
+        }
+    }
 }
 
 /// Pick the on-disk name for a received file: keep the sender's name, but if its
@@ -920,6 +951,17 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                             .or_insert_with(|| Vec::with_capacity(header.total_size() as usize));
 
                         // Get the current length of the buffer, if it exists, without holding a mutable borrow.
+                        if self.state.payload_buffers.len() > 8
+                            || self
+                                .state
+                                .payload_buffers
+                                .values()
+                                .map(Vec::len)
+                                .sum::<usize>()
+                                > SANE_FRAME_LENGTH as usize
+                        {
+                            return Err(anyhow!("Buffered payload limit exceeded"));
+                        }
                         let buffer_len = self.state.payload_buffers.get(&payload_id).unwrap().len();
                         if chunk.offset() != buffer_len as i64 {
                             self.state.payload_buffers.remove(&payload_id);

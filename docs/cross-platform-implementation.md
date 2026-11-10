@@ -37,7 +37,28 @@ bypass is introduced. LAN guest links still use HTTP; on an untrusted network us
 a permitted HTTPS provider. A local gateway probe does not establish remote LAN
 reachability, and the UI says so.
 
-## B/C — Native Quick Share gates
+## B — Quick Share foundation
+
+The separate development branch adds a GPLv3 headless Rust helper, a pinned
+vendored core, versioned bounded JSON IPC, an independently supervised Node
+adapter, private receive staging and source/license provenance. The helper has
+compiled and passed native lifecycle tests without BlueZ on Linux x64.
+
+For development only, build with `node scripts/build-quickshare.js`, run
+`npm run prepare-desktop`, and launch Electron with
+`AIRDROP_EXPERIMENTAL_QUICK_SHARE=1`. This requires Rust/protoc and the exact
+hash-verified helper in the source checkout's `.cache/quickshare/<arch>`.
+It does not download or enable a helper in stable packages. The opt-in path adds
+Quick Share recipients to the existing picker and compares codes for each
+receive; it grants no persistent trust or resume capability.
+
+Initial resource/path tests, IPC tests and same-host lifecycle tests are software
+evidence. They do not establish Pixel, Samsung or Windows interoperability.
+The dedicated native workflow tests x64 and ARM64. Android enablement, independent
+cryptographic fixtures/fuzzing, full resource/crash coverage and signed native
+helper distribution remain release gates.
+
+## C — Native Quick Share interoperability gates
 
 Selected research base: `ignotusbucius/open-quickshare` core at
 `fb9c8f9502e5313e3d788aa3498659773ef12d28`. Native integration must remain
@@ -79,3 +100,14 @@ native Apple-list discovery and separate send/receive hardware results.
 Physical hardware is absent from the current cloud environment. Record device,
 OS/firmware, driver, protocol version, application/helper commits and artifact
 hashes for each physical result; unavailable cells stay blocked.
+
+## Executed validation
+
+The seamless-sharing branch passed 202 Node tests with pinned Node 26/dufs,
+sandboxed Chromium guest/browser tests, and sandboxed Electron workspace and
+Linux send/receive tests. Sharing validation run `42727686792` also passed
+independent namespaces: ordinary discovery, multicast-blocked restart with a
+cached authenticated endpoint, and isolated peer TCP with a permitted simulated
+relay. Tray acceptance skipped where no StatusNotifier watcher was available.
+
+No physical phone, Wi-Fi Direct, BLE or Apple AirDrop result is recorded.

@@ -27,6 +27,7 @@ pub mod errors;
 pub mod hdl;
 pub mod manager;
 pub mod receive_safety;
+pub const AIRDROP_LAN_ONLY: bool = !cfg!(feature = "experimental");
 pub mod utils;
 
 pub use hdl::{EndpointInfo, OutboundPayload, TransferState, Visibility};

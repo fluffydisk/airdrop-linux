@@ -318,6 +318,9 @@ async fn read_line<R: AsyncBufRead + Unpin>(reader: &mut R) -> Result<Option<Vec
 }
 async fn output(value: Value) -> Result<()> {
     let mut bytes = serde_json::to_vec(&value)?;
+    if bytes.len() > 4 * 1024 * 1024 {
+        bail!("IPC_OUTPUT_LIMIT");
+    }
     bytes.push(b'\n');
     let mut stdout = tokio::io::stdout();
     stdout.write_all(&bytes).await?;
@@ -326,6 +329,9 @@ async fn output(value: Value) -> Result<()> {
 }
 #[tokio::main]
 async fn main() -> Result<()> {
+    if !rqs_lib::AIRDROP_LAN_ONLY {
+        bail!("Wireless builds are not enabled for this development helper");
+    }
     // Upstream log/tracing is deliberately unregistered: no PINs or payloads on
     // stdout/stderr. Only versioned JSON records are part of the IPC surface.
     let (events, mut received) = mpsc::channel(128);
