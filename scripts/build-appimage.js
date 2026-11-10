@@ -10,6 +10,7 @@ const { Readable } = require('node:stream');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
 const exec = promisify(execFile);
+const { copyReleaseInput } = require('./release-inputs');
 async function download(spec, target) {
   if (fs.existsSync(target) && crypto.createHash('sha256').update(await fsp.readFile(target)).digest('hex') === spec.sha256) return;
   const response = await fetch(spec.url, { signal: AbortSignal.timeout(300000) });
@@ -35,7 +36,7 @@ async function main() {
     const source = path.join(root, `desktop/out/Airdrop-linux-${arch}`);
     const metadata = JSON.parse(await fsp.readFile(path.join(source, 'resources/app/package.json'), 'utf8'));
     if (metadata.version !== version) throw new Error('Rebuild the desktop package first');
-    await fsp.cp(source, path.join(appdir, 'usr/lib/airdrop'), { recursive: true });
+    await copyReleaseInput(source, path.join(appdir, 'usr/lib/airdrop'));
     await fsp.writeFile(path.join(appdir, 'AppRun'), '#!/bin/sh\nset -eu\nappdir="${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}"\nexec "$appdir/usr/lib/airdrop/Airdrop" "$@"\n', { mode: 0o755 });
     await fsp.writeFile(path.join(appdir, 'airdrop.desktop'), '[Desktop Entry]\nType=Application\nName=Airdrop\nComment=Private files and clipboard through an Airdrop relay\nExec=AppRun\nIcon=airdrop\nTerminal=false\nCategories=Network;\nStartupWMClass=airdrop-desktop\n');
     const icon = await fsp.readFile(path.join(root, 'ui/icon-192.png')); await fsp.writeFile(path.join(appdir, 'airdrop.png'), icon); await fsp.writeFile(path.join(appdir, '.DirIcon'), icon);
