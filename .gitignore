@@ -30,5 +30,6 @@ release/
 # Flatpak builder state
 .flatpak-builder/
 network/tsnet/vendor/
+network/quickshare/target/
 
 __pycache__/
