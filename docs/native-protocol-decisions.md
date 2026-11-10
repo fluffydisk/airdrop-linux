@@ -1,5 +1,10 @@
 # Native protocol decisions
 
+Execution update: [production plan and status](quickshare-production-plan.md)
+supersedes the old ordering below. Minimum BLE bootstrap is now a prerequisite
+for broad Samsung/Pixel stable support, based on model/build-specific discovery
+evidence. The current helper remains LAN-only and disabled in stable packages.
+
 Research refreshed 10 November 2026. Repository activity and release dates are
 maintenance signals, not interoperability proofs. Hardware claims below are
 attributed to upstream unless an application test explicitly verifies them.

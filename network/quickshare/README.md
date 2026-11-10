@@ -5,6 +5,11 @@ by the application's current release pipeline. Android/Samsung/Windows physical
 acceptance is pending. BLE and direct wireless are absent from the helper build;
 the upstream `experimental` Cargo feature is not enabled.
 
+The active execution record is `docs/quickshare-production-plan.md`; the stock
+device procedure is `docs/quickshare-android-lab.md`. Minimum BLE bootstrap is
+required before broad stable Android support; current LAN-only operation is a
+development capability, not a supported Android product claim.
+
 Runtime packagers exclude the entire `network/quickshare` and
 `.cache/quickshare` trees, including untracked build outputs. They reject a helper
 binary copied into another runtime directory. The complete experimental source
@@ -40,6 +45,16 @@ uses a random per-transfer private directory, exclusive no-follow file creation,
 declared-size checks and a complete-file barrier. The Node adapter publishes
 only completed files into the inbox and never labels Quick Share as resumable
 or SHA-256-verified by an Android receiver.
+
+Outgoing all-bytes-sent now reports `outcome-unknown`: local writes and even a
+clean peer close do not prove durable receipt. Late malformed frames and payload
+error/cancellation fail finalization. Stable release remains blocked until real
+peer outcome handling is independently validated. Incoming `complete` remains
+conditional on fresh consent and successful local verification/publication.
+
+Development `helper.json` records the original upstream pin separately from the
+modified source-tree/lock hashes, application commit/dirty state and compiler.
+This is not a completed release provenance/signing or corresponding-source system.
 
 ## Licensing and provenance
 
