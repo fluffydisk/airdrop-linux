@@ -1,5 +1,7 @@
 name: Prepare application release
 on:
+  pull_request:
+    paths: ['package.json', '.github/workflows/release.yml', 'scripts/build-appimage.js', 'scripts/build-release.js']
   push:
     tags: ['v*']
     branches: [main]
@@ -24,6 +26,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          if test "$GITHUB_EVENT_NAME" = pull_request; then
+            echo build=true >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           version=$(node -p 'require("./package.json").version')
           if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo 'Release already exists; preserving every asset and tag.'
@@ -60,6 +66,29 @@ jobs:
       - run: npm run package --prefix desktop
       - run: node scripts/build-release.js
       - run: node scripts/build-appimage.js
+      - name: Exercise the actual AppImage contents with Chromium sandboxing
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          appimage=$(find "$PWD/release" -maxdepth 1 -name 'Airdrop-*.AppImage' -print -quit)
+          test -n "$appimage"
+          appimage_stage=$(mktemp -d "$RUNNER_TEMP/airdrop-appimage-test-XXXXXX")
+          appimage_profile="$RUNNER_TEMP/airdrop-appimage-test.apparmor"
+          profile_loaded=false
+          cleanup() {
+            if test "$profile_loaded" = true; then sudo apparmor_parser --remove "$appimage_profile"; fi
+            rm -rf "$appimage_stage"
+          }
+          trap cleanup EXIT
+          (cd "$appimage_stage" && "$appimage" --appimage-extract > /dev/null)
+          appimage_executable="$appimage_stage/squashfs-root/usr/lib/airdrop/Airdrop"
+          if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+            node scripts/desktop-apparmor.js "$appimage_executable" > "$appimage_profile"
+            sudo apparmor_parser --replace "$appimage_profile"
+            profile_loaded=true
+          fi
+          APPIMAGE="$appimage" ELECTRON_PATH="$appimage_stage/squashfs-root/AppRun" xvfb-run -a dbus-run-session -- npm run test:desktop
+          APPIMAGE="$appimage" ELECTRON_PATH="$appimage_stage/squashfs-root/AppRun" xvfb-run -a dbus-run-session -- npm run test:nearby-desktop
       - name: Build package-manager payloads
         run: |
           for channel in apt rpm aur flatpak snap; do node scripts/build-packages.js "$channel"; done
@@ -93,6 +122,7 @@ jobs:
           path: release/*
   draft:
     needs: [plan, build]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -153,7 +183,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.8.1
+          test "$version" = 1.9.0
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           # The tested Flatpak producer requests the combined protected publish.

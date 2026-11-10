@@ -7,8 +7,7 @@ shift
 log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 status=0
-"$@" > "$log" 2>&1 || status=$?
-cat "$log"
+"$@" 2>&1 | tee "$log" || status=$?
 if (( status )); then
   message=$(tail -40 "$log")
   message=${message//%/%25}
