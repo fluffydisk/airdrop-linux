@@ -7,11 +7,34 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+base64 = "0.22"
+futures = "0.3"
+prost = "0.13"
+rand = "0.9"
+sha2 = "0.10"
+tokio-util = { version = "0.7", features = ["rt"] }
 rqs_lib = { path = "vendor/rqs_lib", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-util", "io-std", "sync", "signal", "time"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+bluer = { version = "0.17", features = ["bluetoothd", "l2cap"], optional = true }
+dbus = { version = "0.9", features = ["vendored"], optional = true }
+
+[features]
+default = []
+ble-fastinit = ["dep:bluer", "dep:dbus"]
+ble-native = ["dep:bluer", "dep:dbus"]
+
 [workspace]
 members = ["vendor/rqs_lib"]
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }

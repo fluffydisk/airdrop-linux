@@ -6,11 +6,15 @@ test('compiled native helper starts LAN-only without BlueZ and exits after pipe 
   const helper = process.env.AIRDROP_TEST_QUICKSHARE_HELPER;
   assert.ok(helper, 'Set AIRDROP_TEST_QUICKSHARE_HELPER to the exact compiled helper');
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'quickshare-native-'));
-  const adapter = new QuickShare({ enabled: true, helper, sha256: crypto.createHash('sha256').update(await fs.readFile(helper)).digest('hex'), directory, inbox: path.join(directory, 'inbox') });
+  const adapter = new QuickShare({ enabled: true, port:0, protocolDiagnostics:true, helper, sha256: crypto.createHash('sha256').update(await fs.readFile(helper)).digest('hex'), directory, inbox: path.join(directory, 'inbox') });
   t.after(async () => { await adapter.stop(); await fs.rm(directory, { recursive: true, force: true }); });
   const state = await adapter.start();
   assert.equal(state.status, 'ready'); assert.equal(state.capabilities.ble, false); assert.equal(state.capabilities.direct, false);
   assert.ok(Array.isArray((await adapter.request('snapshot')).recipients));
+  const attempts=[];adapter.on('connection',v=>attempts.push(v));
+  const net=require('node:net');
+  for(let i=0;i<8;i++)await new Promise((resolve,reject)=>{const socket=net.createConnection({host:'127.0.0.1',port:state.listenerPort});socket.on('error',reject);socket.on('connect',()=>socket.end());socket.on('close',resolve);});
+  await new Promise(resolve=>setTimeout(resolve,50));assert.deepEqual(attempts,[],'listener probes are not Nearby peer attempts');
   const child = adapter.child; await adapter.stop();
   assert.equal(adapter.child, null); assert.equal(child.exitCode, 0);
   assert.deepEqual(await fs.readdir(path.join(directory, 'inbox')), []);

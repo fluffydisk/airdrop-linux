@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use crate::{TransferState, hdl::info::TransferMetadata};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -23,8 +24,24 @@ pub struct MessageClient {
 // TODO: This should be separate structs
 #[derive(Debug, Clone)]
 pub enum Message {
-    Lib { action: TransferAction },
+    Lib {
+        action: TransferAction,
+    },
     Client(MessageClient),
+    // Diagnostics never carry TransferMetadata, keys, codes or endpoint data.
+    /// Local completion / peer-close observations; never a durable-success assertion.
+    Connection {
+        kind: TransferKind,
+        method: &'static str,
+    },
+    Finalization {
+        kind: TransferKind,
+        stage: &'static str,
+    },
+    Protocol {
+        kind: TransferKind,
+        stage: TransferState,
+    },
 }
 
 impl Message {

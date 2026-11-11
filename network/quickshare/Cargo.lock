@@ -16,10 +16,18 @@ name = "airdrop-quickshare"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
+ "bluer",
+ "dbus",
+ "futures",
+ "prost",
+ "rand",
  "rqs_lib",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
+ "tokio-util",
  "tracing-subscriber",
 ]
 

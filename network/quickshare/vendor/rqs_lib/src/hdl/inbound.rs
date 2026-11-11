@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use crate::receive_safety::{MAX_BYTES, MAX_FILES, safe_name};
 use std::fs::{File, OpenOptions};
 use std::os::unix::fs::FileExt;
@@ -184,6 +185,7 @@ async fn send_frame_on<W: AsyncWrite + Unpin>(
 #[derive(Debug)]
 pub struct InboundRequest<S = TcpStream> {
     socket: S,
+    prefix: crate::utils::LengthPrefix,
     pub state: InnerState,
     receive_directory: Option<PathBuf>,
     sender: Sender<ChannelMessage>,
@@ -219,6 +221,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         let receiver = sender.subscribe();
 
         Self {
+            prefix: Default::default(),
             socket,
             receive_directory: None,
             state: InnerState {
@@ -431,9 +434,6 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
     }
 
     pub async fn handle(&mut self) -> Result<(), anyhow::Error> {
-        // Buffer for the 4-byte length
-        let mut length_buf = [0u8; 4];
-
         tokio::select! {
             i = self.receiver.recv() => {
                 match i {
@@ -480,10 +480,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                     }
                 }
             },
-            h = stream_read_exact(&mut self.socket, &mut length_buf) => {
-                h?;
-
-                self._handle(length_buf).await?
+            h = self.prefix.read(&mut self.socket) => {
+                self._handle(h?).await?
             }
         }
 
@@ -493,7 +491,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
     pub async fn _handle(&mut self, length_buf: [u8; 4]) -> Result<(), anyhow::Error> {
         let msg_length = u32::from_be_bytes(length_buf) as usize;
         // Ensure the message length is not unreasonably big to avoid allocation attacks
-        if msg_length > SANE_FRAME_LENGTH as usize {
+        if msg_length == 0 || msg_length > SANE_FRAME_LENGTH as usize {
             error!("Message length too big");
             return Err(anyhow!("value"));
         }
@@ -911,63 +909,32 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
 
                 // Track chunk counts per payload for the AUTO_RESUME answer
                 // after a mid-transfer channel switch.
-                *self
+                if !self.state.payload_chunk_counts.contains_key(&header.id())
+                    && self.state.payload_chunk_counts.len() >= crate::receive_safety::MAX_FILES + 8
+                {
+                    return Err(anyhow!("Too many payload identifiers"));
+                }
+                let count = self
                     .state
                     .payload_chunk_counts
                     .entry(header.id())
-                    .or_insert(0) += 1;
+                    .or_insert(0);
+                *count = count
+                    .checked_add(1)
+                    .ok_or_else(|| anyhow!("Payload chunk count overflow"))?;
 
                 match header.r#type() {
                     payload_header::PayloadType::Bytes => {
                         info!("Processing PayloadType::Bytes");
                         let payload_id = header.id();
 
-                        if header.total_size() < 0 || header.total_size() > SANE_FRAME_LENGTH.into()
-                        {
-                            self.state.payload_buffers.remove(&payload_id);
-                            return Err(anyhow!(
-                                "Payload too large: {} bytes",
-                                header.total_size()
-                            ));
-                        }
-
-                        self.state
-                            .payload_buffers
-                            .entry(payload_id)
-                            .or_insert_with(|| Vec::with_capacity(header.total_size() as usize));
-
-                        // Get the current length of the buffer, if it exists, without holding a mutable borrow.
-                        if self.state.payload_buffers.len() > 8
-                            || self
-                                .state
-                                .payload_buffers
-                                .values()
-                                .map(Vec::len)
-                                .sum::<usize>()
-                                > SANE_FRAME_LENGTH as usize
-                        {
-                            return Err(anyhow!("Buffered payload limit exceeded"));
-                        }
-                        let buffer_len = self.state.payload_buffers.get(&payload_id).unwrap().len();
-                        if chunk.offset() != buffer_len as i64 {
-                            self.state.payload_buffers.remove(&payload_id);
-                            return Err(anyhow!(
-                                "Unexpected chunk offset: {}, expected: {}",
-                                chunk.offset(),
-                                buffer_len
-                            ));
-                        }
-
-                        let buffer = self.state.payload_buffers.get_mut(&payload_id).unwrap();
-                        if let Some(body) = &chunk.body {
-                            if buffer.len().saturating_add(body.len()) > SANE_FRAME_LENGTH as usize
-                            {
-                                return Err(anyhow!("Payload limit exceeded"));
-                            }
-                            buffer.extend(body);
-                        }
-
-                        if (chunk.flags() & 1) == 1 {
+                        if let Some(mut buffer) = self.state.payload_buffers.push(
+                            payload_id,
+                            header.total_size(),
+                            chunk.offset(),
+                            chunk.body.as_deref().unwrap_or_default(),
+                            (chunk.flags() & 1) == 1,
+                        )? {
                             debug!("Chunk flags & 1 == 1 ?? End of data ??");
 
                             if self.state.text_payload.is_some()
@@ -1045,7 +1012,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                                             }
                                             SecurityType::Open => "".into(),
                                             SecurityType::WpaPsk | SecurityType::Wep => {
-                                                parse_password_payload(buffer)
+                                                parse_password_payload(&mut buffer)
                                                     .inspect_err(|err| error!("{err:#}"))
                                                     .unwrap_or_default()
                                             }
@@ -1935,20 +1902,28 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
     where
         F: FnOnce(&mut InnerState),
     {
+        let previous = self.state.state.clone();
         f(&mut self.state);
 
-        if !inform {
+        if !inform && previous == self.state.state {
             return;
         }
 
         trace!("Sending msg into the channel");
         let _ = self.sender.send(ChannelMessage {
             id: self.state.id.clone(),
-            msg: channel::Message::Client(MessageClient {
-                kind: TransferKind::Inbound,
-                state: Some(self.state.state.clone()),
-                metadata: self.state.transfer_metadata.clone(),
-            }),
+            msg: if inform {
+                channel::Message::Client(MessageClient {
+                    kind: TransferKind::Inbound,
+                    state: Some(self.state.state.clone()),
+                    metadata: self.state.transfer_metadata.clone(),
+                })
+            } else {
+                channel::Message::Protocol {
+                    kind: TransferKind::Inbound,
+                    stage: self.state.state.clone(),
+                }
+            },
         });
         // Add a small sleep timer to allow the Tokio runtime to have
         // some spare time to process channel's message. Otherwise it
@@ -2307,5 +2282,81 @@ impl InboundRequest<crate::hdl::MigratableStream> {
         // receiver's traffic before resuming the payload.
         let _ = self.send_keepalive(false).await;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod framing_regressions {
+    use super::*;
+    #[tokio::test]
+    async fn unrelated_broadcast_preserves_partial_network_length() {
+        let (socket, mut peer) = tokio::io::duplex(4096);
+        let (sender, _) = tokio::sync::broadcast::channel(10);
+        let mut req = InboundRequest::new(socket, "actual-transfer".into(), sender.clone());
+        tokio::spawn(async move {
+            peer.write_all(&[0, 0]).await.unwrap();
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            sender
+                .send(ChannelMessage {
+                    id: "different-transfer".into(),
+                    msg: channel::Message::Lib {
+                        action: TransferAction::TransferCancel,
+                    },
+                })
+                .unwrap();
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            peer.write_all(&[0, 2, 8, 1]).await.unwrap();
+        });
+        req.handle().await.unwrap();
+        let next = req.prefix.read(&mut req.socket).await.unwrap();
+        assert_eq!(next, [0, 0, 0, 2]);
+        let mut body = [0; 2];
+        stream_read_exact(&mut req.socket, &mut body).await.unwrap();
+        assert_eq!(body, [8, 1]);
+    }
+}
+
+#[cfg(test)]
+mod diagnostics_tests {
+    use super::*;
+    #[tokio::test]
+    async fn handshake_transitions_emit_only_state_not_private_metadata() {
+        let (socket, _peer) = tokio::io::duplex(64);
+        let (sender, mut observed) = tokio::sync::broadcast::channel(10);
+        let mut request = InboundRequest::new(socket, "test-session".into(), sender);
+        request.state.pin_code = Some("1234".into());
+        request.state.transfer_metadata = Some(TransferMetadata {
+            id: "private-id".into(),
+            source: None,
+            pin_code: Some("1234".into()),
+            payload_kind: TransferPayloadKind::Files,
+            payload_preview: None,
+            payload: None,
+            destination: Some("/private/path".into()),
+            saved_paths: None,
+            total_bytes: 0,
+            ack_bytes: 0,
+        });
+        request
+            .update_state(
+                |state| state.state = TransferState::ReceivedConnectionRequest,
+                false,
+            )
+            .await;
+        let message = observed.recv().await.unwrap();
+        let channel::Message::Protocol { kind, stage } = message.msg.clone() else {
+            panic!("Expected diagnostic event");
+        };
+        assert_eq!(kind, TransferKind::Inbound);
+        assert_eq!(stage, TransferState::ReceivedConnectionRequest);
+        assert!(!format!("{message:?}").contains("1234"));
+        assert!(!format!("{message:?}").contains("/private"));
+        request
+            .update_state(|state| state.server_seq += 1, false)
+            .await;
+        assert!(
+            observed.try_recv().is_err(),
+            "key/sequence changes are not diagnostic state transitions"
+        );
     }
 }

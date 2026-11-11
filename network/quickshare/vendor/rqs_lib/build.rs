@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 extern crate prost_build;
 
 fn main() {
@@ -8,6 +9,7 @@ fn main() {
             "src/proto_src/securegcm.proto",
             "src/proto_src/securemessage.proto",
             "src/proto_src/ukey.proto",
+            "src/proto_src/ble_frames.proto",
             "src/proto_src/wire_format.proto",
         ],
         &["src/proto_src"],

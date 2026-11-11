@@ -1,0 +1,85 @@
+{
+  "fastRejected": [
+    {
+      "case": "medium-version",
+      "service": 65267,
+      "bytes": "6a1723533234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "socket-version",
+      "service": 65267,
+      "bytes": "461723533234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "second-profile",
+      "service": 65267,
+      "bytes": "4b1723533234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "data-length",
+      "service": 65267,
+      "bytes": "4aff23533234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "foreign-pcp",
+      "service": 65267,
+      "bytes": "4a1721533234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "endpoint-bytes",
+      "service": 65267,
+      "bytes": "4a1723003234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "info-size",
+      "service": 65267,
+      "bytes": "4a1723533234411212000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "application-version",
+      "service": 65267,
+      "bytes": "4a17235332344111e2000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "reserved-metadata",
+      "service": 65267,
+      "bytes": "4a1723533234411113000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "foreign-service",
+      "service": 65068,
+      "bytes": "4a1723533234411112000102030405060708090a0b0c0d0e0f1234"
+    },
+    {
+      "case": "truncated-body",
+      "service": 65267,
+      "bytes": "4a1723533234411112000102030405060708090a0b0c0d0e"
+    },
+    {
+      "case": "partial-token",
+      "service": 65267,
+      "bytes": "4a1723533234411112000102030405060708090a0b0c0d0e0f12"
+    },
+    {
+      "case": "unsupported-extras",
+      "service": 65267,
+      "bytes": "4a1723533234411112000102030405060708090a0b0c0d0e0f123400"
+    }
+  ],
+  "fast": "4a1723533234411112000102030405060708090a0b0c0d0e0f1234",
+  "fastService": 65267,
+  "full": "48fc9f5e0000002923fc9f5e533234411802000102030405060708090a0b0c0d0e0f0647616c6178790000000000000000123400",
+  "compact": "412000c0100a00000f000011c9ca8e",
+  "bloomPositions": [
+    57,
+    56,
+    5,
+    28,
+    33
+  ],
+  "packets": [
+    "18fc9f5e00000011000102030405060708090a0b",
+    "240c0d0e0f10"
+  ],
+  "nearbyFrame": "00000011000102030405060708090a0b0c0d0e0f10"
+}
