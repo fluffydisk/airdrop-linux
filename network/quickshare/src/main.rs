@@ -286,7 +286,7 @@ impl Engine {
                         .ok_or_else(|| anyhow::anyhow!("BLE_NOT_STARTED"))?
                         .send(target.to_owned(), paths, id.to_owned())?;
                     self.ble_sessions.insert(id.to_owned(), cancellation);
-                    self.transfers.insert(id.to_owned(),json!({"id":id,"phase":"connecting","direction":"outgoing","created":now_ms()}));
+                    self.transfers.insert(id.to_owned(),json!({"id":id,"phase":"connecting","direction":"outgoing","connectionMethod":endpoint.transport,"created":now_ms()}));
                     return Ok(json!({"transferId":id}));
                 }
                 let info = SendInfo {
@@ -307,7 +307,7 @@ impl Engine {
                     .await?;
                 self.transfers.insert(
                     id.to_owned(),
-                    json!({"id":id,"phase":"connecting","direction":"outgoing","created":now_ms()}),
+                    json!({"id":id,"phase":"connecting","direction":"outgoing","connectionMethod":"lan-tcp","created":now_ms()}),
                 );
                 Ok(json!({"transferId":id}))
             }
@@ -352,6 +352,12 @@ impl Engine {
         }
     }
     fn protocol(&mut self, event: ChannelMessage) -> Option<Value> {
+        if let Message::Connection { kind, method } = &event.msg {
+            return self.protocol_diagnostics.then(||json!({"v":1,"event":"connection","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"connectionMethod":method}}));
+        }
+        if let Message::Finalization { kind, stage } = &event.msg {
+            return self.protocol_diagnostics.then(||json!({"v":1,"event":"finalization","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"stage":stage}}));
+        }
         if let Message::Protocol { kind, stage } = &event.msg {
             #[cfg(all(feature = "ble-native", target_os = "linux"))]
             {

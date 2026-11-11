@@ -50,6 +50,21 @@ def positions(service):
         out.append(n % 80)
     return out
 
+def valid_legacy_fast(service, packet):
+    # Independent grammar check for our explicitly supported subset, from the
+    # two public Google encoders, not a call into the Rust implementation.
+    if service != 0xfef3 or len(packet) not in (25, 26, 27) or packet[0] != 0x4a:
+        return False
+    size = packet[1]
+    if size not in (23, 24) or len(packet) not in (size + 2, size + 4):
+        return False
+    body = packet[2:2 + size]
+    if body[0] != 0x23 or not body[1:5].isalnum() or body[5] != 17:
+        return False
+    if body[6] >> 5 > 1 or body[6] & 1:
+        return False
+    return size == 23 or body[23] == 0
+
 def fixtures():
     service = hashlib.sha256(b'NearbySharing').digest()[:3]
     assert service == bytes.fromhex('fc9f5e')
@@ -67,7 +82,21 @@ def fixtures():
     for offset in range(0, len(message), 19):
         h = (((offset // 19 + 1) % 8) << 4) | (8 if offset == 0 else 0) | (4 if offset + 19 >= len(message) else 0)
         packets.append((bytes([h]) + message[offset:offset + 19]).hex())
-    return dict(full=full.hex(), compact=header.hex(), bloomPositions=positions(b'NearbySharing'), packets=packets, nearbyFrame=(b'\x00\x00\x00\x11' + bytes(range(17))).hex())
+    # Legacy fast: Google mediums header + Connections v1/P2P-point-to-point
+    # identity-only endpoint data. No service hash, name, MAC or PSM; UUID
+    # FEF3 supplies the service binding. This synthetic fixture is not a capture.
+    fast_info = bytes([0x12]) + identity
+    fast_body = b'\x23S24A' + bytes([len(fast_info)]) + fast_info
+    fast = b'\x4a' + bytes([len(fast_body)]) + fast_body + b'\x12\x34'
+    assert len(fast)==27 and valid_legacy_fast(0xfef3, fast)
+    rejected = []
+    for label, position, value in [('medium-version',0,0x6a),('socket-version',0,0x46),('second-profile',0,0x4b),('data-length',1,255),('foreign-pcp',2,0x21),('endpoint-bytes',3,0),('info-size',7,18),('application-version',8,0xe2),('reserved-metadata',8,0x13)]:
+        bad=bytearray(fast);bad[position]=value
+        rejected.append(dict(case=label,service=0xfef3,bytes=bytes(bad).hex()))
+    for label, packet, namespace in [('foreign-service',fast,0xfe2c),('truncated-body',fast[:24],0xfef3),('partial-token',fast[:-1],0xfef3),('unsupported-extras',fast+b'\x00',0xfef3)]:
+        rejected.append(dict(case=label,service=namespace,bytes=packet.hex()))
+    assert all(not valid_legacy_fast(r['service'],bytes.fromhex(r['bytes'])) for r in rejected)
+    return dict(fastRejected=rejected,fast=fast.hex(),fastService=0xfef3,full=full.hex(), compact=header.hex(), bloomPositions=positions(b'NearbySharing'), packets=packets, nearbyFrame=(b'\x00\x00\x00\x11' + bytes(range(17))).hex())
 
 if __name__ == '__main__':
     path = Path(__file__).with_name('fixtures') / 'quickshare-ble-wire.json'

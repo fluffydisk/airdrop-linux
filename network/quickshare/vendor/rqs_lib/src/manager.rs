@@ -106,11 +106,18 @@ impl TcpServer {
                                     }
                                 }
                                 let mut ir = InboundRequest::new(socket, request_id.clone(), csender);
-
+                                let mut connection_observed=false;
                                 loop {
                                     let result = tokio::time::timeout(std::time::Duration::from_secs(60), ir.handle()).await;
                                     match result.unwrap_or_else(|_| Err(anyhow::anyhow!("Peer timed out"))) {
-                                        Ok(_) => {},
+                                        Ok(_) => {
+                                            // Local listener probes connect then close without a
+                                            // Nearby request. Do not turn them into peer attempts.
+                                            if !connection_observed && ir.state.remote_device_info.is_some(){
+                                                connection_observed=true;
+                                                let _=esender.send(ChannelMessage{id:request_id.clone(),msg:channel::Message::Connection{kind:TransferKind::Inbound,method:"lan-tcp"}});
+                                            }
+                                        },
                                         Err(e) => match e.downcast_ref() {
                                             Some(AppError::NotAnError) => break,
                                             None => {
@@ -181,6 +188,13 @@ impl TcpServer {
         #[cfg(all(feature = "experimental", target_os = "linux"))]
         let socket = crate::hdl::MigratableStream::Tcp(socket);
 
+        let _ = self.sender.send(ChannelMessage {
+            id: si.id.clone(),
+            msg: channel::Message::Connection {
+                kind: TransferKind::Outbound,
+                method: "lan-tcp",
+            },
+        });
         let report_id = si.id.clone();
         let mut or = OutboundRequest::new(
             self.endpoint_id,

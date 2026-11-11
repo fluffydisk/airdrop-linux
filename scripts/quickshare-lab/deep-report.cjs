@@ -195,10 +195,27 @@ function android(v = {}) {
       ]),
     ),
     bluetooth: {
+      observationStatus: enumOf(v.bluetooth?.observationStatus, [
+        "readable",
+        "permission-denied",
+        "output-limit",
+        "timeout",
+        "command-failed",
+        "unavailable",
+      ]),
       accessible: bool(v.bluetooth?.accessible),
       enabled: bool(v.bluetooth?.enabled),
     },
     wifi: {
+      observationStatus: enumOf(v.wifi?.observationStatus, [
+        "readable",
+        "permission-denied",
+        "output-limit",
+        "timeout",
+        "command-failed",
+        "unavailable",
+        "status-command-not-advertised",
+      ]),
       accessible: bool(v.wifi?.accessible),
       enabled: bool(v.wifi?.enabled),
       connected: bool(v.wifi?.connected),
@@ -315,14 +332,14 @@ function findings(b, p, events, a) {
       2,
       "rejection-evidence",
       "Direct runtime observation",
-      `${c.candidate_rejected} observations were rejected by both current parsers. Per-format reason counters describe validation gates, not a proven Samsung protocol defect.`,
+      `${c.candidate_rejected} observations were rejected by all applicable parsers in the captured build. Per-format reason counters describe validation gates, not a proven Samsung protocol defect.`,
     );
   if (c.unsupported_fast_well_formed)
     add(
       2,
       "unsupported-format-candidate",
       "Source-code inference",
-      "A bounded fast-format shape passed diagnostic-only inspection. The receiver parser deliberately rejects this format; phone attribution and complete protocol validity are unknown.",
+      "A bounded Fast shape passed legacy diagnostic-only inspection and was rejected by the captured decoder. This does not establish complete validity or Samsung attribution; compare the recorded build with the strict Fast subset and its rejection counters.",
     );
   if (c.gatt_resolution_failure || c.gatt_slot_read_failure)
     add(
@@ -448,12 +465,18 @@ function create(input = {}) {
   const evidenceStages = {
     fef3Observed: peak.observed > 0,
     parserAccepted:
-      Object.hasOwn(c, "full_accepted") || Object.hasOwn(c, "compact_accepted")
-        ? (c.full_accepted || 0) + (c.compact_accepted || 0) > 0
+      Object.hasOwn(c, "full_accepted") ||
+      Object.hasOwn(c, "compact_accepted") ||
+      Object.hasOwn(c, "fast_accepted")
+        ? (c.full_accepted || 0) +
+            (c.compact_accepted || 0) +
+            (c.fast_accepted || 0) >
+          0
         : peak.observed > 0 && !(c.candidate_rejected > 0)
           ? null
           : false,
-    gattMetadataResolved: peak.resolved > 0 || c.gatt_slot_decoded > 0,
+    gattMetadataResolved: peak.resolved > 0,
+    gattSlotDecoded: c.gatt_slot_decoded > 0,
     endpointPublished: peak.decoded > 0,
     transportReady: peak.ready > 0,
     recipientRoutePublished: pipeline.recipient_route_published > 0,
@@ -489,17 +512,65 @@ function create(input = {}) {
     Number.isSafeInteger(input.integrity?.size) &&
     input.integrity.size >= 0 &&
     input.integrity.size <= 3 * 1024 * 1024;
-  const protocolCompleted = events.some(
+  const localPayloadCompletionObserved = events.some(
     (e) =>
-      e.type === "transfer" &&
-      ["complete", "outcome-unknown"].includes(e.phase),
+      (e.type === "transfer" &&
+        ["complete", "outcome-unknown"].includes(e.phase)) ||
+      (e.type === "protocol" && e.stage === "Sent") ||
+      (e.type === "finalization" && e.stage === "LocalPayloadComplete"),
   );
+  const finalization = events.filter((e) => e.type === "finalization");
+  const connectionEvents = events.filter((e) => e.type === "connection");
+  const methods = [
+    ...new Set(
+      (connectionEvents.length ? connectionEvents : events)
+        .filter(
+          (e) =>
+            ["transfer", "connection"].includes(e.type) &&
+            d.CONNECTION_METHODS.has(e.connectionMethod),
+        )
+        .map((e) => e.connectionMethod),
+    ),
+  ];
+  const ukeyObserved = events.some(
+    (e) => e.type === "protocol" && e.stage.includes("Ukey"),
+  );
+  const noBleConnection =
+    !c.weave_established &&
+    !c.l2cap_connection_succeeded &&
+    !events.some(
+      (e) =>
+        e.type === "bluetooth" &&
+        ["weave-established", "l2cap-established"].includes(e.bluetooth.stage),
+    );
+  const inferredLan =
+    input.direction === "linux-to-samsung" &&
+    (c.fef3_observations !== undefined ||
+      pf.helper?.capabilities?.ble === false) &&
+    methods.length === 0 &&
+    ukeyObserved &&
+    noBleConnection &&
+    peak.decoded === 0 &&
+    pipeline.recipient_route_published > 0;
+  const selectedTransport =
+    methods.length === 1 ? methods[0] : inferredLan ? "lan-tcp" : "unknown";
+  const activeRuntime = input.activeRuntime || {};
+  const listenerValue =
+    typeof activeRuntime.listenerReachable === "boolean"
+      ? activeRuntime.listenerReachable
+      : typeof runtime.lastActive?.listenerReachable === "boolean"
+        ? runtime.lastActive.listenerReachable
+        : runtime.status === "running" &&
+            typeof runtime.listenerReachable === "boolean"
+          ? runtime.listenerReachable
+          : null;
   const report = {
-    schema: 1,
+    schema: 2,
     provenanceTypes: PROVENANCE,
     createdAt: new Date().toISOString(),
     experimental: true,
     samsungCompatibilityEstablished: false,
+    productionAcceptanceEstablished: false,
     direction: enumOf(input.direction, [
       "linux-to-samsung",
       "samsung-to-linux",
@@ -593,7 +664,10 @@ function create(input = {}) {
       rejectionReasonCoverage:
         peak.observed === 0
           ? "not-exercised"
-          : c.candidate_rejected || c.full_accepted || c.compact_accepted
+          : c.candidate_rejected ||
+              c.full_accepted ||
+              c.compact_accepted ||
+              c.fast_accepted
             ? "instrumented"
             : "unavailable",
       windowCounters: Object.fromEntries(
@@ -611,13 +685,29 @@ function create(input = {}) {
       peak: sanitizeBluetooth(peak),
       lastActive: sanitizeBluetooth(active.bluetooth),
       counterSemantics:
-        "Cumulative helper-lifetime counters. Both parser attempts are counted per observation; candidate_rejected counts observations accepted by neither. Address-based ephemeral candidates can rotate and are not device counts. Registration is not proof of emission.",
+        "Cumulative helper-lifetime counters. Full and compact parsers are attempted per observation; Fast is additionally tried only on a Fast-marked full rejection; candidate_rejected counts observations accepted by none. Address-based ephemeral candidates can rotate and are not device counts. Registration is not proof of emission.",
       provenance: "Direct runtime observation",
     },
     lan: {
       localMdnsObserved: runtime.advertisements?.ownObserved === true,
       maxVisible: num(runtime.advertisements?.maxVisible, 100),
-      listenerReachable: runtime.listenerReachable === true,
+      listenerReachable: listenerValue,
+      listenerReachableEver:
+        runtime.listenerReachableEver === true || listenerValue === true,
+      listenerReachableAfterShutdown:
+        runtime.status === "stopped" ? bool(runtime.listenerReachable) : null,
+      listenerObservation:
+        typeof activeRuntime.listenerReachable === "boolean"
+          ? "captured-before-teardown"
+          : runtime.lastActive
+            ? "preserved-last-active"
+            : runtime.status === "stopped"
+              ? "legacy-stopped-snapshot-unknown"
+              : "unknown",
+      listenerProvenance:
+        listenerValue === null ? "Unknown" : "Direct runtime observation",
+      qualification:
+        "This probes Linux's inbound listener; an outgoing TCP session is independent. A stopped-state false does not establish an active-session failure.",
       phoneAttribution: "unknown",
     },
     android: a,
@@ -625,7 +715,63 @@ function create(input = {}) {
     shutdown,
     owner: observations,
     transfer: {
-      protocolCompletionObserved: protocolCompleted,
+      localPayloadCompletionObserved,
+      selectedTransport,
+      discoveryPath:
+        selectedTransport === "lan-tcp"
+          ? "mdns"
+          : selectedTransport.startsWith("ble-")
+            ? "ble"
+            : "unknown",
+      transportProvenance:
+        methods.length === 1
+          ? "Direct runtime observation"
+          : inferredLan
+            ? "Source-code inference"
+            : "Unknown",
+      peerCloseObserved: finalization.some((e) =>
+        ["PeerEof", "PeerDisconnection"].includes(e.stage),
+      ),
+      peerCloseStatus: finalization.some((e) =>
+        ["PeerEof", "PeerDisconnection"].includes(e.stage),
+      )
+        ? "observed"
+        : finalization.some((e) => e.stage === "PeerCloseTimeout")
+          ? "timeout"
+          : "unknown",
+      payloadReceiptAckObserved: finalization.some(
+        (e) => e.stage === "PayloadReceiptAckObserved",
+      ),
+      finalizationFailureObserved: finalization.some((e) =>
+        ["FinalizationReadError", "PeerPayloadFailure"].includes(e.stage),
+      ),
+      payloadReceiptAckStatus: finalization.some(
+        (e) => e.stage === "PayloadReceiptAckObserved",
+      )
+        ? "observed"
+        : finalization.length
+          ? "not-observed"
+          : "unknown",
+      payloadReceiptAckEncoding: finalization.some(
+        (e) => e.stage === "PayloadReceiptAckModernObserved",
+      )
+        ? "packet-type-3"
+        : finalization.some(
+              (e) => e.stage === "PayloadReceiptAckLegacyObserved",
+            )
+          ? "legacy-control"
+          : "unknown",
+      payloadReceiptAckScope:
+        "At least one matched file payload ID; not proof all files were durably finalized.",
+      remoteApplicationSuccessAcknowledged: false,
+      remoteApplicationSuccessStatus:
+        "No implemented durable application-success acknowledgement; EOF/disconnection/payload receipt are separate observations.",
+      receiverFinalizationObserved: events.some(
+        (e) =>
+          e.type === "transfer" &&
+          e.direction === "incoming" &&
+          e.phase === "complete",
+      ),
       nativeUiCompletion: observations.nativeCompleted,
       independentFixtureMatch: hashMatches,
       fixtureReadback: {
@@ -640,13 +786,15 @@ function create(input = {}) {
             : null,
       },
       outcome:
-        protocolCompleted &&
+        localPayloadCompletionObserved &&
         observations.nativeCompleted === "confirmed" &&
         hashMatches
           ? "owner-confirmed-with-independent-bytes"
           : "unconfirmed",
       provenance: {
-        protocol: protocolCompleted ? "Direct runtime observation" : "Unknown",
+        protocol: localPayloadCompletionObserved
+          ? "Direct runtime observation"
+          : "Unknown",
         nativeUi:
           observations.nativeCompleted === "confirmed"
             ? "Owner UI observation"
@@ -737,7 +885,7 @@ function markdown(r) {
     `Commit: ${r.build.commit || "unknown"} · helper SHA-256: ${r.build.helperSha256 || "unknown"}`,
     `Direction: ${r.direction} · network: ${r.network} · outcome: ${r.captureOutcome}`,
     "",
-    "**Samsung compatibility: not established.**",
+    "**Production compatibility acceptance: not established. Single-fixture evidence is separate.**",
     "",
     `FEF3 observations: ${r.bluetooth.peak.observed}; decoded: ${r.bluetooth.peak.decoded}; GATT-resolved: ${r.bluetooth.peak.resolved}; ready: ${r.bluetooth.peak.ready}.`,
     `ADB: ${r.android.status}; log visibility: ${r.android.logcatVisibility}.`,

@@ -316,6 +316,8 @@ async function diagnose(options, lab) {
     clearTimeout(captureTimer);
     io?.off("line", onLine);
     input.durationMs = Math.round(performance.now() - begin);
+    input.activeRuntime=read(root,"runtime.json");
+    if(input.activeRuntime.run!==marker.run)input.activeRuntime={};
     input.endedMs = Date.now();
     const atEnd = read(root, "desktop-state.json");
     if (atEnd.run === marker.run) input.active = atEnd;

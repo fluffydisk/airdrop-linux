@@ -1,8 +1,10 @@
 # Samsung Galaxy S24+ — owner-assisted native Quick Share test
 
 This tests the development code from PR #21 (which targets PR #19), not the
-installed stable application. No native Samsung success has been established
-for this build. You are the physical tester; return the report and development
+installed stable application. The owner has verified one 49-byte Linux → stock Samsung transfer over the
+ordinary home-LAN path with matching independent USB readback; see
+[physical evidence and next tests](quickshare-s24-physical-evidence.md). Production
+acceptance, Samsung → Linux and BLE interoperability remain pending. You are the physical tester; return the report and development
 will continue from the first failing stage. No phone root, companion sharing
 app or ADB is needed.
 

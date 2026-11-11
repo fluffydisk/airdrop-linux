@@ -120,7 +120,7 @@ file-transfer success.
 ## Not implemented / hardware uncertainties
 
 Authenticated BLE-to-LAN upgrade, Wi-Fi Direct/hotspot, BR/EDR/RFCOMM, persistent
-trust, fast/background advertisements, socket-v1 peers, handshake extra-data and
+trust, extended Fast variants, socket-v1 peers, handshake extra-data and
 alternate undocumented Samsung dialects are not implemented by this new path.
 Unsupported formats fail closed. Direct LAN transfers remain available. Start
 physical BLE tests with `lab-small.txt`; the slow BLE path has a finite lifetime.
@@ -128,7 +128,7 @@ physical BLE tests with `lab-small.txt`; the slow BLE path has a finite lifetime
 No cloud controller is present. Controller emission, MTU/notification behavior,
 address privacy/rotation, simultaneous radio activity, repeated real adapter
 removal, stock S24+ discovery, authentication and transfer require owner testing.
-The RTL8821CE / Realtek 0BDA:B00A / BlueZ 5.87 setup is unverified here. Earlier
+One ordinary-LAN 49-byte Linux → S24+ fixture transfer on the RTL8821CE / Realtek 0BDA:B00A / BlueZ 5.87 setup is now owner-verified with independent USB readback; this does not verify BLE interoperability. See [physical evidence](quickshare-s24-physical-evidence.md). Earlier
 school-network and hotspot failures do not establish a Samsung defect.
 
 Automated evidence includes independent Python advertisement/Bloom/Weave wire
@@ -136,3 +136,14 @@ fixtures, bounded bridge and timeout tests, bare/framed command peers, actual
 helper/D-Bus failure lifecycle tests, the existing independent Python/OpenSSL
 UKEY2/adversarial/file tests and LAN/Electron regressions. Neither independent
 wire fixtures nor two copies of this core establish stock-device compatibility.
+
+## Strict legacy Fast extension
+
+FEF3 service-bound v2/socket-v2 legacy Fast identity advertisements now have a
+strict decoder and independent fixtures. Publication requires matching,
+hash-validated full GATT metadata, existing visibility policy and a usable
+transport. No PSM is inferred from Fast. Extended extras, second profiles and
+unknown formats remain rejected. Source evidence, limitations and the distinction
+from the owner's un-attributed packet shapes are recorded in the physical evidence
+document linked above. LAN transport and encrypted send/finalization behavior
+remain unchanged; new connection/finalization events are observation-only.

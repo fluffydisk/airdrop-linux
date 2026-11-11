@@ -4,6 +4,7 @@ const fs = require('node:fs/promises');
 const { PHASES, STATUSES, PROTOCOL_STAGES, atomicJson, atomicText, capabilities, ownedDirectory, readJson } = require('../../lib/sharing/lab-evidence');
 const { fixtureNames, hashDirectory } = require('./fixtures.cjs');
 const LABELS = { A: 'Helper starts', B: 'Local Quick Share mDNS endpoint observed', C: 'Samsung discovers Linux', D: 'Linux discovers Samsung', E: 'Native connection established', F: 'Verification codes match', G: 'Receiver accepts', H: 'File bytes transfer', I: 'Receiver confirms final outcome', J: 'Independent fixture hashes match' };
+const diagnostic=require('../../lib/sharing/quickshare-diagnostics');
 const OUTCOMES = new Set(['pass', 'fail', 'not-tested', 'unknown']);
 const ERROR_CODES = new Set(['HELPER_VERIFICATION', 'CAPABILITY_UNAVAILABLE', 'IPC_PROTOCOL', 'RECEIVE_VALIDATION', 'IPC_TIMEOUT', 'HELPER_UNAVAILABLE', 'SEND_REQUEST_FAILED']);
 function timeline(input) {
@@ -11,9 +12,11 @@ function timeline(input) {
   return input.slice(-2000).flatMap(v => {
     if (!v || !Number.isSafeInteger(v.elapsedMs) || v.elapsedMs < 0) return [];
     const base = { elapsedMs: v.elapsedMs };
+    if(v.type==='connection'&&/^attempt-[1-9][0-9]{0,2}$/.test(v.attempt||'')&&diagnostic.CONNECTION_METHODS.has(v.connectionMethod)&&['incoming','outgoing'].includes(v.direction))return [{...base,type:'connection',attempt:v.attempt,direction:v.direction,connectionMethod:v.connectionMethod}];
+    if(v.type==='finalization'&&/^attempt-[1-9][0-9]{0,2}$/.test(v.attempt||'')&&diagnostic.FINALIZATION_STAGES.has(v.stage)&&['incoming','outgoing'].includes(v.direction))return [{...base,type:'finalization',attempt:v.attempt,direction:v.direction,stage:v.stage}];
     if (v.type === 'protocol' && /^attempt-[1-9][0-9]{0,2}$/.test(v.attempt || '') && PROTOCOL_STAGES.has(v.stage) && ['incoming', 'outgoing'].includes(v.direction)) return [{ ...base, type: 'protocol', attempt: v.attempt, stage: v.stage, direction: v.direction }];
     if (v.type === 'helper' && STATUSES.has(v.status)) return [{ ...base, type: 'helper', status: v.status, ...(ERROR_CODES.has(v.category) ? { category: v.category } : {}) }];
-    if (v.type === 'transfer' && /^attempt-[1-9][0-9]{0,2}$/.test(v.attempt || '') && PHASES.has(v.phase) && ['incoming', 'outgoing'].includes(v.direction)) return [{ ...base, type: 'transfer', attempt: v.attempt, phase: v.phase, direction: v.direction, bytes: safeNumber(v.bytes), total: safeNumber(v.total) }];
+    if (v.type === 'transfer' && /^attempt-[1-9][0-9]{0,2}$/.test(v.attempt || '') && PHASES.has(v.phase) && ['incoming', 'outgoing'].includes(v.direction)) return [{ ...base, type: 'transfer', attempt: v.attempt, phase: v.phase, direction: v.direction, bytes: safeNumber(v.bytes), total: safeNumber(v.total), ...(diagnostic.CONNECTION_METHODS.has(v.connectionMethod)?{connectionMethod:v.connectionMethod}:{}) }];
     if (v.type === 'consent') return [{ ...base, type: 'consent', accepted: v.accepted === true }];
     if (['verification-available', 'shutdown-requested'].includes(v.type)) return [{ ...base, type: v.type }];
     if (v.type === 'bluetooth') return [{ ...base, type: 'bluetooth', bluetooth: require('../../lib/sharing/quickshare').sanitizeBluetooth(v.bluetooth) }];

@@ -29,6 +29,15 @@ pub enum Message {
     },
     Client(MessageClient),
     // Diagnostics never carry TransferMetadata, keys, codes or endpoint data.
+    /// Local completion / peer-close observations; never a durable-success assertion.
+    Connection {
+        kind: TransferKind,
+        method: &'static str,
+    },
+    Finalization {
+        kind: TransferKind,
+        stage: &'static str,
+    },
     Protocol {
         kind: TransferKind,
         stage: TransferState,

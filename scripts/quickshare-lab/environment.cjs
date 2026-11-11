@@ -41,12 +41,17 @@ function helperMetadata() {
 }
 async function hello(method = 'hello') {
   const result = helperMetadata(); if (!result.hashMatches) return { ...result, hello: false };
+  return readHello(spawn(helperFiles().binary, [], { stdio: ['pipe', 'pipe', 'ignore'] }), result, method);
+}
+function readHello(child, result, method = 'hello') {
   return new Promise(resolve => {
-    const child = spawn(helperFiles().binary, [], { stdio: ['pipe', 'pipe', 'ignore'] }); let bytes = '', settled = false;
+    let bytes = '', settled = false;
     const finish = value => { if (settled) return; settled = true; clearTimeout(timer); child.stdin.end(); child.kill('SIGTERM'); resolve(value); };
     const timer = setTimeout(() => finish({ ...result, hello: false }), method === 'hello' ? 4000 : 7000);
     child.on('error', () => finish({ ...result, hello: false }));
-    child.on('exit', () => { if (!settled) finish({ ...result, hello: false }); });
+    // 'exit' can precede the final stdout data event. 'close' follows pipe
+    // drainage, so a valid reply is never discarded by process-exit ordering.
+    child.on('close', () => { if (!settled) finish({ ...result, hello: false }); });
     child.stdin.on('error', () => {});
     child.stdout.on('data', chunk => {
       bytes += chunk.toString('utf8'); if (bytes.length > 65536) { finish({ ...result, hello: false }); return; }
@@ -101,4 +106,4 @@ function instructions(distro) {
   if (['arch', 'manjaro', 'endeavouros'].includes(distro)) return 'Build packages (review and run yourself): sudo pacman -S --needed base-devel pkgconf protobuf dbus gtk3 nss alsa-lib. Install pinned Rust and Node 26 separately.';
   return 'Install a C toolchain, pkg-config, protoc, D-Bus development headers, Electron runtime libraries, Rust from network/quickshare/rust-toolchain.toml and Node 26. No packages or privileges are changed by preflight.';
 }
-module.exports = { ROOT, probe, source, fingerprint, helperFiles, helperMetadata, hello, preflight, instructions };
+module.exports = { ROOT, probe, source, fingerprint, helperFiles, helperMetadata, hello, readHello, preflight, instructions };

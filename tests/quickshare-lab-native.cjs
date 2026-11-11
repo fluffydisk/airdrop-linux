@@ -48,8 +48,10 @@ test('S24 lab prepares, launches actual Electron/helper, collects privately and 
     const deepRoot=path.join(root,'fresh-deep');
     await cliAt(deepRoot,'--diagnose','--direction','linux-to-samsung','--duration','10','--network','ordinary','--archive','--skip-install');
     const deep=JSON.parse(await fs.readFile(path.join(deepRoot,'reports/quickshare-deep-diagnostic.json')));
-    assert.equal(deep.build.helperHashVerified,true);assert.equal(deep.build.sourceVerified,true);
+    assert.equal(deep.build.helperHashVerified,true,`capture=${deep.captureOutcome}; failedStage=${deep.failedStage}; helper hash verification`);assert.equal(deep.build.sourceVerified,true);
     assert.equal(deep.captureOutcome,'completed');assert.equal(deep.shutdown.classification,'clean-stop');
+    assert.equal(deep.lan.listenerReachable,true);assert.equal(deep.lan.listenerReachableAfterShutdown,false);assert.equal(deep.transfer.selectedTransport,'unknown');
+    const timeline=JSON.parse(await fs.readFile(path.join(deepRoot,'reports/quickshare-event-timeline.json')));assert.equal(timeline.events.some(e=>e.type==='connection'),false,'listener probes must not create Nearby attempts');
     assert.equal(deep.transfer.outcome,'unconfirmed');assert.equal(deep.samsungCompatibilityEstablished,false);
     assert.equal(JSON.stringify(deep).includes(root),false);
     await assert.rejects(fs.lstat(path.join(deepRoot,'control.sock')),{code:'ENOENT'});

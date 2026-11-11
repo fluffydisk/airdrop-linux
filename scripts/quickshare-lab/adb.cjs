@@ -404,6 +404,11 @@ class Android {
     if (this.public.services.bluetooth === "available") {
       const r = await this.call(["shell", "dumpsys", "bluetooth_manager"]);
       this.public.bluetooth = {
+        observationStatus: !r.ok
+          ? r.category
+          : /Permission Denial|SecurityException/i.test(r.output)
+            ? "permission-denied"
+            : "readable",
         accessible:
           r.ok && !/Permission Denial|SecurityException/i.test(r.output),
         enabled:
@@ -414,10 +419,20 @@ class Android {
     }
     if (this.stopping) return;
     const help = await this.call(["shell", "cmd", "wifi", "help"]);
+    this.public.wifi = {
+      observationStatus: help.ok
+        ? "status-command-not-advertised"
+        : help.category,
+    };
     if (this.stopping) return;
     if (help.ok && /^\s*status(?:\s|$)/m.test(help.output)) {
       const r = await this.call(["shell", "cmd", "wifi", "status"]);
       this.public.wifi = {
+        observationStatus: !r.ok
+          ? r.category
+          : /Permission Denial|SecurityException/i.test(r.output)
+            ? "permission-denied"
+            : "readable",
         accessible:
           r.ok && !/Permission Denial|SecurityException/i.test(r.output),
         enabled:

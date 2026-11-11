@@ -34,10 +34,11 @@ Options:
   --scenario ordinary|decline|cancel|interrupt
   --record C=pass,E=unknown     Noninteractive owner observations, stages C through I
   --readback PATH              Explicit fixture-only USB readback for Linux -> Samsung
-  --archive                    Add a local archive of the two sanitized reports
+  --archive                    Archive approved reports (collect: two; diagnose: three)
   --non-interactive            Never ask questions; leave unobserved stages untested
-No sudo, ADB, persistent radio/firewall changes or uploads are performed.
-See docs/quickshare-s24-test.md. BLE requires --ble-native at prepare; stock Android compatibility remains unverified.`;
+ADB is used only with --diagnose --adb and explicit owner consent.
+No sudo, persistent radio/firewall changes or automatic uploads are performed.
+See docs/quickshare-s24-test.md. BLE requires --ble-native at prepare; see the scoped physical LAN fixture evidence in docs/quickshare-s24-physical-evidence.md.`;
 function parse(argv) {
   const result = {}; const operations = ['preflight', 'prepare', 'start', 'status', 'collect', 'stop', 'supervise', 'diagnose', 'help'];
   for (let i = 0; i < argv.length; i++) {
@@ -168,6 +169,7 @@ async function supervise(options) {
   const save = () => atomicJson(root, 'runtime.json', runtime);
   const shutdown = async failed => {
     if (stopping) return; stopping = true; clearInterval(timer);
+    runtime.listenerReachableAtShutdown=runtime.listenerReachable;
     runtime.status = failed ? 'failed' : 'stopped'; runtime.listenerReachable = false;
     try { save(); } catch {}
     if (child && Number.isInteger(child.pid) && child.exitCode === null && child.signalCode === null) {
@@ -227,7 +229,9 @@ async function supervise(options) {
         runtime.bluetooth = require('../lib/sharing/quickshare').sanitizeBluetooth(state.helper?.bluetooth);
         runtime.capabilities = require('../lib/sharing/lab-evidence').capabilities(state.helper?.capabilities);
         runtime.helperStatus = ['starting', 'ready', 'error', 'stopped', 'disabled'].includes(state.helper?.status) ? state.helper.status : 'error';
-        runtime.listenerReachable = runtime.helperStatus === 'ready' && await listener(state.helper.listenerPort);
+        const reachable = runtime.helperStatus === 'ready' && await listener(state.helper.listenerPort);
+        if(stopping)return; // A pending probe must not overwrite the stopped snapshot.
+        runtime.listenerReachable = reachable;
         const visible = browser.services.slice(0, 100);
         const localAddresses = new Set(Object.values(require('node:os').networkInterfaces()).flat().filter(Boolean).map(v => v.address));
         if (visible.some(service => {
@@ -235,7 +239,10 @@ async function supervise(options) {
           try { const endpoint = Buffer.from(String(service.txt?.n || ''), 'base64url'); return endpoint.length >= 18 && endpoint.subarray(18, 18 + endpoint[17]).toString('utf8') === 'Airdrop S24 Lab'; } catch { return false; }
         })) runtime.advertisements.ownObserved = true;
         runtime.advertisements.maxVisible = Math.max(runtime.advertisements.maxVisible, visible.length);
-        runtime.status = runtime.helperStatus === 'error' ? 'failed' : runtime.helperStatus === 'ready' ? 'running' : 'starting'; save();
+        runtime.status = runtime.helperStatus === 'error' ? 'failed' : runtime.helperStatus === 'ready' ? 'running' : 'starting';
+        runtime.listenerReachableEver=runtime.listenerReachableEver===true||runtime.listenerReachable;
+        if(runtime.helperStatus==='ready')runtime.lastActive={listenerReachable:runtime.listenerReachable,checkedAt:new Date().toISOString()};
+        save();
       } catch { /* App startup has not yet written sanitized state. */ }
       finally { pollBusy = false; }
     };

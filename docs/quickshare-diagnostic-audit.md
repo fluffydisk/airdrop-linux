@@ -24,3 +24,23 @@ Scope: current PR #21 at owner-tested `4a68dd4`, extended by this change. No par
 Counters aggregate observations across peers. No address, endpoint hash or per-candidate identifier is exported. Full/compact rejection counters are parser attempts; slot rejection counters are separate. Zero/absent counters before instrumentation cannot reconstruct the reason for the owner's 72 observations. Error categories report API results, not RF emission or Samsung attribution. Protocol-state tests and independent wire peers do not constitute a stock-device test.
 
 Review targets: fixed input/queue/cache bounds; no await while holding diagnostic locks; no callbacks blocked by diagnostic emission (`try_send` remains bounded); no notification-worker ownership changes; no new radio/policy permissions; owned ACL disconnect behavior retained; session cancellation/deadlines and cryptographic/file-handling code unchanged. The global fixed-schema counters live for one helper process, survive adapter retries, and never reset on Bluetooth stop. Capture-window deltas are separately reported on attachment.
+
+## Physical-evidence extension
+
+See [verified owner evidence](quickshare-s24-physical-evidence.md). The successful
+LAN/TCP sender's frames, wait durations and terminal state are unchanged. Fixed
+connection/finalization observations distinguish actual transport, local payload
+completion, EOF/disconnection, matched legacy/modern payload ACK and late errors.
+The report separates those observations from owner UI completion and independent
+byte verification. Active listener probes survive shutdown; old stopped false
+values are unknown for the active period.
+
+The FEF3 namespace has a documented hashless legacy Fast variant. The separate
+service-bound decoder retains strict version/PCP/identity/profile/length bounds;
+Fast has no inferred PSM. Hash-validated GATT slots must match Fast endpoint and
+identity before publication. Exact Fast size/prefix categories disclose no raw
+bytes. Missing/mismatched slots and unavailable transports remain unready. Both
+full-parser rejection and Fast acceptance can legitimately be recorded for one
+observation; jointly rejected candidates count only observations accepted by no
+applicable parser. Independent generated fixtures are distinct from physical
+packet evidence, whose source and exact complete format remain unconfirmed.

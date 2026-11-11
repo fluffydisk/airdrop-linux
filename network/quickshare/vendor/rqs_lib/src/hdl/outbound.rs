@@ -1581,6 +1581,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                             // costs nothing there. Only if the peer holds the socket open
                             // past the grace period do we announce our own disconnection
                             // (the previous behavior) so nobody waits on us forever.
+                            self.finalization_observed("LocalPayloadComplete");
                             let peer_closed =
                                 self.wait_for_peer_close(Duration::from_secs(8)).await?;
                             if !peer_closed {
@@ -1857,6 +1858,34 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
         }
     }
 
+    // Google's modern PAYLOAD_ACK uses raw packet_type 3. The vendored enum
+    // predates it, but prost preserves the integer. Observe it without changing
+    // the wire schema or treating an ACK as application/durable completion.
+    fn receipt_ack_kind(p: &PayloadTransferFrame) -> Option<&'static str> {
+        if p.payload_chunk.is_some() {
+            return None;
+        }
+        match p.packet_type {
+            Some(3) if p.control_message.is_none() => Some("PayloadReceiptAckModernObserved"),
+            Some(2)
+                if p.control_message
+                    .as_ref()
+                    .is_some_and(|c| c.event == Some(3)) =>
+            {
+                Some("PayloadReceiptAckLegacyObserved")
+            }
+            _ => None,
+        }
+    }
+    fn finalization_observed(&self, stage: &'static str) {
+        let _ = self.sender.send(ChannelMessage {
+            id: self.state.id.clone(),
+            msg: channel::Message::Finalization {
+                kind: TransferKind::Outbound,
+                stage,
+            },
+        });
+    }
     /// After the last payload chunk, give the receiver time to finish writing
     /// the file and close the connection on its own. Respond to keepalives,
     /// reject malformed frames and late payload failures, and return when the
@@ -1871,16 +1900,22 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
     /// sender reports Sent rather than Finished after this wait.
     async fn wait_for_peer_close(&mut self, grace: Duration) -> Result<bool, anyhow::Error> {
         let deadline = tokio::time::Instant::now() + grace;
+        let mut receipt_ack_reported = false;
         loop {
             match tokio::time::timeout_at(deadline, self.read_encrypted_offline_frame()).await {
-                Err(_) => return Ok(false),
+                Err(_) => {
+                    self.finalization_observed("PeerCloseTimeout");
+                    return Ok(false);
+                }
                 Ok(Err(error)) => {
                     if error
                         .downcast_ref::<std::io::Error>()
                         .is_some_and(|e| e.kind() == std::io::ErrorKind::UnexpectedEof)
                     {
+                        self.finalization_observed("PeerEof");
                         return Ok(true);
                     }
+                    self.finalization_observed("FinalizationReadError");
                     return Err(error);
                 }
                 Ok(Ok(frame)) => {
@@ -1891,9 +1926,25 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                             }
                             location_nearby_connections::v1_frame::FrameType::Disconnection => {
                                 debug!("peer sent DISCONNECTION during close-wait");
+                                self.finalization_observed("PeerDisconnection");
                                 return Ok(true);
                             }
                             location_nearby_connections::v1_frame::FrameType::PayloadTransfer => {
+                                if !receipt_ack_reported
+                                    && let Some(payload) = v1.payload_transfer.as_ref()
+                                    && payload
+                                        .payload_header
+                                        .as_ref()
+                                        .and_then(|h| h.id)
+                                        .is_some_and(|id| {
+                                            self.state.transferred_files.contains_key(&id)
+                                        })
+                                    && let Some(kind) = Self::receipt_ack_kind(payload)
+                                {
+                                    receipt_ack_reported = true;
+                                    self.finalization_observed("PayloadReceiptAckObserved");
+                                    self.finalization_observed(kind);
+                                }
                                 if let Some(control) = v1
                                     .payload_transfer
                                     .as_ref()
@@ -1904,6 +1955,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                                         control.event(),
                                         EventType::PayloadError | EventType::PayloadCanceled
                                     ) {
+                                        self.finalization_observed("PeerPayloadFailure");
                                         return Err(anyhow!(
                                             "Peer rejected payload during finalization"
                                         ));
@@ -2342,5 +2394,71 @@ mod payload_regressions {
                     .is_err()
             );
         }
+    }
+    #[tokio::test]
+    async fn peer_eof_is_observed_without_asserting_finished() {
+        let mut req = request();
+        let mut events = req.sender.subscribe();
+        assert!(
+            req.wait_for_peer_close(Duration::from_secs(1))
+                .await
+                .unwrap()
+        );
+        let observed = events.recv().await.unwrap();
+        assert!(matches!(
+            observed.msg,
+            channel::Message::Finalization {
+                stage: "PeerEof",
+                ..
+            }
+        ));
+        assert_eq!(req.state.state, TransferState::Initial);
+    }
+    #[tokio::test(start_paused = true)]
+    async fn close_timeout_is_observed_without_changing_session_state() {
+        let (socket, _peer) = tokio::io::duplex(4096);
+        let mut req = request();
+        req.socket = socket;
+        let mut events = req.sender.subscribe();
+        assert!(
+            !req.wait_for_peer_close(Duration::from_secs(1))
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            events.recv().await.unwrap().msg,
+            channel::Message::Finalization {
+                stage: "PeerCloseTimeout",
+                ..
+            }
+        ));
+        assert_eq!(req.state.state, TransferState::Initial);
+    }
+    #[test]
+    fn legacy_and_modern_receipt_ack_shapes_remain_observations_only() {
+        let mut modern = PayloadTransferFrame {
+            packet_type: Some(3),
+            ..Default::default()
+        };
+        assert_eq!(
+            OutboundRequest::<tokio::io::DuplexStream>::receipt_ack_kind(&modern),
+            Some("PayloadReceiptAckModernObserved")
+        );
+        modern.payload_chunk = Some(Default::default());
+        assert!(OutboundRequest::<tokio::io::DuplexStream>::receipt_ack_kind(&modern).is_none());
+        let legacy = PayloadTransferFrame {
+            packet_type: Some(2),
+            control_message: Some(
+                location_nearby_connections::payload_transfer_frame::ControlMessage {
+                    event: Some(3),
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        };
+        assert_eq!(
+            OutboundRequest::<tokio::io::DuplexStream>::receipt_ack_kind(&legacy),
+            Some("PayloadReceiptAckLegacyObserved")
+        );
     }
 }

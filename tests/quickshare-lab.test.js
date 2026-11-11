@@ -5,6 +5,19 @@ const { Evidence, openLab, atomicJson } = require('../lib/sharing/lab-evidence')
 const { prepareFixtures, hashDirectory, fixtureNames } = require('../scripts/quickshare-lab/fixtures.cjs');
 const { createReport, observations, timeline } = require('../scripts/quickshare-lab/report.cjs');
 const { parse } = require('../scripts/quickshare-android-lab.cjs');
+test('preflight drains a helper reply delivered after process exit; missing/truncated replies fail closed', async () => {
+  const { EventEmitter } = require('node:events'), { PassThrough } = require('node:stream');
+  const { readHello } = require('../scripts/quickshare-lab/environment.cjs');
+  for (const valid of [true, false]) {
+    const child = new EventEmitter(); child.stdin = new PassThrough(); child.stdout = new PassThrough(); child.kill = () => {};
+    const reply = readHello(child, { hashMatches: true });
+    child.emit('exit', 0);
+    await new Promise(resolve => setImmediate(resolve));
+    child.stdout.write(valid ? JSON.stringify({ v: 1, id: 'lab-preflight', result: { protocol: 1, version: '0.1.0', capabilities: {} } }) + '\n' : '{"v":');
+    child.emit('close', 0);
+    assert.equal((await reply).hello, valid);
+  }
+});
 async function fixture(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 's24-lab-test-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));

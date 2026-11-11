@@ -1,6 +1,6 @@
 # Samsung Quick Share deep diagnostic laboratory
 
-This is an experimental diagnostic tool on PR #21, stacked on PR #19. It does not establish Galaxy S24+ compatibility. It preserves the current strict BLE parsers, GATT/LE CoC bootstrap, UKEY2, encryption, manual consent and private file staging. It introduces no Samsung protocol bypass.
+This is an experimental diagnostic tool on PR #21, stacked on PR #19. Production acceptance remains pending. The owner has now verified one 49-byte Linux → stock S24+ home-LAN transfer with independent USB readback; see the [physical evidence and next matrix](quickshare-s24-physical-evidence.md). BLE and sender-side remote application acknowledgement remain separate unresolved issues. It preserves the current strict BLE parsers, GATT/LE CoC bootstrap, UKEY2, encryption, manual consent and private file staging. It introduces no Samsung protocol bypass.
 
 ## Authoritative starting evidence
 
@@ -61,7 +61,7 @@ Linux should expose its current advertising mode, GATT registration, LE CoC avai
 Read the report in this order:
 
 - `bluetooth.peak` and `lastActive` preserve active state across teardown. Counters are helper-lifetime aggregates; `windowCounters` subtracts the capture baseline when attaching. Address-derived internal candidate tracking is capped at 256 and never exported; rotation can increase the count, and candidates are not physical-device counts.
-- `full_accepted` / `compact_accepted`, `candidate_rejected`, the per-parser rejection reasons, size buckets and leading-bit buckets identify the first validation gate. **Both** parsers are attempted on each observation; their rejection totals must not be added as distinct packets. Leading-bit buckets are raw input high bits, not guaranteed decoded protocol versions (headers may be base64 encoded). Unsupported fast-shape recognition is diagnostic-only and does not accept a peer or prove the complete format valid.
+- `full_accepted` / `compact_accepted`, `candidate_rejected`, the per-parser rejection reasons, size buckets and leading-bit buckets identify the first validation gate. **Both** full/compact parsers are attempted on each observation; the strict FEF3 Fast decoder is additionally attempted on a Fast-marked full rejection; their rejection totals must not be added as distinct packets. Leading-bit buckets are raw input high bits, not guaranteed decoded protocol versions (headers may be base64 encoded). Legacy unsupported fast-shape recognition is diagnostic-only. The new strict Fast subset has separate accepted/rejected counters and requires matching, hash-validated GATT metadata before recipient publication; it does not prove the old observed packets were valid or came from Samsung.
 - Slot errors use `slot_reject_*`, independently of advertisement parsing. GATT resolution request → ACL attempt → service → slot/read → required write and notification/indication characteristics are separate counters. GATT metadata resolution is not Weave. Weave requested/established and LE CoC attempts/PSM outcomes identify the bootstrap boundary. An ACL attempt not exposed through local characteristic activity remains unobservable; registration is not acceptance.
 - `self_suppressed`, `visibility_rejected`, retry throttling, capacity, expiry/removal and cache replay counters distinguish valid-but-unpublished candidates from decoder rejection. Regular scan pauses are deliberate duty cycling; session pauses and BlueZ discovery-active/busy errors are separate. A generic D-Bus failure does not prove controller disappearance.
 - Helper IPC queue/drop/publication, Node route validation/capacity/publication, and actual renderer acknowledgement distinguish decoded endpoints from selectable UI recipients. They are aggregate evidence, not per-phone attribution. Renderer counters are diagnostic-only and enabled in the isolated source lab.
@@ -141,3 +141,13 @@ python3 tests/quickshare-ble-oracle.py
 The existing `Experimental Quick Share foundation` GitHub workflow also builds both architectures, runs real helper lifecycle, independent Python UKEY2/MAC/replay/consent/file tests, privileged network-namespace transfer regression and sandboxed Electron lab/recipient integration. Namespace tests require a disposable runner with namespace privileges; this is unrelated to phone root or running Electron as root.
 
 Cloud validation for this diagnostic extension (no Android device or Bluetooth controller attached): full Node suite **259 passed, zero skipped**; Rust default **35 passed**, FastInit **37 passed**, native BLE + FastInit **56 passed**; rustfmt and clippy passed (existing vendored-library warnings remain). The independent Python UKEY2 commitment/MAC/replay/decline/empty/binary scenarios passed, as did the independent BLE wire oracle, default/native helper process lifecycle and actual native Electron runner/renderer integration. General Electron transfer/nearby tests passed; the StatusNotifier tray test could not run without a desktop watcher. The privileged network-namespace test is blocked locally by unavailable root/sudo and remains required in the GitHub workflow. CI results belong to the published commit's checks, not to a Samsung compatibility claim.
+
+## Physical evidence and schema 2
+
+See [the verified S24+ fixture result](quickshare-s24-physical-evidence.md) for the
+reviewed archives, later independent hash confirmation, strict Fast source
+provenance and the two next physical tests. Schema 2 removes
+`protocolCompletionObserved`: `localPayloadCompletionObserved`, peer close/ACK
+observations, receiver finalization, native UI confirmation and readback hashes
+are distinct. `lan.listenerReachable` is the active probe or null when unknown;
+the shutdown probe value is separate. Neither field asserts remote success.

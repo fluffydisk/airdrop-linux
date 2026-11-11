@@ -100,7 +100,39 @@ impl Diagnostics {
             Ok(_) => self.count("compact_accepted", 1),
             Err(e) => self.count(&format!("compact_reject_{}", e.code()), 1),
         }
-        if full.is_err() && compact.is_err() {
+        let decoded = if matches!(
+            &full,
+            Err(super::protocol::DecodeError::UnsupportedFastFormat)
+        ) {
+            let size = match bytes.len() {
+                0..=24 => "0_24",
+                25 => "25",
+                26 => "26",
+                27 => "27",
+                28..=31 => "28_31",
+                _ => "over_31",
+            };
+            self.count(&format!("fast_length_{size}"), 1);
+            if let Some(length) = bytes.get(7) {
+                self.count(
+                    if *length == 17 {
+                        "fast_info_prefix_17"
+                    } else {
+                        "fast_info_prefix_other"
+                    },
+                    1,
+                );
+            }
+            let fast = super::protocol::Advert::decode_service(0xfef3, bytes);
+            match &fast {
+                Ok(_) => self.count("fast_accepted", 1),
+                Err(e) => self.count(&format!("fast_reject_{}", e.code()), 1),
+            }
+            fast
+        } else {
+            full
+        };
+        if decoded.is_err() && compact.is_err() {
             self.count("candidate_rejected", 1);
             if bytes.len() != 15 && bytes.len() != 17 && !(bytes.len() >= 8 && bytes[0] >> 5 == 2) {
                 self.count("format_unrecognized", 1)
@@ -109,7 +141,7 @@ impl Diagnostics {
                 self.count("unsupported_fast_well_formed", 1)
             }
         }
-        (full, compact)
+        (decoded, compact)
     }
     pub fn scan_open(&self) {
         self.count("scan_windows", 1);
@@ -207,5 +239,24 @@ mod tests {
         assert_eq!(c["counters"]["scan_ms"], 3000);
         assert_eq!(c["counters"]["scan_pause_ms"], 7000);
         assert_eq!(c["counters"]["scan_windows"], 2);
+    }
+    #[test]
+    fn supported_fast_is_not_a_joint_parser_rejection() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../tests/fixtures/quickshare-ble-wire.json"
+        ))
+        .unwrap();
+        let h = fixture["fast"].as_str().unwrap();
+        let b: Vec<u8> = (0..h.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&h[i..i + 2], 16).unwrap())
+            .collect();
+        let d = Diagnostics::default();
+        let (a, h) = d.parse_observation(1, &b);
+        assert!(a.is_ok() && h.is_err());
+        let c = d.snapshot();
+        assert_eq!(c["counters"]["fast_accepted"], 1);
+        assert_eq!(c["counters"]["full_reject_unsupported_fast_format"], 1);
+        assert!(c["counters"]["candidate_rejected"].is_null());
     }
 }

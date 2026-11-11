@@ -644,7 +644,10 @@ test(
     assert.equal(report.android.status, "unauthorized");
     assert.equal(report.captureOutcome, "blocked");
     assert.equal(report.transfer.outcome, "unconfirmed");
-    assert.equal(JSON.parse(await fsp.readFile(path.join(workspace,"lab.json"))).prepared,false);
+    assert.equal(
+      JSON.parse(await fsp.readFile(path.join(workspace, "lab.json"))).prepared,
+      false,
+    );
     assert.equal(fs.existsSync(path.join(workspace, "diagnose.lock")), false);
     noSecrets(report);
   },
@@ -835,4 +838,210 @@ test("controller chipset IDs are retained, while addresses, arbitrary driver nam
   ]);
   assert.equal(report.linux.adapters.wifi[0].driver, "unknown");
   noSecrets(report);
+});
+
+test("physical S24 timeline: mDNS/LAN inference, UKEY2, 49/49 Sent, owner UI and later independent readback remain distinct", () => {
+  const evidence = require("./fixtures/quickshare-s24-lan-evidence.json"),
+    trial = evidence.transfer;
+  const start = new Date(trial.startedMs).toISOString();
+  const events = trial.events.map((e) => ({
+    ...e,
+    elapsedMs: Date.parse(e.hostAt) - trial.startedMs,
+  }));
+  const input = {
+    direction: trial.direction,
+    startedMs: trial.startedMs,
+    endedMs: trial.endedMs,
+    owner: { recipientVisible: true, nativeCompleted: true },
+    desktop: {
+      startedAt: start,
+      events,
+      peakBluetooth: trial.peakBluetooth,
+      pipeline: trial.pipeline,
+    },
+    runtime: {
+      status: "stopped",
+      listenerReachable: false,
+      advertisements: { ownObserved: true, maxVisible: 2 },
+    },
+  };
+  const archived = deep.create(input).report;
+  assert.equal(archived.schema, 2);
+  assert.equal(archived.transfer.localPayloadCompletionObserved, true);
+  assert.equal(
+    Object.hasOwn(archived.transfer, "protocolCompletionObserved"),
+    false,
+  );
+  assert.equal(archived.transfer.selectedTransport, "lan-tcp");
+  assert.equal(archived.transfer.discoveryPath, "mdns");
+  assert.equal(archived.transfer.transportProvenance, "Source-code inference");
+  assert.equal(archived.transfer.remoteApplicationSuccessAcknowledged, false);
+  assert.equal(archived.transfer.peerCloseStatus, "unknown");
+  assert.equal(archived.transfer.outcome, "unconfirmed");
+  assert.equal(archived.lan.listenerReachable, null);
+  assert.equal(archived.lan.listenerReachableAfterShutdown, false);
+  assert.equal(archived.bluetooth.peak.observed, 102);
+  const verified = deep.create({
+    ...input,
+    integrity: {
+      fixtureMatch: true,
+      expectedSha256: evidence.fixture.sha256,
+      actualSha256: evidence.laterOwnerReadback.sha256,
+      size: 49,
+    },
+  }).report;
+  assert.equal(
+    verified.transfer.outcome,
+    "owner-confirmed-with-independent-bytes",
+  );
+  assert.equal(verified.transfer.remoteApplicationSuccessAcknowledged, false);
+  assert.equal(verified.productionAcceptanceEstablished, false);
+  const first = evidence.discovery;
+  assert.equal(first.peakBluetooth.observed, 64);
+  assert.equal(
+    first.peakBluetooth.diagnostics.counters.unsupported_fast_well_formed,
+    63,
+  );
+  assert.equal(
+    first.events.some((e) => e.type === "transfer"),
+    false,
+  );
+});
+test("actual connection diagnostics take precedence over a planned transport, and closure/ACK never assert remote application success", () => {
+  const events = [
+    {
+      type: "transfer",
+      attempt: "attempt-1",
+      elapsedMs: 1,
+      direction: "outgoing",
+      phase: "connecting",
+      connectionMethod: "ble-l2cap",
+    },
+    {
+      type: "connection",
+      attempt: "attempt-1",
+      elapsedMs: 2,
+      direction: "outgoing",
+      connectionMethod: "ble-gatt",
+    },
+    {
+      type: "finalization",
+      attempt: "attempt-1",
+      elapsedMs: 3,
+      direction: "outgoing",
+      stage: "PayloadReceiptAckObserved",
+    },
+    {
+      type: "finalization",
+      attempt: "attempt-1",
+      elapsedMs: 4,
+      direction: "outgoing",
+      stage: "PeerEof",
+    },
+    {
+      type: "protocol",
+      attempt: "attempt-1",
+      elapsedMs: 5,
+      direction: "outgoing",
+      stage: "Sent",
+    },
+  ];
+  const r = deep.create({ desktop: { events } }).report;
+  assert.equal(r.transfer.selectedTransport, "ble-gatt");
+  assert.equal(r.transfer.localPayloadCompletionObserved, true);
+  assert.equal(r.transfer.payloadReceiptAckObserved, true);
+  assert.equal(r.transfer.peerCloseObserved, true);
+  assert.equal(r.transfer.remoteApplicationSuccessAcknowledged, false);
+  assert.equal(r.transfer.outcome, "unconfirmed");
+});
+test("active listener probe survives teardown; an outgoing connection is independent of the inbound listener", () => {
+  const r = deep.create({
+    activeRuntime: { listenerReachable: true },
+    runtime: {
+      status: "stopped",
+      listenerReachable: false,
+      lastActive: { listenerReachable: true },
+    },
+  }).report;
+  assert.equal(r.lan.listenerReachable, true);
+  assert.equal(r.lan.listenerReachableAfterShutdown, false);
+  assert.equal(r.lan.listenerObservation, "captured-before-teardown");
+  assert.equal(
+    deep.create({ runtime: { status: "stopped", listenerReachable: false } })
+      .report.lan.listenerReachable,
+    null,
+  );
+});
+test("ADB buffer limits are visible as collector limits, not invented Android permission failures", async () => {
+  const a = new Android({
+    execute: executor({
+      "shell dumpsys bluetooth_manager": {
+        ok: false,
+        output: "",
+        category: "output-limit",
+      },
+    }),
+  });
+  await a.preflight();
+  const r = deep.android(a.public);
+  assert.equal(r.bluetooth.observationStatus, "output-limit");
+  assert.equal(r.bluetooth.enabled, null);
+  noSecrets(r);
+});
+test("connection and finalization evidence allowlists reject private fields and require development diagnostics", () => {
+  const e = new Evidence("a".repeat(32));
+  e.connection({
+    id: "private-session",
+    direction: "outgoing",
+    connectionMethod: "lan-tcp",
+    address: secrets[0],
+  });
+  e.finalization({
+    id: "private-session",
+    direction: "outgoing",
+    stage: "PeerEof",
+    body: secrets.join(" "),
+  });
+  e.finalization({
+    id: "private-session",
+    direction: "outgoing",
+    stage: "PeerEof",
+  });
+  e.finalization({
+    id: "private-session",
+    direction: "outgoing",
+    stage: secrets[0],
+  });
+  assert.equal(e.value.events.length, 2);
+  noSecrets(e.value);
+  const a = new QuickShare();
+  assert.throws(
+    () =>
+      a.message(
+        {
+          v: 1,
+          event: "connection",
+          data: {
+            id: "id",
+            direction: "outgoing",
+            connectionMethod: "lan-tcp",
+          },
+        },
+        a.generation,
+      ),
+    /diagnostic/,
+  );
+  a.protocolDiagnostics = true;
+  assert.throws(
+    () =>
+      a.message(
+        {
+          v: 1,
+          event: "finalization",
+          data: { id: "id", direction: "outgoing", stage: secrets[0] },
+        },
+        a.generation,
+      ),
+    /diagnostic/,
+  );
 });

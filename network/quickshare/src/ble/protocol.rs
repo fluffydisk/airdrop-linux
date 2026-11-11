@@ -30,6 +30,7 @@ pub enum DecodeError {
     InvalidEncoding,
     UnsupportedSlots,
     UnsupportedPcp,
+    UnsupportedProfile,
 }
 impl DecodeError {
     pub fn code(self) -> &'static str {
@@ -47,6 +48,7 @@ impl DecodeError {
             Self::InvalidEncoding => "invalid_encoding",
             Self::UnsupportedSlots => "unsupported_slots",
             Self::UnsupportedPcp => "unsupported_pcp",
+            Self::UnsupportedProfile => "unsupported_profile",
         }
     }
 }
@@ -206,6 +208,64 @@ impl Advert {
             psm,
             visible: info[0] & 16 == 0,
         })
+    }
+    /// Service-bound decoder. Hashless fast data is valid only in Quick
+    /// Share's FEF3 namespace, never as a generic hash-validation fallback.
+    pub fn decode_service(service: u16, b: &[u8]) -> std::result::Result<Self, DecodeError> {
+        check!(service == 0xfef3, InvalidServiceHash);
+        if b.first().is_some_and(|v| v & 2 != 0) {
+            Self::decode_fast(b)
+        } else {
+            Self::decode(b)
+        }
+    }
+    /// Strict legacy fast subset from google/nearby@1bbe8ec: outer v2/socket2,
+    /// one-byte length, inner v1/P2P-point-to-point, 17-byte identity metadata,
+    /// optional zero-length UWB field, optional two-byte device token. Legacy
+    /// fast advertising is at most 27 bytes and has no room for PSM/extras.
+    fn decode_fast(b: &[u8]) -> std::result::Result<Self, DecodeError> {
+        check!(b.len() >= 25 && b.len() <= 27, InvalidLength);
+        check!(b[0] >> 5 == 2, UnsupportedVersion);
+        check!((b[0] >> 2) & 7 == 2, UnsupportedSocketVersion);
+        check!(b[0] & 1 == 0, UnsupportedProfile);
+        check!(b[0] & 2 != 0, UnsupportedFastFormat);
+        let n = b[1] as usize;
+        check!(n == 23 || n == 24, InvalidLength);
+        check!(2 + n <= b.len(), MissingFields);
+        let data = &b[2..2 + n];
+        check!(data[0] == 0x23, UnsupportedPcp);
+        let endpoint: [u8; 4] = data[1..5]
+            .try_into()
+            .map_err(|_| DecodeError::MissingFields)?;
+        check!(
+            endpoint.iter().all(u8::is_ascii_alphanumeric),
+            InvalidEndpointMetadata
+        );
+        check!(data[5] == 17, InvalidEndpointMetadata);
+        let info = &data[6..23];
+        check!(
+            info[0] >> 5 <= 1 && info[0] & 1 == 0,
+            InvalidEndpointMetadata
+        );
+        if n == 24 {
+            check!(data[23] == 0, UnknownFieldsRejected);
+        }
+        check!(b.len() == 2 + n || b.len() == 4 + n, UnknownFieldsRejected);
+        let (kind, name) = parse_mdns_endpoint_info(&URL_SAFE_NO_PAD.encode(info))
+            .map_err(|_| DecodeError::InvalidEndpointMetadata)?;
+        Ok(Self {
+            endpoint,
+            identity: info[1..17]
+                .try_into()
+                .map_err(|_| DecodeError::MissingFields)?,
+            name,
+            kind,
+            psm: None,
+            visible: info[0] & 16 == 0,
+        })
+    }
+    pub fn same_identity(&self, other: &Self) -> bool {
+        self.endpoint == other.endpoint && self.identity == other.identity
     }
     pub fn key(&self) -> String {
         rqs_lib::utils::discovery_key(self.endpoint, self.identity)
@@ -513,6 +573,84 @@ mod tests {
         for n in 0..fast.len() {
             assert!(!well_formed_fast_candidate(&fast[..n]));
         }
+    }
+    #[test]
+    fn independent_fast_fixture_is_service_bound_and_strict() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../tests/fixtures/quickshare-ble-wire.json"
+        ))
+        .unwrap();
+        for negative in fixture["fastRejected"].as_array().unwrap() {
+            let text = negative["bytes"].as_str().unwrap();
+            let bytes: Vec<u8> = (0..text.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
+                .collect();
+            assert!(
+                Advert::decode_service(negative["service"].as_u64().unwrap() as u16, &bytes)
+                    .is_err(),
+                "independent negative {}",
+                negative["case"]
+            );
+        }
+        let text = fixture["fast"].as_str().unwrap();
+        let bytes: Vec<u8> = (0..text.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
+            .collect();
+        let a = Advert::decode_service(0xfef3, &bytes).unwrap();
+        assert_eq!(a.endpoint, *b"S24A");
+        assert_eq!(a.identity, core::array::from_fn(|i| i as u8));
+        assert!(a.name.is_empty() && a.psm.is_none());
+        assert_eq!(
+            Advert::decode_service(0xfe2c, &bytes).unwrap_err(),
+            DecodeError::InvalidServiceHash
+        );
+        // No-token form is documented; every other truncation is malformed.
+        for n in 0..bytes.len() {
+            if n != 25 {
+                assert!(
+                    Advert::decode_service(0xfef3, &bytes[..n]).is_err(),
+                    "prefix {n}"
+                );
+            }
+        }
+        assert!(Advert::decode_service(0xfef3, &bytes[..25]).is_ok());
+        for (at, value) in [
+            (0, 0x6a),
+            (0, 0x46),
+            (0, 0x4b),
+            (1, 24),
+            (1, 255),
+            (2, 0x21),
+            (3, 0),
+            (7, 16),
+            (8, 0xe0),
+            (8, 0x13),
+        ] {
+            let mut bad = bytes.clone();
+            bad[at] = value;
+            assert!(
+                Advert::decode_service(0xfef3, &bad).is_err(),
+                "mutation {at}/{value}"
+            );
+        }
+        let mut trailing = bytes.clone();
+        trailing.push(0);
+        assert!(Advert::decode_service(0xfef3, &trailing).is_err());
+        let mut uwb = bytes[..25].to_vec();
+        uwb[1] = 24;
+        uwb.push(0);
+        assert!(Advert::decode_service(0xfef3, &uwb).is_ok());
+        uwb[25] = 1;
+        assert!(Advert::decode_service(0xfef3, &uwb).is_err());
+        let mut other = a.clone();
+        other.endpoint = *b"ZZZZ";
+        assert!(!a.same_identity(&other));
+        other = a.clone();
+        other.identity[0] ^= 1;
+        assert!(!a.same_identity(&other));
+        assert!(a.same_identity(&a));
     }
     #[test]
     fn coherent_identity_and_header() {

@@ -503,7 +503,7 @@ async fn gatt_server(
             }
         }
     };
-    session(inbound(core, sender, id), async {
+    session(inbound(core, sender, id, "ble-gatt"), async {
         tokio::try_join!(weave_bridge(weave, input, output, bridge), notifications)?;
         Ok(())
     })
@@ -527,7 +527,15 @@ async fn inbound(
     core: DuplexStream,
     sender: broadcast::Sender<ChannelMessage>,
     id: String,
+    method: &'static str,
 ) -> Result<()> {
+    let _ = sender.send(ChannelMessage {
+        id: id.clone(),
+        msg: Message::Connection {
+            kind: TransferKind::Inbound,
+            method,
+        },
+    });
     let _outcome = OutcomeGuard {
         sender: sender.clone(),
         id: id.clone(),
@@ -853,6 +861,13 @@ async fn dial_gatt(
             .accept(&confirmation, false)
             .inspect_err(|_| inc("weave_failed"))?;
         phase(&events, "weave-established");
+        let _ = sender.send(ChannelMessage {
+            id: request.id.clone(),
+            msg: Message::Connection {
+                kind: TransferKind::Outbound,
+                method: "ble-gatt",
+            },
+        });
         let (core, bridge) = tokio::io::duplex(65536);
         let (output, mut packets) = mpsc::channel::<Vec<u8>>(8);
         let writes = async {
@@ -1118,13 +1133,15 @@ async fn run(
             ;
                 state["observed"]=json!(state["observed"].as_u64().unwrap_or(0).saturating_add(1));
                 let (parsed,header_result)=diag::current().parse_observation(addr,bytes);
+                let fast=parsed.is_ok()&&bytes.first().is_some_and(|b|b&2!=0);
                 let h=header_result.ok();
                 if parsed.is_err() && h.is_none(){emit(events,&state);continue}
                 let now=Instant::now();let mut gatt=false;let mut resolved=false;
             if let Some(header)=&h
                 && let Some((hash,key))=headers.get(&addr)
                     && *hash==header.hash&& let Some(target)=targets.get_mut(key){inc("header_cache_hit");target.seen=now;report(events,target,true);emit(events,&state);continue}
-                let mut ad=parsed.ok();
+                let mut ad=parsed.ok();let fast_identity=if fast{ad.clone()}else{None};
+                if fast{inc("fast_requires_gatt");}
                 if ad.as_ref().is_none_or(|a|a.psm.is_none()) {
                     if attempts.contains_key(&addr) || attempts.len()>=100 {inc("gatt_resolution_throttled");emit(events,&state);continue}attempts.insert(addr,now);
                     // Drop our discovery lease during GATT resolution.
@@ -1134,15 +1151,18 @@ async fn run(
                         Ok((slot,available))=>{
                             inc("gatt_resolution_success");gatt=available;resolved=slot.is_some();
                             if let Some(mut slot)=slot{
+                                if fast_identity.as_ref().is_some_and(|f|!f.same_identity(&slot)){inc("fast_slot_mismatch");emit(events,&state);continue}
                                 if let Some(h)=&h&& slot.psm.is_none(){
                                     slot.psm=h.psm;
                                 }
                                 ad=Some(slot);
                             }
+                            if fast&&!resolved{inc("fast_metadata_unresolved");ad=None;}
                             if resolved{state["resolved"]=json!(state["resolved"].as_u64().unwrap_or(0).saturating_add(1));}
                         }
                         ,
-                        Err(_)=>{inc("gatt_resolution_failure");phase(events,"gatt-resolution-failed");if ad.is_none(){continue}}
+                        Err(_)=>{inc("gatt_resolution_failure");phase(events,"gatt-resolution-failed");if fast{inc("fast_metadata_unresolved");ad=None;}
+                        if ad.is_none(){continue}}
                     }
                 }
                 let Some(ad)=ad else{inc("transport_unavailable");emit(events,&state);continue};if !ad.visible{inc("visibility_rejected");emit(events,&state);continue}
@@ -1363,7 +1383,7 @@ async fn serve_l2cap(
     phase(&events, "l2cap-established");
     let (core, bridge) = tokio::io::duplex(65536);
     session(
-        inbound(core, sender, id),
+        inbound(core, sender, id, "ble-l2cap"),
         socket_pump(socket, bridge, framed),
     )
     .await
@@ -1467,6 +1487,13 @@ async fn dial_l2cap(
         },
     };
     phase(&events, "l2cap-established");
+    let _ = sender.send(ChannelMessage {
+        id: request.id.clone(),
+        msg: Message::Connection {
+            kind: TransferKind::Outbound,
+            method: "ble-l2cap",
+        },
+    });
     let (core, bridge) = tokio::io::duplex(65536);
     timeout(
         SESSION_LIMIT,

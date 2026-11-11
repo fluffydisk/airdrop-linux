@@ -178,7 +178,7 @@ def main(mode):
         helper = Helper(executable)
         try:
             assert helper.request('hello')['protocol'] == 1
-            port = helper.request('start', dict(port=0, name='Independent fixture', staging=root))['port']
+            port = helper.request('start', dict(port=0, name='Independent fixture', staging=root, protocolDiagnostics=mode=='binary'))['port']
             with socket.create_connection(('127.0.0.1', port), timeout=5) as sock:
                 endpoint = b'\x02' + bytes(16) + b'\x06Python'
                 send(sock, frame(1, 2, blob(1, b'TEST') + blob(2, b'Python') + blob(6, endpoint)))
@@ -266,6 +266,10 @@ def main(mode):
                 event = helper.event(lambda m: m.get('event') == 'transfer' and m.get('data', {}).get('phase') == 'awaiting-acceptance')
                 assert hmac.compare_digest(event['data']['pinCode'], code(auth)), 'Independent verification codes differ'
                 transfer_id = event['data']['id']
+                if mode == 'binary':
+                    transport = helper.event(lambda m: m.get('event') == 'connection')['data']
+                    assert transport['id'] == transfer_id and transport['direction'] == 'incoming' and transport['connectionMethod'] == 'lan-tcp'
+                    assert set(transport) == {'id', 'direction', 'connectionMethod'}
                 assert event['data']['files'] == [filename]
                 assert not any(Path(root).iterdir()), 'Data created before consent'
                 if mode in ('empty', 'binary'):

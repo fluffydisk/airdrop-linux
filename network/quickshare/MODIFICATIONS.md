@@ -66,3 +66,17 @@ from google/nearby commit `1bbe8ec1eadd0c08d01db6b634254526141068e6`, path
 `proto/mediums/ble_frames.proto`. Original Google Apache-2.0 attribution and
 license text are retained. Original-input hashes for the earlier GPL vendor pin
 are not rewritten. Binary distribution and Samsung compatibility remain gated.
+
+## 2026-11-11 — physical S24+ evidence and observation-only finalization
+
+`channel.rs`, `manager.rs` and `hdl/outbound.rs`: add fixed-category connection
+method and finalization observations. Direct TCP acceptance/connect, payload
+emission completion, peer EOF/disconnection, close timeout, matched-file payload
+receipt ACK and late errors are distinct. No wire frame, cryptography, consent,
+file staging, completion-state mapping, keepalive handling or wait duration was
+changed. EOF/disconnection/receipt ACK never upgrades `Sent` to `Finished`.
+
+Incoming TCP method observations are emitted only after a valid Nearby connection
+request populated remote metadata. The laboratory's connect-and-close listener
+probes do not create peer attempts or exhaust evidence aliases. Outgoing method
+observations follow successful TCP connection. Both are diagnostic-only.
