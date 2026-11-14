@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -71,6 +72,17 @@ impl WifiUpgradable for TcpStream {
     }
 }
 
+// Bounded BLE bridges do not support bandwidth upgrade. This deliberately
+// leaves the dormant network-management/upgrade implementation disabled.
+impl WifiUpgradable for tokio::io::DuplexStream {
+    fn is_low_bandwidth(&self) -> bool {
+        false
+    }
+    fn upgrade_to_tcp(&mut self, _tcp: TcpStream) -> bool {
+        false
+    }
+}
+
 /// Read one plaintext `[u32 len][frame]` message (the new TCP channel during a
 /// bandwidth upgrade, before encryption resumes).
 async fn read_plain_frame<R: tokio::io::AsyncRead + Unpin>(
@@ -134,6 +146,7 @@ pub enum OutboundPayload {
 pub struct OutboundRequest<S = TcpStream> {
     endpoint_id: [u8; 4],
     socket: S,
+    prefix: crate::utils::LengthPrefix,
     pub state: InnerState,
     sender: Sender<ChannelMessage>,
     receiver: Receiver<ChannelMessage>,
@@ -177,6 +190,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
         let OutboundPayload::Files(files) = &payload;
 
         Self {
+            prefix: Default::default(),
             endpoint_id,
             socket,
             state: InnerState {
@@ -220,9 +234,6 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
     }
 
     pub async fn handle(&mut self) -> Result<(), anyhow::Error> {
-        // Buffer for the 4-byte length
-        let mut length_buf = [0u8; 4];
-
         tokio::select! {
             i = self.receiver.recv() => {
                 match i {
@@ -253,10 +264,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                     }
                 }
             },
-            h = stream_read_exact(&mut self.socket, &mut length_buf) => {
-                h?;
-
-                self._handle(length_buf).await?
+            h = self.prefix.read(&mut self.socket) => {
+                self._handle(h?).await?
             }
         }
 
@@ -266,7 +275,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
     pub async fn _handle(&mut self, length_buf: [u8; 4]) -> Result<(), anyhow::Error> {
         let msg_length = u32::from_be_bytes(length_buf) as usize;
         // Ensure the message length is not unreasonably big to avoid allocation attacks
-        if msg_length > SANE_FRAME_LENGTH as usize {
+        if msg_length == 0 || msg_length > SANE_FRAME_LENGTH as usize {
             error!("Message length too big");
             return Err(anyhow!("value"));
         }
@@ -328,36 +337,16 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
 
     pub async fn send_connection_request(&mut self) -> Result<(), anyhow::Error> {
         let device_name = DEVICE_NAME.read().unwrap().clone();
-        // Experiment knob for the paired-key-disconnect hunt: `PACKET_SEND_META`
-        // = `plain` (no medium_metadata at all), `norole` (metadata without the
-        // host-role/auth fields), `linux` (full metadata; only the os_info shim
-        // is dropped, see send of the connection response). Unset = default.
-        let meta_exp = std::env::var("PACKET_SEND_META")
-            .ok()
-            .map(|v| v.to_ascii_lowercase());
-        let medium_metadata = match meta_exp.as_deref() {
-            Some("plain") => None,
-            Some("norole") => Some(location_nearby_connections::MediumMetadata {
-                supports_5_ghz: Some(true),
-                ip_address: crate::utils::local_ipv4().map(|ip| ip.to_vec()),
-                ap_frequency: Some(-1),
-                ..Default::default()
-            }),
-            _ => Some(location_nearby_connections::MediumMetadata {
-                supports_5_ghz: Some(true),
-                ip_address: crate::utils::local_ipv4().map(|ip| ip.to_vec()),
-                ap_frequency: Some(-1),
-                medium_role: Some(location_nearby_connections::MediumRole {
-                    support_wifi_direct_group_owner: Some(true),
-                    support_wifi_hotspot_host: Some(true),
-                    ..Default::default()
-                }),
-                supported_wifi_direct_auth_types: vec![
-                    location_nearby_connections::medium_metadata::WifiDirectAuthType::WifiDirectWithPassword.into(),
-                ],
-                ..Default::default()
-            }),
-        };
+        // Advertise only the implemented LAN capability. Direct-network roles
+        // require their own runtime capability negotiation and acceptance tests.
+        let medium_metadata = Some(location_nearby_connections::MediumMetadata {
+            ip_address: if self.mediums.contains(&(Medium::WifiLan as i32)) {
+                crate::utils::local_ipv4().map(|ip| ip.to_vec())
+            } else {
+                None
+            },
+            ..Default::default()
+        });
         let request = location_nearby_connections::OfflineFrame {
             version: Some(location_nearby_connections::offline_frame::Version::V1.into()),
             v1: Some(location_nearby_connections::V1Frame {
@@ -509,20 +498,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                     // no shared LAN) only fires for an Android⇄Windows pair — it has
                     // no rule for LINUX. Same interop shim as Quick Share for
                     // Windows; the protocol is identical from here on.
-                    // `PACKET_SEND_META=plain|linux` drops the shim (paired-key
-                    // disconnect experiment).
-                    os_info: match std::env::var("PACKET_SEND_META")
-                        .ok()
-                        .map(|v| v.to_ascii_lowercase())
-                        .as_deref()
-                    {
-                        Some("plain") | Some("linux") => None,
-                        _ => Some(location_nearby_connections::OsInfo {
-                            r#type: Some(
-                                location_nearby_connections::os_info::OsType::Windows.into(),
-                            ),
-                        }),
-                    },
+                    os_info: Some(location_nearby_connections::OsInfo {
+                        r#type: Some(location_nearby_connections::os_info::OsType::Windows.into()),
+                    }),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -646,36 +624,13 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                         info!("Processing PayloadType::Bytes");
                         let payload_id = header.id();
 
-                        if header.total_size() > SANE_FRAME_LENGTH.into() {
-                            self.state.payload_buffers.remove(&payload_id);
-                            return Err(anyhow!(
-                                "Payload too large: {} bytes",
-                                header.total_size()
-                            ));
-                        }
-
-                        self.state
-                            .payload_buffers
-                            .entry(payload_id)
-                            .or_insert_with(|| Vec::with_capacity(header.total_size() as usize));
-
-                        // Get the current length of the buffer, if it exists, without holding a mutable borrow.
-                        let buffer_len = self.state.payload_buffers.get(&payload_id).unwrap().len();
-                        if chunk.offset() != buffer_len as i64 {
-                            self.state.payload_buffers.remove(&payload_id);
-                            return Err(anyhow!(
-                                "Unexpected chunk offset: {}, expected: {}",
-                                chunk.offset(),
-                                buffer_len
-                            ));
-                        }
-
-                        let buffer = self.state.payload_buffers.get_mut(&payload_id).unwrap();
-                        if let Some(body) = &chunk.body {
-                            buffer.extend(body);
-                        }
-
-                        if (chunk.flags() & 1) == 1 {
+                        if let Some(buffer) = self.state.payload_buffers.push(
+                            payload_id,
+                            header.total_size(),
+                            chunk.offset(),
+                            chunk.body.as_deref().unwrap_or_default(),
+                            (chunk.flags() & 1) == 1,
+                        )? {
                             debug!("Chunk flags & 1 == 1 ?? End of data ??");
 
                             let inner_frame = sharing_nearby::Frame::decode(buffer.as_slice())?;
@@ -1096,7 +1051,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                 if offline.v1.as_ref().map(|v| v.r#type())
                     == Some(location_nearby_connections::v1_frame::FrameType::KeepAlive)
                 {
-                    let _ = self.send_keepalive(true).await;
+                    self.send_keepalive(true).await?;
                 }
                 continue;
             };
@@ -1626,8 +1581,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                             // costs nothing there. Only if the peer holds the socket open
                             // past the grace period do we announce our own disconnection
                             // (the previous behavior) so nobody waits on us forever.
+                            self.finalization_observed("LocalPayloadComplete");
                             let peer_closed =
-                                self.wait_for_peer_close(Duration::from_secs(8)).await;
+                                self.wait_for_peer_close(Duration::from_secs(8)).await?;
                             if !peer_closed {
                                 // Windows never sends a DISCONNECTION frame as a
                                 // sender and treats receiving one as a broken
@@ -1642,12 +1598,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
                                         "peer still connected after grace; sending disconnection"
                                     );
                                     self.disconnection().await?;
-                                    self.wait_for_peer_close(Duration::from_secs(2)).await;
+                                    self.wait_for_peer_close(Duration::from_secs(2)).await?;
                                 }
                             }
                             self.update_state(
                                 |e| {
-                                    e.state = TransferState::Finished;
+                                    e.state = TransferState::Sent;
                                 },
                                 true,
                             )
@@ -1902,34 +1858,111 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
         }
     }
 
+    // Google's modern PAYLOAD_ACK uses raw packet_type 3. The vendored enum
+    // predates it, but prost preserves the integer. Observe it without changing
+    // the wire schema or treating an ACK as application/durable completion.
+    fn receipt_ack_kind(p: &PayloadTransferFrame) -> Option<&'static str> {
+        if p.payload_chunk.is_some() {
+            return None;
+        }
+        match p.packet_type {
+            Some(3) if p.control_message.is_none() => Some("PayloadReceiptAckModernObserved"),
+            Some(2)
+                if p.control_message
+                    .as_ref()
+                    .is_some_and(|c| c.event == Some(3)) =>
+            {
+                Some("PayloadReceiptAckLegacyObserved")
+            }
+            _ => None,
+        }
+    }
+    fn finalization_observed(&self, stage: &'static str) {
+        let _ = self.sender.send(ChannelMessage {
+            id: self.state.id.clone(),
+            msg: channel::Message::Finalization {
+                kind: TransferKind::Outbound,
+                stage,
+            },
+        });
+    }
     /// After the last payload chunk, give the receiver time to finish writing
-    /// the file and close the connection on its own. We drain (and discard) any
-    /// trailing frames it sends — its own keep-alives / disconnection — and
-    /// return as soon as the peer closes (EOF) or `grace` elapses. This prevents
+    /// the file and close the connection on its own. Respond to keepalives,
+    /// reject malformed frames and late payload failures, and return when the
+    /// peer closes (EOF) or `grace` elapses. This prevents
     /// a fast caller from ripping the TCP socket down before the phone has
     /// finalized the transfer.
     /// Drain incoming frames until the peer closes the connection or `grace`
     /// elapses, ACKING ITS KEEPALIVES along the way — a receiver that pings
     /// every 5s (Windows) tears the session down if the pings go unanswered
     /// while it finalizes. Returns `true` if the peer closed (EOF or an
-    /// explicit DISCONNECTION frame).
-    async fn wait_for_peer_close(&mut self, grace: Duration) -> bool {
+    /// explicit DISCONNECTION frame). Neither proves durable receipt; the
+    /// sender reports Sent rather than Finished after this wait.
+    async fn wait_for_peer_close(&mut self, grace: Duration) -> Result<bool, anyhow::Error> {
         let deadline = tokio::time::Instant::now() + grace;
+        let mut receipt_ack_reported = false;
         loop {
             match tokio::time::timeout_at(deadline, self.read_encrypted_offline_frame()).await {
-                Err(_) => return false,    // grace elapsed, peer still connected
-                Ok(Err(_)) => return true, // EOF / read error — peer is gone
+                Err(_) => {
+                    self.finalization_observed("PeerCloseTimeout");
+                    return Ok(false);
+                }
+                Ok(Err(error)) => {
+                    if error
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|e| e.kind() == std::io::ErrorKind::UnexpectedEof)
+                    {
+                        self.finalization_observed("PeerEof");
+                        return Ok(true);
+                    }
+                    self.finalization_observed("FinalizationReadError");
+                    return Err(error);
+                }
                 Ok(Ok(frame)) => {
                     if let Some(v1) = frame.v1.as_ref() {
                         match v1.r#type() {
                             location_nearby_connections::v1_frame::FrameType::KeepAlive => {
-                                let _ = self.send_keepalive(true).await;
+                                self.send_keepalive(true).await?;
                             }
                             location_nearby_connections::v1_frame::FrameType::Disconnection => {
                                 debug!("peer sent DISCONNECTION during close-wait");
-                                return true;
+                                self.finalization_observed("PeerDisconnection");
+                                return Ok(true);
                             }
-                            _ => {} // drained and ignored
+                            location_nearby_connections::v1_frame::FrameType::PayloadTransfer => {
+                                if !receipt_ack_reported
+                                    && let Some(payload) = v1.payload_transfer.as_ref()
+                                    && payload
+                                        .payload_header
+                                        .as_ref()
+                                        .and_then(|h| h.id)
+                                        .is_some_and(|id| {
+                                            self.state.transferred_files.contains_key(&id)
+                                        })
+                                    && let Some(kind) = Self::receipt_ack_kind(payload)
+                                {
+                                    receipt_ack_reported = true;
+                                    self.finalization_observed("PayloadReceiptAckObserved");
+                                    self.finalization_observed(kind);
+                                }
+                                if let Some(control) = v1
+                                    .payload_transfer
+                                    .as_ref()
+                                    .and_then(|p| p.control_message.as_ref())
+                                {
+                                    use location_nearby_connections::payload_transfer_frame::control_message::EventType;
+                                    if matches!(
+                                        control.event(),
+                                        EventType::PayloadError | EventType::PayloadCanceled
+                                    ) {
+                                        self.finalization_observed("PeerPayloadFailure");
+                                        return Err(anyhow!(
+                                            "Peer rejected payload during finalization"
+                                        ));
+                                    }
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -2193,23 +2226,239 @@ impl<S: AsyncRead + AsyncWrite + Unpin + WifiUpgradable> OutboundRequest<S> {
     where
         F: FnOnce(&mut InnerState),
     {
+        let previous = self.state.state.clone();
         f(&mut self.state);
 
-        if !inform {
+        if !inform && previous == self.state.state {
             return;
         }
 
         let _ = self.sender.send(ChannelMessage {
             id: self.state.id.clone(),
-            msg: channel::Message::Client(MessageClient {
-                kind: TransferKind::Outbound,
-                state: Some(self.state.state.clone()),
-                metadata: self.state.transfer_metadata.clone(),
-            }),
+            msg: if inform {
+                channel::Message::Client(MessageClient {
+                    kind: TransferKind::Outbound,
+                    state: Some(self.state.state.clone()),
+                    metadata: self.state.transfer_metadata.clone(),
+                })
+            } else {
+                channel::Message::Protocol {
+                    kind: TransferKind::Outbound,
+                    stage: self.state.state.clone(),
+                }
+            },
         });
         // Add a small sleep timer to allow the Tokio runtime to have
         // some spare time to process channel's message. Otherwise it
         // get spammed by new requests. Currently set to 10 micro secs.
         tokio::time::sleep(SANITY_DURATION).await;
+    }
+}
+
+#[cfg(test)]
+mod payload_regressions {
+    use super::*;
+    fn authenticated_bytes_frame(total: i64, body: Vec<u8>) -> SecureMessage {
+        let offline = OfflineFrame {
+            v1: Some(location_nearby_connections::V1Frame {
+                r#type: Some(
+                    location_nearby_connections::v1_frame::FrameType::PayloadTransfer as i32,
+                ),
+                payload_transfer: Some(PayloadTransferFrame {
+                    payload_header: Some(PayloadHeader {
+                        id: Some(1),
+                        r#type: Some(payload_header::PayloadType::Bytes as i32),
+                        total_size: Some(total),
+                        ..Default::default()
+                    }),
+                    payload_chunk: Some(PayloadChunk {
+                        offset: Some(0),
+                        flags: Some(0),
+                        body: Some(body),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        authenticated_offline_frame(offline)
+    }
+    fn authenticated_offline_frame(offline: OfflineFrame) -> SecureMessage {
+        let plaintext = DeviceToDeviceMessage {
+            message: Some(offline.encode_to_vec()),
+            sequence_number: Some(1),
+        }
+        .encode_to_vec();
+        let cipher = Cipher::new_256(&[0u8; 32]);
+        let hb = HeaderAndBody {
+            header: Header {
+                signature_scheme: SigScheme::HmacSha256 as i32,
+                encryption_scheme: EncScheme::Aes256Cbc as i32,
+                iv: Some(vec![0; 16]),
+                ..Default::default()
+            },
+            body: cipher.cbc_encrypt(&[0; 16], &plaintext),
+        }
+        .encode_to_vec();
+        let mut mac = HmacSha256::new_from_slice(&[0; 32]).unwrap();
+        mac.update(&hb);
+        SecureMessage {
+            header_and_body: hb,
+            signature: mac.finalize().into_bytes().to_vec(),
+        }
+    }
+    fn request() -> OutboundRequest<tokio::io::DuplexStream> {
+        let (socket, _peer) = tokio::io::duplex(4096);
+        let (sender, _) = tokio::sync::broadcast::channel(10);
+        let mut req = OutboundRequest::new(
+            *b"test",
+            socket,
+            "fixture".into(),
+            sender,
+            OutboundPayload::Files(vec![]),
+            RemoteDeviceInfo {
+                name: "fixture".into(),
+                device_type: DeviceType::Phone,
+            },
+        );
+        req.state.recv_hmac_key = Some(vec![0; 32]);
+        req.state.decrypt_key = Some(vec![0; 32]);
+        req
+    }
+    #[tokio::test]
+    async fn negative_authenticated_payload_size_is_rejected() {
+        let mut req = request();
+        assert!(
+            req.decrypt_and_process_secure_message(&authenticated_bytes_frame(-1, vec![]))
+                .await
+                .is_err()
+        );
+    }
+    #[tokio::test]
+    async fn body_larger_than_declared_total_is_rejected() {
+        let mut req = request();
+        assert!(
+            req.decrypt_and_process_secure_message(&authenticated_bytes_frame(0, vec![1; 1024]))
+                .await
+                .is_err()
+        );
+    }
+    #[tokio::test]
+    async fn finalization_does_not_treat_invalid_crypto_as_clean_peer_close() {
+        let (socket, mut peer) = tokio::io::duplex(4096);
+        let mut req = request();
+        req.socket = socket;
+        let mut message = authenticated_bytes_frame(0, vec![]);
+        message.signature[0] ^= 1;
+        send_plain_frame(&mut peer, &message.encode_to_vec())
+            .await
+            .unwrap();
+        assert!(
+            req.wait_for_peer_close(Duration::from_secs(1))
+                .await
+                .is_err()
+        );
+    }
+    #[tokio::test]
+    async fn late_payload_failure_prevents_successful_finalization() {
+        for event in [1, 2] {
+            let (socket, mut peer) = tokio::io::duplex(4096);
+            let mut req = request();
+            req.socket = socket;
+            let message = authenticated_offline_frame(OfflineFrame {
+                v1: Some(location_nearby_connections::V1Frame {
+                    r#type: Some(
+                        location_nearby_connections::v1_frame::FrameType::PayloadTransfer as i32,
+                    ),
+                    payload_transfer: Some(PayloadTransferFrame {
+                        control_message: Some(
+                            location_nearby_connections::payload_transfer_frame::ControlMessage {
+                                event: Some(event),
+                                ..Default::default()
+                            },
+                        ),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            });
+            send_plain_frame(&mut peer, &message.encode_to_vec())
+                .await
+                .unwrap();
+            assert!(
+                req.wait_for_peer_close(Duration::from_secs(1))
+                    .await
+                    .is_err()
+            );
+        }
+    }
+    #[tokio::test]
+    async fn peer_eof_is_observed_without_asserting_finished() {
+        let mut req = request();
+        let mut events = req.sender.subscribe();
+        assert!(
+            req.wait_for_peer_close(Duration::from_secs(1))
+                .await
+                .unwrap()
+        );
+        let observed = events.recv().await.unwrap();
+        assert!(matches!(
+            observed.msg,
+            channel::Message::Finalization {
+                stage: "PeerEof",
+                ..
+            }
+        ));
+        assert_eq!(req.state.state, TransferState::Initial);
+    }
+    #[tokio::test(start_paused = true)]
+    async fn close_timeout_is_observed_without_changing_session_state() {
+        let (socket, _peer) = tokio::io::duplex(4096);
+        let mut req = request();
+        req.socket = socket;
+        let mut events = req.sender.subscribe();
+        assert!(
+            !req.wait_for_peer_close(Duration::from_secs(1))
+                .await
+                .unwrap()
+        );
+        assert!(matches!(
+            events.recv().await.unwrap().msg,
+            channel::Message::Finalization {
+                stage: "PeerCloseTimeout",
+                ..
+            }
+        ));
+        assert_eq!(req.state.state, TransferState::Initial);
+    }
+    #[test]
+    fn legacy_and_modern_receipt_ack_shapes_remain_observations_only() {
+        let mut modern = PayloadTransferFrame {
+            packet_type: Some(3),
+            ..Default::default()
+        };
+        assert_eq!(
+            OutboundRequest::<tokio::io::DuplexStream>::receipt_ack_kind(&modern),
+            Some("PayloadReceiptAckModernObserved")
+        );
+        modern.payload_chunk = Some(Default::default());
+        assert!(OutboundRequest::<tokio::io::DuplexStream>::receipt_ack_kind(&modern).is_none());
+        let legacy = PayloadTransferFrame {
+            packet_type: Some(2),
+            control_message: Some(
+                location_nearby_connections::payload_transfer_frame::ControlMessage {
+                    event: Some(3),
+                    ..Default::default()
+                },
+            ),
+            ..Default::default()
+        };
+        assert_eq!(
+            OutboundRequest::<tokio::io::DuplexStream>::receipt_ack_kind(&legacy),
+            Some("PayloadReceiptAckLegacyObserved")
+        );
     }
 }

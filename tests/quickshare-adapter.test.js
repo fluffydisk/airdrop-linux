@@ -27,6 +27,18 @@ test('bounded history evicts old terminal records while retaining active transfe
   assert.equal(adapter.transfers.has('0'), false); assert.equal(adapter.transfers.size, 99);
   assert.equal(adapter.transfers.get('1').phase, 'transferring');
 });
+
+test('diagnostics export only capability and queue state, never peer or file secrets', () => {
+  const adapter = new QuickShare(); adapter.status = 'error'; adapter.error = 'private error';
+  adapter.capabilities = { lan: true, ble: false, token: 'private token' };
+  adapter.recipients.set('private identity', { name: 'private name', ip: '10.0.0.2' });
+  adapter.transfers.set('private transfer', { phase: 'transferring', pinCode: '1234', files: ['/private/path'] });
+  const value = adapter.diagnostics();
+  assert.equal(value.counts.active, 1); assert.equal(value.counts.recipients, 1);
+  assert.equal(value.errorCode, 'HELPER_UNAVAILABLE');
+  const json = JSON.stringify(value);
+  for (const secret of ['private', '1234', '10.0.0.2']) assert.equal(json.includes(secret), false);
+});
 test('verified helper has bounded IPC and its crash invalidates pending operations', async t => {
   const adapter = await fixture(t);
   assert.equal(adapter.snapshot().status, 'ready');
@@ -115,4 +127,71 @@ test('a forged completion without consent cannot publish a file or grant persist
   await until(() => adapter.status === 'error');
   assert.deepEqual(await fs.readdir(adapter.inbox), []);
   assert.equal(adapter.snapshot().capabilities.persistentTrust || false, false);
+  assert.notEqual(adapter.transfers.get('forged').phase, 'complete');
+});
+
+test('terminal transfers ignore late progress and completion, including coalesced events', async t => {
+  const adapter = await fixture(t);
+  for (const phase of ['cancelled', 'declined', 'interrupted', 'complete']) {
+    const value = { id: 'terminal-' + phase, direction: 'outgoing', phase, files: ['file.txt'] };
+    await adapter.transfer(value, adapter.generation);
+    await adapter.transfer({ ...value, phase: 'transferring' }, adapter.generation);
+    await adapter.transfer({ ...value, phase: 'complete' }, adapter.generation);
+    assert.equal(adapter.transfers.get(value.id).phase, phase);
+  }
+  const value = { id: 'queued-cancel', direction: 'outgoing', files: ['file.txt'] };
+  adapter.drainingTransfers = true;
+  adapter.message({ v: 1, event: 'transfer', data: { ...value, phase: 'cancelled' } }, adapter.generation);
+  adapter.message({ v: 1, event: 'transfer', data: { ...value, phase: 'complete' } }, adapter.generation);
+  adapter.drainingTransfers = false;
+  await adapter.drainTransfers();
+  assert.equal(adapter.transfers.get(value.id).phase, 'cancelled');
+});
+
+test('consent cannot describe different filenames than the eventual staged paths', async t => {
+  let prompted = false;
+  const adapter = await fixture(t, { approve: async () => { prompted = true; return true; } });
+  const source = path.join(adapter.staging, 'f'.repeat(32), 'different.txt');
+  await adapter.request('fixture', { id: 'renamed', direction: 'incoming', phase: 'awaiting-acceptance', files: ['photo.txt'], stagedPaths: [source], total: 0, pinCode: '1234' });
+  await until(() => adapter.status === 'error');
+  assert.equal(prompted, false);
+  assert.deepEqual(await fs.readdir(adapter.inbox), []);
+});
+
+test('GATT-only discovery enters the existing selector without a LAN address or PSM and expires on removal', async t => {
+  const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
+  const adapter = await fixture(t, { bleNative: true, spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe','pipe','pipe'], env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1' } }) });
+  const endpoint = { id: 'ble-' + 'a'.repeat(32), name: 'Galaxy', present: true, transport: 'ble-gatt', discovery_stage: 'gatt-resolved', connectable: true };
+  await adapter.request('fixture-recipient', endpoint); await until(() => adapter.recipients.size === 1);
+  assert.equal(adapter.snapshot().recipients[0].connectionMethod, 'ble-gatt');
+  assert.equal(adapter.snapshot().recipients[0].availability, 'available');
+  const source = path.join(adapter.directory, 'outgoing.txt'); await fs.writeFile(source, 'fixture');
+  await adapter.send({ recipientId: 'quick-share:' + endpoint.id, sources: [source] });
+  assert.equal((await adapter.request('sent')).recipientId, endpoint.id);
+  await adapter.request('fixture-recipient', { ...endpoint, connectable: false, discovery_stage: 'endpoint-decoded' });
+  await until(() => adapter.recipients.get(endpoint.id)?.connectable === false);
+  await assert.rejects(adapter.send({ recipientId: 'quick-share:' + endpoint.id, sources: [] }), /unavailable/);
+  await adapter.request('fixture-recipient', { ...endpoint, present: false }); await until(() => !adapter.recipients.size);
+});
+test('native BLE requires a separate runtime opt-in and diagnostics strip Bluetooth identities', async () => {
+  const adapter = new QuickShare(); adapter.generation = 1;
+  assert.throws(() => adapter.message({ v: 1, event: 'bluetooth', data: {} }, 1), /Unexpected Bluetooth/);
+  adapter.bleNative = true;
+  adapter.message({ v: 1, event: 'bluetooth', data: { stage: 'weave-established', mode: 'compact-gatt', gattBootstrap: true, resolved: 1, address: 'PRIVATE MAC', name: 'PRIVATE PHONE', pin: '1234', packet: 'PRIVATE DATA', controller: { bluez: true, powered: true, address: 'PRIVATE ADDRESS', advertisingInstances: 1 } } }, 1);
+  assert.equal(adapter.snapshot().bluetooth.stage, 'weave-established');
+  assert.equal(adapter.diagnostics().bluetooth.gattBootstrap, true);
+  for (const secret of ['PRIVATE','1234']) assert.equal(JSON.stringify(adapter.diagnostics()).includes(secret), false);
+});
+
+test('coherent BLE and LAN discovery show one recipient and retain BLE fallback when LAN expires', t => {
+  t.mock.method(os, 'networkInterfaces', () => ({ eth0: [{ address: '192.168.20.1', netmask: '255.255.255.0', internal: false }] }));
+  const adapter = new QuickShare({ bleNative: true }); adapter.generation = 1;
+  const key = 'ble-' + 'b'.repeat(32);
+  const bluetooth = { id: key, discovery_key: key, name: 'Galaxy', present: true, transport: 'ble-gatt', discovery_stage: 'gatt-resolved', connectable: true };
+  adapter.message({ v: 1, event: 'recipient', data: bluetooth }, 1);
+  adapter.message({ v: 1, event: 'recipient', data: { id: '192.168.20.2:53319', discovery_key: key, name: 'Galaxy', present: true, ip: '192.168.20.2', port: '53319' } }, 1);
+  assert.equal(adapter.recipients.size, 1); assert.equal(adapter.recipients.get(key).connectionMethod, 'lan');
+  adapter.message({ v: 1, event: 'recipient', data: { id: '192.168.20.2:53319', present: false } }, 1);
+  assert.equal(adapter.recipients.size, 1); assert.equal(adapter.recipients.get(key).connectionMethod, 'ble-gatt');
+  adapter.message({ v: 1, event: 'recipient', data: { ...bluetooth, present: false } }, 1); assert.equal(adapter.recipients.size, 0);
 });

@@ -26,7 +26,7 @@ function icon(id, className) {
 }
 function status(value) {
   const node = document.getElementById('health'); node.textContent = value.label; node.dataset.status = value.status;
-  node.title = value.status === 'ready' ? 'Local files and clipboard are available. See Connect device for your active pairing link.' : 'Waiting for local services. See Connect device for Airdrop relay or trusted LAN sharing.';
+  node.title = value.status === 'lab' ? 'Native Quick Share status is in the development panel. Workspace web services are deliberately off.' : value.status === 'ready' ? 'Local files and clipboard are available. See Connect device for your active pairing link.' : 'Waiting for local services. See Connect device for Airdrop relay or trusted LAN sharing.';
 }
 function theme(value) {
   const preference = value;
@@ -77,8 +77,8 @@ function renderQueue() {
   document.getElementById('queueSummary').textContent = files.length ? `${files.length} ${files.length === 1 ? 'file' : 'files'} · ${formatSize(total)} total` : 'Your next transfer starts here.';
   zipInput.disabled = busy || !!document.getElementById('sendDestination').value;
   document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'One neat package. Up to 100 MiB.';
-  sendButton.disabled = busy || !files.length; sendButton.hidden = !files.length;
-  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : document.getElementById('sendDestination').value === 'guest' ? 'Create sharing link' : document.getElementById('sendDestination').value ? 'Send to device' : 'Send to workspace'), icon('send'));
+  sendButton.disabled = busy || !files.length || (document.body.dataset.quickshareLab === 'true' && !document.getElementById('sendDestination').value.startsWith('quick-share:')); sendButton.hidden = !files.length;
+  sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : document.body.dataset.quickshareLab === 'true' && !document.getElementById('sendDestination').value ? 'Select a Quick Share recipient' : document.getElementById('sendDestination').value === 'guest' ? 'Create sharing link' : document.getElementById('sendDestination').value ? 'Send to device' : 'Send to workspace'), icon('send'));
   document.getElementById('choose').disabled = busy || files.length > 0;
   document.body.classList.toggle('busy', busy);
   window.dispatchEvent(new CustomEvent('airdrop-queue', { detail: { sources: files.map(file => file.path) } }));
@@ -93,7 +93,8 @@ function peerProgress(value) {
   if (value.status === 'complete' && value.id === nativeRetry?.id) {
     nativeRetry = null; files = []; renderQueue();
     message(value.transport === 'quick-share' ? 'Quick Share transfer completed.' : 'Received and verified on the other device.');
-  } else if (value.id === nativeRetry?.id && ['interrupted','declined','cancelled'].includes(value.status)) {
+  } else if (value.id === nativeRetry?.id && ['interrupted','declined','cancelled','outcome-unknown'].includes(value.status)) {
+    if (value.status === 'outcome-unknown') { message('Files sent. Recipient completion is unconfirmed; check the receiving device before sending again.'); return; }
     message(value.error || 'Transfer ' + value.status + '. Select Send to try again.', 'error');
   }
 }

@@ -2,8 +2,16 @@
 
 This is an opt-in development component. It is not enabled, installed or shipped
 by the application's current release pipeline. Android/Samsung/Windows physical
-acceptance is pending. BLE and direct wireless are absent from the helper build;
-the upstream `experimental` Cargo feature is not enabled.
+acceptance is pending. The default helper is LAN-only. A separately opt-in `ble-native` wrapper now
+implements experimental FEF3/GATT/LE CoC discovery and bootstrap; direct wireless
+and authenticated LAN upgrade are absent. The upstream `experimental` feature
+remains disabled. See `docs/quickshare-ble-implementation.md`.
+An optional separate FE2C sender-nudge experiment is described below.
+
+The active execution record is `docs/quickshare-production-plan.md`; the stock
+device procedure is `docs/quickshare-android-lab.md`. Minimum BLE bootstrap is
+required before broad stable Android support; current LAN-only operation is a
+development capability, not a supported Android product claim.
 
 Runtime packagers exclude the entire `network/quickshare` and
 `.cache/quickshare` trees, including untracked build outputs. They reject a helper
@@ -40,6 +48,16 @@ uses a random per-transfer private directory, exclusive no-follow file creation,
 declared-size checks and a complete-file barrier. The Node adapter publishes
 only completed files into the inbox and never labels Quick Share as resumable
 or SHA-256-verified by an Android receiver.
+
+Outgoing all-bytes-sent now reports `outcome-unknown`: local writes and even a
+clean peer close do not prove durable receipt. Late malformed frames and payload
+error/cancellation fail finalization. Stable release remains blocked until real
+peer outcome handling is independently validated. Incoming `complete` remains
+conditional on fresh consent and successful local verification/publication.
+
+Development `helper.json` records the original upstream pin separately from the
+modified source-tree/lock hashes, application commit/dirty state and compiler.
+This is not a completed release provenance/signing or corresponding-source system.
 
 ## Licensing and provenance
 
@@ -104,3 +122,32 @@ path is for physical acceptance work, not a supported Android release.
 network namespaces on disposable CI VMs, comparing codes and transferred hashes
 in both directions. Both ends use this implementation: success is protocol
 regression evidence and must never be presented as Android interoperability.
+
+`tests/quickshare-independent.py` is a separately written Python client using
+OpenSSL-backed cryptography and test-only protobuf framing, not the Rust core.
+With `python3-cryptography` installed, run it with the same
+`AIRDROP_TEST_QUICKSHARE_HELPER` environment variable. It verifies UKEY2/code and
+directional keys, bad commitment/MAC/replay rejection, declined consent and
+empty/binary Unicode reception with independent hashes. It does not validate
+Android, BLE, the independent receiver role or Node publication. Its explicit
+fixture consent never changes production receiving defaults.
+
+For the owner's real Galaxy S24+, use `scripts/quickshare-android-lab.sh` and
+`docs/quickshare-s24-test.md`. The optional wrapper `ble-fastinit` feature
+(`node scripts/build-quickshare.js --ble-fastinit`, or lab prepare with that flag)
+adds only a bounded 120-second FE2C sender advertisement after explicit runtime
+request. It never powers a controller, scans or enables upstream wireless code.
+BlueZ failures are classified without raw device data and preserve LAN operation.
+The separate `--ble-native` experiment implements FEF3/GATT/Weave and LE CoC;
+authenticated LAN upgrade remains unimplemented and physical acceptance pending.
+Default IPC is unchanged; named metadata-free protocol diagnostics are an
+explicit `protocolDiagnostics` start capability used by the lab only. They do
+not create transfer/consent state and never carry keys, codes or endpoint data.
+
+
+Build the new experiment with `node scripts/build-quickshare.js --ble-native`.
+Use `AIRDROP_EXPERIMENTAL_QUICK_SHARE=1 AIRDROP_QUICKSHARE_BLE_NATIVE=1` only in the
+source desktop, or prepare the owner lab with `--prepare --ble-native`. Compiling
+BLE support never starts radios by itself. `hello` reports compiled capabilities;
+`bluetooth-preflight` is read-only; runtime `bluetooth` events report actual state.
+Normal packages and the default feature set remain unchanged.

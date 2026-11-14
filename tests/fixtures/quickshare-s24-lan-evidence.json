@@ -1,0 +1,321 @@
+{
+  "provenance": "Minimized from owner-provided sanitized archives; not a simulated hardware result.",
+  "testedCommit": "3cec650445595873497634d909e4c378b3648d37",
+  "fixture": {
+    "name": "lab-small.txt",
+    "size": 49,
+    "sha256": "b753383d7fabdf101bb7ce2c3cb6261ed9960e5212ece3bfc3b103ccfe7efbd7"
+  },
+  "laterOwnerReadback": {
+    "method": "authorized independent USB ADB readback",
+    "size": 49,
+    "sha256": "b753383d7fabdf101bb7ce2c3cb6261ed9960e5212ece3bfc3b103ccfe7efbd7",
+    "provenance": "Owner-performed independent readback, reported after the archived capture; retrieved bytes were not attached."
+  },
+  "discovery": {
+    "archiveSha256": "290b125898fcd96d528624d7dc458030257ef63549628b87f3123eb9c20f668e",
+    "createdAt": "2026-11-11T22:40:18.302Z",
+    "startedMs": 1794436276164.0,
+    "endedMs": 1794436619542.0,
+    "direction": "linux-to-samsung",
+    "network": "ordinary",
+    "owner": {
+      "recipientVisible": "unknown",
+      "nativeCompleted": "unknown"
+    },
+    "peakBluetooth": {
+      "observed": 64,
+      "decoded": 0,
+      "resolved": 0,
+      "ready": 0,
+      "diagnostics": {
+        "schema": 1,
+        "counters": {
+          "fef3_observations": 64,
+          "candidate_distinct": 7,
+          "candidate_repeated": 57,
+          "candidate_rejected": 64,
+          "unsupported_fast_well_formed": 63,
+          "full_reject_invalid_length": 1,
+          "full_reject_unsupported_fast_format": 63,
+          "compact_reject_invalid_length": 63,
+          "compact_reject_invalid_encoding": 1,
+          "format_unrecognized": 1
+        }
+      }
+    },
+    "pipeline": {
+      "ipc_recipient_messages": 1,
+      "recipient_route_published": 1,
+      "selector_publications": 1,
+      "renderer_publications": 2,
+      "renderer_ready": 1,
+      "renderer_unready": 0
+    },
+    "events": [
+      {
+        "elapsedMs": 42090,
+        "type": "helper",
+        "status": "disabled",
+        "hostAt": "2026-11-11T22:31:58.254Z"
+      },
+      {
+        "elapsedMs": 43289,
+        "type": "helper",
+        "status": "ready",
+        "hostAt": "2026-11-11T22:31:59.453Z"
+      },
+      {
+        "elapsedMs": 153481,
+        "type": "discovery",
+        "recipients": 1,
+        "hostAt": "2026-11-11T22:33:49.645Z"
+      },
+      {
+        "elapsedMs": 541849,
+        "type": "shutdown-requested",
+        "hostAt": "2026-11-11T22:40:18.013Z"
+      },
+      {
+        "elapsedMs": 541860,
+        "type": "helper",
+        "status": "stopped",
+        "hostAt": "2026-11-11T22:40:18.024Z"
+      }
+    ],
+    "legacyLan": {
+      "listenerReachable": false,
+      "localMdnsObserved": true,
+      "maxVisible": 2
+    },
+    "androidVisibility": {
+      "status": "authorized",
+      "logcatVisibility": "readable-partial",
+      "recognizedEvents": 0,
+      "discarded": 282,
+      "outputLimits": 13,
+      "bluetoothAccessible": false,
+      "wifiEnabled": null,
+      "validatedPackageCandidates": 1
+    }
+  },
+  "transfer": {
+    "archiveSha256": "cb5f7961851364240750055b43c41800423ef8f60520410a9c5b4415c26b6454",
+    "createdAt": "2026-11-11T22:48:35.463Z",
+    "startedMs": 1794436843957.0,
+    "endedMs": 1794437275697.0,
+    "direction": "linux-to-samsung",
+    "network": "ordinary",
+    "owner": {
+      "recipientVisible": "confirmed",
+      "nativeCompleted": "confirmed"
+    },
+    "peakBluetooth": {
+      "observed": 102,
+      "decoded": 0,
+      "resolved": 0,
+      "ready": 0,
+      "diagnostics": {
+        "schema": 1,
+        "counters": {
+          "fef3_observations": 102,
+          "candidate_distinct": 14,
+          "candidate_repeated": 88,
+          "candidate_rejected": 102,
+          "unsupported_fast_well_formed": 94,
+          "ukey2_progress": 2,
+          "protocol_sending": 2,
+          "protocol_completion_unconfirmed": 1,
+          "full_reject_invalid_length": 8,
+          "full_reject_unsupported_fast_format": 94,
+          "compact_reject_invalid_length": 94,
+          "compact_reject_invalid_encoding": 8,
+          "format_unrecognized": 8
+        }
+      }
+    },
+    "pipeline": {
+      "ipc_recipient_messages": 7,
+      "ipc_recipient_removed": 3,
+      "recipient_route_published": 4,
+      "selector_publications": 7,
+      "outbound_requested": 1,
+      "renderer_publications": 7,
+      "renderer_ready": 1,
+      "renderer_unready": 0
+    },
+    "events": [
+      {
+        "elapsedMs": 8765,
+        "type": "helper",
+        "status": "disabled",
+        "hostAt": "2026-11-11T22:40:52.722Z"
+      },
+      {
+        "elapsedMs": 9916,
+        "type": "helper",
+        "status": "ready",
+        "hostAt": "2026-11-11T22:40:53.873Z"
+      },
+      {
+        "elapsedMs": 10087,
+        "type": "discovery",
+        "recipients": 1,
+        "hostAt": "2026-11-11T22:40:54.044Z"
+      },
+      {
+        "elapsedMs": 42977,
+        "type": "discovery",
+        "recipients": 0,
+        "hostAt": "2026-11-11T22:41:26.934Z"
+      },
+      {
+        "elapsedMs": 49949,
+        "type": "discovery",
+        "recipients": 1,
+        "hostAt": "2026-11-11T22:41:33.906Z"
+      },
+      {
+        "elapsedMs": 95200,
+        "type": "discovery",
+        "recipients": 0,
+        "hostAt": "2026-11-11T22:42:19.157Z"
+      },
+      {
+        "elapsedMs": 119582,
+        "type": "discovery",
+        "recipients": 1,
+        "hostAt": "2026-11-11T22:42:43.539Z"
+      },
+      {
+        "elapsedMs": 304381,
+        "type": "transfer",
+        "attempt": "attempt-1",
+        "phase": "connecting",
+        "direction": "outgoing",
+        "bytes": 0,
+        "total": 0,
+        "hostAt": "2026-11-11T22:45:48.338Z"
+      },
+      {
+        "elapsedMs": 304490,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "SentUkeyClientInit",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:48.447Z"
+      },
+      {
+        "elapsedMs": 304546,
+        "type": "verification-available",
+        "hostAt": "2026-11-11T22:45:48.503Z"
+      },
+      {
+        "elapsedMs": 304547,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "SentUkeyClientFinish",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:48.504Z"
+      },
+      {
+        "elapsedMs": 304635,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "SentPairedKeyEncryption",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:48.592Z"
+      },
+      {
+        "elapsedMs": 304724,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "SentPairedKeyResult",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:48.681Z"
+      },
+      {
+        "elapsedMs": 304726,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "SentIntroduction",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:48.683Z"
+      },
+      {
+        "elapsedMs": 308297,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "SendingFiles",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:52.254Z"
+      },
+      {
+        "elapsedMs": 308300,
+        "type": "transfer",
+        "attempt": "attempt-1",
+        "phase": "transferring",
+        "direction": "outgoing",
+        "bytes": 0,
+        "total": 49,
+        "hostAt": "2026-11-11T22:45:52.257Z"
+      },
+      {
+        "elapsedMs": 308427,
+        "type": "protocol",
+        "attempt": "attempt-1",
+        "stage": "Sent",
+        "direction": "outgoing",
+        "hostAt": "2026-11-11T22:45:52.384Z"
+      },
+      {
+        "elapsedMs": 308429,
+        "type": "transfer",
+        "attempt": "attempt-1",
+        "phase": "outcome-unknown",
+        "direction": "outgoing",
+        "bytes": 49,
+        "total": 49,
+        "hostAt": "2026-11-11T22:45:52.386Z"
+      },
+      {
+        "elapsedMs": 309224,
+        "type": "discovery",
+        "recipients": 0,
+        "hostAt": "2026-11-11T22:45:53.181Z"
+      },
+      {
+        "elapsedMs": 310162,
+        "type": "discovery",
+        "recipients": 1,
+        "hostAt": "2026-11-11T22:45:54.119Z"
+      },
+      {
+        "elapsedMs": 471199,
+        "type": "shutdown-requested",
+        "hostAt": "2026-11-11T22:48:35.156Z"
+      },
+      {
+        "elapsedMs": 471210,
+        "type": "helper",
+        "status": "stopped",
+        "hostAt": "2026-11-11T22:48:35.167Z"
+      }
+    ],
+    "legacyLan": {
+      "listenerReachable": false,
+      "localMdnsObserved": true,
+      "maxVisible": 2
+    },
+    "androidVisibility": {
+      "status": "authorized",
+      "logcatVisibility": "readable-partial",
+      "recognizedEvents": 0,
+      "discarded": 665,
+      "outputLimits": 21,
+      "bluetoothAccessible": false,
+      "wifiEnabled": null,
+      "validatedPackageCandidates": 1
+    }
+  }
+}

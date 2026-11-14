@@ -1,3 +1,4 @@
+# Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 [package]
 name = "rqs_lib"
 version = "0.11.5"
@@ -61,8 +62,3 @@ prost-build = "0.13"
 [features]
 default = []
 experimental = ["bluer", "btleplug"]
-
-[profile.release]
-lto = true
-opt-level = 3
-codegen-units = 1

@@ -1,0 +1,615 @@
+{
+  "provenance": "Minimized reviewed physical diagnostic capture; API registration is not RF evidence.",
+  "archiveSha256": "9af4cedc351591e6152441ae0586c309370d684850684d5f028a8c42e60c8803",
+  "testedCommit": "4ad207f131b2057b9eef8cfe4be3c36fcad5177e",
+  "direction": "samsung-to-linux",
+  "captureStartedAt": "2026-11-14T20:52:44.864Z",
+  "observationEndedAt": "2026-11-14T20:57:24.732Z",
+  "archiveOwner": {
+    "recipientVisible": "unknown",
+    "nativeCompleted": "unknown"
+  },
+  "laterOwnerUiObservation": {
+    "recipientVisible": false,
+    "incomingTransfer": false,
+    "provenance": "Owner UI observation supplied with the archive; separate from archived unknown answers."
+  },
+  "peakBluetooth": {
+    "bleScanning": true,
+    "bleAdvertising": true,
+    "gattBootstrap": true,
+    "l2cap": true,
+    "lanUpgrade": false,
+    "directWireless": false,
+    "stage": "gatt-resolution-failed",
+    "mode": "compact-gatt",
+    "selectedMethod": "none",
+    "observed": 24,
+    "decoded": 0,
+    "resolved": 0,
+    "ready": 0,
+    "controller": {
+      "bluez": true,
+      "powered": true,
+      "extendedAdvertising": false,
+      "registrationTested": false,
+      "advertisingInstances": 5,
+      "activeInstances": 0,
+      "maxAdvertisementLength": null,
+      "maxScanResponseLength": null
+    },
+    "diagnostics": {
+      "schema": 1,
+      "counters": {
+        "scan_start_requested": 24,
+        "scan_start_success": 24,
+        "scan_windows": 24,
+        "scan_closed": 24,
+        "scan_ms": 43852,
+        "scan_pause_ms": 183319,
+        "scan_pause_regular": 10,
+        "scan_pause_session": 12,
+        "cache_replay_suppressed": 694,
+        "adapter_ready": 1,
+        "dbus_timeout": 5,
+        "dbus_other_error": 5,
+        "fef3_observations": 25,
+        "candidate_distinct": 9,
+        "candidate_repeated": 16,
+        "candidate_rejected": 10,
+        "gatt_resolution_requested": 12,
+        "gatt_resolution_failure": 12,
+        "gatt_connection_attempted": 5,
+        "gatt_connection_failed": 5,
+        "l2cap_bind_success": 1,
+        "l2cap_psm_accepted": 1,
+        "gatt_registration_requested": 1,
+        "gatt_registration_success": 1,
+        "advertisement_registration_requested": 9,
+        "advertisement_registration_success": 1,
+        "advertisement_registration_failure": 8,
+        "advertisement_released": 1,
+        "full_reject_invalid_length": 1,
+        "full_reject_unsupported_socket_version": 9,
+        "full_reject_unsupported_fast_format": 15,
+        "compact_reject_invalid_length": 15,
+        "compact_reject_bloom_mismatch": 9,
+        "compact_reject_invalid_encoding": 1,
+        "length_0_7": 1,
+        "length_18_24": 9,
+        "length_25_31": 15,
+        "version_0": 1,
+        "version_2": 24,
+        "gatt_disconnect_failed": 5,
+        "gatt_resolution_throttled": 3,
+        "format_unrecognized": 1,
+        "fast_accepted": 15,
+        "fast_requires_gatt": 15,
+        "fast_metadata_unresolved": 12,
+        "fast_length_27": 15,
+        "fast_info_prefix_17": 15,
+        "advertisement_error_failed": 8,
+        "advertisement_attempt_compact": 9,
+        "advertisement_discovery_idle": 9,
+        "advertisement_retry_scheduled": 8,
+        "scan_pause_advertisement": 2,
+        "gatt_connection_error_timeout": 5,
+        "gatt_ownership_capacity_rejected": 3,
+        "gatt_ownership_busy_rejected": 4
+      },
+      "advertising": {
+        "phase": "bluez",
+        "result": "failed",
+        "mode": "compact-gatt",
+        "errorName": "org.bluez.Error.Failed",
+        "category": "failed",
+        "serviceDataBytes": 17,
+        "estimatedLegacyBytes": 24,
+        "timeoutSeconds": 120,
+        "retrySeconds": 30,
+        "advertisementType": "peripheral",
+        "secondaryChannel": "none",
+        "discoverable": "adapter-default",
+        "discovery": "idle",
+        "ownScanPaused": true,
+        "availableInstances": 5,
+        "activeInstances": 0
+      }
+    }
+  },
+  "lastActive": {
+    "bleScanning": true,
+    "bleAdvertising": false,
+    "gattBootstrap": true,
+    "l2cap": true,
+    "lanUpgrade": false,
+    "directWireless": false,
+    "stage": "gatt-resolution-failed",
+    "mode": "off",
+    "selectedMethod": "none",
+    "observed": 24,
+    "decoded": 0,
+    "resolved": 0,
+    "ready": 0,
+    "controller": {
+      "bluez": true,
+      "powered": true,
+      "extendedAdvertising": false,
+      "registrationTested": false,
+      "advertisingInstances": 5,
+      "activeInstances": 0,
+      "maxAdvertisementLength": null,
+      "maxScanResponseLength": null
+    },
+    "diagnostics": {
+      "schema": 1,
+      "counters": {
+        "scan_start_requested": 24,
+        "scan_start_success": 24,
+        "scan_windows": 24,
+        "scan_closed": 24,
+        "scan_ms": 43852,
+        "scan_pause_ms": 183319,
+        "scan_pause_regular": 10,
+        "scan_pause_session": 12,
+        "cache_replay_suppressed": 694,
+        "adapter_ready": 1,
+        "dbus_timeout": 5,
+        "dbus_other_error": 5,
+        "fef3_observations": 25,
+        "candidate_distinct": 9,
+        "candidate_repeated": 16,
+        "candidate_rejected": 10,
+        "gatt_resolution_requested": 12,
+        "gatt_resolution_failure": 12,
+        "gatt_connection_attempted": 5,
+        "gatt_connection_failed": 5,
+        "l2cap_bind_success": 1,
+        "l2cap_psm_accepted": 1,
+        "gatt_registration_requested": 1,
+        "gatt_registration_success": 1,
+        "advertisement_registration_requested": 9,
+        "advertisement_registration_success": 1,
+        "advertisement_registration_failure": 8,
+        "advertisement_released": 1,
+        "full_reject_invalid_length": 1,
+        "full_reject_unsupported_socket_version": 9,
+        "full_reject_unsupported_fast_format": 15,
+        "compact_reject_invalid_length": 15,
+        "compact_reject_bloom_mismatch": 9,
+        "compact_reject_invalid_encoding": 1,
+        "length_0_7": 1,
+        "length_18_24": 9,
+        "length_25_31": 15,
+        "version_0": 1,
+        "version_2": 24,
+        "gatt_disconnect_failed": 5,
+        "gatt_resolution_throttled": 3,
+        "format_unrecognized": 1,
+        "fast_accepted": 15,
+        "fast_requires_gatt": 15,
+        "fast_metadata_unresolved": 12,
+        "fast_length_27": 15,
+        "fast_info_prefix_17": 15,
+        "advertisement_error_failed": 8,
+        "advertisement_attempt_compact": 9,
+        "advertisement_discovery_idle": 9,
+        "advertisement_retry_scheduled": 8,
+        "scan_pause_advertisement": 2,
+        "gatt_connection_error_timeout": 5,
+        "gatt_ownership_capacity_rejected": 3,
+        "gatt_ownership_busy_rejected": 4
+      },
+      "advertising": {
+        "phase": "bluez",
+        "result": "failed",
+        "mode": "compact-gatt",
+        "errorName": "org.bluez.Error.Failed",
+        "category": "failed",
+        "serviceDataBytes": 17,
+        "estimatedLegacyBytes": 24,
+        "timeoutSeconds": 120,
+        "retrySeconds": 30,
+        "advertisementType": "peripheral",
+        "secondaryChannel": "none",
+        "discoverable": "adapter-default",
+        "discovery": "idle",
+        "ownScanPaused": true,
+        "availableInstances": 5,
+        "activeInstances": 0
+      }
+    }
+  },
+  "events": [
+    {
+      "type": "helper",
+      "hostAt": "2026-11-14T20:53:22.369Z",
+      "elapsedMs": 37505,
+      "status": "disabled"
+    },
+    {
+      "type": "helper",
+      "hostAt": "2026-11-14T20:53:23.575Z",
+      "elapsedMs": 38711,
+      "status": "ready"
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:53:23.592Z",
+      "elapsedMs": 38728,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "adapter-ready",
+        "diagnostics": {
+          "counters": {},
+          "advertising": null
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:53:23.691Z",
+      "elapsedMs": 38827,
+      "bluetooth": {
+        "bleAdvertising": true,
+        "mode": "compact-gatt",
+        "stage": "advertisement-registered",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 1,
+            "advertisement_registration_success": 1,
+            "advertisement_released": 0
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "registered",
+            "mode": "compact-gatt",
+            "errorName": "none",
+            "category": "none",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 0,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "marker",
+      "hostAt": "2026-11-14T20:53:23.812Z",
+      "elapsedMs": 38948,
+      "phase": "BASELINE"
+    },
+    {
+      "type": "marker",
+      "hostAt": "2026-11-14T20:54:24.029Z",
+      "elapsedMs": 99165,
+      "phase": "ANDROID_SEND_OPEN"
+    },
+    {
+      "type": "marker",
+      "hostAt": "2026-11-14T20:54:24.267Z",
+      "elapsedMs": 99403,
+      "phase": "LINUX_DISCOVERY_RUNNING"
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:54:53.848Z",
+      "elapsedMs": 128984,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 2,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 1,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 2,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:54:56.098Z",
+      "elapsedMs": 131234,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 3,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 2,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 4,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:55:00.349Z",
+      "elapsedMs": 135485,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 4,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 3,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 8,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:55:08.700Z",
+      "elapsedMs": 143836,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 5,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 4,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 16,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:55:24.949Z",
+      "elapsedMs": 160085,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 6,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 5,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 30,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:55:55.097Z",
+      "elapsedMs": 190233,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 7,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 6,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 30,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:56:25.348Z",
+      "elapsedMs": 220484,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 8,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 7,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 30,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "bluetooth",
+      "hostAt": "2026-11-14T20:56:55.598Z",
+      "elapsedMs": 250734,
+      "bluetooth": {
+        "bleAdvertising": false,
+        "mode": "off",
+        "stage": "advertisement-registration-failed",
+        "diagnostics": {
+          "counters": {
+            "advertisement_registration_requested": 9,
+            "advertisement_registration_success": 1,
+            "advertisement_registration_failure": 8,
+            "advertisement_released": 1
+          },
+          "advertising": {
+            "phase": "bluez",
+            "result": "failed",
+            "mode": "compact-gatt",
+            "errorName": "org.bluez.Error.Failed",
+            "category": "failed",
+            "serviceDataBytes": 17,
+            "estimatedLegacyBytes": 24,
+            "timeoutSeconds": 120,
+            "retrySeconds": 30,
+            "advertisementType": "peripheral",
+            "secondaryChannel": "none",
+            "discoverable": "adapter-default",
+            "discovery": "idle",
+            "ownScanPaused": true,
+            "availableInstances": 5,
+            "activeInstances": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "marker",
+      "hostAt": "2026-11-14T20:57:24.733Z",
+      "elapsedMs": 279869,
+      "phase": "TEST_ENDED"
+    },
+    {
+      "type": "shutdown-requested",
+      "hostAt": "2026-11-14T20:59:25.430Z",
+      "elapsedMs": 400566
+    },
+    {
+      "type": "helper",
+      "hostAt": "2026-11-14T20:59:25.440Z",
+      "elapsedMs": 400576,
+      "status": "stopped"
+    }
+  ],
+  "shutdown": {
+    "outcome": "clean-stop",
+    "shutdownRequested": true,
+    "classification": "clean-stop",
+    "qualification": "Explicit lifecycle outcome. Forced shutdown is distinct from a clean exit."
+  }
+}

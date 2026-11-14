@@ -1,3 +1,4 @@
+// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
 use std::collections::HashMap;
 
 use info::{InternalFileInfo, TransferMetadata};
@@ -67,6 +68,8 @@ pub enum TransferState {
     Rejected,
     Cancelled,
     Finished,
+    /// All bytes sent; no remote durable-completion proof is available.
+    Sent,
 }
 
 #[derive(Debug, Default)]
@@ -103,7 +106,7 @@ pub struct InnerState {
     // pub text_payload_id: i64,
     // pub text_is_url: bool,
     // pub wifi_ssid: Option<String>,
-    pub payload_buffers: HashMap<i64, Vec<u8>>,
+    pub(crate) payload_buffers: crate::bytes_payload::BytesPayloads,
 }
 
 #[derive(Debug, Clone)]

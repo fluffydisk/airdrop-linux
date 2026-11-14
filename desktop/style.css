@@ -226,3 +226,7 @@ dialog::backdrop{background:#0b1429a8}
 .nearby-device label { display: block; margin: 12px 0; }
 #sendDestination, #nearbyName { max-width: 100%; padding: 8px; margin: 8px; font: inherit; }
 .nearby-transfer progress { width: 100%; }
+
+/* Development laboratory only; neutral status is not workspace health. */
+#quickshareLab { color: var(--text); border-color: #b8821b; overflow-wrap: anywhere; }
+#health[data-status="lab"]::before { background: #5684cc; }
