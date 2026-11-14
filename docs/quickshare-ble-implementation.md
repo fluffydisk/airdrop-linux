@@ -1,9 +1,10 @@
 # Experimental native Android discovery and bootstrap
 
-Status: implementation and protocol regression evidence; **no Galaxy S24+
-connection or transfer has been demonstrated**. Development stack remains
-PR #21 → PR #19 → main. The owner-tested baseline was `cb19e83`; its FE2C
-registration and LAN advertisement did not establish Android discovery.
+Status: the owner verified a byte-identical 49-byte Linux → stock Galaxy S24+
+transfer over ordinary LAN at `3cec650`. Native BLE discovery/bootstrap and the
+reverse direction remain unverified. A later reverse-discovery capture at
+`e130915` records failed local advertising registration; see the focused audit
+below. Development stack remains PR #21 → PR #19 → main.
 
 ## Implementation map and inspected sources
 
@@ -37,7 +38,7 @@ bandwidth-upgrade machinery.
   rejected extended instance falls back to compact/GATT. If the second instance
   fails after the full instance registered, release that partial registration
   before retrying a compact-only header with its extended bit clear. Persistent
-  failure reports advertising off and retries compact-only after two seconds.
+  failure reports advertising off and retries compact-only with a 2/4/8/16/30-second capped backoff.
 - No BR/EDR address or instant-connection blob is copied from a phone. A dynamic
   LE PSM is announced only after its listening socket exists. GATT registration
   precedes receiver advertising. Registration is not connection evidence.
@@ -147,3 +148,7 @@ unknown formats remain rejected. Source evidence, limitations and the distinctio
 from the owner's un-attributed packet shapes are recorded in the physical evidence
 document linked above. LAN transport and encrypted send/finalization behavior
 remain unchanged; new connection/finalization events are observation-only.
+
+## Receiver advertising failure investigation
+
+See [the reviewed S24+ reverse-discovery capture and parameter/lifecycle audit](quickshare-s24-advertising-failure.md). The new publisher owns its D-Bus connection, records closed-schema registration errors, validates legacy budgets, pauses only its own discovery lease before registration, backs off failures and renews bounded leases. This is not physical proof of RF emission or phone visibility.

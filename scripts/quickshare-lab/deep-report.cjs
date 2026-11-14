@@ -320,6 +320,30 @@ function findings(b, p, events, a) {
     result = [];
   const add = (rank, kind, provenance, text) =>
     result.push({ rank, kind, provenance, text });
+  if (
+    c.advertisement_registration_failure &&
+    !c.advertisement_registration_success
+  )
+    add(
+      1,
+      "receiver-advertising-registration-failed",
+      "Direct runtime observation",
+      `${c.advertisement_registration_failure} local BlueZ advertisement registration attempts failed with no registration success recorded. This is a local receiver-advertising boundary, separate from scanning remote Fast candidates. GATT service registration and an available LE CoC socket do not establish advertising or phone visibility. The old generic error counter cannot identify the BlueZ rejection cause.`,
+    );
+  if (c.advertisement_publisher_failure || c.advertisement_validation_failure)
+    add(
+      1,
+      "receiver-advertising-setup-failed",
+      "Direct runtime observation",
+      "Local parameter validation or advertisement publisher setup failed before BlueZ registration. Inspect the operation phase; this is not evidence of a peer GATT failure.",
+    );
+  if (c.fast_accepted && !b.resolved)
+    add(
+      2,
+      "remote-fast-metadata-unresolved",
+      "Direct runtime observation",
+      `${c.fast_accepted} strict Fast parser acceptances did not produce a resolved endpoint. Connection attempts/failures and missing metadata concern Linux scanning remote candidates; those candidates are unattributed and do not explain local advertising rejection.`,
+    );
   if (b.observed > 0 && b.decoded === 0)
     add(
       1,
@@ -340,6 +364,13 @@ function findings(b, p, events, a) {
       "unsupported-format-candidate",
       "Source-code inference",
       "A bounded Fast shape passed legacy diagnostic-only inspection and was rejected by the captured decoder. This does not establish complete validity or Samsung attribution; compare the recorded build with the strict Fast subset and its rejection counters.",
+    );
+  if (c.gatt_ownership_busy_rejected || c.gatt_ownership_capacity_rejected)
+    add(
+      2,
+      "remote-gatt-ownership-guard",
+      "Direct runtime observation",
+      "Remote GATT resolution was refused by the owned-ACL guard (retained connection or capacity). Failed disconnects retain ownership conservatively. This is separate from local advertisement registration; no unrelated ACL is disconnected.",
     );
   if (c.gatt_resolution_failure || c.gatt_slot_read_failure)
     add(
@@ -684,6 +715,30 @@ function create(input = {}) {
       ),
       peak: sanitizeBluetooth(peak),
       lastActive: sanitizeBluetooth(active.bluetooth),
+      remoteGattConnectionErrorCategories: Object.fromEntries(
+        Object.entries(c).filter(([k]) =>
+          k.startsWith("gatt_connection_error_"),
+        ),
+      ),
+      receiverAdvertising: {
+        registrationObserved: (c.advertisement_registration_success || 0) > 0,
+        requested: c.advertisement_registration_requested || 0,
+        succeeded: c.advertisement_registration_success || 0,
+        failed: c.advertisement_registration_failure || 0,
+        publisherFailed: c.advertisement_publisher_failure || 0,
+        validationFailed: c.advertisement_validation_failure || 0,
+        lastAttempt: peak.diagnostics?.advertising || null,
+        errorCategories: Object.fromEntries(
+          Object.entries(c).filter(([k]) =>
+            k.startsWith("advertisement_error_"),
+          ),
+        ),
+        gattServiceRegistered: (c.gatt_registration_success || 0) > 0,
+        l2capSocketBound: (c.l2cap_bind_success || 0) > 0,
+        onAirTransmission: "unknown",
+        qualification:
+          "Registration is a BlueZ API observation, not independent proof of RF emission or Samsung visibility. Context instance counts and discovery state are samples before the attempt; no global radio or policy change is made. NotPermitted can indicate capacity; it does not by itself prove a permissions defect. Failed can hide a controller status code.",
+      },
       counterSemantics:
         "Cumulative helper-lifetime counters. Full and compact parsers are attempted per observation; Fast is additionally tried only on a Fast-marked full rejection; candidate_rejected counts observations accepted by none. Address-based ephemeral candidates can rotate and are not device counts. Registration is not proof of emission.",
       provenance: "Direct runtime observation",
@@ -806,9 +861,9 @@ function create(input = {}) {
     },
     findings: findings(peak, pipeline, events, a),
     nextTests: [
-      "Repeat ordinary home LAN with Samsung Receive visible, unchanged radio settings, USB diagnostics authorized, and the same disposable fixture.",
-      "Compare a separate phone-hotspot session; record --network hotspot. Do not conflate it with an ordinary LAN test.",
-      "If Samsung offers Apple sharing, compare separate --apple-sharing on/off sessions, without interpreting an absent setting as failure.",
+      "First verify local receiver advertisement registration on ordinary home LAN, unchanged radio settings and an unused private workspace. For Samsung-to-Linux, open native Share after the baseline; record whether Airdrop S24 Lab stays visible across the 90-second renewal. Registration alone does not prove RF emission.",
+      "If registration fails, inspect receiverAdvertising.lastAttempt phase/errorName/category, compact payload budget, instance samples and discovery state before changing protocol parsing or system permissions.",
+      "Defer hotspot and Apple-sharing setting comparisons until the local advertising failure is characterized; preserve the previously verified ordinary-LAN sender path.",
       "Compare baseline with Receive closed against an explicit ANDROID_RECEIVE_OPEN marker. A changed rejection count is a hypothesis, not phone attribution.",
       "If supported-format counters stay zero, review exact reason, length and version buckets before proposing a parser change.",
       "If GATT is reached, identify connection, service, slot, characteristic and Weave boundaries independently.",
@@ -895,6 +950,13 @@ function markdown(r) {
     "## Findings",
     "",
     ...r.findings.map((f) => `- [${f.provenance}] ${f.text}`),
+    "",
+    "## Local receiver advertising",
+    "",
+    `BlueZ registration: ${r.bluetooth.receiverAdvertising.succeeded} succeeded / ${r.bluetooth.receiverAdvertising.failed} failed / ${r.bluetooth.receiverAdvertising.requested} requested. GATT service registered: ${r.bluetooth.receiverAdvertising.gattServiceRegistered}; LE CoC socket bound: ${r.bluetooth.receiverAdvertising.l2capSocketBound}. Independent RF transmission: unknown.`,
+    r.bluetooth.receiverAdvertising.lastAttempt
+      ? `Last attempt: phase=${r.bluetooth.receiverAdvertising.lastAttempt.phase}; mode=${r.bluetooth.receiverAdvertising.lastAttempt.mode}; result=${r.bluetooth.receiverAdvertising.lastAttempt.result}; error=${r.bluetooth.receiverAdvertising.lastAttempt.errorName}; category=${r.bluetooth.receiverAdvertising.lastAttempt.category}; service bytes=${r.bluetooth.receiverAdvertising.lastAttempt.serviceDataBytes}; conservative legacy bytes=${r.bluetooth.receiverAdvertising.lastAttempt.estimatedLegacyBytes}; type=${r.bluetooth.receiverAdvertising.lastAttempt.advertisementType}; secondary=${r.bluetooth.receiverAdvertising.lastAttempt.secondaryChannel}; discoverable=${r.bluetooth.receiverAdvertising.lastAttempt.discoverable}; discovery=${r.bluetooth.receiverAdvertising.lastAttempt.discovery}; own scan paused=${r.bluetooth.receiverAdvertising.lastAttempt.ownScanPaused}; retry=${r.bluetooth.receiverAdvertising.lastAttempt.retrySeconds}s; available/active instances=${r.bluetooth.receiverAdvertising.lastAttempt.availableInstances}/${r.bluetooth.receiverAdvertising.lastAttempt.activeInstances}.`
+      : "Last categorized advertising attempt: unavailable in this captured build. Cause remains unknown.",
     "",
     "## Rejection and lifecycle counters",
     "",

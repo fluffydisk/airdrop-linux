@@ -746,7 +746,27 @@ test("maximum diagnostic counter schema and 2000 statuses produce bounded sample
   const events = Array.from({ length: 1999 }, (_, i) => ({
     type: "bluetooth",
     elapsedMs: i,
-    bluetooth: { observed: i, diagnostics: { counters } },
+    bluetooth: {
+      observed: i,
+      diagnostics: {
+        counters,
+        advertising: {
+          phase: "bluez",
+          result: "failed",
+          mode: "compact-gatt",
+          errorName: "org.bluez.Error.InvalidArguments",
+          category: "invalid-arguments",
+          serviceDataBytes: 17,
+          estimatedLegacyBytes: 24,
+          timeoutSeconds: 120,
+          retrySeconds: 30,
+          availableInstances: 5,
+          activeInstances: 0,
+          ownScanPaused: true,
+          discovery: "idle",
+        },
+      },
+    },
   }));
   events.push({
     type: "protocol",
@@ -1045,3 +1065,153 @@ test("connection and finalization evidence allowlists reject private fields and 
     /diagnostic/,
   );
 });
+
+test("physical 148 advertising failures are a local receiver boundary, separate from seven Fast candidates and two GATT link failures", () => {
+  const physical = require("./fixtures/quickshare-s24-advertising-failure.json");
+  const output = deep.create({
+    direction: physical.direction,
+    desktop: {
+      peakBluetooth: physical.peakBluetooth,
+      pipeline: physical.pipeline,
+    },
+    activeRuntime: { listenerReachable: true },
+  });
+  const { report } = output;
+  const a = report.bluetooth.receiverAdvertising;
+  assert.equal(a.failed, 148);
+  assert.equal(a.registrationObserved, false);
+  assert.equal(a.gattServiceRegistered, true);
+  assert.equal(a.l2capSocketBound, true);
+  assert.equal(a.lastAttempt, null);
+  assert.deepEqual(a.errorCategories, {});
+  assert.equal(
+    report.findings[0].kind,
+    "receiver-advertising-registration-failed",
+  );
+  assert.ok(
+    report.findings.some((f) => f.kind === "remote-fast-metadata-unresolved"),
+  );
+  assert.equal(report.lan.listenerReachable, true);
+  assert.equal(report.transfer.localPayloadCompletionObserved, false);
+  assert.equal(report.transfer.outcome, "unconfirmed");
+  assert.equal(report.transfer.selectedTransport, "unknown");
+  assert.match(
+    writtenMarkdown(output),
+    /Last categorized advertising attempt: unavailable/,
+  );
+});
+
+test("closed advertising status preserves categorized API errors and active-attempt parameters across shutdown without exporting error bodies", () => {
+  const diagnostic = require("../lib/sharing/quickshare-diagnostics");
+  const value = {
+    phase: "bluez",
+    result: "failed",
+    mode: "compact-gatt",
+    errorName: "org.bluez.Error.InvalidLength",
+    category: "invalid-length",
+    serviceDataBytes: 17,
+    estimatedLegacyBytes: 24,
+    timeoutSeconds: 120,
+    retrySeconds: 30,
+    advertisementType: "peripheral",
+    secondaryChannel: "none",
+    discoverable: "adapter-default",
+    discovery: "idle",
+    ownScanPaused: true,
+    availableInstances: 5,
+    activeInstances: 0,
+    raw: secrets.join("\n"),
+    message: secrets.join(" "),
+    address: secrets[0],
+    payload: secrets,
+  };
+  const snapshot = sanitizeBluetooth({
+    diagnostics: {
+      advertising: value,
+      counters: {
+        advertisement_registration_failure: 1,
+        advertisement_error_invalid_length: 1,
+      },
+    },
+  });
+  const peak = diagnostic.peak(
+    snapshot,
+    sanitizeBluetooth({ stage: "stopped" }),
+  );
+  const output = deep.create({
+    desktop: { peakBluetooth: peak },
+    runtime: { status: "stopped" },
+  });
+  const { report } = output;
+  const markdown = writtenMarkdown(output);
+  assert.equal(
+    report.bluetooth.receiverAdvertising.lastAttempt.errorName,
+    "org.bluez.Error.InvalidLength",
+  );
+  assert.equal(
+    report.bluetooth.receiverAdvertising.lastAttempt.serviceDataBytes,
+    17,
+  );
+  assert.equal(
+    report.bluetooth.receiverAdvertising.lastAttempt.estimatedLegacyBytes,
+    24,
+  );
+  assert.equal(
+    report.bluetooth.receiverAdvertising.lastAttempt.ownScanPaused,
+    true,
+  );
+  assert.match(markdown, /error=org.bluez.Error.InvalidLength/);
+  for (const field of [
+    "phase",
+    "result",
+    "mode",
+    "errorName",
+    "category",
+    "advertisementType",
+    "secondaryChannel",
+    "discoverable",
+    "discovery",
+  ]) {
+    const poisoned = sanitizeBluetooth({
+      diagnostics: { advertising: { ...value, [field]: secrets.join(" ") } },
+    });
+    noSecrets(poisoned);
+  }
+  noSecrets(report);
+  noSecrets(markdown);
+});
+
+test("registered advertising is distinct from RF transmission, GATT registration, Samsung visibility and successful transfer", () => {
+  const { report } = deep.create({
+    desktop: {
+      peakBluetooth: {
+        stage: "advertisement-registered",
+        bleAdvertising: true,
+        diagnostics: { counters: { advertisement_registration_success: 1 } },
+      },
+    },
+  });
+  assert.equal(report.bluetooth.receiverAdvertising.registrationObserved, true);
+  assert.equal(
+    report.bluetooth.receiverAdvertising.gattServiceRegistered,
+    false,
+  );
+  assert.equal(
+    report.bluetooth.receiverAdvertising.onAirTransmission,
+    "unknown",
+  );
+  assert.equal(report.transfer.outcome, "unconfirmed");
+  assert.equal(report.transfer.nativeUiCompletion, "unknown");
+});
+
+function writtenMarkdown(output) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "qs-advertising-report-"));
+  try {
+    return fs.readFileSync(
+      path.join(deep.write(root, output), "quickshare-deep-diagnostic.md"),
+      "utf8",
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}

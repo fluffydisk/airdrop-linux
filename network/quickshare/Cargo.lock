@@ -19,6 +19,8 @@ dependencies = [
  "base64",
  "bluer",
  "dbus",
+ "dbus-crossroads",
+ "dbus-tokio",
  "futures",
  "prost",
  "rand",

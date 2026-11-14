@@ -25,6 +25,7 @@ struct State {
     counters: BTreeMap<String, u64>,
     candidates: HashSet<u64>,
     scan_closed: Option<Instant>,
+    advertising: Option<super::advertising::Status>,
 }
 #[derive(Clone, Default)]
 pub struct Diagnostics(Arc<Mutex<State>>);
@@ -38,13 +39,26 @@ impl Diagnostics {
             *entry = entry.saturating_add(n).min(LIMIT);
         }
     }
+    pub fn advertising(&self, status: super::advertising::Status) {
+        if let Ok(mut state) = self.0.lock() {
+            state.advertising = Some(status);
+        }
+    }
+    pub fn advertisement_retry(&self, seconds: u64) {
+        if let Ok(mut state) = self.0.lock()
+            && let Some(status) = state.advertising.as_mut()
+        {
+            status.retry_seconds = seconds;
+        }
+    }
     pub fn snapshot(&self) -> Value {
         let counters = self
             .0
             .lock()
             .map(|s| s.counters.clone())
             .unwrap_or_default();
-        json!({"schema":1,"counters":counters})
+        let advertising = self.0.lock().ok().and_then(|s| s.advertising.clone());
+        json!({"schema":1,"counters":counters,"advertising":advertising})
     }
     pub fn observe(&self, candidate: impl Hash, length: usize, first: Option<u8>) {
         self.count("fef3_observations", 1);

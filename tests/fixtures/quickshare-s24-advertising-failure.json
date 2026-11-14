@@ -1,0 +1,101 @@
+{
+  "provenance": "Minimized from owner-provided physical diagnostic archive. Earlier five-second UI visibility is a separate owner observation, not established by this later capture.",
+  "archiveSha256": "72471065744c05142b1e8866c912cf11e0c591edc1e59b866b71ccc1be307d8c",
+  "testedCommit": "e130915a418a86017167e4f11b0d2151a8e643bd",
+  "direction": "samsung-to-linux",
+  "captureStartedAt": "2026-11-12T00:17:36.675Z",
+  "observationEndedAt": "2026-11-12T00:23:09.437Z",
+  "durationMs": 300280,
+  "peakBluetooth": {
+    "bleScanning": true,
+    "bleAdvertising": false,
+    "gattBootstrap": true,
+    "l2cap": true,
+    "lanUpgrade": false,
+    "directWireless": false,
+    "stage": "advertisement-registration-failed",
+    "mode": "off",
+    "selectedMethod": "none",
+    "observed": 7,
+    "decoded": 0,
+    "resolved": 0,
+    "ready": 0,
+    "controller": {
+      "bluez": true,
+      "powered": true,
+      "extendedAdvertising": false,
+      "registrationTested": false,
+      "advertisingInstances": 5,
+      "activeInstances": 0,
+      "maxAdvertisementLength": null,
+      "maxScanResponseLength": null
+    },
+    "diagnostics": {
+      "schema": 1,
+      "counters": {
+        "scan_start_requested": 33,
+        "scan_start_success": 33,
+        "scan_windows": 33,
+        "scan_closed": 33,
+        "scan_ms": 89998,
+        "scan_pause_ms": 229190,
+        "scan_pause_regular": 26,
+        "scan_pause_session": 7,
+        "cache_replay_suppressed": 1044,
+        "adapter_ready": 1,
+        "dbus_timeout": 2,
+        "dbus_other_error": 150,
+        "fef3_observations": 7,
+        "candidate_distinct": 2,
+        "candidate_repeated": 5,
+        "gatt_resolution_requested": 7,
+        "gatt_resolution_failure": 7,
+        "gatt_connection_attempted": 2,
+        "gatt_connection_failed": 2,
+        "l2cap_bind_success": 1,
+        "l2cap_psm_accepted": 1,
+        "gatt_registration_requested": 1,
+        "gatt_registration_success": 1,
+        "advertisement_registration_requested": 148,
+        "advertisement_registration_failure": 148,
+        "advertisement_released": 0,
+        "full_reject_unsupported_fast_format": 7,
+        "compact_reject_invalid_length": 7,
+        "length_25_31": 7,
+        "version_2": 7,
+        "gatt_disconnect_failed": 2,
+        "fast_accepted": 7,
+        "fast_requires_gatt": 7,
+        "fast_metadata_unresolved": 7,
+        "fast_length_27": 7,
+        "fast_info_prefix_17": 7
+      }
+    }
+  },
+  "lan": {
+    "localMdnsObserved": true,
+    "maxVisible": 1,
+    "listenerReachable": true,
+    "listenerReachableEver": true,
+    "listenerReachableAfterShutdown": false,
+    "listenerObservation": "captured-before-teardown",
+    "listenerProvenance": "Direct runtime observation",
+    "qualification": "This probes Linux's inbound listener; an outgoing TCP session is independent. A stopped-state false does not establish an active-session failure.",
+    "phoneAttribution": "unknown"
+  },
+  "shutdown": {
+    "outcome": "clean-stop",
+    "shutdownRequested": true,
+    "classification": "clean-stop",
+    "qualification": "Explicit lifecycle outcome. Forced shutdown is distinct from a clean exit."
+  },
+  "pipeline": {
+    "renderer_publications": 1,
+    "renderer_ready": 0,
+    "renderer_unready": 0
+  },
+  "owner": {
+    "recipientVisible": "unknown",
+    "nativeCompleted": "unknown"
+  }
+}

@@ -151,3 +151,5 @@ provenance and the two next physical tests. Schema 2 removes
 observations, receiver finalization, native UI confirmation and readback hashes
 are distinct. `lan.listenerReachable` is the active probe or null when unknown;
 the shutdown probe value is separate. Neither field asserts remote success.
+
+For the local advertising failure at `e130915`, prioritize the [single 180-second receiver-registration test](quickshare-s24-advertising-failure.md#minimum-next-physical-test). Reports now expose `bluetooth.receiverAdvertising.lastAttempt` with allowlisted error names and operation phase; separate remote GATT errors cannot be interpreted as local advertising errors.

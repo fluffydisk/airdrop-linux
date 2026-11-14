@@ -80,3 +80,19 @@ Incoming TCP method observations are emitted only after a valid Nearby connectio
 request populated remote metadata. The laboratory's connect-and-close listener
 probes do not create peer attempts or exhaust evidence aliases. Outgoing method
 observations follow successful TCP connection. Both are diagnostic-only.
+
+## 2026-11-12 — advertising registration lifecycle
+
+The helper now implements a minimal standard LEAdvertisement1 publisher with
+explicit connection/I/O ownership; local GATT/scanning remain on bluer. Failed
+publication and cancelled registration close their private bus owner; successful
+handles unregister with a one-second bound. A private D-Bus peer checks lifecycle
+and serialized parameters, not RF behavior. The callback accepts only the
+resolved BlueZ owner, honors Release, and never exports identifiers or messages.
+
+Direct optional dbus-tokio/dbus-crossroads dependencies reuse already locked
+versions. No new dependency version or upstream code was imported. All new source
+is original GPL-3.0-only repository work. BlueZ 5.87 documentation/implementation
+was inspected for public API and UUID/length behavior, not copied. TCP/secure
+session code, transfer/consent/finalization behavior and dormant experimental
+wireless features are unchanged. See docs/quickshare-s24-advertising-failure.md.
