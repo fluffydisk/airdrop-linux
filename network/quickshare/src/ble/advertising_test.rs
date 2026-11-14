@@ -29,6 +29,7 @@ struct Observations {
     unregistered: usize,
     prior_owner_still_present: usize,
     properties_checked: usize,
+    raced_register: usize,
 }
 
 fn serve(
@@ -36,9 +37,12 @@ fn serve(
     stop: Arc<AtomicBool>,
     seen: Arc<Mutex<Observations>>,
     ready: std::sync::mpsc::SyncSender<()>,
+    renewal: bool,
 ) {
     let c = Connection::new_address(&address).unwrap();
     c.request_name("org.bluez", false, true, false).unwrap();
+    let pending: Arc<Mutex<Option<(dbus::Message, Instant)>>> = Arc::new(Mutex::new(None));
+    let pending_call = pending.clone();
     let mut previous: Option<String> = None;
     c.add_match(MatchRule::new_method_call(), move |_: (), conn, msg| {
         let interface = msg.interface().map(|v| v.to_string()).unwrap_or_default();
@@ -52,10 +56,45 @@ fn serve(
                 msg.method_return().append1(Variant(true))
             }
             ("org.bluez.LEAdvertisingManager1", "UnregisterAdvertisement") => {
-                seen.lock().unwrap().unregistered += 1;
-                msg.method_return()
+                let count = {
+                    let mut v = seen.lock().unwrap();
+                    v.unregistered += 1;
+                    v.unregistered
+                };
+                if renewal && count == 1 {
+                    *pending_call.lock().unwrap() = Some((
+                        msg.method_return(),
+                        Instant::now() + Duration::from_millis(250),
+                    ));
+                    return true;
+                }
+                if renewal && (count == 3 || count == 6) {
+                    return true;
+                } // Bounded unregister timeout.
+                if renewal && (count == 2 || count == 4) {
+                    msg.error(
+                        &dbus::strings::ErrorName::new(if count == 4 {
+                            "org.bluez.Error.DoesNotExist"
+                        } else {
+                            "org.bluez.Error.Failed"
+                        })
+                        .unwrap(),
+                        &std::ffi::CString::new("SESSION-SECRET /private/file").unwrap(),
+                    )
+                } else {
+                    msg.method_return()
+                }
             }
             ("org.bluez.LEAdvertisingManager1", "RegisterAdvertisement") => {
+                if pending_call.lock().unwrap().is_some() {
+                    seen.lock().unwrap().raced_register += 1;
+                    conn.send(msg.error(
+                        &dbus::strings::ErrorName::new("org.bluez.Error.Failed").unwrap(),
+                        &std::ffi::CString::new("cleanup pending").unwrap(),
+                    ))
+                    .unwrap();
+                    return true;
+                }
                 if let Some(name) = previous.take() {
                     let (alive,): (bool,) = conn
                         .with_proxy(
@@ -101,21 +140,29 @@ fn serve(
                     s.calls
                 };
                 previous = Some(owner.clone());
-                if n == 11 {
+                if (renewal && n == 6) || (!renewal && n == 11) {
                     release = Some((owner, path));
                 }
-                if n == 8 || n == 10 {
+                if !renewal && (n == 8 || n == 10) {
                     return true;
                 } // No reply, including an outer-cancelled registration.
-                let name = match n {
-                    1 => Some("org.bluez.Error.InvalidArguments"),
-                    2 => Some("org.bluez.Error.InvalidLength"),
-                    3 => Some("org.bluez.Error.NotPermitted"),
-                    4 => Some("org.bluez.Error.NotSupported"),
-                    5 => Some("org.bluez.Error.InProgress"),
-                    6 => Some("org.bluez.Error.Failed"),
-                    7 => Some("org.freedesktop.DBus.Error.LimitsExceeded"),
-                    _ => None,
+                let name = if renewal {
+                    if n == 3 || n == 4 {
+                        Some("org.bluez.Error.Failed")
+                    } else {
+                        None
+                    }
+                } else {
+                    match n {
+                        1 => Some("org.bluez.Error.InvalidArguments"),
+                        2 => Some("org.bluez.Error.InvalidLength"),
+                        3 => Some("org.bluez.Error.NotPermitted"),
+                        4 => Some("org.bluez.Error.NotSupported"),
+                        5 => Some("org.bluez.Error.InProgress"),
+                        6 => Some("org.bluez.Error.Failed"),
+                        7 => Some("org.freedesktop.DBus.Error.LimitsExceeded"),
+                        _ => None,
+                    }
                 };
                 if let Some(name) = name {
                     let body = if n == 6 {
@@ -154,6 +201,14 @@ fn serve(
     ready.send(()).unwrap();
     while !stop.load(Ordering::Relaxed) {
         c.process(Duration::from_millis(20)).unwrap();
+        let mut pending = pending.lock().unwrap();
+        if pending
+            .as_ref()
+            .is_some_and(|(_, at)| Instant::now() >= *at)
+        {
+            let (reply, _) = pending.take().unwrap();
+            c.send(reply).unwrap();
+        }
     }
 }
 
@@ -229,10 +284,13 @@ async fn client() {
     assert!(adapter.is_powered().await.unwrap());
 }
 
-#[tokio::test]
-async fn private_dbus_registration_and_cleanup() {
+async fn private_bus(renewal: bool) {
     if std::env::var_os("AIRDROP_TEST_ADV_BUS_CHILD").is_some() {
-        client().await;
+        if renewal {
+            renewal_client().await
+        } else {
+            client().await
+        };
         return;
     }
     // Environment changes are scoped to a child process; parallel tests never
@@ -256,13 +314,14 @@ async fn private_dbus_registration_and_cleanup() {
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
     let (server_stop, server_seen) = (stop.clone(), seen.clone());
     let server_address = address.clone();
-    let server = std::thread::spawn(move || serve(server_address, server_stop, server_seen, tx));
+    let server =
+        std::thread::spawn(move || serve(server_address, server_stop, server_seen, tx, renewal));
     rx.recv_timeout(Duration::from_secs(2)).unwrap();
     let mut child = OwnedProcess(
         Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
-                "ble::advertising::dbus_tests::private_dbus_registration_and_cleanup",
+                if renewal{"ble::advertising::dbus_tests::private_dbus_renewal_waits_for_cleanup_and_recovers"}else{"ble::advertising::dbus_tests::private_dbus_registration_and_cleanup"},
                 "--nocapture",
             ])
             .env("AIRDROP_TEST_ADV_BUS_CHILD", "1")
@@ -311,11 +370,164 @@ async fn private_dbus_registration_and_cleanup() {
         "private D-Bus client failed: {stdout} {stderr}"
     );
     let seen = seen.lock().unwrap();
-    assert_eq!(seen.calls, 11);
-    assert_eq!(seen.properties_checked, 11);
-    assert_eq!(seen.unregistered, 2);
+    assert_eq!(seen.calls, if renewal { 9 } else { 11 });
+    assert_eq!(seen.properties_checked, if renewal { 9 } else { 11 });
+    assert_eq!(seen.unregistered, if renewal { 7 } else { 2 });
+    assert_eq!(
+        seen.raced_register, 0,
+        "replacement must not start while unregister is pending"
+    );
     assert_eq!(
         seen.prior_owner_still_present, 0,
         "failed/cancelled/successfully released publisher must disappear before next attempt"
     );
+}
+
+#[tokio::test]
+async fn private_dbus_registration_and_cleanup() {
+    private_bus(false).await;
+}
+#[tokio::test]
+async fn private_dbus_renewal_waits_for_cleanup_and_recovers() {
+    private_bus(true).await;
+}
+async fn renewal_client() {
+    let main = bluer::Session::new().await.unwrap();
+    let adapter = main.adapter("hci0").unwrap();
+    let full = super::super::protocol::receiver(*b"AB12", "Linux", Some(0x83)).unwrap();
+    let make = || Advertisement {
+        advertisement_type: Type::Peripheral,
+        service_data: [(
+            super::super::radio::SERVICE,
+            super::super::protocol::header(&full, false, Some(0x83)),
+        )]
+        .into(),
+        timeout: Some(LEASE),
+        ..Default::default()
+    };
+    let mut handles = vec![
+        register("hci0", make(), "compact-gatt", Context::default())
+            .await
+            .unwrap(),
+    ];
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    let start = Instant::now();
+    release_all(&mut handles, "renewal").await.unwrap();
+    assert!(start.elapsed() >= Duration::from_millis(500));
+    assert!(handles.is_empty());
+    let snapshot = diag::current().snapshot();
+    let c = &snapshot["advertisingCleanup"];
+    assert_eq!(c["unregisterResult"], "acknowledged");
+    assert_eq!(c["ownerScopeClosed"], true);
+    assert_eq!(c["daemonReleaseBeforeCleanup"], false);
+    assert_eq!(c["leaseMs"], 120000);
+    assert!(c["ageMs"].as_u64().unwrap() >= 20);
+    handles.push(
+        register(
+            "hci0",
+            make(),
+            "compact-gatt",
+            Context {
+                trigger: "renewal",
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap(),
+    );
+    assert!(release_all(&mut handles, "renewal").await.is_err());
+    assert_eq!(
+        diag::current().snapshot()["advertisingCleanup"]["errorName"],
+        "org.bluez.Error.Failed"
+    );
+    for _ in 0..2 {
+        assert!(
+            register(
+                "hci0",
+                make(),
+                "compact-gatt",
+                Context {
+                    trigger: "retry",
+                    ..Default::default()
+                }
+            )
+            .await
+            .is_err()
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    handles.push(
+        register(
+            "hci0",
+            make(),
+            "compact-gatt",
+            Context {
+                trigger: "retry",
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap(),
+    );
+    assert!(release_all(&mut handles, "renewal").await.is_err());
+    assert_eq!(
+        diag::current().snapshot()["advertisingCleanup"]["unregisterResult"],
+        "timeout"
+    );
+    assert_eq!(
+        diag::current().snapshot()["advertisingCleanup"]["ownerScopeClosed"],
+        true
+    );
+    handles.push(
+        register("hci0", make(), "compact-gatt", Context::default())
+            .await
+            .unwrap(),
+    );
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert!(!handles[0].is_active());
+    release_all(&mut handles, "inactive").await.unwrap();
+    assert_eq!(
+        diag::current().snapshot()["advertisingCleanup"]["unregisterResult"],
+        "already-removed"
+    );
+    assert_eq!(
+        diag::current().snapshot()["advertisingCleanup"]["daemonReleaseBeforeCleanup"],
+        true
+    );
+    handles.push(
+        register("hci0", make(), "compact-gatt", Context::default())
+            .await
+            .unwrap(),
+    );
+    release_all(&mut handles, "shutdown").await.unwrap();
+    assert_eq!(
+        diag::current().snapshot()["counters"]["advertisement_cleanup_drop_fallback"],
+        serde_json::Value::Null
+    );
+    handles.push(
+        register("hci0", make(), "compact-gatt", Context::default())
+            .await
+            .unwrap(),
+    );
+    assert!(
+        timeout(
+            Duration::from_millis(50),
+            release_all(&mut handles, "renewal")
+        )
+        .await
+        .is_err()
+    );
+    assert!(handles.is_empty());
+    assert_eq!(
+        diag::current().snapshot()["advertisingCleanup"]["result"],
+        "pending"
+    );
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    handles.push(
+        register("hci0", make(), "compact-gatt", Context::default())
+            .await
+            .unwrap(),
+    );
+    release_all(&mut handles, "shutdown").await.unwrap();
+    assert!(adapter.is_powered().await.unwrap());
 }

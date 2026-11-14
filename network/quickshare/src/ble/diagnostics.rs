@@ -26,6 +26,7 @@ struct State {
     candidates: HashSet<u64>,
     scan_closed: Option<Instant>,
     advertising: Option<super::advertising::Status>,
+    advertising_cleanup: Option<super::advertising::CleanupStatus>,
 }
 #[derive(Clone, Default)]
 pub struct Diagnostics(Arc<Mutex<State>>);
@@ -44,6 +45,11 @@ impl Diagnostics {
             state.advertising = Some(status);
         }
     }
+    pub fn advertising_cleanup(&self, status: super::advertising::CleanupStatus) {
+        if let Ok(mut state) = self.0.lock() {
+            state.advertising_cleanup = Some(status);
+        }
+    }
     pub fn advertisement_retry(&self, seconds: u64) {
         if let Ok(mut state) = self.0.lock()
             && let Some(status) = state.advertising.as_mut()
@@ -58,7 +64,12 @@ impl Diagnostics {
             .map(|s| s.counters.clone())
             .unwrap_or_default();
         let advertising = self.0.lock().ok().and_then(|s| s.advertising.clone());
-        json!({"schema":1,"counters":counters,"advertising":advertising})
+        let cleanup = self
+            .0
+            .lock()
+            .ok()
+            .and_then(|s| s.advertising_cleanup.clone());
+        json!({"schema":1,"counters":counters,"advertising":advertising,"advertisingCleanup":cleanup})
     }
     pub fn observe(&self, candidate: impl Hash, length: usize, first: Option<u8>) {
         self.count("fef3_observations", 1);

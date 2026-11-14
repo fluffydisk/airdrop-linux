@@ -330,6 +330,27 @@ function findings(b, p, events, a) {
       "Direct runtime observation",
       `${c.advertisement_registration_failure} local BlueZ advertisement registration attempts failed with no registration success recorded. This is a local receiver-advertising boundary, separate from scanning remote Fast candidates. GATT service registration and an available LE CoC socket do not establish advertising or phone visibility. The old generic error counter cannot identify the BlueZ rejection cause.`,
     );
+  if (
+    c.advertisement_registration_success &&
+    c.advertisement_registration_failure
+  )
+    add(
+      1,
+      "receiver-advertising-interrupted",
+      "Direct runtime observation",
+      `${c.advertisement_registration_success} local registrations succeeded and ${c.advertisement_registration_failure} failed. Earlier registration is not evidence of continued advertising or initial RF visibility. Inspect replacement trigger and cleanup completion separately from the phone's recipient UI.`,
+    );
+  if (
+    c.advertisement_cleanup_error ||
+    c.advertisement_cleanup_timeout ||
+    c.advertisement_cleanup_owner_timeout
+  )
+    add(
+      1,
+      "receiver-advertising-cleanup-incomplete",
+      "Direct runtime observation",
+      "Advertisement cleanup failed or timed out. Normal replacement waits for unregister/owner teardown and backs off on incomplete cleanup. An unregister acknowledgement or zero ActiveInstances is not proof the controller completed removal.",
+    );
   if (c.advertisement_publisher_failure || c.advertisement_validation_failure)
     add(
       1,
@@ -728,6 +749,13 @@ function create(input = {}) {
         publisherFailed: c.advertisement_publisher_failure || 0,
         validationFailed: c.advertisement_validation_failure || 0,
         lastAttempt: peak.diagnostics?.advertising || null,
+        lastCleanup: peak.diagnostics?.advertisingCleanup || null,
+        renewalRequests: c.advertisement_renewal_requested || 0,
+        failureDetails: Object.fromEntries(
+          Object.entries(c).filter(([k]) =>
+            k.startsWith("advertisement_failure_detail_"),
+          ),
+        ),
         errorCategories: Object.fromEntries(
           Object.entries(c).filter(([k]) =>
             k.startsWith("advertisement_error_"),
@@ -736,6 +764,8 @@ function create(input = {}) {
         gattServiceRegistered: (c.gatt_registration_success || 0) > 0,
         l2capSocketBound: (c.l2cap_bind_success || 0) > 0,
         onAirTransmission: "unknown",
+        cleanupQualification:
+          "Cleanup records unregister acknowledgement, owned I/O teardown and a bounded guard interval. BlueZ can acknowledge after queuing controller removal; neither this barrier nor global instance samples prove MGMT completion, RF emission, or Samsung visibility.",
         qualification:
           "Registration is a BlueZ API observation, not independent proof of RF emission or Samsung visibility. Context instance counts and discovery state are samples before the attempt; no global radio or policy change is made. NotPermitted can indicate capacity; it does not by itself prove a permissions defect. Failed can hide a controller status code.",
       },
@@ -955,8 +985,12 @@ function markdown(r) {
     "",
     `BlueZ registration: ${r.bluetooth.receiverAdvertising.succeeded} succeeded / ${r.bluetooth.receiverAdvertising.failed} failed / ${r.bluetooth.receiverAdvertising.requested} requested. GATT service registered: ${r.bluetooth.receiverAdvertising.gattServiceRegistered}; LE CoC socket bound: ${r.bluetooth.receiverAdvertising.l2capSocketBound}. Independent RF transmission: unknown.`,
     r.bluetooth.receiverAdvertising.lastAttempt
-      ? `Last attempt: phase=${r.bluetooth.receiverAdvertising.lastAttempt.phase}; mode=${r.bluetooth.receiverAdvertising.lastAttempt.mode}; result=${r.bluetooth.receiverAdvertising.lastAttempt.result}; error=${r.bluetooth.receiverAdvertising.lastAttempt.errorName}; category=${r.bluetooth.receiverAdvertising.lastAttempt.category}; service bytes=${r.bluetooth.receiverAdvertising.lastAttempt.serviceDataBytes}; conservative legacy bytes=${r.bluetooth.receiverAdvertising.lastAttempt.estimatedLegacyBytes}; type=${r.bluetooth.receiverAdvertising.lastAttempt.advertisementType}; secondary=${r.bluetooth.receiverAdvertising.lastAttempt.secondaryChannel}; discoverable=${r.bluetooth.receiverAdvertising.lastAttempt.discoverable}; discovery=${r.bluetooth.receiverAdvertising.lastAttempt.discovery}; own scan paused=${r.bluetooth.receiverAdvertising.lastAttempt.ownScanPaused}; retry=${r.bluetooth.receiverAdvertising.lastAttempt.retrySeconds}s; available/active instances=${r.bluetooth.receiverAdvertising.lastAttempt.availableInstances}/${r.bluetooth.receiverAdvertising.lastAttempt.activeInstances}.`
+      ? `Last attempt: phase=${r.bluetooth.receiverAdvertising.lastAttempt.phase}; mode=${r.bluetooth.receiverAdvertising.lastAttempt.mode}; result=${r.bluetooth.receiverAdvertising.lastAttempt.result}; error=${r.bluetooth.receiverAdvertising.lastAttempt.errorName}; category=${r.bluetooth.receiverAdvertising.lastAttempt.category}; detail=${r.bluetooth.receiverAdvertising.lastAttempt.failureDetail}; trigger=${r.bluetooth.receiverAdvertising.lastAttempt.trigger}; service bytes=${r.bluetooth.receiverAdvertising.lastAttempt.serviceDataBytes}; conservative legacy bytes=${r.bluetooth.receiverAdvertising.lastAttempt.estimatedLegacyBytes}; type=${r.bluetooth.receiverAdvertising.lastAttempt.advertisementType}; secondary=${r.bluetooth.receiverAdvertising.lastAttempt.secondaryChannel}; discoverable=${r.bluetooth.receiverAdvertising.lastAttempt.discoverable}; discovery=${r.bluetooth.receiverAdvertising.lastAttempt.discovery}; own scan paused=${r.bluetooth.receiverAdvertising.lastAttempt.ownScanPaused}; retry=${r.bluetooth.receiverAdvertising.lastAttempt.retrySeconds}s; available/active instances=${r.bluetooth.receiverAdvertising.lastAttempt.availableInstances}/${r.bluetooth.receiverAdvertising.lastAttempt.activeInstances}.`
       : "Last categorized advertising attempt: unavailable in this captured build. Cause remains unknown.",
+    "",
+    r.bluetooth.receiverAdvertising.lastCleanup
+      ? `Last cleanup: reason=${r.bluetooth.receiverAdvertising.lastCleanup.reason}; result=${r.bluetooth.receiverAdvertising.lastCleanup.result}; unregister=${r.bluetooth.receiverAdvertising.lastCleanup.unregisterResult}; error=${r.bluetooth.receiverAdvertising.lastCleanup.errorName}; age=${r.bluetooth.receiverAdvertising.lastCleanup.ageMs}ms of lease ${r.bluetooth.receiverAdvertising.lastCleanup.leaseMs}ms; daemon Release before/during cleanup=${r.bluetooth.receiverAdvertising.lastCleanup.daemonReleaseBeforeCleanup}/${r.bluetooth.receiverAdvertising.lastCleanup.daemonReleaseDuringCleanup}; I/O stopped=${r.bluetooth.receiverAdvertising.lastCleanup.ioStopped}; owner scope closed=${r.bluetooth.receiverAdvertising.lastCleanup.ownerScopeClosed}; guard interval=${r.bluetooth.receiverAdvertising.lastCleanup.settleMs}ms. This is not controller completion or RF evidence.`
+      : "Awaited cleanup evidence: unavailable in this captured build. A local handle drop is not a recorded BlueZ Release callback.",
     "",
     "## Rejection and lifecycle counters",
     "",

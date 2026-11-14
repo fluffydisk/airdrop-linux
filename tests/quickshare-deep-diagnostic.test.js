@@ -1167,6 +1167,7 @@ test("closed advertising status preserves categorized API errors and active-atte
     "mode",
     "errorName",
     "category",
+    "failureDetail",
     "advertisementType",
     "secondaryChannel",
     "discoverable",
@@ -1215,3 +1216,114 @@ function writtenMarkdown(output) {
     fs.rmSync(root, { recursive: true, force: true });
   }
 }
+
+test("physical initial registration followed by eight renewal failures does not establish stable advertising or Samsung visibility", () => {
+  const f = require("./fixtures/quickshare-s24-renewal-failure.json");
+  const { report } = deep.create({
+    direction: f.direction,
+    desktop: {
+      events: f.events,
+      peakBluetooth: f.peakBluetooth,
+      lastActiveHelper: { bluetooth: f.lastActive },
+    },
+  });
+  const a = report.bluetooth.receiverAdvertising;
+  assert.equal(a.succeeded, 1);
+  assert.equal(a.failed, 8);
+  assert.equal(a.lastAttempt.errorName, "org.bluez.Error.Failed");
+  assert.equal(a.lastAttempt.trigger, "unknown");
+  assert.equal(a.lastAttempt.failureDetail, "unknown");
+  assert.equal(a.lastCleanup, null);
+  assert.equal(a.onAirTransmission, "unknown");
+  assert.equal(report.findings[0].kind, "receiver-advertising-interrupted");
+  assert.equal(report.bluetooth.lastActive.bleAdvertising, false);
+  assert.equal(report.transfer.outcome, "unconfirmed");
+  assert.equal(report.transfer.localPayloadCompletionObserved, false);
+  assert.equal(report.bluetooth.peak.diagnostics.counters.fast_accepted, 15);
+  assert.equal(
+    report.bluetooth.peak.diagnostics.counters.gatt_resolution_requested,
+    12,
+  );
+  assert.equal(
+    report.bluetooth.peak.diagnostics.counters.gatt_connection_error_timeout,
+    5,
+  );
+  const first = f.events.find(
+    (e) => e.bluetooth?.diagnostics?.advertising?.result === "registered",
+  );
+  const failed = f.events.find(
+    (e) =>
+      e.bluetooth?.diagnostics?.counters?.advertisement_registration_failure ===
+      1,
+  );
+  const opened = f.events.find((e) => e.phase === "ANDROID_SEND_OPEN");
+  const held = Date.parse(failed.hostAt) - Date.parse(first.hostAt);
+  const overlap = Date.parse(failed.hostAt) - Date.parse(opened.hostAt);
+  assert.equal(held, 90157);
+  assert.equal(overlap, 29819);
+  assert.equal(f.laterOwnerUiObservation.recipientVisible, false);
+  assert.equal(f.archiveOwner.recipientVisible, "unknown");
+});
+
+test("cleanup evidence is bounded and private, survives teardown, and does not equate unregister acknowledgement with RF or controller completion", () => {
+  const d = require("../lib/sharing/quickshare-diagnostics");
+  const cleanup = {
+    reason: "renewal",
+    result: "completed",
+    unregisterResult: "acknowledged",
+    errorName: "none",
+    category: "none",
+    ageMs: 90000,
+    leaseMs: 120000,
+    daemonReleaseBeforeCleanup: false,
+    daemonReleaseDuringCleanup: false,
+    ioStopped: true,
+    ownerScopeClosed: true,
+    settleMs: 250,
+    durationMs: 700,
+    payload: secrets,
+    message: secrets.join("\n"),
+    objectPath: secrets[0],
+  };
+  const state = sanitizeBluetooth({
+    diagnostics: {
+      advertisingCleanup: cleanup,
+      counters: { advertisement_cleanup_acknowledged: 1 },
+    },
+  });
+  const peak = d.peak(state, sanitizeBluetooth({ stage: "stopped" }));
+  const output = deep.create({ desktop: { peakBluetooth: peak } });
+  const a = output.report.bluetooth.receiverAdvertising;
+  assert.equal(a.lastCleanup.ownerScopeClosed, true);
+  assert.equal(a.lastCleanup.reason, "renewal");
+  assert.equal(a.lastCleanup.ageMs, 90000);
+  assert.equal(a.lastCleanup.daemonReleaseBeforeCleanup, false);
+  assert.equal(a.onAirTransmission, "unknown");
+  noSecrets(output);
+  noSecrets(writtenMarkdown(output));
+  for (const field of [
+    "reason",
+    "result",
+    "unregisterResult",
+    "errorName",
+    "category",
+  ])
+    noSecrets(
+      sanitizeBluetooth({
+        diagnostics: {
+          advertisingCleanup: { ...cleanup, [field]: secrets.join(" ") },
+        },
+      }),
+    );
+  const pending = sanitizeBluetooth({
+    diagnostics: {
+      advertisingCleanup: {
+        ...cleanup,
+        result: "pending",
+        ownerScopeClosed: false,
+        ioStopped: false,
+      },
+    },
+  });
+  assert.equal(pending.diagnostics.advertisingCleanup.ownerScopeClosed, false);
+});

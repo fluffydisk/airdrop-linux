@@ -271,7 +271,37 @@
     "gatt_connection_error_disconnected",
     "gatt_connection_error_other",
     "gatt_ownership_capacity_rejected",
-    "gatt_ownership_busy_rejected"
+    "gatt_ownership_busy_rejected",
+    "advertisement_renewal_requested",
+    "advertisement_cleanup_requested",
+    "advertisement_cleanup_acknowledged",
+    "advertisement_cleanup_already_removed",
+    "advertisement_cleanup_error",
+    "advertisement_cleanup_timeout",
+    "advertisement_cleanup_owner_closed",
+    "advertisement_cleanup_owner_timeout",
+    "advertisement_cleanup_drop_fallback",
+    "advertisement_cleanup_error_invalid_arguments",
+    "advertisement_cleanup_error_invalid_length",
+    "advertisement_cleanup_error_not_supported",
+    "advertisement_cleanup_error_capacity_or_policy",
+    "advertisement_cleanup_error_permission_denied",
+    "advertisement_cleanup_error_busy",
+    "advertisement_cleanup_error_already_exists",
+    "advertisement_cleanup_error_not_ready",
+    "advertisement_cleanup_error_missing_object",
+    "advertisement_cleanup_error_not_available",
+    "advertisement_cleanup_error_parse_failed",
+    "advertisement_cleanup_error_failed",
+    "advertisement_cleanup_error_timeout",
+    "advertisement_cleanup_error_resources",
+    "advertisement_cleanup_error_service_unavailable",
+    "advertisement_cleanup_error_disconnected",
+    "advertisement_cleanup_error_other",
+    "advertisement_failure_detail_controller_registration",
+    "advertisement_failure_detail_registration_incomplete",
+    "advertisement_failure_detail_parameter_parsing",
+    "advertisement_failure_detail_unknown"
   ],
   "pipeline": [
     "ipc_recipient_messages",
@@ -346,6 +376,44 @@
       "service-unavailable",
       "disconnected",
       "other"
+    ],
+    "triggers": [
+      "initial",
+      "renewal",
+      "retry",
+      "visibility",
+      "inactive"
+    ],
+    "failureDetails": [
+      "none",
+      "controller-registration",
+      "registration-incomplete",
+      "parameter-parsing",
+      "unknown"
+    ]
+  },
+  "advertisingCleanup": {
+    "reasons": [
+      "renewal",
+      "visibility",
+      "inactive",
+      "partial-fallback",
+      "shutdown",
+      "drop",
+      "initial",
+      "retry"
+    ],
+    "results": [
+      "pending",
+      "completed",
+      "failed"
+    ],
+    "unregisterResults": [
+      "pending",
+      "acknowledged",
+      "already-removed",
+      "timeout",
+      "error"
     ]
   }
 }

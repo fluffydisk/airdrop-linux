@@ -171,3 +171,5 @@ the Rust build cache exceeds its small /tmp mount; no test or installer was
 weakened. Privileged network-namespace checks run on the existing disposable CI
 runners. All of this is automated software/API evidence, not controller or
 Samsung validation of the modified head. Final CI results are linked in PR #21.
+
+The subsequent physical run at `4ad207f` registered once but failed at replacement; the next targeted steps and bounded cleanup change are in [the renewal investigation](quickshare-s24-renewal.md). The earlier all-fail capture remains separate evidence.

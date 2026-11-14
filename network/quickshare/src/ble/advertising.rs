@@ -10,14 +10,47 @@ pub const LEASE: Duration = Duration::from_secs(120);
 const CALL_LIMIT: Duration = Duration::from_secs(5);
 pub const RENEW: Duration = Duration::from_secs(90);
 
+pub const SETTLE: Duration = Duration::from_millis(250);
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CleanupStatus {
+    pub reason: &'static str,
+    pub result: &'static str,
+    pub unregister_result: &'static str,
+    pub error_name: &'static str,
+    pub category: &'static str,
+    pub age_ms: u64,
+    pub lease_ms: u64,
+    pub daemon_release_before_cleanup: bool,
+    pub daemon_release_during_cleanup: bool,
+    pub io_stopped: bool,
+    pub owner_scope_closed: bool,
+    pub settle_ms: u64,
+    pub duration_ms: u64,
+}
+/// Normal lifecycle paths await this barrier. Drop remains a bounded fallback
+/// for cancellation/unwinding; its completion is never assumed by replacement.
+pub async fn release_all(handles: &mut Vec<Handle>, reason: &'static str) -> Result<()> {
+    let old = std::mem::take(handles);
+    diag::current().count("advertisement_released", old.len() as u64);
+    let results = futures::future::join_all(old.into_iter().map(|h| h.release(reason))).await;
+    ensure!(
+        results.iter().all(Result::is_ok),
+        "advertisement cleanup incomplete"
+    );
+    Ok(())
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub retry_seconds: u64,
+    pub trigger: &'static str,
     pub phase: &'static str,
     pub result: &'static str,
     pub mode: &'static str,
     pub error_name: &'static str,
+    pub failure_detail: &'static str,
     pub category: &'static str,
     pub service_data_bytes: usize,
     pub estimated_legacy_bytes: usize,
@@ -35,10 +68,12 @@ impl Status {
         let service_data_bytes = a.service_data.values().map(Vec::len).sum();
         Self {
             retry_seconds: 0,
+            trigger: context.trigger,
             phase: "local-validation",
             result: "pending",
             mode,
             error_name: "none",
+            failure_detail: "none",
             category: "none",
             service_data_bytes,
             estimated_legacy_bytes: service_data_bytes + 4 + 3,
@@ -69,6 +104,7 @@ impl Status {
 }
 #[derive(Clone, Copy)]
 pub struct Context {
+    pub trigger: &'static str,
     pub own_scan_paused: bool,
     pub discovery: &'static str,
     pub available_instances: Option<u8>,
@@ -77,6 +113,7 @@ pub struct Context {
 impl Default for Context {
     fn default() -> Self {
         Self {
+            trigger: "initial",
             own_scan_paused: false,
             discovery: "unknown",
             available_instances: None,
@@ -199,9 +236,29 @@ pub fn failure(error: &anyhow::Error) -> (&'static str, &'static str) {
         _ => ("unknown", "other"),
     }
 }
+// Exact public BlueZ 5.87 literals only. Unknown/personalized bodies are never
+// copied or partially matched. The daemon can still hide the MGMT status code.
+pub fn failure_detail(error: &anyhow::Error) -> &'static str {
+    match error.downcast_ref::<bluer::Error>() {
+        Some(e) if e.kind == bluer::ErrorKind::Failed => match e.message.as_str() {
+            "Failed to register advertisement" => "controller-registration",
+            "Failed to complete registration" => "registration-incomplete",
+            "Failed to parse advertisement." => "parameter-parsing",
+            _ => "unknown",
+        },
+        _ => "none",
+    }
+}
 fn failed(mut status: Status, error: &anyhow::Error) {
     (status.error_name, status.category) = failure(error);
     status.result = "failed";
+    status.failure_detail = failure_detail(error);
+    if status.failure_detail != "none" {
+        inc(&format!(
+            "advertisement_failure_detail_{}",
+            status.failure_detail.replace('-', "_")
+        ));
+    }
     inc(&format!(
         "advertisement_error_{}",
         status.category.replace('-', "_")
@@ -392,6 +449,19 @@ mod tests {
         }
         .into();
         assert_eq!(failure(&err).1, "parse-failed");
+        assert_eq!(failure_detail(&err), "parameter-parsing");
+        let exact: anyhow::Error = bluer::Error {
+            kind: E::Failed,
+            message: "Failed to register advertisement".into(),
+        }
+        .into();
+        assert_eq!(failure_detail(&exact), "controller-registration");
+        let private: anyhow::Error = bluer::Error {
+            kind: E::Failed,
+            message: format!("Failed to register advertisement {secret}"),
+        }
+        .into();
+        assert_eq!(failure_detail(&private), "unknown");
     }
     #[tokio::test(start_paused = true)]
     async fn retry_is_bounded_recovers_and_renews_before_expiry() {

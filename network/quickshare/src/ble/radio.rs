@@ -912,15 +912,18 @@ fn advert(data: Vec<u8>, extended: bool) -> Advertisement {
 /// A partial dual registration must release its extended instance before
 /// retrying a legacy-only header. The header never announces an extended
 /// instance that was not successfully registered and retained.
-async fn advertise_receiver<H, F, Fut>(
+async fn advertise_receiver<H, F, Fut, C, CFut>(
     full: &[u8],
     psm: Option<u16>,
     extended: bool,
     mut register: F,
+    mut cleanup: C,
 ) -> Result<(Vec<H>, &'static str)>
 where
     F: FnMut(Advertisement, &'static str) -> Fut,
     Fut: std::future::Future<Output = Result<H>>,
+    C: FnMut(H) -> CFut,
+    CFut: std::future::Future<Output = Result<()>>,
 {
     let full_handle = if extended {
         register(advert(full.to_vec(), true), "extended-full")
@@ -934,10 +937,7 @@ where
             return Ok((vec![handle, legacy], "dual"));
         }
         inc("advertisement_released");
-        drop(handle);
-        // Handle teardown schedules BlueZ UnregisterAdvertisement. Give that
-        // task a turn before requesting the replacement instance.
-        tokio::task::yield_now().await;
+        cleanup(handle).await?;
     }
     let legacy = register(advert(header(full, false, psm), false), "compact-gatt").await?;
     Ok((vec![legacy], "compact-gatt"))
@@ -1056,6 +1056,7 @@ async fn run(
     let mut scan_started = Instant::now();
     let mut next_scan = Instant::now();
     let mut advertising_retry = AdvertisingRetry::default();
+    let mut registration_trigger = "initial";
     // SupportedInstances already reports slots remaining, not a total.
     let mut extended_enabled = caps["extendedAdvertising"] == true
         && caps["advertisingInstances"].as_u64().unwrap_or(1) >= 2;
@@ -1068,7 +1069,13 @@ async fn run(
     loop {
         tokio::select! {
             _=cancel.cancelled()=>break,
-            _=visibility.changed()=>{diag::current().count("advertisement_released",advertisements.len() as u64);advertisements.clear();advertising_retry.reset();state["bleAdvertising"]=json!(false);state["mode"]=json!("off");emit(events,&state);}
+            _=visibility.changed()=>{
+                state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
+                let cleaned=advertising::release_all(&mut advertisements,"visibility").await;
+                advertising_retry.reset();registration_trigger="visibility";
+                if cleaned.is_err(){let delay=advertising_retry.failed(Instant::now());diag::current().advertisement_retry(delay.as_secs());state["stage"]=json!("advertisement-cleanup-failed");}
+                emit(events,&state);
+            }
             _=tasks.join_next(),if !tasks.is_empty()=>{},
             _=ticker.tick()=>{
                 let now=Instant::now();
@@ -1084,24 +1091,32 @@ async fn run(
                 state["ready"]=json!(targets.values().filter(|t|t.gatt||t.advert.psm.is_some()).count());
                 attempts.retain(|_,at|now.duration_since(*at)<Duration::from_secs(10));headers.retain(|_,(_,key)|targets.contains_key(key));
                 if advertisements.iter().any(|handle|!handle.is_active()) {
-                    diag::current().count("advertisement_released",advertisements.len() as u64);advertisements.clear();state["bleAdvertising"]=json!(false);state["mode"]=json!("off");advertising_retry.reset();
+                    state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
+                    let cleaned=advertising::release_all(&mut advertisements,"inactive").await;
+                    registration_trigger="inactive";let delay=advertising_retry.failed(Instant::now());diag::current().advertisement_retry(delay.as_secs());
+                    if cleaned.is_err(){state["stage"]=json!("advertisement-cleanup-failed");}emit(events,&state);
                 }
                 if advertising_retry.due(now) {
-                    diag::current().count("advertisement_released",advertisements.len() as u64);advertisements.clear();state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
-                    if *visibility.borrow() && app.is_some() {
+                    state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                         // Drop only this helper's discovery lease. Other clients may
                         // still scan; the sampled adapter state is not a guarantee of RF idle.
                         if scan.take().is_some(){diag::current().scan_close(scan_started);inc("scan_pause_advertisement");tokio::time::sleep(Duration::from_millis(100)).await;}
                         state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                    if !advertisements.is_empty(){state["stage"]=json!("advertisement-cleanup-pending");emit(events,&state);}
+                    if registration_trigger=="renewal"{inc("advertisement_renewal_requested");}
+                    if advertising::release_all(&mut advertisements,registration_trigger).await.is_err(){
+                        let delay=advertising_retry.failed(Instant::now());diag::current().advertisement_retry(delay.as_secs());registration_trigger="retry";state["stage"]=json!("advertisement-cleanup-failed");emit(events,&state);continue
+                    }
+                    if *visibility.borrow() && app.is_some() {
                         let discovery=match bounded(adapter.is_discovering()).await{Ok(false)=>"idle",Ok(true)=>"active",Err(_)=>"unknown"};
                         inc(match discovery{"idle"=>"advertisement_discovery_idle","active"=>"advertisement_discovery_active",_=>"advertisement_discovery_unknown"});
-                        let context=AdvertisingContext{own_scan_paused:true,discovery,available_instances:bounded(adapter.supported_advertising_instances()).await.ok(),active_instances:bounded(adapter.active_advertising_instances()).await.ok()};
-                        match advertise_receiver(&full,psm,extended_enabled,|a,mode|advertising::register(adapter.name(),a,mode,context)).await {
+                        let context=AdvertisingContext{trigger:registration_trigger,own_scan_paused:true,discovery,available_instances:bounded(adapter.supported_advertising_instances()).await.ok(),active_instances:bounded(adapter.active_advertising_instances()).await.ok()};
+                        match advertise_receiver(&full,psm,extended_enabled,|a,mode|advertising::register(adapter.name(),a,mode,context),|h:advertising::Handle|h.release("partial-fallback")).await {
                             Ok((handles,mode))=>{
-                                advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);state["stage"]=json!("advertisement-registered");advertising_retry.succeeded(Instant::now());
+                                advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);state["stage"]=json!("advertisement-registered");advertising_retry.succeeded(Instant::now());registration_trigger="renewal";
                                 if mode=="compact-gatt"{if extended_enabled{inc("advertisement_compact_fallback")}extended_enabled=false;}
                             }
-                            Err(_)=>{extended_enabled=false;state["stage"]=json!("advertisement-registration-failed");let delay=advertising_retry.failed(Instant::now());inc("advertisement_retry_scheduled");diag::current().advertisement_retry(delay.as_secs());}
+                            Err(_)=>{extended_enabled=false;registration_trigger="retry";state["stage"]=json!("advertisement-registration-failed");let delay=advertising_retry.failed(Instant::now());inc("advertisement_retry_scheduled");diag::current().advertisement_retry(delay.as_secs());}
                         }
                     }else{advertising_retry.hidden(Instant::now());}
                     emit(events,&state);
@@ -1271,8 +1286,7 @@ async fn run(
         diag::current().scan_close(scan_started)
     }
     drop(scan);
-    diag::current().count("advertisement_released", advertisements.len() as u64);
-    drop(advertisements);
+    let _ = advertising::release_all(&mut advertisements, "shutdown").await;
     if let Some(app) = &app {
         app.cancel.cancel();
         app.workers.close();
@@ -1853,25 +1867,35 @@ mod tests {
         let full = receiver(*b"AB12", "Linux", None).unwrap();
         let dropped = Arc::new(Mutex::new(Vec::new()));
         let mut calls = 0;
-        let (handles, mode) = advertise_receiver(&full, None, true, |a, _mode| {
-            calls += 1;
-            if calls == 1 {
-                assert!(a.secondary_channel.is_some());
-            }
-            if calls == 2 {
-                assert_eq!(a.service_data[&SERVICE][0] & 16, 16);
-                return std::future::ready(Err(anyhow::anyhow!("second instance unavailable")));
-            }
-            if calls == 3 {
-                assert_eq!(*dropped.lock().unwrap(), [1]);
-                assert!(a.secondary_channel.is_none());
-                assert_eq!(a.service_data[&SERVICE][0] & 16, 0);
-            }
-            std::future::ready(Ok(Handle {
-                number: calls,
-                dropped: dropped.clone(),
-            }))
-        })
+        let (handles, mode) = advertise_receiver(
+            &full,
+            None,
+            true,
+            |a, _mode| {
+                calls += 1;
+                if calls == 1 {
+                    assert!(a.secondary_channel.is_some());
+                }
+                if calls == 2 {
+                    assert_eq!(a.service_data[&SERVICE][0] & 16, 16);
+                    return std::future::ready(Err(anyhow::anyhow!("second instance unavailable")));
+                }
+                if calls == 3 {
+                    assert_eq!(*dropped.lock().unwrap(), [1]);
+                    assert!(a.secondary_channel.is_none());
+                    assert_eq!(a.service_data[&SERVICE][0] & 16, 0);
+                }
+                std::future::ready(Ok(Handle {
+                    number: calls,
+                    dropped: dropped.clone(),
+                }))
+            },
+            |h| async move {
+                tokio::task::yield_now().await;
+                drop(h);
+                Ok(())
+            },
+        )
         .await
         .unwrap();
         assert_eq!(calls, 3);
@@ -1884,28 +1908,65 @@ mod tests {
     async fn unsupported_controller_modes_never_claim_an_unregistered_advertisement() {
         let full = receiver(*b"AB12", "Linux", None).unwrap();
         let mut calls = 0;
-        let (handles, mode) = advertise_receiver(&full, None, true, |a, _mode| {
-            calls += 1;
-            std::future::ready(if a.secondary_channel.is_some() {
-                Err(anyhow::anyhow!("extended unsupported"))
-            } else {
-                Ok(calls)
-            })
-        })
+        let (handles, mode) = advertise_receiver(
+            &full,
+            None,
+            true,
+            |a, _mode| {
+                calls += 1;
+                std::future::ready(if a.secondary_channel.is_some() {
+                    Err(anyhow::anyhow!("extended unsupported"))
+                } else {
+                    Ok(calls)
+                })
+            },
+            |_h| std::future::ready(Ok(())),
+        )
         .await
         .unwrap();
         assert_eq!(calls, 2);
         assert_eq!(mode, "compact-gatt");
         assert_eq!(handles, [2]);
         let mut calls = 0;
-        let result = advertise_receiver(&full, None, false, |a, _mode| {
-            calls += 1;
-            assert!(a.secondary_channel.is_none());
-            std::future::ready(Err::<usize, _>(anyhow::anyhow!("advertising unsupported")))
-        })
+        let result = advertise_receiver(
+            &full,
+            None,
+            false,
+            |a, _mode| {
+                calls += 1;
+                assert!(a.secondary_channel.is_none());
+                std::future::ready(Err::<usize, _>(anyhow::anyhow!("advertising unsupported")))
+            },
+            |_h| std::future::ready(Ok(())),
+        )
         .await;
         assert!(result.is_err());
         assert_eq!(calls, 1);
+    }
+    #[tokio::test]
+    async fn incomplete_dual_cleanup_blocks_immediate_compact_replacement() {
+        let full = receiver(*b"AB12", "Linux", None).unwrap();
+        let mut calls = 0;
+        let result = advertise_receiver(
+            &full,
+            None,
+            true,
+            |_, _| {
+                calls += 1;
+                std::future::ready(if calls == 1 {
+                    Ok(1)
+                } else {
+                    Err(anyhow::anyhow!("second registration failed"))
+                })
+            },
+            |_| async { Err(anyhow::anyhow!("cleanup incomplete")) },
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(
+            calls, 2,
+            "must back off, not immediately request a third instance"
+        );
     }
     #[test]
     fn unrelated_rssi_changes_cannot_keep_a_cached_receiver_alive() {

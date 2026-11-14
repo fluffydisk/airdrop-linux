@@ -96,3 +96,15 @@ is original GPL-3.0-only repository work. BlueZ 5.87 documentation/implementatio
 was inspected for public API and UUID/length behavior, not copied. TCP/secure
 session code, transfer/consent/finalization behavior and dormant experimental
 wireless features are unchanged. See docs/quickshare-s24-advertising-failure.md.
+
+## 2026-11-14 — serialized advertisement replacement
+
+Normal renewal, partial-dual fallback, visibility and shutdown await bounded
+unregister/owned-I/O cleanup before replacement. Cancellation retains an observed
+RAII fallback. Structured lifetime/cleanup diagnostics separate local withdrawal
+from BlueZ Release; private D-Bus tests model delayed unregister, errors, repeated
+registration and cancellation. Exact known public BlueZ error literals map to
+fixed tags only; raw messages and identifiers remain excluded. Controller MGMT
+completion and initial RF visibility are explicitly unproven. No transport,
+cryptography, consent, staging or feature-default change is included. All new
+code is original GPL-3.0-only work using the existing dependencies.
