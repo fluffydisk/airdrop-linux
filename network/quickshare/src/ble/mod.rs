@@ -13,3 +13,5 @@ pub mod diagnostics;
 
 #[cfg(all(feature = "ble-native", target_os = "linux"))]
 mod advertising;
+#[cfg(all(feature = "ble-native", target_os = "linux"))]
+mod discovery;

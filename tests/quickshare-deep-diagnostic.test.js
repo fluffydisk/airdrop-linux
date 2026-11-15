@@ -1265,6 +1265,66 @@ test("physical initial registration followed by eight renewal failures does not 
   assert.equal(f.archiveOwner.recipientVisible, "unknown");
 });
 
+test("physical db064ad inbound LE CoC/UKEY2 interruption and adapter reset remain separate from consent, RF and completed capture", () => {
+  const f = require("./fixtures/quickshare-s24-hci-reset.json");
+  const { report } = deep.create({ direction: f.direction, owner: { recipientVisible: true },
+    desktop: { events: f.events, peakBluetooth: f.peakBluetooth, lastActiveHelper: { bluetooth: f.lastActive } },
+    runtime: { status: "stopped", lastActive: { listenerReachable: true } },
+  });
+  assert.equal(f.testedCommit, "db064ad7272ec2e3c87f1b1d31194633519664d0");
+  assert.equal(f.ownerUiObservation.nativeTransferFailed, true);
+  assert.equal(f.archiveOwner.nativeCompleted, "unknown");
+  assert.equal(report.transfer.selectedTransport, "ble-l2cap");
+  assert.equal(report.evidenceStages.ukey2Reached, true);
+  assert.equal(report.transfer.localPayloadCompletionObserved, false);
+  assert.equal(report.transfer.receiverFinalizationObserved, false);
+  assert.equal(report.transfer.remoteApplicationSuccessAcknowledged, false);
+  assert.equal(report.owner.recipientVisible, "confirmed");
+  assert.equal(report.transfer.outcome, "unconfirmed");
+  assert.equal(report.productionAcceptanceEstablished, false);
+  assert.equal(report.bluetooth.receiverAdvertising.succeeded, 1);
+  assert.equal(report.bluetooth.receiverAdvertising.failed, 10);
+  assert.equal(report.bluetooth.lastActive.bleAdvertising, false);
+  assert.equal(report.bluetooth.peak.diagnostics.counters.l2cap_incoming, 2);
+  assert.equal(report.bluetooth.peak.diagnostics.counters.adapter_health_failed, 1);
+  assert.ok(report.findings.some(v => v.kind === "adapter-runtime-interrupted"));
+  assert.ok(report.findings.some(v => v.kind === "inbound-ble-handshake-incomplete"));
+  const disconnected = f.events.find(e => e.type === "protocol" && e.attempt === "attempt-2" && e.stage === "Disconnected");
+  const unavailable = f.events.find(e => e.bluetooth?.stage === "adapter-unavailable");
+  assert.ok(Date.parse(disconnected.hostAt) < Date.parse(unavailable.hostAt));
+  assert.match(report.findings.find(v => v.kind === "adapter-runtime-interrupted").text, /does not establish their cause/);
+  noSecrets(report);
+});
+
+test("new recovery counters/stages survive allowlisting, and failed scan stop cannot imply controller or transfer success", () => {
+  const s = sanitizeBluetooth({ stage: "recovery-cooldown", diagnostics: { counters: {
+    scan_stop_requested: 2, scan_stop_acknowledged: 1, scan_stop_timeout: 1,
+    adapter_generation_lost: 1, adapter_handles_invalidated: 1, adapter_index_changed: 1,
+    recovery_scan_suppressed: 1, private: secrets.join(" "),
+  } } });
+  assert.equal(s.stage, "recovery-cooldown");
+  assert.equal(s.diagnostics.counters.scan_stop_timeout, 1);
+  const { report } = deep.create({ desktop: { peakBluetooth: s } });
+  assert.ok(report.findings.some(v => v.kind === "owned-scan-stop-unconfirmed"));
+  assert.equal(report.transfer.outcome, "unconfirmed");
+  assert.equal(sanitizeBluetooth({ stage: "adapter-prepared" }).stage, "adapter-prepared");
+  noSecrets(report);
+});
+
+test("inbound handshake findings never combine different attempts or erase a later consent/finalization checkpoint", () => {
+  const incoming = { type: "connection", attempt: "attempt-1", elapsedMs: 1,
+    direction: "incoming", connectionMethod: "ble-l2cap" };
+  const ukey = { type: "protocol", attempt: "attempt-2", elapsedMs: 2,
+    direction: "outgoing", stage: "SentUkeyClientInit" };
+  const found = events => deep.create({ desktop: { events } }).report.findings.some(v => v.kind === "inbound-ble-handshake-incomplete");
+  assert.equal(found([incoming, ukey]), false);
+  const same = { ...ukey, attempt: "attempt-1", direction: "incoming", stage: "SentUkeyServerInit" };
+  assert.equal(found([incoming, same]), true);
+  for (const phase of ["awaiting-acceptance", "complete", "declined", "cancelled"])
+    assert.equal(found([incoming, same, { type: "transfer", attempt: "attempt-1",
+      direction: "incoming", elapsedMs: 3, phase, bytes: 0, total: 0 }]), false);
+});
+
 test("cleanup evidence is bounded and private, survives teardown, and does not equate unregister acknowledgement with RF or controller completion", () => {
   const d = require("../lib/sharing/quickshare-diagnostics");
   const cleanup = {
