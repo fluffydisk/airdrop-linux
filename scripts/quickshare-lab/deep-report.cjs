@@ -320,6 +320,36 @@ function findings(b, p, events, a) {
     result = [];
   const add = (rank, kind, provenance, text) =>
     result.push({ rank, kind, provenance, text });
+  if (c.adapter_disappeared || c.adapter_health_failed || c.runtime_failed)
+    add(
+      1,
+      "adapter-runtime-interrupted",
+      "Direct runtime observation",
+      "The helper observed adapter loss or a radio-runtime failure. A later powered property or GATT registration is partial recovery, not proof of advertising or controller stability. Kernel reset and audio-service causality require separate system evidence; protocol disconnection timing does not establish their cause.",
+    );
+  if (c.scan_stop_failed || c.scan_stop_timeout || c.scan_stop_unobserved)
+    add(
+      1,
+      "owned-scan-stop-unconfirmed",
+      "Direct runtime observation",
+      "An owned discovery lease lacked a successful observed stop. The affected generation must stop issuing radio work. A D-Bus acknowledgement, when available, confirms only that boundary and is not independent controller or RF completion evidence.",
+    );
+  const incompleteInbound = events.some(connection =>
+    connection.type === "connection" && connection.direction === "incoming" &&
+    connection.connectionMethod === "ble-l2cap" &&
+    events.some(e => e.attempt === connection.attempt && e.direction === "incoming" &&
+      e.type === "protocol" && e.stage.includes("Ukey")) &&
+    !events.some(e => e.attempt === connection.attempt && e.direction === "incoming" && (
+      e.type === "protocol" && ["WaitingForUserConsent", "ReceivingFiles", "Finished", "Rejected", "Cancelled"].includes(e.stage) ||
+      e.type === "transfer" && ["awaiting-acceptance", "transferring", "verifying", "complete", "declined", "cancelled"].includes(e.phase))),
+  );
+  if (incompleteInbound)
+    add(
+      2,
+      "inbound-ble-handshake-incomplete",
+      "Direct runtime observation",
+      "An inbound LE CoC connection reached UKEY2 processing without receiver finalization. SentConnectionResponse is a protocol state, not proof of completed mutual authentication, user consent or file delivery. A protocol failure and a controller interruption remain separate possibilities.",
+    );
   if (
     c.advertisement_registration_failure &&
     !c.advertisement_registration_success
@@ -968,7 +998,7 @@ function markdown(r) {
     "# Quick Share deep diagnostic",
     "",
     `Commit: ${r.build.commit || "unknown"} · helper SHA-256: ${r.build.helperSha256 || "unknown"}`,
-    `Direction: ${r.direction} · network: ${r.network} · outcome: ${r.captureOutcome}`,
+    `Direction: ${r.direction} · network: ${r.network} · capture outcome: ${r.captureOutcome}`,
     "",
     "**Production compatibility acceptance: not established. Single-fixture evidence is separate.**",
     "",

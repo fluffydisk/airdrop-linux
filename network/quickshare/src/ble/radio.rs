@@ -2,12 +2,13 @@
 // experimental network-management code. No power/pairing/policy changes.
 use super::advertising::{self, Context as AdvertisingContext, Retry as AdvertisingRetry};
 use super::diagnostics::{self as diag, inc};
+use super::discovery::Discovery;
 use super::protocol::*;
 use crate::Event;
 use anyhow::{Result, bail, ensure};
 use bluer::adv::{Advertisement, SecondaryChannel, Type};
 use bluer::gatt::{local::*, remote::Characteristic as RemoteCharacteristic};
-use bluer::{Adapter, AdapterEvent, Address, AddressType, Uuid};
+use bluer::{Adapter, AdapterEvent, AdapterProperty, Address, AddressType, SessionEvent, Uuid};
 use futures::StreamExt;
 use rqs_lib::channel::{ChannelMessage, Message, MessageClient, TransferKind};
 use rqs_lib::hdl::{InboundRequest, OutboundRequest};
@@ -16,7 +17,10 @@ use rqs_lib::{EndpointInfo, OutboundPayload, TransferState};
 use serde_json::{Value, json};
 use std::{
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 use tokio::{
@@ -73,22 +77,35 @@ fn initial() -> Value {
     )
 }
 pub async fn probe() -> Value {
-    let result=timeout(DBUS,async {
-        let session=bluer::Session::new().await?;
-        let adapter=session.default_adapter().await?;
-        let powered=adapter.is_powered().await?;
-        let slots=adapter.supported_advertising_instances().await.ok();
-        let active=adapter.active_advertising_instances().await.ok();
-        let lengths=adapter.supported_advertising_capabilities().await.ok().flatten();
-        let extended=adapter.supported_advertising_secondary_channels().await.ok().flatten().is_some_and(|s|s.contains(&SecondaryChannel::OneM));
-        Ok::<_,bluer::Error>(json!({
-        "bluez":true,"powered":powered,"maxAdvertisementLength":lengths.as_ref().map(|v|v.max_advertisement_length),"maxScanResponseLength":lengths.as_ref().map(|v|v.max_scan_response_length),"advertisingInstances":slots,"activeInstances":active,"extendedAdvertising":extended,"registrationTested":false}
-        ))
-    }).await;
+    let result = timeout(DBUS, async {
+        let session = bluer::Session::new().await?;
+        let adapter = session.default_adapter().await?;
+        probe_adapter(&adapter).await
+    })
+    .await;
     match result {
         Ok(Ok(v)) => v,
         _ => json!({"bluez":false,"registrationTested":false}),
     }
+}
+async fn probe_adapter(adapter: &Adapter) -> Result<Value, bluer::Error> {
+    let powered = adapter.is_powered().await?;
+    let slots = adapter.supported_advertising_instances().await.ok();
+    let active = adapter.active_advertising_instances().await.ok();
+    let lengths = adapter
+        .supported_advertising_capabilities()
+        .await
+        .ok()
+        .flatten();
+    let extended = adapter
+        .supported_advertising_secondary_channels()
+        .await
+        .ok()
+        .flatten()
+        .is_some_and(|s| s.contains(&SecondaryChannel::OneM));
+    Ok::<_, bluer::Error>(json!({
+    "bluez":true,"powered":powered,"maxAdvertisementLength":lengths.as_ref().map(|v|v.max_advertisement_length),"maxScanResponseLength":lengths.as_ref().map(|v|v.max_scan_response_length),"advertisingInstances":slots,"activeInstances":active,"extendedAdvertising":extended,"registrationTested":false}
+    ))
 }
 #[derive(Clone)]
 struct Send {
@@ -147,6 +164,12 @@ impl Connections {
         }))
         .await;
     }
+    fn invalidate(&self) {
+        if let Ok(mut owned) = self.0.lock() {
+            owned.clear();
+        }
+        inc("gatt_ownership_invalidated");
+    }
 }
 pub struct Runtime {
     cancel: CancellationToken,
@@ -170,15 +193,36 @@ impl Runtime {
         let connections = Connections::default();
         let owned = connections.clone();
         let task = tokio::spawn(async move {
+            let mut previous_adapter = None;
+            let mut recovering = false;
+            let mut recovery_delay = 5u64;
             loop {
-                let result = tokio::select! {
-                _=c.cancelled()=>break,r=run((endpoint,&name),&sender,&events,&mut rx,&mut vis,c.child_token(),owned.clone())=>r};
-                owned.cleanup().await;
+                if c.is_cancelled() {
+                    break;
+                }
+                // Let run perform bounded teardown on cancellation and errors;
+                // selecting it away would skip its async cleanup.
+                let generation_started = Instant::now();
+                let result = run(
+                    (endpoint, &name),
+                    &sender,
+                    &events,
+                    &mut rx,
+                    &mut vis,
+                    Generation {
+                        cancel: c.child_token(),
+                        connections: owned.clone(),
+                        previous_adapter: &mut previous_adapter,
+                        recovering,
+                    },
+                )
+                .await;
                 while let Ok(request) = rx.try_recv() {
                     failed(&sender, &request.id, TransferKind::Outbound);
                 }
                 if result.is_err() {
-                    inc("runtime_failed")
+                    inc("runtime_failed");
+                    recovering = true;
                 }
                 let mut state = initial();
                 state["stage"] = json!(if result.is_ok() {
@@ -187,7 +231,18 @@ impl Runtime {
                     "adapter-unavailable"
                 });
                 emit(&events, &state);
-                tokio::select! {_=c.cancelled()=>break,Some(request)=rx.recv()=>{failed(&sender,&request.id,TransferKind::Outbound);},_=tokio::time::sleep(Duration::from_secs(5))=>{}}
+                if c.is_cancelled() {
+                    break;
+                }
+                phase(&events, "recovery-cooldown");
+                inc("adapter_recovery_wait");
+                if generation_started.elapsed() >= Duration::from_secs(60) {
+                    recovery_delay = 5;
+                }
+                if !recovery_wait(&c, &mut rx, &sender, Duration::from_secs(recovery_delay)).await {
+                    break;
+                }
+                recovery_delay = (recovery_delay * 2).min(30);
             }
         });
         Self {
@@ -221,14 +276,31 @@ impl Runtime {
         }
         self.stopped = true;
         self.cancel.cancel();
-        if timeout(Duration::from_secs(2), &mut self.task)
+        if timeout(Duration::from_secs(12), &mut self.task)
             .await
             .is_err()
         {
             self.task.abort();
             let _ = (&mut self.task).await;
+            self.connections.invalidate();
+            inc("adapter_teardown_forced");
         }
         self.connections.cleanup().await;
+    }
+}
+async fn recovery_wait(
+    cancel: &CancellationToken,
+    requests: &mut mpsc::Receiver<Send>,
+    sender: &broadcast::Sender<ChannelMessage>,
+    delay: Duration,
+) -> bool {
+    let until = Instant::now() + delay;
+    loop {
+        tokio::select! {
+            _=cancel.cancelled()=>return false,
+            _=tokio::time::sleep_until(until)=>return true,
+            Some(request)=requests.recv()=>failed(sender,&request.id,TransferKind::Outbound),
+        }
     }
 }
 impl Drop for Runtime {
@@ -309,6 +381,11 @@ struct GattService {
     workers: TaskTracker,
     cancel: CancellationToken,
 }
+struct SessionResources {
+    cancel: CancellationToken,
+    permits: Arc<Semaphore>,
+    discovery: Arc<Discovery>,
+}
 impl Drop for GattService {
     fn drop(&mut self) {
         self.cancel.cancel();
@@ -319,10 +396,14 @@ async fn application(
     full: Vec<u8>,
     sender: broadcast::Sender<ChannelMessage>,
     events: mpsc::Sender<Event>,
-    cancel: CancellationToken,
-    permits: Arc<Semaphore>,
     visibility: watch::Receiver<bool>,
+    resources: SessionResources,
 ) -> Result<GattService> {
+    let SessionResources {
+        cancel,
+        permits,
+        discovery,
+    } = resources;
     inc("gatt_registration_requested");
     let workers = TaskTracker::new();
     let notification_workers = workers.clone();
@@ -415,6 +496,7 @@ async fn application(
                             let cancel = cancel.child_token();
                             let permits = permits.clone();
                             let workers = notification_workers.clone();
+                            let discovery = discovery.clone();
                             Box::pin(async move {
                                 inc("incoming_notification_setup");
                                 let Ok(permit) = permits.try_acquire_owned() else {
@@ -442,7 +524,10 @@ async fn application(
                                 let _guard = SessionGuard(gate);
                                 let id = format!("{:032x}", rand::random::<u128>());
                                 let result = tokio::select! {
-                                _=cancel.cancelled()=>Err(anyhow::anyhow!("cancelled")),r=timeout(SESSION_LIMIT,gatt_server(notifier,rx,sender.clone(),events.clone(),id.clone()))=>r.unwrap_or_else(|_|Err(anyhow::anyhow!("lifetime")))};
+                                _=cancel.cancelled()=>Err(anyhow::anyhow!("cancelled")),r=timeout(SESSION_LIMIT,async {
+                                    discovery.stop().await?;
+                                    gatt_server(notifier,rx,sender.clone(),events.clone(),id.clone()).await
+                                })=>r.unwrap_or_else(|_|Err(anyhow::anyhow!("lifetime")))};
                                 if result.is_err() {
                                     phase(&events, "gatt-session-failed");
                                     failed(&sender, &id, TransferKind::Inbound);
@@ -549,7 +634,10 @@ async fn inbound(
     };
     let mut r = InboundRequest::new(core, id, sender);
     loop {
-        match timeout(PEER_TIMEOUT, r.handle()).await? {
+        match timeout(PEER_TIMEOUT, r.handle())
+            .await
+            .inspect_err(|_| inc("nearby_session_timeout"))?
+        {
             Ok(()) => {
                 if matches!(
                     r.state.state,
@@ -565,6 +653,7 @@ async fn inbound(
                 if e.downcast_ref::<rqs_lib::errors::AppError>().is_some() {
                     return Ok(());
                 }
+                inc("nearby_session_error");
                 return Err(e);
             }
         }
@@ -947,6 +1036,46 @@ fn receiver_data_update(event: &bluer::DeviceEvent) -> bool {
     matches!(event,bluer::DeviceEvent::PropertyChanged(bluer::DeviceProperty::ServiceData(data)) if data.contains_key(&SERVICE))
 }
 type ScanStream = std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + std::marker::Send>>;
+struct AdapterIdentity {
+    name: String,
+    // Adapter identity is retained only in memory to avoid switching somebody
+    // else's controller into discovery after a reset. Never serialize it.
+    address: Address,
+}
+async fn select_adapter(
+    session: &bluer::Session,
+    previous: &mut Option<AdapterIdentity>,
+) -> Result<Adapter> {
+    let adapter = if let Some(previous) = previous.as_ref() {
+        let names = bounded(session.adapter_names()).await?;
+        ensure!(names.len() <= 16, "adapter enumeration bound");
+        let selected = timeout(DBUS, async {
+            for name in names {
+                let adapter = session.adapter(&name)?;
+                if adapter.address().await.ok() == Some(previous.address) {
+                    return Ok::<_, bluer::Error>(Some(adapter));
+                }
+            }
+            Ok(None)
+        })
+        .await??;
+        let Some(adapter) = selected else {
+            inc("adapter_identity_unavailable");
+            bail!("original controller unavailable");
+        };
+        if adapter.name() != previous.name {
+            inc("adapter_index_changed");
+        }
+        adapter
+    } else {
+        bounded(session.default_adapter()).await?
+    };
+    *previous = Some(AdapterIdentity {
+        name: adapter.name().into(),
+        address: bounded(adapter.address()).await?,
+    });
+    Ok(adapter)
+}
 /// Avoid bluer's unrestricted per-device watcher set and cache replay. Only
 /// FEF3 ServiceData updates refresh known devices; at most 128 watchers live
 /// during each short scan lease.
@@ -957,7 +1086,18 @@ async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
     }
     ensure!(addresses.len() <= 1024, "Bluetooth cache limit");
     let known: HashSet<_> = addresses.into_iter().collect();
-    let discovery = bounded(adapter.discover_devices()).await?.boxed();
+    // Event observation has no discovery ownership. The dedicated Discovery
+    // lease below is the only caller of StartDiscovery/StopDiscovery.
+    let events = bounded(adapter.events()).await?;
+    let discovery = futures::stream::iter(
+        known
+            .iter()
+            .copied()
+            .map(AdapterEvent::DeviceAdded)
+            .collect::<Vec<_>>(),
+    )
+    .chain(events)
+    .boxed();
     let changes: futures::stream::SelectAll<futures::stream::BoxStream<'static, Address>> =
         futures::stream::SelectAll::new();
     let adapter = adapter.clone();
@@ -985,39 +1125,112 @@ async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
     }).boxed())
 }
 
+struct Generation<'a> {
+    cancel: CancellationToken,
+    connections: Connections,
+    previous_adapter: &'a mut Option<AdapterIdentity>,
+    recovering: bool,
+}
+struct AdapterMonitor {
+    lost: Arc<AtomicBool>,
+    task: JoinHandle<()>,
+}
+impl AdapterMonitor {
+    fn start(
+        mut session: futures::stream::BoxStream<'static, SessionEvent>,
+        mut adapter: futures::stream::BoxStream<'static, AdapterEvent>,
+        name: String,
+        cancel: CancellationToken,
+        permits: Arc<Semaphore>,
+    ) -> Self {
+        let lost = Arc::new(AtomicBool::new(false));
+        let failed = lost.clone();
+        let task = tokio::spawn(async move {
+            loop {
+                let disappeared = tokio::select! {
+                    _=cancel.cancelled()=>return,
+                    event=session.next()=>{
+                        if event.is_some() && !matches!(event,Some(SessionEvent::AdapterRemoved(ref n)) if n==&name) {continue;}
+                        inc("adapter_disappeared");true
+                    }
+                    event=adapter.next()=>{
+                        if event.is_some() && !matches!(event,Some(AdapterEvent::PropertyChanged(AdapterProperty::Powered(false)))) {continue;}
+                        inc("adapter_health_failed");true
+                    }
+                };
+                if disappeared {
+                    failed.store(true, Ordering::Relaxed);
+                    if permits.available_permits() < 4 {
+                        inc("adapter_session_cancelled");
+                    }
+                    cancel.cancel();
+                    return;
+                }
+            }
+        });
+        Self { lost, task }
+    }
+    fn lost(&self) -> bool {
+        self.lost.load(Ordering::Relaxed)
+    }
+    async fn stop(&mut self) {
+        self.task.abort();
+        let _ = (&mut self.task).await;
+    }
+}
+impl Drop for AdapterMonitor {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}
 async fn run(
     local: ([u8; 4], &str),
     sender: &broadcast::Sender<ChannelMessage>,
     events: &mpsc::Sender<Event>,
     requests: &mut mpsc::Receiver<Send>,
     visibility: &mut watch::Receiver<bool>,
-    cancel: CancellationToken,
-    connections: Connections,
+    generation: Generation<'_>,
 ) -> Result<()> {
+    let Generation {
+        cancel,
+        connections,
+        previous_adapter,
+        recovering,
+    } = generation;
     let (endpoint_id, name) = local;
     let _cancel_on_return = cancel.clone().drop_guard();
     let session = bounded(bluer::Session::new()).await?;
-    let adapter = bounded(session.default_adapter()).await?;
+    // Subscribe before selection so a remove/recreate cannot silently preserve
+    // this generation's handles, even when the kernel reuses the same index.
+    let session_events = bounded(session.events()).await?.boxed();
+    let adapter = select_adapter(&session, previous_adapter).await?;
     if !bounded(adapter.is_powered()).await? {
         inc("adapter_powered_off");
         bail!("bluetooth off")
     }
-    inc("adapter_ready");
-    bounded(adapter.set_discovery_filter(bluer::DiscoveryFilter {
-        // Some BlueZ/controller combinations omit ServiceData UUIDs from the
-        // UUID discovery filter. Inspect FEF3 in received service data instead.
-        uuids: Default::default(),
-        transport: bluer::DiscoveryTransport::Le,
-        duplicate_data: true,
-        discoverable: false,
-        ..Default::default()
-    }))
-    .await?;
-    let mut state = initial();
-    state["stage"] = json!("adapter-ready");
-    let caps = probe().await;
-    state["controller"] = caps.clone();
+    if recovering {
+        inc("adapter_recovery_probe");
+        // Read-only stability interval; a powered property is not controller or
+        // RF health. Do not resume active scans before receiver registration.
+        tokio::select! { _=cancel.cancelled()=>return Ok(()), _=tokio::time::sleep(Duration::from_secs(2))=>{} }
+        ensure!(bounded(adapter.is_powered()).await?, "adapter not stable");
+    }
+    let adapter_events = bounded(adapter.events()).await?.boxed();
     let permits = Arc::new(Semaphore::new(4));
+    // Drain lifecycle subscriptions independently of bounded D-Bus/GATT work in
+    // the main loop, and cancel sessions immediately when their adapter dies.
+    let mut monitor = AdapterMonitor::start(
+        session_events,
+        adapter_events,
+        adapter.name().into(),
+        cancel.clone(),
+        permits.clone(),
+    );
+    let mut state = initial();
+    state["stage"] = json!("adapter-prepared");
+    let caps = bounded(probe_adapter(&adapter)).await?;
+    state["controller"] = caps.clone();
+    let discovery = Arc::new(Discovery::default());
     let mut tasks = JoinSet::new();
     let l2cap = bind_l2cap(&adapter).await.ok();
     inc(if l2cap.is_some() {
@@ -1032,9 +1245,12 @@ async fn run(
         full.clone(),
         sender.clone(),
         events.clone(),
-        cancel.clone(),
-        permits.clone(),
         visibility.clone(),
+        SessionResources {
+            cancel: cancel.clone(),
+            permits: permits.clone(),
+            discovery: discovery.clone(),
+        },
     )
     .await
     .ok();
@@ -1043,6 +1259,8 @@ async fn run(
     } else {
         "gatt_registration_failure"
     });
+    inc("adapter_ready");
+    inc("adapter_generation_started");
     state["gattBootstrap"] = json!(app.is_some());
     if app.is_none() {
         state["stage"] = json!("gatt-registration-failed");
@@ -1053,7 +1271,6 @@ async fn run(
     let mut scan: Option<
         std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + std::marker::Send>>,
     > = None;
-    let mut scan_started = Instant::now();
     let mut next_scan = Instant::now();
     let mut advertising_retry = AdvertisingRetry::default();
     let mut registration_trigger = "initial";
@@ -1066,9 +1283,12 @@ async fn run(
     let mut headers: HashMap<Address, ([u8; 4], String)> = HashMap::new();
     let mut ticker = tokio::time::interval(Duration::from_millis(250));
     let mut last_health = Instant::now();
+    let mut registration_deferred = false;
+    let mut recovery_scan_blocked = false;
+    let result: Result<()> = async {
     loop {
         tokio::select! {
-            _=cancel.cancelled()=>break,
+            _=cancel.cancelled()=>{ensure!(!monitor.lost(),"adapter generation removed");break},
             _=visibility.changed()=>{
                 state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                 let cleaned=advertising::release_all(&mut advertisements,"visibility").await;
@@ -1079,6 +1299,9 @@ async fn run(
             _=tasks.join_next(),if !tasks.is_empty()=>{},
             _=ticker.tick()=>{
                 let now=Instant::now();
+                ensure!(discovery.healthy(), "discovery generation failed");
+                state["bleScanning"]=json!(discovery.active());
+                if !discovery.active(){scan=None;}
                 if now.duration_since(last_health)>=Duration::from_secs(2) {
                     match bounded(adapter.is_powered()).await{Ok(true)=>{},Ok(false)=>{inc("adapter_powered_off");bail!("adapter off")},Err(e)=>{if e.downcast_ref::<bluer::Error>().is_some_and(|e|matches!(e.kind,bluer::ErrorKind::DoesNotExist|bluer::ErrorKind::NotAvailable)){inc("adapter_disappeared")}else{inc("adapter_health_failed")}return Err(e)}}
                     last_health=now;
@@ -1092,15 +1315,23 @@ async fn run(
                 attempts.retain(|_,at|now.duration_since(*at)<Duration::from_secs(10));headers.retain(|_,(_,key)|targets.contains_key(key));
                 if advertisements.iter().any(|handle|!handle.is_active()) {
                     state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
+                    if permits.available_permits()==4 {
                     let cleaned=advertising::release_all(&mut advertisements,"inactive").await;
                     registration_trigger="inactive";let delay=advertising_retry.failed(Instant::now());diag::current().advertisement_retry(delay.as_secs());
-                    if cleaned.is_err(){state["stage"]=json!("advertisement-cleanup-failed");}emit(events,&state);
+                    if cleaned.is_err(){state["stage"]=json!("advertisement-cleanup-failed");}
+                    }
+                    emit(events,&state);
                 }
-                if advertising_retry.due(now) {
+                if advertising_retry.due(now) && permits.available_permits()<4 && !registration_deferred {
+                    inc("advertisement_session_deferred");registration_deferred=true;
+                }
+                if advertising_retry.due(now) && permits.available_permits()==4 {
+                    registration_deferred=false;
                     state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                         // Drop only this helper's discovery lease. Other clients may
                         // still scan; the sampled adapter state is not a guarantee of RF idle.
-                        if scan.take().is_some(){diag::current().scan_close(scan_started);inc("scan_pause_advertisement");tokio::time::sleep(Duration::from_millis(100)).await;}
+                        if scan.take().is_some(){inc("scan_pause_advertisement");}
+                        discovery.stop().await?;
                         state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
                     if !advertisements.is_empty(){state["stage"]=json!("advertisement-cleanup-pending");emit(events,&state);}
                     if registration_trigger=="renewal"{inc("advertisement_renewal_requested");}
@@ -1111,6 +1342,7 @@ async fn run(
                         let discovery=match bounded(adapter.is_discovering()).await{Ok(false)=>"idle",Ok(true)=>"active",Err(_)=>"unknown"};
                         inc(match discovery{"idle"=>"advertisement_discovery_idle","active"=>"advertisement_discovery_active",_=>"advertisement_discovery_unknown"});
                         let context=AdvertisingContext{trigger:registration_trigger,own_scan_paused:true,discovery,available_instances:bounded(adapter.supported_advertising_instances()).await.ok(),active_instances:bounded(adapter.active_advertising_instances()).await.ok()};
+                        if cancel.is_cancelled(){continue}
                         match advertise_receiver(&full,psm,extended_enabled,|a,mode|advertising::register(adapter.name(),a,mode,context),|h:advertising::Handle|h.release("partial-fallback")).await {
                             Ok((handles,mode))=>{
                                 advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);state["stage"]=json!("advertisement-registered");advertising_retry.succeeded(Instant::now());registration_trigger="renewal";
@@ -1123,27 +1355,29 @@ async fn run(
                 }
                 // Duty-cycle scanning to leave connection/advertising airtime. No
                 // assumption that a controller can actively scan and advertise.
-                if now>=next_scan {
-                    if scan.is_some(){diag::current().scan_close(scan_started);inc("scan_pause_regular");scan=None;state["bleScanning"]=json!(false);next_scan=now+Duration::from_secs(7);}
+                let receiver_pending = recovering && *visibility.borrow() && app.is_some() && advertisements.is_empty();
+                if receiver_pending && !recovery_scan_blocked {
+                    inc("recovery_scan_suppressed");recovery_scan_blocked=true;
+                }
+                if !receiver_pending { recovery_scan_blocked=false; }
+                if now>=next_scan && !receiver_pending {
+                    if scan.take().is_some(){
+                        inc("scan_pause_regular");discovery.stop().await?;
+                        state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                    }
                     else if permits.available_permits()==4 {
-                        inc("scan_start_requested");match scan_events(&adapter).await{
-                            Ok(s)=>{
-                                inc("scan_start_success");diag::current().scan_open();scan_started=Instant::now();scan=Some(Box::pin(s));
-                                state["bleScanning"]=json!(true);
-                                next_scan=now+Duration::from_secs(3);
-                            }
-                            ,Err(_)=>{
-                                inc("scan_start_failure");state["stage"]=json!("scan-start-failed");
-                                next_scan=now+Duration::from_secs(7);
-                            }
-                        }
+                        let stream=scan_events(&adapter).await?;
+                        if cancel.is_cancelled(){continue}
+                        discovery.start(adapter.name()).await?;
+                        scan=Some(stream);state["bleScanning"]=json!(true);
+                        next_scan=Instant::now()+Duration::from_secs(3);
                     }
                     emit(events,&state);
                 }
-                if permits.available_permits()<4 && scan.is_some(){
-                    diag::current().scan_close(scan_started);inc("scan_pause_session");scan=None;
+                if permits.available_permits()<4 && scan.take().is_some(){
+                    inc("scan_pause_session");discovery.stop().await?;
                     state["bleScanning"]=json!(false);
-                    next_scan=now+Duration::from_secs(7);
+                    next_scan=Instant::now()+Duration::from_secs(7);
                     emit(events,&state);
                 }
             }
@@ -1156,8 +1390,8 @@ async fn run(
                             report(events,&t,false)}
                         }
                     continue}
-                    ,Some(_)=>continue,None=>{inc("scan_event_stream_closed");diag::current().scan_close(scan_started);
-                        scan=None;
+                    ,Some(_)=>continue,None=>{inc("scan_event_stream_closed");
+                        scan=None;discovery.stop().await?;
                     continue}
                 }
                 ;
@@ -1180,9 +1414,10 @@ async fn run(
                 let mut ad=parsed.ok();let fast_identity=if fast{ad.clone()}else{None};
                 if fast{inc("fast_requires_gatt");}
                 if ad.as_ref().is_none_or(|a|a.psm.is_none()) {
+                    if permits.available_permits()<4 {inc("gatt_resolution_session_deferred");continue}
                     if attempts.contains_key(&addr) || attempts.len()>=100 {inc("gatt_resolution_throttled");emit(events,&state);continue}attempts.insert(addr,now);
                     // Drop our discovery lease during GATT resolution.
-                    if scan.is_some(){diag::current().scan_close(scan_started)}inc("scan_pause_session");scan=None;state["bleScanning"]=json!(false);next_scan=now+Duration::from_secs(7);
+                    inc("scan_pause_session");scan=None;discovery.stop().await?;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
                     inc("gatt_resolution_requested");phase(events,"gatt-resolution-pending");
                     match resolve(&adapter,addr,h.as_ref().map(|h|h.slots).unwrap_or(1),&connections).await {
                         Ok((slot,available))=>{
@@ -1227,7 +1462,7 @@ async fn run(
                 continue}
                 ;
                 let Ok(permit)=permits.clone().try_acquire_owned() else{failed(sender,&request.id,TransferKind::Outbound);continue};
-                if scan.is_some(){diag::current().scan_close(scan_started)}inc("scan_pause_session");scan=None;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                inc("scan_pause_session");scan=None;discovery.stop().await?;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
                 let adapter=adapter.clone();
                 let sender=sender.clone();
                 let events=events.clone();
@@ -1262,15 +1497,20 @@ async fn run(
                 let Ok(permit)=permits.clone().try_acquire_owned() else{
                 continue}
                 ;
+                if scan.take().is_some(){inc("scan_pause_session");}
+                discovery.stop().await?;
+                state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                emit(events,&state);
                 let full=full.clone();
                 let sender=sender.clone();
                 let events=events.clone();
                 let c=cancel.child_token();
+                let discovery=discovery.clone();
                 tasks.spawn(async move {
                     let _permit=permit;
                     let id=format!("{:032x}",rand::random::<u128>());
                     let result=tokio::select!{
-                    _=c.cancelled()=>Err(anyhow::anyhow!("stopped")),r=timeout(SESSION_LIMIT,serve_l2cap(socket,&full,sender.clone(),events.clone(),id.clone()))=>r.unwrap_or_else(|_|Err(anyhow::anyhow!("lifetime")))}
+                    _=c.cancelled()=>Err(anyhow::anyhow!("stopped")),r=timeout(SESSION_LIMIT,serve_l2cap(socket,&full,sender.clone(),events.clone(),id.clone(),discovery))=>r.unwrap_or_else(|_|Err(anyhow::anyhow!("lifetime")))}
                     ;
                     if result.is_err(){
                         phase(&events,"l2cap-session-failed");
@@ -1281,25 +1521,61 @@ async fn run(
             }
         }
     }
-    cancel.cancel();
-    if scan.is_some() {
-        diag::current().scan_close(scan_started)
+    ensure!(discovery.healthy(), "discovery generation failed");
+    Ok(())
+    }.await;
+    // This path runs on every loop error, adapter removal, and normal shutdown.
+    // Cancel workers before destroying the handles they depend on.
+    if result.is_err() {
+        inc("adapter_generation_lost");
+        let mut unavailable = initial();
+        unavailable["stage"] = json!("adapter-unavailable");
+        unavailable["bleScanning"] = json!(discovery.active());
+        emit(events, &unavailable);
+        // Expire routes before awaited teardown, not at the next TTL or after a
+        // replacement generation has started. LAN routes have separate owners.
+        for (_, target) in targets.drain() {
+            report(events, &target, false);
+        }
     }
+    cancel.cancel();
+    monitor.stop().await;
     drop(scan);
-    let _ = advertising::release_all(&mut advertisements, "shutdown").await;
     if let Some(app) = &app {
         app.cancel.cancel();
+    }
+    tasks.abort_all();
+    while tasks.join_next().await.is_some() {}
+    if let Some(app) = &app {
         app.workers.close();
         let _ = timeout(DBUS, app.workers.wait()).await;
     }
+    let stopped = discovery.stop().await;
+    let _ = advertising::release_all(
+        &mut advertisements,
+        if result.is_err() {
+            "adapter-loss"
+        } else {
+            "shutdown"
+        },
+    )
+    .await;
     drop(app);
-    tasks.abort_all();
-    while tasks.join_next().await.is_some() {}
+    drop(l2cap);
     for t in targets.values() {
         report(events, t, false)
     }
-    Ok(())
+    inc("adapter_handles_invalidated");
+    if result.is_err() || stopped.is_err() {
+        // Do not send Device.Disconnect to old paths after a reset. A new
+        // generation may reuse an index or an address for somebody else's ACL.
+        connections.invalidate();
+    } else {
+        connections.cleanup().await;
+    }
+    result.and(stopped)
 }
+
 async fn bind_l2cap(adapter: &Adapter) -> Result<(bluer::l2cap::StreamListener, u16)> {
     use bluer::l2cap::{Security, SecurityLevel};
     use bluer::l2cap::{Socket, SocketAddr, Stream};
@@ -1403,13 +1679,15 @@ async fn l2cap_accept<S: AsyncRead + AsyncWrite + Unpin>(s: &mut S, full: &[u8])
     }
     bail!("bootstrap command limit")
 }
-async fn serve_l2cap(
-    mut socket: bluer::l2cap::Stream,
+pub(super) async fn serve_l2cap<S: AsyncRead + AsyncWrite + Unpin>(
+    mut socket: S,
     full: &[u8],
     sender: broadcast::Sender<ChannelMessage>,
     events: mpsc::Sender<Event>,
     id: String,
+    discovery: Arc<Discovery>,
 ) -> Result<()> {
+    discovery.stop().await?;
     let framed = timeout(Duration::from_secs(10), l2cap_accept(&mut socket, full))
         .await
         .inspect_err(|_| {
@@ -1557,7 +1835,8 @@ async fn socket_pump<S: AsyncRead + AsyncWrite + Unpin>(
     loop {
         tokio::select! {
             n=timeout(PEER_TIMEOUT,socket.read(&mut rx))=>{
-                let n=n??;
+                let n=n.inspect_err(|_|inc("l2cap_transport_timeout"))?.inspect_err(|_|inc("l2cap_transport_io_error"))?;
+                if n==0 {inc("l2cap_peer_eof");}
                 ensure!(n>0,"socket closed");
                 incoming.push(&rx[..n])?;
                 while let Some(frame)=incoming.pop()?{
@@ -1589,8 +1868,66 @@ async fn socket_pump<S: AsyncRead + AsyncWrite + Unpin>(
     }
 }
 #[cfg(test)]
+#[path = "runtime_test.rs"]
+mod runtime_tests;
+#[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn adapter_monitor_cancels_sessions_without_waiting_for_the_control_loop() {
+        let (tx, rx) = mpsc::channel(1);
+        let events = futures::stream::unfold(rx, |mut rx| async move {
+            rx.recv().await.map(|event| (event, rx))
+        })
+        .boxed();
+        let cancel = CancellationToken::new();
+        let session = cancel.child_token();
+        let mut monitor = AdapterMonitor::start(
+            events,
+            futures::stream::pending().boxed(),
+            "hci0".into(),
+            cancel.clone(),
+            Arc::new(Semaphore::new(4)),
+        );
+        tx.send(SessionEvent::AdapterRemoved("hci1".into()))
+            .await
+            .unwrap();
+        tokio::task::yield_now().await;
+        assert!(!cancel.is_cancelled());
+        tx.send(SessionEvent::AdapterRemoved("hci0".into()))
+            .await
+            .unwrap();
+        timeout(Duration::from_secs(1), session.cancelled())
+            .await
+            .unwrap();
+        assert!(monitor.lost());
+        monitor.stop().await;
+    }
+    #[tokio::test(start_paused = true)]
+    async fn queued_sends_do_not_shorten_recovery_cooldown_and_shutdown_cancels_it() {
+        let cancel = CancellationToken::new();
+        let (sender, _) = broadcast::channel(16);
+        let (tx, mut rx) = mpsc::channel(4);
+        let c = cancel.clone();
+        let waiting = tokio::spawn(async move {
+            recovery_wait(&c, &mut rx, &sender, Duration::from_secs(5)).await
+        });
+        tx.send(Send {
+            cancel: CancellationToken::new(),
+            deadline: Instant::now() + Duration::from_secs(30),
+            key: "stale".into(),
+            files: vec![],
+            id: "fixture".into(),
+        })
+        .await
+        .unwrap();
+        tokio::task::yield_now().await;
+        assert!(!waiting.is_finished());
+        tokio::time::advance(Duration::from_secs(4)).await;
+        assert!(!waiting.is_finished());
+        cancel.cancel();
+        assert!(!waiting.await.unwrap());
+    }
     #[tokio::test(start_paused = true)]
     async fn dbus_errors_are_categorized_without_exporting_messages() {
         let before = diag::current().snapshot();
