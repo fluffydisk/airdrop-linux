@@ -83,18 +83,7 @@ const nearby = new (require('./core/lib/nearby').Nearby)({
   maintenanceRoot: paths.root, directory: path.join(desktopData, 'nearby'), inbox: path.join(process.env.AIRDROP_SHARE_DIR || paths.files, 'Received'),
   approve: async request => {
     if (!window || window.isDestroyed() || quitting) return false;
-    window.show(); window.focus();
-    const pairing = request.type === 'pair';
-    const approval = new AbortController(), expiry = setTimeout(() => approval.abort(), 55000); expiry.unref();
-    try {
-    const response = await dialog.showMessageBox(window, {
-      signal: approval.signal, type: 'question', buttons: [pairing ? 'Pair device' : 'Accept files', 'Decline'], defaultId: 1, cancelId: 1,
-      message: pairing ? `Pair with “${request.name}”?` : `Receive files from “${request.name}”?`,
-      detail: pairing ? `Compare this code on both devices: ${request.code}\nOnly pair if the codes match. Pairing permits file transfer requests, with acceptance required. It grants no workspace or clipboard access.` :
-        `${request.code ? 'Compare this code on both devices: ' + request.code + '\n' : ''}${request.files.length} files · ${(request.total ?? request.files.reduce((n, f) => n + (f.size || 0), 0)).toLocaleString()} bytes\n${request.files.slice(0, 8).map(f => f.name).join('\n')}\n${quickshareLab ? 'Saved to the private lab inbox shown in the development panel.' : 'Saved to Airdrop/Received.'} Requests expire after 60 seconds.`
-    });
-    return response.response === 0;
-    } finally { clearTimeout(expiry); }
+    return require('./transfer-consent').approveTransfer(window, request, { dialog, lab: !!quickshareLab });
   }
 });
 nearby.on('progress', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:peer-progress', value); });

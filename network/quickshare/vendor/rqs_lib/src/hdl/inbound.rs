@@ -1,4 +1,4 @@
-// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
+// Modified by Airdrop Linux, 2026-11-15; see network/quickshare/MODIFICATIONS.md.
 use crate::receive_safety::{MAX_BYTES, MAX_FILES, safe_name};
 use std::fs::{File, OpenOptions};
 use std::os::unix::fs::FileExt;
@@ -188,6 +188,7 @@ pub struct InboundRequest<S = TcpStream> {
     prefix: crate::utils::LengthPrefix,
     pub state: InnerState,
     receive_directory: Option<PathBuf>,
+    diagnostics_seen: std::collections::HashSet<&'static str>,
     sender: Sender<ChannelMessage>,
     receiver: Receiver<ChannelMessage>,
     /// Set (BLE sessions) to enable offering a Wi-Fi bandwidth upgrade once the
@@ -217,6 +218,19 @@ pub struct InboundRequest<S = TcpStream> {
 }
 
 impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
+    fn diagnostic(&mut self, stage: &'static str) {
+        if !self.diagnostics_seen.insert(stage) {
+            return;
+        }
+        let _ = self.sender.send(ChannelMessage {
+            id: self.state.id.clone(),
+            msg: channel::Message::Diagnostic {
+                kind: TransferKind::Inbound,
+                stage,
+                cause: "none",
+            },
+        });
+    }
     pub fn new(socket: S, id: String, sender: Sender<ChannelMessage>) -> Self {
         let receiver = sender.subscribe();
 
@@ -224,6 +238,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             prefix: Default::default(),
             socket,
             receive_directory: None,
+            diagnostics_seen: Default::default(),
             state: InnerState {
                 id,
                 server_seq: 0,
@@ -1053,6 +1068,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                         if self.state.state != TransferState::ReceivingFiles {
                             return Err(anyhow!("File data before consent"));
                         }
+                        self.diagnostic("encrypted-file-frame-received");
                         info!("Processing PayloadType::File");
                         let payload_id = header.id();
 
@@ -1139,18 +1155,37 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                 self.send_keepalive(true).await?;
             }
             location_nearby_connections::v1_frame::FrameType::BandwidthUpgradeNegotiation => {
-                // A BWU frame outside do_bwu: the phone finishing (or retrying)
-                // the channel switch late. Answer LAST_WRITE so it can close
-                // its prior channel instead of timing the session out.
                 use location_nearby_connections::bandwidth_upgrade_negotiation_frame::EventType;
-                let event = v1_frame
+                let bwu = v1_frame
                     .bandwidth_upgrade_negotiation
                     .as_ref()
-                    .map(|b| b.event_type());
-                debug!("Late BWU frame: {event:?}");
-                if event == Some(EventType::LastWriteToPriorChannel) {
-                    let frame = Self::bwu_frame(EventType::SafeToClosePriorChannel, None, None);
-                    let _ = self.encrypt_and_send(&frame).await;
+                    .ok_or_else(|| anyhow!("Missing bandwidth upgrade body"))?;
+                match bwu.event_type() {
+                    EventType::UpgradePathAvailable => {
+                        self.diagnostic("bwu-offer-received");
+                        // No replacement channel has been authenticated/installed
+                        // in this path. Decline over the existing encrypted channel
+                        // (Google BwuManager::RunUpgradeFailedProtocol). Preserve
+                        // the path info on the wire, never in diagnostics.
+                        let path = bwu
+                            .upgrade_path_info
+                            .clone()
+                            .ok_or_else(|| anyhow!("Missing upgrade path"))?;
+                        self.encrypt_and_send(&Self::bwu_frame(
+                            EventType::UpgradeFailure,
+                            Some(path),
+                            None,
+                        ))
+                        .await?;
+                        self.diagnostic("bwu-offer-rejected");
+                    }
+                    EventType::LastWriteToPriorChannel | EventType::SafeToClosePriorChannel => {
+                        // A SAFE_TO_CLOSE reply requires a real installed handoff.
+                        // Do not invite the peer to close our only transport.
+                        self.diagnostic("bwu-unexpected-handoff");
+                    }
+                    EventType::UpgradeFailure => self.diagnostic("bwu-peer-failure"),
+                    _ => self.diagnostic("bwu-unsupported-event"),
                 }
             }
             location_nearby_connections::v1_frame::FrameType::AutoResume => {
@@ -1617,6 +1652,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
 
         self.send_encrypted_frame(&frame).await?;
 
+        // Queued to this session's stream; not proof of remote receipt.
+        self.diagnostic("consent-response-written");
         self.update_state(
             |e| {
                 e.state = TransferState::ReceivingFiles;

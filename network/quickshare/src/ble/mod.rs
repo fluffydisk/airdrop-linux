@@ -15,3 +15,6 @@ pub mod diagnostics;
 mod advertising;
 #[cfg(all(feature = "ble-native", target_os = "linux"))]
 mod discovery;
+
+#[cfg(all(feature = "ble-native", target_os = "linux"))]
+mod l2cap_transport;

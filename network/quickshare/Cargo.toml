@@ -39,4 +39,4 @@ opt-level = 3
 codegen-units = 1
 
 [dev-dependencies]
-tokio = { version = "1", features = ["test-util"] }
+tokio = { version = "1", features = ["test-util", "process"] }

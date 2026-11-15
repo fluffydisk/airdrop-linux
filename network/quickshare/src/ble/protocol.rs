@@ -396,6 +396,31 @@ pub struct Frames {
     bytes: Vec<u8>,
 }
 impl Frames {
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+    /// Inspect a BLE data header before its body arrives. Google BleSocket
+    /// acknowledges ReadPayloadLength before reading the payload. This is only
+    /// transport flow control, never authentication or file acceptance.
+    pub fn socket_payload_length(&self) -> Result<Option<usize>> {
+        if self.bytes.len() < 7 {
+            return Ok(None);
+        }
+        if self.bytes[4..7] == [0, 0, 0] {
+            return Ok(None);
+        }
+        ensure!(self.bytes[4..7] == HASH, "foreign socket service");
+        if self.bytes.len() < 11 {
+            return Ok(None);
+        }
+        let outer = u32::from_be_bytes(self.bytes[..4].try_into()?) as usize;
+        let inner = u32::from_be_bytes(self.bytes[7..11].try_into()?) as usize;
+        ensure!(
+            inner > 0 && inner <= MAX_FRAME && outer <= MAX_FRAME && outer == inner + 7,
+            "socket frame length"
+        );
+        Ok(Some(inner))
+    }
     pub fn push(&mut self, b: &[u8]) -> Result<()> {
         ensure!(
             self.bytes.len() + b.len() <= MAX_FRAME + 4096,
@@ -420,6 +445,14 @@ impl Frames {
         Ok(Some(self.bytes.drain(..n + 4).collect()))
     }
 }
+#[derive(Debug)]
+pub struct PeerSocketDisconnection;
+impl std::fmt::Display for PeerSocketDisconnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("peer socket disconnection")
+    }
+}
+impl std::error::Error for PeerSocketDisconnection {}
 pub fn socket_data(message: &[u8]) -> Result<Option<&[u8]>> {
     use prost::Message;
     use rqs_lib::ble_proto::{SocketControlFrame, socket_control_frame::ControlFrameType};
@@ -456,7 +489,22 @@ pub fn socket_data(message: &[u8]) -> Result<Option<&[u8]>> {
                     "socket acknowledgement"
                 );
             }
-            _ => bail!("socket disconnected or unsupported control"),
+            ControlFrameType::Disconnection => {
+                ensure!(
+                    control.introduction.is_none() && control.packet_acknowledgement.is_none(),
+                    "mixed control"
+                );
+                ensure!(
+                    control
+                        .disconnection
+                        .and_then(|d| d.service_id_hash)
+                        .as_deref()
+                        == Some(&HASH[..]),
+                    "socket disconnection"
+                );
+                return Err(PeerSocketDisconnection.into());
+            }
+            _ => bail!("unsupported socket control"),
         }
         return Ok(None);
     }

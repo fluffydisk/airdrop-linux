@@ -1695,10 +1695,11 @@ pub(super) async fn serve_l2cap<S: AsyncRead + AsyncWrite + Unpin>(
         })?
         .inspect_err(|_| inc("l2cap_bootstrap_rejected"))?;
     phase(&events, "l2cap-established");
+    let observer = Observer::new(sender.clone(), id.clone(), TransferKind::Inbound);
     let (core, bridge) = tokio::io::duplex(65536);
     session(
         inbound(core, sender, id, "ble-l2cap"),
-        socket_pump(socket, bridge, framed),
+        socket_pump(socket, bridge, framed, observer),
     )
     .await
 }
@@ -1809,70 +1810,31 @@ async fn dial_l2cap(
         },
     });
     let (core, bridge) = tokio::io::duplex(65536);
+    let observer = Observer::new(sender.clone(), request.id.clone(), TransferKind::Outbound);
     timeout(
         SESSION_LIMIT,
         session(
             outbound(core, endpoint, &target, request, sender),
-            socket_pump(socket, bridge, framed),
+            socket_pump(socket, bridge, framed, observer),
         ),
     )
     .await?
 }
-/// All reads in the select are cancellation-safe. Each complete frame is
-/// validated before it crosses the bounded duplex into the existing session.
-async fn socket_pump<S: AsyncRead + AsyncWrite + Unpin>(
-    mut socket: S,
-    mut bridge: DuplexStream,
-    framed: bool,
-) -> Result<()> {
-    if framed {
-        timeout(DBUS, packet_write(&mut socket, INTRO)).await??;
-    }
-    let mut incoming = Frames::default();
-    let mut outgoing = Frames::default();
-    let mut rx = [0; 4096];
-    let mut tx = [0; 4096];
-    loop {
-        tokio::select! {
-            n=timeout(PEER_TIMEOUT,socket.read(&mut rx))=>{
-                let n=n.inspect_err(|_|inc("l2cap_transport_timeout"))?.inspect_err(|_|inc("l2cap_transport_io_error"))?;
-                if n==0 {inc("l2cap_peer_eof");}
-                ensure!(n>0,"socket closed");
-                incoming.push(&rx[..n])?;
-                while let Some(frame)=incoming.pop()?{
-                let data=if framed{
-                socket_data(&frame[4..])?}
-                else{
-                Some(frame.as_slice())}
-                ;
-                if let Some(data)=data{
-                    timeout(PEER_TIMEOUT,bridge.write_all(data)).await??;
-                    if framed{
-                        timeout(DBUS,packet_write(&mut socket,&acknowledgement(data.len())?)).await??;
-                    }
-                }
-            }}
-            n=bridge.read(&mut tx)=>{let n=n?;if n==0{return Ok(())}outgoing.push(&tx[..n])?;while let Some(frame)=outgoing.pop()?{
-                timeout(PEER_TIMEOUT,async {
-                    if framed{
-                        let mut message=HASH.to_vec();
-                        message.extend(frame);
-                    packet_write(&mut socket,&message).await}
-                    else{
-                        socket.write_all(&frame).await?;
-                    Ok(())}
-                }
-                ).await??;
-            }}
-        }
-    }
-}
+// Kept local so the session/lifecycle tests exercise the production bridge.
+use super::l2cap_transport::{Observer, pump as socket_pump};
 #[cfg(test)]
 #[path = "runtime_test.rs"]
 mod runtime_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn observer() -> Observer {
+        Observer::new(
+            broadcast::channel(256).0,
+            "fixture".into(),
+            TransferKind::Inbound,
+        )
+    }
     #[tokio::test]
     async fn adapter_monitor_cancels_sessions_without_waiting_for_the_control_loop() {
         let (tx, rx) = mpsc::channel(1);
@@ -2147,7 +2109,7 @@ mod tests {
     async fn oversized_l2cap_frame_is_rejected_before_allocation() {
         let (socket, mut peer) = tokio::io::duplex(64);
         let (_core, bridge) = tokio::io::duplex(64);
-        let task = tokio::spawn(socket_pump(socket, bridge, true));
+        let task = tokio::spawn(socket_pump(socket, bridge, true, observer()));
         assert_eq!(packet_read(&mut peer).await.unwrap(), INTRO);
         peer.write_all(&u32::MAX.to_be_bytes()).await.unwrap();
         assert!(task.await.unwrap().is_err());
@@ -2164,7 +2126,7 @@ mod tests {
                 core.write_all(&bytes).await?;
                 Ok(())
             },
-            socket_pump(socket, bridge, true),
+            socket_pump(socket, bridge, true, observer()),
         ));
         assert_eq!(packet_read(&mut peer).await.unwrap(), INTRO);
         let message = packet_read(&mut peer).await.unwrap();
@@ -2322,3 +2284,7 @@ mod tests {
         )));
     }
 }
+
+#[cfg(test)]
+#[path = "l2cap_peer_test.rs"]
+pub(super) mod peer_tests;

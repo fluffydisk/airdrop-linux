@@ -15,6 +15,20 @@ test('lab desktop identifies the build, preserves consent/sandbox and prevents n
   const env = { ...process.env, AIRDROP_HOME: path.join(root, 'sessions', run, 'home'), AIRDROP_SHARE_DIR: path.join(root, 'sessions', run, 'share'), AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_QUICKSHARE_BLE_FASTINIT: '0', AIRDROP_QUICKSHARE_BLE_NATIVE: process.env.AIRDROP_TEST_QUICKSHARE_BLE_NATIVE === '1' ? '1' : '0' };
   app = await electron.launch({ executablePath: require('../desktop/node_modules/electron'), chromiumSandbox: true, args: [path.resolve('desktop'), '--ozone-platform=' + (process.env.AIRDROP_TEST_OZONE || 'x11')], env });
   const page = await app.firstWindow(); page.setDefaultTimeout(15000);
+  const consent = await app.evaluate(async ({ dialog, BrowserWindow }, module) => {
+    const load=process.getBuiltinModule('module').createRequire(module);
+    const {approveTransfer}=load(module), original=dialog.showMessageBox;
+    let options;
+    try {
+      dialog.showMessageBox=async (_, value)=>{ options=value; return {response:0}; };
+      const request={type:'receive',transport:'quick-share',name:'Android fixture',code:'0123',files:[{name:'lab-small.txt'}],total:49};
+      const accepted=await approveTransfer(BrowserWindow.getAllWindows()[0],request,{dialog,lab:true});
+      // Return assertions, never a real session code or private dialog options.
+      return {accepted, primaryCode:options.message.includes('Verification code: 0123'), comparison:options.message.includes('Decline if the codes differ'), defaultDecline:options.defaultId===1&&options.cancelId===1};
+    } finally { dialog.showMessageBox=original; }
+  }, path.resolve('desktop/transfer-consent.js'));
+  assert.deepEqual(consent,{accepted:true,primaryCode:true,comparison:true,defaultDecline:true});
+
   await page.locator('#quickshareLab').waitFor({ state: 'visible' });
   await page.waitForFunction(() => document.getElementById('labRuntime').textContent.includes('Helper: ready'));
   assert.match(await page.title(), /DEVELOPMENT/);

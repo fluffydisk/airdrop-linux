@@ -410,6 +410,9 @@ async fn renewal_client() {
             .await
             .unwrap(),
     ];
+    // A completed independent inbound encrypted BLE-byte session precedes
+    // renewal, without adapter removal, controller resets or audio operations.
+    super::super::radio::peer_tests::exercise(&["small"]).await;
     tokio::time::sleep(Duration::from_millis(20)).await;
     let start = Instant::now();
     release_all(&mut handles, "renewal").await.unwrap();

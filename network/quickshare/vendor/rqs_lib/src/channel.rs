@@ -1,4 +1,4 @@
-// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
+// Modified by Airdrop Linux, 2026-11-15; see network/quickshare/MODIFICATIONS.md.
 use crate::{TransferState, hdl::info::TransferMetadata};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,6 +41,12 @@ pub enum Message {
     Protocol {
         kind: TransferKind,
         stage: TransferState,
+    },
+    /// Closed-schema observations only; never an error body or peer metadata.
+    Diagnostic {
+        kind: TransferKind,
+        stage: &'static str,
+        cause: &'static str,
     },
 }
 

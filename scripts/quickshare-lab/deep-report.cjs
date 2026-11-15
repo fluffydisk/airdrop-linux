@@ -343,6 +343,13 @@ function findings(b, p, events, a) {
       e.type === "protocol" && ["WaitingForUserConsent", "ReceivingFiles", "Finished", "Rejected", "Cancelled"].includes(e.stage) ||
       e.type === "transfer" && ["awaiting-acceptance", "transferring", "verifying", "complete", "declined", "cancelled"].includes(e.phase))),
   );
+  const postConsentNoPayload = events.some(connection =>
+    connection.type === "connection" && connection.direction === "incoming" && connection.connectionMethod === "ble-l2cap" &&
+    events.some(e => e.attempt === connection.attempt && e.type === "protocol" && e.stage === "ReceivingFiles") &&
+    events.some(e => e.attempt === connection.attempt && e.type === "transfer" && e.phase === "interrupted" && e.bytes === 0 && e.total > 0) &&
+    !events.some(e => e.attempt === connection.attempt && e.type === "transfer" && ["complete","verifying"].includes(e.phase)));
+  if (postConsentNoPayload) add(1,"inbound-post-consent-no-payload","Direct runtime observation",
+    "An inbound LE CoC session passed introduction and local consent response writing, then interrupted before any fixture bytes were recorded. ReceivingFiles does not prove the peer received acceptance or sent payload. Inspect per-attempt session diagnostics for socket read/write cause, encrypted file frames and BWU events. Older captures with only l2cap_transport_io_error cannot distinguish peer closure, link/controller error or negotiation failure. Later advertising renewal failure is a separate boundary; timing alone does not establish causality.");
   if (incompleteInbound)
     add(
       2,
@@ -830,6 +837,7 @@ function create(input = {}) {
     shutdown,
     owner: observations,
     transfer: {
+      sessionDiagnostics: events.filter(e => e.type === "session"),
       localPayloadCompletionObserved,
       selectedTransport,
       discoveryPath:
@@ -921,6 +929,7 @@ function create(input = {}) {
     },
     findings: findings(peak, pipeline, events, a),
     nextTests: [
+      ...(events.some(e => e.type === "protocol" && e.stage === "ReceivingFiles") && !events.some(e => e.type === "transfer" && e.direction === "incoming" && e.phase === "complete") ? ["Prioritize one generated 49-byte Samsung-to-Linux transfer with private code comparison and explicit consent. Record consent-response-written, socket read/write stage/cause, BWU events, authenticated file frames and finalization independently. Do not attribute a later renewal failure to the transfer without additional evidence."] : []),
       "First verify local receiver advertisement registration on ordinary home LAN, unchanged radio settings and an unused private workspace. For Samsung-to-Linux, open native Share after the baseline; record whether Airdrop S24 Lab stays visible across the 90-second renewal. Registration alone does not prove RF emission.",
       "If registration fails, inspect receiverAdvertising.lastAttempt phase/errorName/category, compact payload budget, instance samples and discovery state before changing protocol parsing or system permissions.",
       "Defer hotspot and Apple-sharing setting comparisons until the local advertising failure is characterized; preserve the previously verified ordinary-LAN sender path.",
@@ -1010,6 +1019,9 @@ function markdown(r) {
     "## Findings",
     "",
     ...r.findings.map((f) => `- [${f.provenance}] ${f.text}`),
+    "",
+    "## Session boundaries",
+    ...(r.transfer.sessionDiagnostics.length ? r.transfer.sessionDiagnostics.slice(0,100).map(e => `${e.attempt}: ${e.stage}; cause=${e.cause} (Direct runtime observation; local boundary only).`) : ["No categorized session diagnostics in this captured build. Transport error cause remains unknown."]),
     "",
     "## Local receiver advertising",
     "",

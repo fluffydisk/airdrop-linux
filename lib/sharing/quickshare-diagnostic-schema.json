@@ -327,7 +327,28 @@
     "scan_start_timeout",
     "scan_owner_close_timeout",
     "adapter_identity_unavailable",
-    "adapter_teardown_forced"
+    "adapter_teardown_forced",
+    "consent_response_written",
+    "encrypted_file_frame_received",
+    "bwu_offer_received",
+    "bwu_offer_rejected",
+    "bwu_unexpected_handoff",
+    "bwu_peer_failure",
+    "bwu_unsupported_event",
+    "l2cap_socket_read_failed",
+    "l2cap_socket_write_failed",
+    "l2cap_core_read_failed",
+    "l2cap_core_write_failed",
+    "l2cap_core_eof",
+    "l2cap_frame_rejected",
+    "l2cap_message_rejected",
+    "l2cap_data_received",
+    "l2cap_data_written",
+    "l2cap_control_received",
+    "l2cap_ack_written",
+    "l2cap_bridge_closed",
+    "l2cap_peer_disconnection",
+    "l2cap_ack_queue_failed"
   ],
   "pipeline": [
     "ipc_recipient_messages",
@@ -442,5 +463,42 @@
       "timeout",
       "error"
     ]
-  }
+  },
+  "sessionStages": [
+    "consent-response-written",
+    "encrypted-file-frame-received",
+    "bwu-offer-received",
+    "bwu-offer-rejected",
+    "bwu-unexpected-handoff",
+    "bwu-peer-failure",
+    "bwu-unsupported-event",
+    "l2cap-socket-read-failed",
+    "l2cap-socket-write-failed",
+    "l2cap-core-read-failed",
+    "l2cap-core-write-failed",
+    "l2cap-peer-eof",
+    "l2cap-core-eof",
+    "l2cap-frame-rejected",
+    "l2cap-message-rejected",
+    "l2cap-data-received",
+    "l2cap-data-written",
+    "l2cap-control-received",
+    "l2cap-ack-written",
+    "l2cap-bridge-closed",
+    "l2cap-peer-disconnection",
+    "l2cap-ack-queue-failed"
+  ],
+  "sessionCauses": [
+    "none",
+    "deadline",
+    "connection-reset",
+    "connection-aborted",
+    "broken-pipe",
+    "not-connected",
+    "timed-out",
+    "permission-denied",
+    "unexpected-eof",
+    "invalid-data",
+    "other-io"
+  ]
 }

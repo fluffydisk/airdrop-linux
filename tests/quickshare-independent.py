@@ -16,6 +16,7 @@ import socket
 import struct
 import subprocess
 import tempfile
+import sys
 import threading
 from pathlib import Path
 
@@ -121,17 +122,20 @@ def code(auth):
 
 class Helper:
     def __init__(self, executable):
-        self.proc = subprocess.Popen([executable], stdin=subprocess.PIPE,
-                                     stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        self.pending, self.events, self.sequence = queue.Queue(), [], 0
+        self.proc = None if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' else subprocess.Popen(
+            [executable], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self.input = self.proc.stdin if self.proc else sys.stdout.buffer
+        self.output = self.proc.stdout if self.proc else sys.stdin.buffer
+        self.pending, self.events, self.sequence = queue.Queue(maxsize=256), [], 0
         def read():
             try:
-                for line in self.proc.stdout:
+                for line in self.output:
                     assert len(line) <= 4 * 1024 * 1024
                     self.pending.put(json.loads(line))
             finally:
                 self.pending.put(None)
-        threading.Thread(target=read, daemon=True).start()
+        self.reader = threading.Thread(target=read, daemon=True)
+        self.reader.start()
 
     def next(self):
         message = self.pending.get(timeout=10)
@@ -141,14 +145,15 @@ class Helper:
     def request(self, method, params=None):
         self.sequence += 1
         request_id = str(self.sequence)
-        self.proc.stdin.write((json.dumps(dict(v=1, id=request_id, method=method,
+        self.input.write((json.dumps(dict(v=1, id=request_id, method=method,
                                               params=params or {})) + '\n').encode())
-        self.proc.stdin.flush()
+        self.input.flush()
         while True:
             message = self.next()
             if message.get('id') == request_id:
                 assert 'error' not in message, 'Helper rejected fixture command'
                 return message['result']
+            assert len(self.events) < 2000, 'Fixture event limit'
             self.events.append(message)
 
     def event(self, predicate):
@@ -159,6 +164,11 @@ class Helper:
             self.events.append(self.next())
 
     def close(self):
+        if not self.proc:
+            self.request('fixture-stop')
+            self.reader.join(timeout=2)
+            assert not self.reader.is_alive(), 'Fixture IPC reader did not stop'
+            return
         self.proc.stdin.close()
         try:
             self.proc.wait(timeout=7)
@@ -168,18 +178,69 @@ class Helper:
         assert self.proc.returncode == 0, 'Helper failed on shutdown'
 
 
+class BleStream:
+    HASH = bytes.fromhex('fc9f5e')
+    INTRO = bytes.fromhex('000000080112070a03fc9f5e1002')
+
+    def __init__(self, sock):
+        self.sock, self.buffer, self.acks = sock, bytearray(), []
+        self.outgoing = bytearray()
+        self.packet(b'\x03')
+        assert self.packet_read() == b'\x17', 'BLE bootstrap rejected'
+        assert self.packet_read() == self.INTRO, 'Missing BLE introduction'
+        self.packet(self.INTRO)
+
+    def packet(self, data):
+        wire = struct.pack('>I', len(data)) + data
+        for offset in range(0, len(wire), 17):
+            self.sock.sendall(wire[offset:offset + 17])
+
+    def packet_read(self):
+        size = struct.unpack('>I', recv_exact(self.sock, 4))[0]
+        assert 0 < size <= 1024 * 1024
+        return recv_exact(self.sock, size)
+
+    def sendall(self, data):
+        self.outgoing.extend(data)
+        while len(self.outgoing) >= 4:
+            size = struct.unpack('>I', self.outgoing[:4])[0]
+            assert 0 < size <= 1024 * 1024
+            if len(self.outgoing) < size + 4:
+                return
+            self.acks.append(size)
+            self.packet(self.HASH + bytes(self.outgoing[:size + 4]))
+            del self.outgoing[:size + 4]
+
+    def recv(self, size):
+        while not self.buffer:
+            packet = self.packet_read()
+            if packet[:3] == bytes(3):
+                control = packet[3:]
+                assert one(control, 1) == 3, 'Unexpected BLE control (no unsolicited SAFE_CLOSE)'
+                ack = one(control, 4)
+                assert one(ack, 1) == self.HASH and self.acks, 'Foreign/unexpected BLE acknowledgement'
+                assert one(ack, 2) == self.acks.pop(0), 'BLE acknowledgement counted framing bytes'
+            else:
+                assert packet[:3] == self.HASH
+                self.buffer.extend(packet[3:])
+        data = bytes(self.buffer[:size])
+        del self.buffer[:size]
+        return data
+
+
 def main(mode):
     if not __debug__:
         raise RuntimeError("Protocol acceptance assertions require non-optimized Python")
-    executable = os.environ['AIRDROP_TEST_QUICKSHARE_HELPER']
-    data = b'' if mode == 'empty' else bytes(range(256)) * 257 + b'final'
+    executable = os.environ.get('AIRDROP_TEST_QUICKSHARE_HELPER', '')
+    data = b'' if mode == 'empty' else b'Airdrop Linux native Quick Share S24+ laboratory\n' if mode == 'small' else bytes(range(256)) * 257 + b'final'
     filename = 'independent-empty.bin' if mode == 'empty' else '独立-é.bin'
     with tempfile.TemporaryDirectory(prefix='quickshare-independent-') as root:
         helper = Helper(executable)
         try:
             assert helper.request('hello')['protocol'] == 1
             port = helper.request('start', dict(port=0, name='Independent fixture', staging=root, protocolDiagnostics=mode=='binary'))['port']
-            with socket.create_connection(('127.0.0.1', port), timeout=5) as sock:
+            with socket.create_connection(('127.0.0.1', port), timeout=5) as raw:
+                sock = BleStream(raw) if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' else raw
                 endpoint = b'\x02' + bytes(16) + b'\x06Python'
                 send(sock, frame(1, 2, blob(1, b'TEST') + blob(2, b'Python') + blob(6, endpoint)))
                 private = ec.generate_private_key(ec.SECP256R1())
@@ -218,7 +279,8 @@ def main(mode):
                     send(sock, altered)
                     helper.event(lambda m: m.get('event') == 'transfer' and m.get('data', {}).get('phase') == 'interrupted')
                     assert not any(Path(root).iterdir()), 'Failed handshake created receive files'
-                    print('PASS independent Python client:', mode)
+                    if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') != '1':
+                        print('PASS independent Python client:', mode)
                     return
                 send(sock, finish)
                 send(sock, frame(2, 3, integer(3, 1)))
@@ -268,13 +330,55 @@ def main(mode):
                 transfer_id = event['data']['id']
                 if mode == 'binary':
                     transport = helper.event(lambda m: m.get('event') == 'connection')['data']
-                    assert transport['id'] == transfer_id and transport['direction'] == 'incoming' and transport['connectionMethod'] == 'lan-tcp'
+                    assert transport['id'] == transfer_id and transport['direction'] == 'incoming' and transport['connectionMethod'] == ('ble-l2cap' if isinstance(sock, BleStream) else 'lan-tcp')
                     assert set(transport) == {'id', 'direction', 'connectionMethod'}
                 assert event['data']['files'] == [filename]
                 assert not any(Path(root).iterdir()), 'Data created before consent'
-                if mode in ('empty', 'binary'):
+                if mode in ('empty', 'binary', 'small'):
                     helper.request('respond', dict(transferId=transfer_id, accept=True))
                     helper.event(lambda m: m.get('event') == 'transfer' and m.get('data', {}).get('id') == transfer_id and m['data'].get('phase') == 'transferring')
+                    server_sequence = 2
+                    def secure_receive():
+                        nonlocal server_sequence
+                        secure = receive(sock)
+                        body = one(secure, 1)
+                        assert hmac.compare_digest(one(secure, 2), hmac.digest(signing, body, 'sha256')), 'Response MAC mismatch'
+                        header = one(body, 1)
+                        assert one(header, 1) == 1 and one(header, 2) == 2
+                        decrypt = Cipher(algorithms.AES(encryption), modes.CBC(one(header, 5))).decryptor()
+                        padded = decrypt.update(one(body, 2)) + decrypt.finalize()
+                        unpad = padding.PKCS7(128).unpadder()
+                        plain = unpad.update(padded) + unpad.finalize()
+                        server_sequence += 1
+                        assert one(plain, 2) == server_sequence, 'Response sequence mismatch'
+                        return one(plain, 1)
+                    # PairedKeyResult is two setup chunks, then the encrypted
+                    # acceptance must be RESPONSE/ACCEPT and an empty last chunk.
+                    for index in range(4):
+                        outer = one(secure_receive(), 2)
+                        assert one(outer, 1) == 3
+                        payload = one(outer, 4)
+                        chunk = one(payload, 3)
+                        if index == 2:
+                            sharing = one(one(chunk, 3), 2)
+                            assert one(sharing, 1) == 2, 'Expected sharing RESPONSE'
+                            response = one(sharing, 3)
+                            assert one(response, 1) == 1, 'Consent did not encode ACCEPT'
+                        if index == 3:
+                            assert one(chunk, 1) == 1 and one(chunk, 3) == b'', 'Missing acceptance final chunk'
+                    if isinstance(sock, BleStream):
+                        # Offer an unavailable upgrade after consent. The peer
+                        # must reject it, keep the encrypted BLE channel and not
+                        # emit SAFE_TO_CLOSE for an unnegotiated handoff.
+                        path = integer(1, 5) + blob(3, blob(1, b'127.0.0.1') + integer(2, 9))
+                        secure_send(frame(4, 5, integer(1, 1) + blob(2, path)))
+                        answer = one(one(secure_receive(), 2), 5)
+                        assert one(answer, 1) == 5 and one(answer, 2) == path, 'Unsupported BWU not rejected'
+                        secure_send(frame(4, 5, integer(1, 2)))
+                        # An ordered keepalive is a synchronization barrier: a
+                        # false SAFE_TO_CLOSE response would arrive before it.
+                        secure_send(frame(5, 6, integer(1, 1)))
+                        assert one(one(secure_receive(), 2), 1) == 5, 'Unnegotiated handoff acknowledged'
                     header = integer(1, 42) + integer(2, 2) + integer(3, len(data))
                     for offset in range(0, len(data), 16384):
                         chunk = integer(1, 0) + integer(2, offset) + blob(3, data[offset:offset + 16384])
@@ -306,9 +410,13 @@ def main(mode):
 
         finally:
             helper.close()
-    print('PASS independent Python client:', mode)
+    if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') != '1':
+        print('PASS independent Python client:', mode)
 
 
 if __name__ == '__main__':
+    if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1':
+        main(sys.argv[1])
+        sys.exit(0)
     for case in ('bad-commitment', 'bad-mac', 'replay', 'decline', 'empty', 'binary'):
         main(case)

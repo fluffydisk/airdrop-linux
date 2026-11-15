@@ -1,0 +1,92 @@
+{
+  "provenance": "Owner-provided sanitized physical capture s24-hci-recovery-result.tar.gz; owner UI confirmation supplied separately in pasted mission. No raw packets or phone attribution inferred.",
+  "commit": "b3bb1869d5be0e9e95b5dff910110df48d314344",
+  "helperSha256": "839b6fe5bf9b62339e8389271cc84e49f8e86c5f9840012fef4e3a13e760aade",
+  "direction": "incoming",
+  "connectionMethod": "ble-l2cap",
+  "total": 49,
+  "bytes": 0,
+  "events": [
+    [
+      "2026-11-15T13:17:41.354Z",
+      "incoming"
+    ],
+    [
+      "2026-11-15T13:17:41.516Z",
+      "ReceivedConnectionRequest"
+    ],
+    [
+      "2026-11-15T13:17:41.541Z",
+      "SentUkeyServerInit"
+    ],
+    [
+      "2026-11-15T13:17:41.631Z",
+      "ReceivedUkeyClientFinish"
+    ],
+    [
+      "2026-11-15T13:17:41.633Z",
+      "SentConnectionResponse"
+    ],
+    [
+      "2026-11-15T13:17:41.850Z",
+      "SentPairedKeyResult"
+    ],
+    [
+      "2026-11-15T13:17:41.902Z",
+      "ReceivedPairedKeyResult"
+    ],
+    [
+      "2026-11-15T13:17:41.984Z",
+      "WaitingForUserConsent"
+    ],
+    [
+      "2026-11-15T13:17:42.044Z",
+      "awaiting-acceptance"
+    ],
+    [
+      "2026-11-15T13:17:45.711Z",
+      "consent-accepted"
+    ],
+    [
+      "2026-11-15T13:17:45.714Z",
+      "ReceivingFiles"
+    ],
+    [
+      "2026-11-15T13:17:45.717Z",
+      "transferring"
+    ],
+    [
+      "2026-11-15T13:17:47.386Z",
+      "Disconnected"
+    ],
+    [
+      "2026-11-15T13:17:47.396Z",
+      "interrupted"
+    ]
+  ],
+  "counters": {
+    "l2cap_transport_io_error": 1,
+    "l2cap_incoming": 3,
+    "ukey2_progress": 2,
+    "protocol_receiving": 1,
+    "scan_stop_requested": 27,
+    "scan_stop_acknowledged": 27,
+    "advertisement_registration_requested": 11,
+    "advertisement_registration_success": 1,
+    "advertisement_registration_failure": 10
+  },
+  "archiveOwner": {
+    "recipientVisible": "unknown",
+    "nativeCompleted": "unknown"
+  },
+  "subsequentOwnerObservation": {
+    "recipientVisible": true,
+    "linuxConsentDialogVisible": true,
+    "linuxComparisonCodeVisible": false,
+    "acceptedOnLinux": true,
+    "samsungErrorVisible": true,
+    "nativeCompleted": false,
+    "headsetDisconnectObserved": false
+  },
+  "kernelExcerptLimitations": "Owner-inspected 14:17\u201314:19 CET excerpts report fc19 events, no reported 200c timeout or USB reset. Raw journal absent from archive; no universal controller-stability conclusion."
+}

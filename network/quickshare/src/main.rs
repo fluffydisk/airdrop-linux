@@ -352,6 +352,14 @@ impl Engine {
         }
     }
     fn protocol(&mut self, event: ChannelMessage) -> Option<Value> {
+        if let Message::Diagnostic { kind, stage, cause } = &event.msg {
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            if !stage.starts_with("l2cap-") {
+                ble::diagnostics::inc(&stage.replace('-', "_"));
+            }
+
+            return self.protocol_diagnostics.then(||json!({"v":1,"event":"session-diagnostic","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"stage":stage,"cause":cause}}));
+        }
         if let Message::Connection { kind, method } = &event.msg {
             return self.protocol_diagnostics.then(||json!({"v":1,"event":"connection","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"connectionMethod":method}}));
         }
