@@ -2,10 +2,12 @@
 // Release-only acceptance with an isolated empty workspace and real public service.
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
+const dns=require('node:dns');
 const express=require('express'),{chromium,devices:profiles}=require('playwright-core');
 const {createServer}=require('../push-server');
 const {Devices}=require('../lib/devices'),{InternetConnection}=require('../lib/internet-connection');
 const {assets}=require('../packaging/internet-helper.json');
+dns.setDefaultResultOrder('ipv4first');
 test('real account-free internet tunnel pairs mobile browsers and transfers files', {timeout:360000,skip:process.env.AIRDROP_TEST_LIVE_INTERNET!=='1'},async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'airdrop-live-internet-')),share=path.join(root,'files');await fs.mkdir(share);
  const service=createServer({watchDir:share,stateDir:path.join(root,'push'),watch:false});
@@ -16,7 +18,7 @@ test('real account-free internet tunnel pairs mobile browsers and transfers file
  t.after(async()=>{await browser?.close();await connection.stop();service.close();server.closeAllConnections();await new Promise(r=>server.close(r));await fs.rm(root,{recursive:true,force:true});});
  await connection.initialize();await connection.queue;await connection.action('internet');
  let dnsRetries=0;
- const dnsFailure=error=>/ENOTFOUND|EAI_AGAIN|ERR_NAME_NOT_RESOLVED/.test([error.code,error.cause?.code,error.message].join(' '));
+ const dnsFailure=error=>/ENOTFOUND|EAI_AGAIN|ERR_NAME_NOT_RESOLVED|ENETUNREACH|ECONNRESET|ETIMEDOUT/.test([error.code,error.cause?.code,error.message].join(' '));
  async function publicEntry(deadline=Date.now()+60000){
   while(Date.now()<deadline){
    const current=await connection.snapshot();assert.notEqual(current.status,'error',current.message);
