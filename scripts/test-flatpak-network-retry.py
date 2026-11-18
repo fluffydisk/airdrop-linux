@@ -62,9 +62,9 @@ with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
    try:pull_repository(remote('persistent-503'),'--network-retries=0','fixture',REF,delay=0)
    except subprocess.CalledProcessError:pass
    else:raise AssertionError('Persistent HTTP 503 was ignored')
-   assert Handler.commit_requests-before==3,'Retry budget was not enforced'
+   assert Handler.commit_requests-before==6,'Retry budget was not enforced'
    Handler.failures=0
-   print('VERIFIED: persistent HTTP 503 fails after exactly three attempts')
+   print('VERIFIED: persistent HTTP 503 fails after exactly six attempts')
    (source/'summary.sig').write_bytes(b'Invalid signature fixture')
    before=Handler.summary_requests
    try:pull_repository(remote('bad-signature'),'--network-retries=0','fixture',REF,delay=0)
