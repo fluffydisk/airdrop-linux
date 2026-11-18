@@ -14,7 +14,7 @@ R2='f7627ea19cc9cc901a96683a02a5efef8cf5cb3497ca423c80d76cfc6ab5fd75'
 TRANSIENT_HTTP=(429,500,502,503,504)
 def run(*args,capture=False):
  return subprocess.check_output(list(map(str,args)),text=True).strip() if capture else subprocess.run(list(map(str,args)),check=True)
-def pull_repository(repo,*args,attempts=3,delay=5):
+def pull_repository(repo,*args,attempts=6,delay=5):
  # Resume verified objects in the same staging repo after a transient HTTP
  # response. Never fall back to unverified pulls or retry integrity failures.
  command=['ostree',f'--repo={repo}','pull',*map(str,args)]
