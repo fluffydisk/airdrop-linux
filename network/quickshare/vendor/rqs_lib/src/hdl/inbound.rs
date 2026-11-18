@@ -222,6 +222,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         if !self.diagnostics_seen.insert(stage) {
             return;
         }
+        crate::lab_trace::event(stage, 0, 0);
         let _ = self.sender.send(ChannelMessage {
             id: self.state.id.clone(),
             msg: channel::Message::Diagnostic {
@@ -511,9 +512,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             return Err(anyhow!("value"));
         }
 
+        crate::lab_trace::event("frame-header", msg_length as u64, 0);
         // Allocate buffer for the actual message and read it
         let mut frame_data = vec![0u8; msg_length];
         stream_read_exact(&mut self.socket, &mut frame_data).await?;
+        crate::lab_trace::event("frame-body-read", msg_length as u64, 0);
 
         let current_state = &self.state;
         // Now determine what will be the request type based on current state
@@ -872,6 +875,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         }
 
         let offline = location_nearby_connections::OfflineFrame::decode(d2d_msg.message())?;
+        crate::lab_trace::event(
+            "offline-decoded",
+            offline.v1.as_ref().map(|v| v.r#type() as u64).unwrap_or(0),
+            0,
+        );
         self.process_offline_frame(offline).await
     }
 
@@ -900,6 +908,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                     .payload_header
                     .as_ref()
                     .ok_or_else(|| anyhow!("Missing required fields"))?;
+                crate::lab_trace::event("payload-header", header.r#type() as u64, 0);
                 let chunk = payload_transfer
                     .payload_chunk
                     .as_ref()
@@ -1105,6 +1114,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                                 .unwrap()
                                 .write_all_at(chunk.body(), current_offset as u64)?;
                             file_internal.bytes_transferred += chunk_size as i64;
+                            crate::lab_trace::event("file-body-written", chunk_size as u64, 0);
 
                             self.update_state(
                                 |e| {
@@ -1650,6 +1660,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             }),
         };
 
+        crate::lab_trace::event("consent-received", 1, 0);
+        crate::lab_trace::event("consent-response-enter", 0, 0);
         self.send_encrypted_frame(&frame).await?;
 
         // Queued to this session's stream; not proof of remote receipt.
@@ -1905,8 +1917,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         prefixed_length.extend_from_slice(&length_bytes);
         prefixed_length.extend_from_slice(&data);
 
+        crate::lab_trace::event("frame-write-enter", prefixed_length.len() as u64, 0);
         self.socket.write_all(&prefixed_length).await?;
         self.socket.flush().await?;
+        crate::lab_trace::event("frame-write-return", prefixed_length.len() as u64, 0);
 
         Ok(())
     }
@@ -1941,6 +1955,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
     {
         let previous = self.state.state.clone();
         f(&mut self.state);
+        if previous != self.state.state {
+            crate::lab_trace::event("state", self.state.state.clone() as u64, 0);
+        }
 
         if !inform && previous == self.state.state {
             return;

@@ -17,7 +17,14 @@ test('installer file/CLI/VAPID blocks support fresh and repeat installation in i
   const cli = installer.slice(installer.indexOf('# Use the detected Node executable'), installer.indexOf('# Make the local command directory available'));
   const env = { ...process.env, REPO_DIR: process.cwd(), SHARE_DIR: path.join(root, 'share'), PUSH_DIR: path.join(root, 'app/server'), AIRDROP_ROOT: root, UI_DIR: path.join(root, 'app/ui'), CONFIG_DIR: path.join(root, 'config'), STATE_DIR: path.join(root, 'state/push'), LOCAL_BIN_DIR: path.join(root, 'bin'), NODE_BIN: process.execPath };
   const stub = 'set -Eeuo pipefail\ninfo() { :; }; ok() { :; }; fail() { printf "%s\\n" "$1" >&2; exit 1; }\n';
+  const target = path.resolve('network/quickshare/target');
+  await fs.mkdir(target, { recursive: true });
+  const cache = await fs.mkdtemp(path.join(target, '.installer-fixture-'));
+  t.after(() => fs.rm(cache, { recursive: true, force: true }));
+  await fs.writeFile(path.join(cache, 'generated-artifact'), 'must not be installed');
   await run('bash', ['-c', stub + copy], { env });
+  await fs.access(path.join(env.PUSH_DIR, 'network/quickshare/Cargo.toml'));
+  await assert.rejects(fs.access(path.join(env.PUSH_DIR, 'network/quickshare/target')), { code: 'ENOENT' });
   await fs.symlink(path.resolve('node_modules'), path.join(env.PUSH_DIR, 'node_modules'));
   await run('bash', ['-c', stub + vapid + cli], { env });
   for (const helper of ['airdrop', 'copy-clipboard', 'paste-clipboard']) await run('bash', ['-n', path.join(env.LOCAL_BIN_DIR, helper)]);
@@ -36,6 +43,7 @@ test('installer file/CLI/VAPID blocks support fresh and repeat installation in i
   const zip = await JSZip.loadAsync(await fs.readFile(path.join(env.SHARE_DIR, name)));
   assert.equal(await zip.file('source file.txt').async('string'), 'installer smoke');
   await run('bash', ['-c', stub + copy + vapid + cli], { env });
+  await assert.rejects(fs.access(path.join(env.PUSH_DIR, 'network/quickshare/target')), { code: 'ENOENT' });
   assert.equal(await fs.readFile(path.join(env.CONFIG_DIR, 'server.env'), 'utf8'), original);
   assert.equal(await fs.readFile(path.join(env.SHARE_DIR, 'source file.txt'), 'utf8'), 'installer smoke');
   assert.match((await run('./install-desktop.sh', ['--help'])).stdout, /optional Linux Electron/);

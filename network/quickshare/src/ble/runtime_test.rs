@@ -176,3 +176,131 @@ async fn private_dbus_adapter_recreation_invalidates_old_handles_and_recovers_ad
     });
     assert!(select_adapter(&session, &mut missing).await.is_err());
 }
+
+#[tokio::test]
+async fn private_dbus_receiver_only_registers_gatt_and_advertises_without_discovery() {
+    const CHILD: &str = "AIRDROP_RECEIVER_ONLY_DBUS_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let mut bus = Process(
+            Command::new("dbus-daemon")
+                .args(["--session", "--nofork", "--print-address=1"])
+                .stdout(Stdio::piped())
+                .spawn()
+                .unwrap(),
+        );
+        let mut address = String::new();
+        BufReader::new(bus.0.stdout.take().unwrap())
+            .read_line(&mut address)
+            .unwrap();
+        let address = address.trim().to_owned();
+        let done = Arc::new(AtomicBool::new(false));
+        let stop = done.clone();
+        let ads = Arc::new(AtomicUsize::new(0));
+        let observed_ads = ads.clone();
+        let gatt = Arc::new(AtomicUsize::new(0));
+        let observed_gatt = gatt.clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::sync_channel(1);
+        let peer_address = address.clone();
+        let peer = std::thread::spawn(move || {
+            let conn = Connection::new_address(&peer_address).unwrap();
+            conn.request_name("org.bluez", false, true, false).unwrap();
+            conn.add_match(MatchRule::new_method_call(), move |_: (), conn, msg| {
+                let interface = msg.interface().map(|s| s.to_string()).unwrap_or_default();
+                let member = msg.member().map(|s| s.to_string()).unwrap_or_default();
+                let reply = match (interface.as_str(), member.as_str()) {
+                    ("org.freedesktop.DBus.ObjectManager", "GetManagedObjects") => {
+                        let objects: Objects = [(dbus::Path::new("/org/bluez/hci0").unwrap(), ["org.bluez.Adapter1", "org.bluez.GattManager1", "org.bluez.LEAdvertisingManager1"].into_iter().map(|s| (s.to_string(), PropMap::new())).collect())].into();
+                        msg.method_return().append1(objects)
+                    }
+                    ("org.freedesktop.DBus.Properties", "Get") => {
+                        let (_, property): (String, String) = msg.read2().unwrap();
+                        match property.as_str() {
+                            "Address" => msg.method_return().append1(Variant("02:00:00:00:00:01".to_string())),
+                            "Powered" => msg.method_return().append1(Variant(true)),
+                            "Discovering" => msg.method_return().append1(Variant(false)),
+                            "SupportedInstances" => msg.method_return().append1(Variant(5u8)),
+                            "ActiveInstances" => msg.method_return().append1(Variant(0u8)),
+                            "SupportedSecondaryChannels" => msg.method_return().append1(Variant(Vec::<String>::new())),
+                            "SupportedCapabilities" => msg.method_return().append1(Variant(HashMap::<String,Variant<u8>>::new())),
+                            _ => error(msg, "org.freedesktop.DBus.Error.UnknownProperty"),
+                        }
+                    }
+                    ("org.bluez.GattManager1", "RegisterApplication") => { observed_gatt.fetch_add(1, Ordering::SeqCst); msg.method_return() }
+                    ("org.bluez.LEAdvertisingManager1", "RegisterAdvertisement") => { observed_ads.fetch_add(1, Ordering::SeqCst); msg.method_return() }
+                    ("org.bluez.GattManager1", "UnregisterApplication") | ("org.bluez.LEAdvertisingManager1", "UnregisterAdvertisement") => msg.method_return(),
+                    _ => panic!("receiver-only must not scan, connect, disconnect or write global settings: {interface}.{member}"),
+                };
+                conn.send(reply).unwrap();
+                true
+            }).unwrap();
+            ready_tx.send(()).unwrap();
+            while !stop.load(Ordering::SeqCst) {
+                conn.process(Duration::from_millis(20)).unwrap();
+            }
+        });
+        ready_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+        let output = Command::new(std::env::current_exe().unwrap()).args(["--exact", "ble::radio::runtime_tests::private_dbus_receiver_only_registers_gatt_and_advertises_without_discovery", "--nocapture"]).env(CHILD, "1").env("DBUS_SYSTEM_BUS_ADDRESS", address).output().unwrap();
+        done.store(true, Ordering::SeqCst);
+        peer.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(ads.load(Ordering::SeqCst), 2);
+        assert_eq!(gatt.load(Ordering::SeqCst), 1);
+        return;
+    }
+    let (sender, _) = broadcast::channel(32);
+    let (events, mut rx) = mpsc::channel(64);
+    let mut runtime =
+        Runtime::start_with_discovery(*b"TEST", "Fixture".into(), sender, events, false);
+    timeout(Duration::from_secs(5), async {
+        while let Some(Event::Bluetooth(state)) = rx.recv().await {
+            if state["bleAdvertising"] == true {
+                break;
+            }
+        }
+    })
+    .await
+    .unwrap();
+    // Exercise the actual runtime beyond the old 90s renewal and 120s lease.
+    // Real time avoids auto-advancing D-Bus deadlines ahead of the independent
+    // peer thread. The private bus rejects scans, ACL calls and global writes.
+    tokio::time::sleep(Duration::from_secs(131)).await;
+    let snapshot = diag::current().snapshot();
+    assert_eq!(
+        snapshot["counters"]["advertisement_registration_requested"],
+        1
+    );
+    assert_eq!(
+        snapshot["counters"]["advertisement_registration_success"],
+        1
+    );
+    assert!(snapshot["counters"]["advertisement_cleanup_requested"].is_null());
+    assert_eq!(snapshot["advertising"]["timeoutSeconds"], 0);
+    runtime.visibility(false);
+    timeout(Duration::from_secs(5), async {
+        while let Some(Event::Bluetooth(state)) = rx.recv().await {
+            if state["bleAdvertising"] == false {
+                return;
+            }
+        }
+        panic!("visibility cleanup event missing");
+    })
+    .await
+    .unwrap();
+    runtime.visibility(true);
+    timeout(Duration::from_secs(5), async {
+        while let Some(Event::Bluetooth(state)) = rx.recv().await {
+            if state["bleAdvertising"] == true {
+                return;
+            }
+        }
+        panic!("receiver visibility did not recover");
+    })
+    .await
+    .unwrap();
+    runtime.stop().await;
+}

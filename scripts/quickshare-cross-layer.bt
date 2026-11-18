@@ -1,0 +1,251 @@
+/* T30, Linux7.2.8-9-omarchy. Metadata only. Argument1: actual sole HCI index.
+ * Explicit CLOCK_MONOTONIC, absolute timestamps. No identities/payload export.
+ * Raw event headers are observed independently of NumberCompleted accounting.
+ * Connections/skbs/URBs/work pointers exist only as in-memory correlation keys.
+ * Compile/signature/overhead validation required before a real phone send.
+ */
+struct s24_conn_prefix { struct hci_conn *hcon; };
+BEGIN {
+ /* Initialize diagnostic aggregates only; no controller/credit writes. */
+ @acl_delta=sum((int64)0);
+ @audio_calls=sum((int64)0);
+ @audio_complete_gap_ns=max((int64)0);
+ @audio_completed=sum((int64)0);
+ @audio_errors=sum((int64)0);
+ @audio_queue=sum((int64)0);
+ @audio_queue_gap_ns=max((int64)0);
+ @audio_returns=sum((int64)0);
+ @audio_send_runtime_ns=max((int64)0);
+ @bulk_rx=sum((int64)0);
+ @bulk_rx_error=sum((int64)0);
+ @completed[1]=sum((int64)0);
+ @completed[128]=sum((int64)0);
+ @dispatch[19]=sum((int64)0);
+ @driver_ingress[19]=sum((int64)0);
+ @ingress[19]=sum((int64)0);
+ @intr=sum((int64)0);
+ @intr_bytes=sum((int64)0);
+ @intr_error=sum((int64)0);
+ @le_delta=sum((int64)0);
+ @ncp_handlers=sum((int64)0);
+ @ncp_runtime_ns=max((int64)0);
+ @ncp_unparsed=sum((int64)0);
+ @queue[1]=sum((int64)0);
+ @queue[128]=sum((int64)0);
+ @reported_acl=sum((int64)0);
+ @reported_count=sum((int64)0);
+ @reported_le=sum((int64)0);
+ @reported_unknown=sum((int64)0);
+ @rx_queue_ns=max((int64)0);
+ @rx_runtime_ns=max((int64)0);
+ @tx_runtime_ns=max((int64)0);
+ @urb_completed_ns=max((int64)0);
+ @usb_submit=sum((int64)0);
+ @usb_submit_error=sum((int64)0);
+ @usb_tx=sum((int64)0);
+ @usb_tx_error=sum((int64)0);
+ @usb_kind_submit[1]=sum((int64)0);
+ @usb_kind_error[1]=sum((int64)0);
+
+ if ($2<1 || $2>180) { exit(1); }
+ @seconds=$2;
+ @start=nsecs(monotonic);
+ printf("ns=%llu event=trace_start clock=1 seconds=%u\n",@start,@seconds);
+}
+kprobe:btusb:btusb_recv_event_realtek {
+ $h=(struct hci_dev *)arg0;$s=(struct sk_buff *)arg1;
+ if ($h->id==$1 && $s->len>=2) { @driver_ingress[*(uint8 *)$s->data]=sum(1); }
+}
+kprobe:bluetooth:hci_recv_frame {
+ $h=(struct hci_dev *)arg0; $s=(struct sk_buff *)arg1;
+ if ($h->id==$1) {
+  @hd=(uint64)$h;
+  if (*(uint8 *)$s->cb==4 && $s->len>=2) {
+   $event=*(uint8 *)$s->data; @ingress[$event]=sum(1);
+   @skb_start[(uint64)$s]=nsecs(monotonic);
+   if ($event==19) {
+    $now=nsecs(monotonic);
+    if (@ncp_last && @audio_last_queue && $now-@ncp_last>=100000000) {
+     printf("ns=%llu event=progress_gap kind=3 gap_ns=%llu\n",$now,$now-@ncp_last);
+    }
+    @ncp_last=$now;
+    if ($s->len>=3) {
+     $num=*(uint8 *)($s->data+2);
+     if ($num<=16 && $s->len>=3+4*$num) {
+      for ($i:0..16) { if ($i<$num) {
+       $handle=*(uint16 *)($s->data+3+4*$i);$count=*(uint16 *)($s->data+5+4*$i);
+       @reported_count=sum($count);
+       if (@handle_type[$handle]==1) { @reported_acl=sum($count); }
+       else { if (@handle_type[$handle]==128) { @reported_le=sum($count); } else { @reported_unknown=sum($count); } }
+      } }
+     } else { @ncp_unparsed=sum(1); }
+    }
+   }
+  }
+ }
+}
+kprobe:bluetooth:hci_event_packet {
+ $h=(struct hci_dev *)arg0; $s=(struct sk_buff *)arg1;
+ if ($h->id==$1 && $s->len>=2) {
+  $event=*(uint8 *)$s->data; @dispatch[$event]=sum(1);
+  if ($event==3 && $s->len>=13) {
+   $status=*(uint8 *)($s->data+2);
+   printf("ns=%llu event=classic_connect status=%u link=%u\n",nsecs(monotonic),$status,$status==0?*(uint8 *)($s->data+11):255);
+  }
+  if ($event==4 && $s->len>=12) {
+   printf("ns=%llu event=classic_request link=%u\n",nsecs(monotonic),*(uint8 *)($s->data+11));
+  }
+  /* Installed hci.h packed event layouts, including the 2-byte HCI header.
+   * Export only status/reason/role, never handles or address fields. On failed
+   * connection-complete, role is not valid and is explicitly marked unknown.
+   */
+  if ($event==5 && $s->len>=6) {
+   printf("ns=%llu event=disconnect_raw status=%u reason=%u\n",nsecs(monotonic),*(uint8 *)($s->data+2),*(uint8 *)($s->data+5));
+  }
+  if ($event==62 && $s->len>=7) {
+   $sub=*(uint8 *)($s->data+2);
+   if ($sub==1 || $sub==10) {
+    $status=*(uint8 *)($s->data+3);
+    printf("ns=%llu event=le_connect status=%u role=%u\n",nsecs(monotonic),$status,$status==0?*(uint8 *)($s->data+6):255);
+   }
+  }
+  if (@skb_start[(uint64)$s]) {
+   @rx_queue_ns=max((int64)(nsecs(monotonic)-@skb_start[(uint64)$s]));delete(@skb_start[(uint64)$s]);
+  }
+  if ($event==15 && $s->len>=6) {
+   printf("ns=%llu event=command_status opcode=%u status=%u\n",nsecs(monotonic),*(uint16 *)($s->data+4),*(uint8 *)($s->data+2));
+  }
+  /* Command event header: status/opcode only, never return parameters. */
+  if ($event==14 && $s->len>=5) {
+   $opcode=*(uint16 *)($s->data+3);@cmd_complete=sum(1);
+   if ($opcode==0x2008 || $opcode==0xfc19 || $opcode==0xfc8f) {
+    printf("ns=%llu event=command_complete opcode=%u status=%u\n",nsecs(monotonic),$opcode,$s->len>=6?*(uint8 *)($s->data+5):255);
+   }
+  }
+ }
+}
+kprobe:bluetooth:hci_num_comp_pkts_evt {
+ $h=(struct hci_dev *)arg0;
+ if ($h->id==$1) {
+  @ncp_hdev[tid]=(uint64)$h;@hd=(uint64)$h;@ncp_context[tid]=1;@ncp_begin[tid]=nsecs(monotonic);@ncp_handlers=sum(1);
+  @acl_before[tid]=$h->acl_cnt;@le_before[tid]=$h->le_cnt;
+ }
+}
+kretprobe:bluetooth:hci_num_comp_pkts_evt /@ncp_context[tid]/ {
+ $h=(struct hci_dev *)@ncp_hdev[tid];
+ @ncp_runtime_ns=max((int64)(nsecs(monotonic)-@ncp_begin[tid]));
+ @acl_delta=sum((int64)$h->acl_cnt-(int64)@acl_before[tid]);
+ @le_delta=sum((int64)$h->le_cnt-(int64)@le_before[tid]);
+ delete(@ncp_hdev[tid]);delete(@ncp_context[tid]);delete(@ncp_begin[tid]);delete(@acl_before[tid]);delete(@le_before[tid]);
+}
+kprobe:bluetooth:l2cap_chan_send {
+ $c=(struct l2cap_chan *)arg0;
+ if ($c->psm==25 && arg2>=100 && $c->conn) {
+  $head=(struct s24_conn_prefix *)$c->conn;$hcon=$head->hcon;
+  if ($hcon && $hcon->hdev->id==$1) {
+   @audio_conn[(uint64)$hcon]=1;@audio_calls=sum(1);@audio_send_begin[tid]=nsecs(monotonic);
+   @audio_bytes=sum((int64)arg2);
+  }
+ }
+}
+kretprobe:bluetooth:l2cap_chan_send /@audio_send_begin[tid]/ {
+ @audio_returns=sum(1);@audio_send_runtime_ns=max((int64)(nsecs(monotonic)-@audio_send_begin[tid]));
+ if ((int64)retval<0) { @audio_errors=sum(1); } else { @audio_return_bytes=sum((int64)retval); }
+ delete(@audio_send_begin[tid]);
+}
+kprobe:bluetooth:hci_conn_tx_queue {
+ $c=(struct hci_conn *)arg0;
+ if ($c->hdev->id==$1) {
+  @hd=(uint64)$c->hdev;@handle_type[$c->handle]=$c->type;@queue[$c->type]=sum(1);@tx_link[tid]=$c->type;
+  if (@audio_conn[(uint64)$c]) {
+   @audio_queue=sum(1);if (@audio_last_queue) {
+    $gap=nsecs(monotonic)-@audio_last_queue;@audio_queue_gap_ns=max($gap);
+    if ($gap>=100000000) { printf("ns=%llu event=progress_gap kind=1 gap_ns=%llu\n",nsecs(monotonic),$gap); }
+   }
+   @audio_last_queue=nsecs(monotonic);@audio_sent=$c->sent;
+  }
+ }
+}
+kprobe:bluetooth:hci_conn_tx_dequeue /@ncp_context[tid]/ {
+ $c=(struct hci_conn *)arg0;
+ if ($c->hdev->id==$1) {
+  @completed[$c->type]=sum(1);
+  if (@audio_conn[(uint64)$c]) {
+   @audio_completed=sum(1);if (@audio_last_complete) {
+    $gap=nsecs(monotonic)-@audio_last_complete;@audio_complete_gap_ns=max($gap);
+    if ($gap>=100000000) { printf("ns=%llu event=progress_gap kind=2 gap_ns=%llu\n",nsecs(monotonic),$gap); }
+   }
+   @audio_last_complete=nsecs(monotonic);
+  }
+ }
+}
+kprobe:btusb:btusb_intr_complete {
+ $u=(struct urb *)arg0;$h=(struct hci_dev *)$u->context;
+ if ($h->id==$1) {
+  @usb_dev=(uint64)$u->dev;@intr=sum(1);@intr_bytes=sum($u->actual_length);
+  if (@urb_start[(uint64)$u]) { @intr_urb_ns=max((int64)(nsecs(monotonic)-@urb_start[(uint64)$u]));delete(@urb_start[(uint64)$u]);delete(@urb_pipe[(uint64)$u]); }
+  if ($u->status!=0) { @intr_error=sum(1); }
+ }
+}
+kprobe:btusb:btusb_bulk_complete /@usb_dev/ {
+ $u=(struct urb *)arg0;
+ if ((uint64)$u->dev==@usb_dev) { @bulk_rx=sum(1);if ($u->status!=0) { @bulk_rx_error=sum(1); }
+ if (@urb_start[(uint64)$u]) { @bulk_urb_ns=max((int64)(nsecs(monotonic)-@urb_start[(uint64)$u]));delete(@urb_start[(uint64)$u]);delete(@urb_pipe[(uint64)$u]); } }
+}
+kprobe:usb_submit_urb /@usb_dev/ {
+ $u=(struct urb *)arg0;
+ if ((uint64)$u->dev==@usb_dev) {
+  @usb_submit=sum(1);@urb_start[(uint64)$u]=nsecs(monotonic);@urb_pipe[(uint64)$u]=$u->pipe;
+  $kind=($u->pipe>>30)&3;@usb_kind_submit[$kind]=sum(1);@submitting_kind[tid]=$kind;
+  @submitting[tid]=(uint64)$u;
+ }
+}
+kretprobe:usb_submit_urb /@submitting[tid]/ {
+ if ((int32)retval<0) { @usb_submit_error=sum(1);@usb_kind_error[@submitting_kind[tid]]=sum(1);delete(@urb_start[@submitting[tid]]);delete(@urb_pipe[@submitting[tid]]); }
+ delete(@submitting[tid]);delete(@submitting_kind[tid]);
+}
+kprobe:btusb:btusb_tx_complete /@usb_dev/ {
+ $u=(struct urb *)arg0;$key=(uint64)$u;
+ if ((uint64)$u->dev==@usb_dev) {
+  @usb_tx=sum(1);if ($u->status!=0) { @usb_tx_error=sum(1); }
+  if (@urb_start[$key]) { @urb_completed_ns=max((int64)(nsecs(monotonic)-@urb_start[$key]));delete(@urb_start[$key]);delete(@urb_pipe[$key]); }
+ }
+}
+kprobe:bluetooth:hci_rx_work /@hd/ { $h=(struct hci_dev *)@hd;if ((uint64)arg0==(uint64)$h+offsetof(struct hci_dev,rx_work)) { @rx_enter[tid]=nsecs(monotonic); } }
+kretprobe:bluetooth:hci_rx_work /@rx_enter[tid]/ { @rx_runtime_ns=max((int64)(nsecs(monotonic)-@rx_enter[tid]));delete(@rx_enter[tid]); }
+kprobe:bluetooth:hci_tx_work /@hd/ { $h=(struct hci_dev *)@hd;if ((uint64)arg0==(uint64)$h+offsetof(struct hci_dev,tx_work)) { @tx_enter[tid]=nsecs(monotonic); } }
+kretprobe:bluetooth:hci_tx_work /@tx_enter[tid]/ { @tx_runtime_ns=max((int64)(nsecs(monotonic)-@tx_enter[tid]));delete(@tx_enter[tid]);delete(@tx_link[tid]); }
+kprobe:bluetooth:l2cap_disconn_cfm {
+ $c=(struct hci_conn *)arg0;
+ if ($c->hdev->id==$1) { printf("ns=%llu event=disconnect link=%u role=%u reason=%u acl=%u le=%u sent=%u\n",nsecs(monotonic),$c->type,$c->role,(uint8)arg1,$c->hdev->acl_cnt,$c->hdev->le_cnt,$c->sent);delete(@audio_conn[(uint64)$c]);delete(@handle_type[$c->handle]); }
+}
+kprobe:btusb:btusb_send_frame {
+ $h=(struct hci_dev *)arg0;$s=(struct sk_buff *)arg1;
+ if ($h->id==$1 && *(uint8 *)$s->cb==1 && $s->len>=3) {
+  $op=*(uint16 *)$s->data;@command_opcode[tid]=$op;
+  printf("ns=%llu event=command_send opcode=%u command_credit=%u\n",nsecs(monotonic),$op,$h->cmd_cnt.counter);
+ }
+}
+kretprobe:btusb:btusb_send_frame /@command_opcode[tid]/ {
+ printf("ns=%llu event=command_return opcode=%u result=%d\n",nsecs(monotonic),@command_opcode[tid],(int32)retval);
+ delete(@command_opcode[tid]);
+}
+kprobe:bluetooth:hci_le_conn_update_complete_evt {
+ $h=(struct hci_dev *)arg0;$e=(struct hci_ev_le_conn_update_complete *)arg1;
+ if ($h->id==$1) { printf("ns=%llu event=le_update status=%u interval=%u latency=%u timeout=%u\n",nsecs(monotonic),$e->status,$e->interval,$e->latency,$e->supervision_timeout); }
+}
+interval:s:1 { if (nsecs(monotonic)-@start>=@seconds*1000000000) { exit(); } }
+interval:s:1 /@hd/ {
+ $h=(struct hci_dev *)@hd;$now=nsecs(monotonic);
+ printf("ns=%llu event=hci driver13=%llu raw13=%llu dispatch13=%llu handlers=%llu reported=%llu reported_acl=%llu reported_le=%llu reported_unknown=%llu ncp_unparsed=%llu acl_queue=%llu acl_complete=%llu le_queue=%llu le_complete=%llu acl_credit=%u le_credit=%u rx_queue_ns=%llu ncp_runtime_ns=%llu\n",$now,(uint64)@driver_ingress[19],(uint64)@ingress[19],(uint64)@dispatch[19],(uint64)@ncp_handlers,(uint64)@reported_count,(uint64)@reported_acl,(uint64)@reported_le,(uint64)@reported_unknown,(uint64)@ncp_unparsed,(uint64)@queue[1],(uint64)@completed[1],(uint64)@queue[128],(uint64)@completed[128],$h->acl_cnt,$h->le_cnt,(uint64)@rx_queue_ns,(uint64)@ncp_runtime_ns);
+ printf("ns=%llu event=audio calls=%llu returns=%llu errors=%llu queue=%llu complete=%llu sent=%u last_queue_ns=%llu last_complete_ns=%llu queue_gap_ns=%llu complete_gap_ns=%llu send_runtime_ns=%llu\n",$now,(uint64)@audio_calls,(uint64)@audio_returns,(uint64)@audio_errors,(uint64)@audio_queue,(uint64)@audio_completed,@audio_sent,@audio_last_queue,@audio_last_complete,(uint64)@audio_queue_gap_ns,(uint64)@audio_complete_gap_ns,(uint64)@audio_send_runtime_ns);
+ printf("ns=%llu event=usb intr=%llu intr_bytes=%llu intr_errors=%llu bulk_rx=%llu bulk_errors=%llu tx=%llu tx_errors=%llu submits=%llu submit_errors=%llu completed_urb_ns=%llu\n",$now,(uint64)@intr,(uint64)@intr_bytes,(uint64)@intr_error,(uint64)@bulk_rx,(uint64)@bulk_rx_error,(uint64)@usb_tx,(uint64)@usb_tx_error,(uint64)@usb_submit,(uint64)@usb_submit_error,(uint64)@urb_completed_ns);
+ /* Outstanding age: bounded map of the selected adapter only. Never export keys. */
+ $age=0;$outage=0;$inage=0;$intrage=0;$intrcount=0;for ($entry:@urb_start) { $d=$now-$entry.1;if ($d>$age) { $age=$d; }
+  $pipe=@urb_pipe[$entry.0];if (($pipe>>30)==1) { $intrcount++;if ($d>$intrage) { $intrage=$d; } }
+  if (($pipe>>30)==3) { if ($pipe&128) { if ($d>$inage) { $inage=$d; } } else { if ($d>$outage) { $outage=$d; } } } }
+ printf("ns=%llu event=interrupt_pending count=%u age_ns=%llu submits=%llu submit_errors=%llu\n",$now,$intrcount,$intrage,(uint64)@usb_kind_submit[1],(uint64)@usb_kind_error[1]);
+ printf("ns=%llu event=pending max_urb_age_ns=%llu bulk_out_age_ns=%llu bulk_in_age_ns=%llu rx_runtime_ns=%llu tx_runtime_ns=%llu acl_credit_delta=%lld le_credit_delta=%lld\n",$now,$age,$outage,$inage,(uint64)@rx_runtime_ns,(uint64)@tx_runtime_ns,(int64)@acl_delta,(int64)@le_delta);
+}
+interval:s:180 { exit(); }
+END { clear(@command_opcode);clear(@usb_kind_submit);clear(@usb_kind_error);clear(@submitting_kind);clear(@acl_before);clear(@acl_delta);clear(@audio_bytes);clear(@audio_calls);clear(@audio_complete_gap_ns);clear(@audio_completed);clear(@audio_conn);clear(@audio_errors);clear(@audio_last_complete);clear(@audio_last_queue);clear(@audio_queue);clear(@audio_queue_gap_ns);clear(@audio_return_bytes);clear(@audio_returns);clear(@audio_send_begin);clear(@audio_send_runtime_ns);clear(@audio_sent);clear(@bulk_rx);clear(@bulk_rx_error);clear(@bulk_urb_ns);clear(@cmd_complete);clear(@completed);clear(@dispatch);clear(@driver_ingress);clear(@handle_type);clear(@hd);clear(@ingress);clear(@intr);clear(@intr_bytes);clear(@intr_error);clear(@intr_urb_ns);clear(@le_before);clear(@le_delta);clear(@ncp_begin);clear(@ncp_context);clear(@ncp_handlers);clear(@ncp_hdev);clear(@ncp_last);clear(@ncp_runtime_ns);clear(@ncp_unparsed);clear(@queue);clear(@reported_acl);clear(@reported_count);clear(@reported_le);clear(@reported_unknown);clear(@rx_enter);clear(@rx_queue_ns);clear(@rx_runtime_ns);clear(@seconds);clear(@skb_start);clear(@start);clear(@submitting);clear(@tx_enter);clear(@tx_link);clear(@tx_runtime_ns);clear(@urb_completed_ns);clear(@urb_pipe);clear(@urb_start);clear(@usb_dev);clear(@usb_submit);clear(@usb_submit_error);clear(@usb_tx);clear(@usb_tx_error); printf("ns=%llu event=trace_end\n",nsecs(monotonic)); }

@@ -7,7 +7,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const archiver = require('archiver');
-const { copyReleaseInput } = require('./release-inputs');
+const { copyReleaseInput, stagePortableQuickShare } = require('./release-inputs');
 async function main() {
   const arch = process.arch;
   if (!['x64', 'arm64'].includes(arch)) throw new Error('Build on Linux x64 or arm64');
@@ -26,6 +26,7 @@ async function main() {
     const desktopVersion = JSON.parse(await fsp.readFile(path.join(desktop, 'resources/app/package.json'), 'utf8')).version;
     if (desktopVersion !== pkg.version) throw new Error('Rebuild the desktop package before creating a release');
     await copyReleaseInput(desktop, path.join(app, 'desktop'));
+    await stagePortableQuickShare(root, path.join(app, 'desktop'));
     const name = `airdrop-linux-${arch}-${pkg.version}.zip`;
     const archive = archiver('zip', { zlib: { level: 6 } }); const output = fs.createWriteStream(path.join(out, name));
     const done = new Promise((resolve, reject) => { output.on('close', resolve); output.on('error', reject); archive.on('error', reject); });

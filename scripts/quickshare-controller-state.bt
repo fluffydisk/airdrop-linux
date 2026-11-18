@@ -1,0 +1,38 @@
+/* Metadata only. Reviewed against installed 7.2.8-9-omarchy headers/module.
+ * Requires privileged bpftrace and module BTF. Validated on that kernel.
+ * No payloads, addresses, handles, keys or codes. 35 seconds / 32 attempts.
+ */
+BEGIN { @count = 0; printf("event=capture_started seconds=35 limit=32\n"); }
+kprobe:bluetooth:hci_enable_advertising_sync {
+    if (@count >= 32) { exit(); }
+    @count = @count + 1;
+    @active[tid] = 1;
+    $h = (struct hci_dev *)arg0;
+    @total[tid] = $h->conn_hash.le_num;
+    @peripheral[tid] = $h->conn_hash.le_num_peripheral;
+    @s2[tid] = $h->le_states[2];
+    @s4[tid] = $h->le_states[4];
+    @disable[tid] = 0;
+    @connectable[tid] = false;
+}
+kretprobe:bluetooth:hci_adv_instance_flags /@active[tid]/ {
+    @connectable[tid] = (retval & 1) != 0;
+}
+kretprobe:bluetooth:mgmt_get_connectable /@active[tid]/ {
+    @connectable[tid] = @connectable[tid] || retval != 0;
+}
+kprobe:bluetooth:hci_disable_advertising_sync /@active[tid]/ { @disable[tid] = 1; }
+kretprobe:bluetooth:hci_enable_advertising_sync /@active[tid]/ {
+    printf("event=enable_result result=%d le_total=%u le_peripheral=%u connectable=%u central_nonconn=%u central_scannable=%u central_connectable=%u peripheral_nonconn=%u peripheral_scannable=%u peripheral_connectable=%u disable_reached=%u\n",
+      (int32)retval, @total[tid], @peripheral[tid], @connectable[tid],
+      (@s2[tid] & 2) != 0, (@s2[tid] & 8) != 0, (@s4[tid] & 8) != 0,
+      (@s2[tid] & 16) != 0, (@s2[tid] & 32) != 0, (@s4[tid] & 64) != 0, @disable[tid]);
+    delete(@active[tid]); delete(@total[tid]); delete(@peripheral[tid]);
+    delete(@s2[tid]); delete(@s4[tid]); delete(@disable[tid]); delete(@connectable[tid]);
+}
+interval:s:35 { exit(); }
+END {
+    clear(@active); clear(@total); clear(@peripheral); clear(@s2); clear(@s4);
+    clear(@disable); clear(@connectable); clear(@count);
+    printf("event=capture_ended\n");
+}

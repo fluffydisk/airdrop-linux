@@ -240,7 +240,7 @@ def main(mode):
             assert helper.request('hello')['protocol'] == 1
             port = helper.request('start', dict(port=0, name='Independent fixture', staging=root, protocolDiagnostics=mode=='binary'))['port']
             with socket.create_connection(('127.0.0.1', port), timeout=5) as raw:
-                sock = BleStream(raw) if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' else raw
+                sock = BleStream(raw) if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' and os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') != '1' else raw
                 endpoint = b'\x02' + bytes(16) + b'\x06Python'
                 send(sock, frame(1, 2, blob(1, b'TEST') + blob(2, b'Python') + blob(6, endpoint)))
                 private = ec.generate_private_key(ec.SECP256R1())
@@ -330,7 +330,7 @@ def main(mode):
                 transfer_id = event['data']['id']
                 if mode == 'binary':
                     transport = helper.event(lambda m: m.get('event') == 'connection')['data']
-                    assert transport['id'] == transfer_id and transport['direction'] == 'incoming' and transport['connectionMethod'] == ('ble-l2cap' if isinstance(sock, BleStream) else 'lan-tcp')
+                    assert transport['id'] == transfer_id and transport['direction'] == 'incoming' and transport['connectionMethod'] == ('bt-rfcomm' if os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') == '1' else 'ble-l2cap' if isinstance(sock, BleStream) else 'lan-tcp')
                     assert set(transport) == {'id', 'direction', 'connectionMethod'}
                 assert event['data']['files'] == [filename]
                 assert not any(Path(root).iterdir()), 'Data created before consent'

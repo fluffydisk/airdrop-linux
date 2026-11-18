@@ -1,0 +1,12 @@
+{
+  "provenance": "2026-11-15 installed 7.2.8-9-omarchy, bounded privileged metadata-only probe; phone Bluetooth enabled; no transfer success",
+  "legacyController": true,
+  "lines": [
+    "event=enable_result result=-22 le_total=1 le_peripheral=1 connectable=1 central_nonconn=1 central_scannable=1 central_connectable=0 peripheral_nonconn=1 peripheral_scannable=1 peripheral_connectable=0 disable_reached=0",
+    "event=enable_result result=-22 le_total=1 le_peripheral=1 connectable=1 central_nonconn=1 central_scannable=1 central_connectable=0 peripheral_nonconn=1 peripheral_scannable=1 peripheral_connectable=0 disable_reached=0",
+    "event=enable_result result=-22 le_total=1 le_peripheral=1 connectable=1 central_nonconn=1 central_scannable=1 central_connectable=0 peripheral_nonconn=1 peripheral_scannable=1 peripheral_connectable=0 disable_reached=0",
+    "event=enable_result result=-22 le_total=1 le_peripheral=1 connectable=1 central_nonconn=1 central_scannable=1 central_connectable=0 peripheral_nonconn=1 peripheral_scannable=1 peripheral_connectable=0 disable_reached=0"
+  ],
+  "expectedAttempts": 4,
+  "expectedClassification": "legacy-connectable-le-role-conflict"
+}

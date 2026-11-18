@@ -206,6 +206,7 @@ async fn inbound_during_scan_then_handshake_cancel(scan: Arc<Discovery>) {
             events,
             "fixture-session".into(),
             scan,
+            &std::sync::atomic::AtomicBool::new(false),
         )
         .await
     });

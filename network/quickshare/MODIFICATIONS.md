@@ -126,3 +126,15 @@ code is original GPL-3.0-only work using the existing dependencies.
   fixtures authenticate/decrypt the consent response and BWU failure, and verify
   payload integrity through the active BLE byte-stream bridge. Tests do not
   constitute Android hardware interoperability evidence.
+
+## 2026-11-17: T30 opt-in cross-layer observation
+
+Added `rqs_lib::lab_trace`, a bounded nonblocking Unix datagram metadata sink,
+active only with an explicit lab trace socket. Inbound frame/state/consent/file
+write progress gets origin CLOCK_MONOTONIC timestamps; native Classic wraps the
+actual stream to observe read/write completion/EOF and shutdown. No payload,
+filename, address, verification code or cryptographic material is serialized.
+Transport policy, deadlines, authentication, framing and radio configuration are
+unchanged. Receiver progress is never inferred from telemetry or socket writes.
+Tests cover full-sink nonblocking loss, fixed-schema privacy, monotonic clock and
+unchanged byte/backpressure/EOF/shutdown behavior.

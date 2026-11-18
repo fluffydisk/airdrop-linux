@@ -119,7 +119,7 @@ fn serve(
                     )
                     .unwrap();
                 assert_eq!(props["Type"].0.as_str(), Some("peripheral"));
-                assert_eq!(props["Timeout"].0.as_u64(), Some(120));
+                assert_eq!(props["Timeout"].0.as_u64(), Some(0));
                 assert!(
                     !props.contains_key("SecondaryChannel")
                         && !props.contains_key("Discoverable")
@@ -224,7 +224,7 @@ async fn client() {
             super::super::protocol::header(&full, false, Some(0x83)),
         )]
         .into(),
-        timeout: Some(LEASE),
+        timeout: Some(RECEIVER_TIMEOUT),
         ..Default::default()
     };
     for category in [
@@ -402,7 +402,7 @@ async fn renewal_client() {
             super::super::protocol::header(&full, false, Some(0x83)),
         )]
         .into(),
-        timeout: Some(LEASE),
+        timeout: Some(RECEIVER_TIMEOUT),
         ..Default::default()
     };
     let mut handles = vec![
@@ -423,7 +423,7 @@ async fn renewal_client() {
     assert_eq!(c["unregisterResult"], "acknowledged");
     assert_eq!(c["ownerScopeClosed"], true);
     assert_eq!(c["daemonReleaseBeforeCleanup"], false);
-    assert_eq!(c["leaseMs"], 120000);
+    assert_eq!(c["leaseMs"], 0);
     assert!(c["ageMs"].as_u64().unwrap() >= 20);
     handles.push(
         register(

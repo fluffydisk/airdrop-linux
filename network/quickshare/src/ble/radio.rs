@@ -50,6 +50,14 @@ async fn bounded<T>(f: impl std::future::Future<Output = Result<T, bluer::Error>
     }
 }
 fn emit(events: &mpsc::Sender<Event>, state: &Value) {
+    let ready_code = match state["stage"].as_str() {
+        Some("advertisement-registered") => Some(1),
+        Some("classic-inquiry-ready") => Some(7),
+        _ => None,
+    };
+    if let Some(code) = ready_code {
+        rqs_lib::lab_trace::event("radio-stage", code, 0);
+    }
     let mut state = state.clone();
     state["diagnostics"] = diag::current().snapshot();
     if events.try_send(Event::Bluetooth(state)).is_err() {
@@ -57,12 +65,23 @@ fn emit(events: &mpsc::Sender<Event>, state: &Value) {
     }
 }
 fn phase(events: &mpsc::Sender<Event>, stage: &'static str) {
+    let code = match stage {
+        "advertisement-registered" => 1,
+        "gatt-advertisement-read" => 2,
+        "rfcomm-established" => 3,
+        "rfcomm-session-failed" => 4,
+        "scan-started" => 5,
+        "scan-stopped" => 6,
+        _ => 0,
+    };
+    rqs_lib::lab_trace::event("radio-stage", code, 0);
     if stage == "weave-established" {
         inc("weave_established")
     }
     let method = match stage {
         "weave-established" | "gatt-connection-pending" => Some("ble-gatt"),
         "l2cap-established" | "l2cap-connection-pending" => Some("ble-l2cap"),
+        "rfcomm-established" => Some("bt-rfcomm"),
         _ => None,
     };
     let mut value = json!({"stage":stage});
@@ -186,6 +205,15 @@ impl Runtime {
         sender: broadcast::Sender<ChannelMessage>,
         events: mpsc::Sender<Event>,
     ) -> Self {
+        Self::start_with_discovery(endpoint, name, sender, events, true)
+    }
+    pub fn start_with_discovery(
+        endpoint: [u8; 4],
+        name: String,
+        sender: broadcast::Sender<ChannelMessage>,
+        events: mpsc::Sender<Event>,
+        discover_receivers: bool,
+    ) -> Self {
         let cancel = CancellationToken::new();
         let c = cancel.clone();
         let (tx, mut rx) = mpsc::channel(4);
@@ -214,6 +242,7 @@ impl Runtime {
                         connections: owned.clone(),
                         previous_adapter: &mut previous_adapter,
                         recovering,
+                        discover_receivers,
                     },
                 )
                 .await;
@@ -275,6 +304,7 @@ impl Runtime {
             return;
         }
         self.stopped = true;
+        rqs_lib::lab_trace::event("owner-stop", 0, 0);
         self.cancel.cancel();
         if timeout(Duration::from_secs(12), &mut self.task)
             .await
@@ -286,6 +316,7 @@ impl Runtime {
             inc("adapter_teardown_forced");
         }
         self.connections.cleanup().await;
+        rqs_lib::lab_trace::event("owner-stop", 1, 0);
     }
 }
 async fn recovery_wait(
@@ -426,15 +457,19 @@ async fn application(
                             let visible = read_visibility.clone();
                             Box::pin(async move {
                                 inc("incoming_gatt_read");
+                                rqs_lib::lab_trace::event("gatt-read", 0, 0);
                                 if !*visible.borrow() {
                                     inc("incoming_gatt_read_rejected");
+                                    rqs_lib::lab_trace::event("gatt-read", 1, -1);
                                     return Err(ReqError::NotPermitted);
                                 }
                                 let at = req.offset as usize;
                                 if at > full.len() {
                                     inc("incoming_gatt_read_rejected");
+                                    rqs_lib::lab_trace::event("gatt-read", 1, -2);
                                     return Err(ReqError::InvalidOffset);
                                 }
+                                rqs_lib::lab_trace::event("gatt-read", 1, (full.len() - at) as i64);
                                 Ok(full[at..].to_vec())
                             })
                         }),
@@ -452,8 +487,10 @@ async fn application(
                             let visible = write_visibility.clone();
                             Box::pin(async move {
                                 inc("incoming_gatt_write");
+                                rqs_lib::lab_trace::event("gatt-write", 0, data.len() as i64);
                                 if !*visible.borrow() {
                                     inc("incoming_gatt_write_rejected");
+                                    rqs_lib::lab_trace::event("gatt-write", 1, -1);
                                     return Err(ReqError::NotPermitted);
                                 }
                                 if req.offset != 0
@@ -462,18 +499,25 @@ async fn application(
                                     || data.len() > 20
                                 {
                                     inc("incoming_gatt_write_rejected");
+                                    rqs_lib::lab_trace::event("gatt-write", 1, -2);
                                     return Err(ReqError::InvalidValueLength);
                                 }
-                                let gate = gate.lock().map_err(|_| ReqError::Failed)?;
+                                let gate = gate.lock().map_err(|_| {
+                                    rqs_lib::lab_trace::event("gatt-write", 1, -3);
+                                    ReqError::Failed
+                                })?;
                                 let ingress = gate.as_ref().ok_or_else(|| {
                                     inc("incoming_gatt_write_rejected");
+                                    rqs_lib::lab_trace::event("gatt-write", 1, -4);
                                     ReqError::NotPermitted
                                 })?;
                                 if ingress.tx.try_send((req.device_address, data)).is_err() {
                                     ingress.cancel.cancel();
                                     inc("gatt_ingress_overflow");
+                                    rqs_lib::lab_trace::event("gatt-write", 1, -5);
                                     return Err(ReqError::InProgress);
                                 }
+                                rqs_lib::lab_trace::event("gatt-write", 1, 0);
                                 Ok(())
                             })
                         })),
@@ -499,15 +543,21 @@ async fn application(
                             let discovery = discovery.clone();
                             Box::pin(async move {
                                 inc("incoming_notification_setup");
+                                rqs_lib::lab_trace::event("gatt-notify", 0, 0);
                                 let Ok(permit) = permits.try_acquire_owned() else {
                                     inc("incoming_notification_busy");
+                                    rqs_lib::lab_trace::event("gatt-notify", 1, -1);
                                     return;
                                 };
                                 let (tx, rx) = mpsc::channel(32);
                                 {
-                                    let Ok(mut g) = gate.lock() else { return };
+                                    let Ok(mut g) = gate.lock() else {
+                                        rqs_lib::lab_trace::event("gatt-notify", 1, -2);
+                                        return;
+                                    };
                                     if g.is_some() {
                                         inc("incoming_notification_busy");
+                                        rqs_lib::lab_trace::event("gatt-notify", 1, -3);
                                         return;
                                     }
                                     *g = Some(Ingress {
@@ -533,6 +583,7 @@ async fn application(
                                     failed(&sender, &id, TransferKind::Inbound);
                                 }
                                 });
+                                rqs_lib::lab_trace::event("gatt-notify", 1, 0);
                             })
                         })),
                         ..Default::default()
@@ -989,7 +1040,7 @@ fn advert(data: Vec<u8>, extended: bool) -> Advertisement {
     Advertisement {
         advertisement_type: Type::Peripheral,
         service_data: [(SERVICE, data)].into(),
-        timeout: Some(advertising::LEASE),
+        timeout: Some(advertising::RECEIVER_TIMEOUT),
         secondary_channel: if extended {
             Some(SecondaryChannel::OneM)
         } else {
@@ -1130,6 +1181,7 @@ struct Generation<'a> {
     connections: Connections,
     previous_adapter: &'a mut Option<AdapterIdentity>,
     recovering: bool,
+    discover_receivers: bool,
 }
 struct AdapterMonitor {
     lost: Arc<AtomicBool>,
@@ -1196,6 +1248,7 @@ async fn run(
         connections,
         previous_adapter,
         recovering,
+        discover_receivers,
     } = generation;
     let (endpoint_id, name) = local;
     let _cancel_on_return = cancel.clone().drop_guard();
@@ -1232,14 +1285,49 @@ async fn run(
     state["controller"] = caps.clone();
     let discovery = Arc::new(Discovery::default());
     let mut tasks = JoinSet::new();
+    let classic = if std::env::var("AIRDROP_S24_LAB_CLASSIC").as_deref() == Ok("1") {
+        ensure!(
+            !discover_receivers,
+            "classic laboratory receiver must be inbound-only"
+        );
+        match super::classic::Classic::bind(&session, &adapter).await {
+            Ok(classic) => {
+                inc("rfcomm_registration_success");
+                Some(classic)
+            }
+            Err(error) => {
+                inc("rfcomm_registration_failure");
+                phase(events, "rfcomm-registration-failed");
+                return Err(error);
+            }
+        }
+    } else {
+        None
+    };
     let l2cap = bind_l2cap(&adapter).await.ok();
     inc(if l2cap.is_some() {
         "l2cap_bind_success"
     } else {
         "l2cap_bind_failure"
     });
-    let psm = l2cap.as_ref().map(|(_, p)| *p);
-    let full = receiver(endpoint_id, name, psm)?;
+    // Classic-capable receivers omit the CoC PSM. The phone reads metadata over
+    // GATT and can select the advertised, actually bound RFCOMM service.
+    let psm = if classic.is_some() {
+        None
+    } else {
+        l2cap.as_ref().map(|(_, p)| *p)
+    };
+    let full = receiver_with_classic(endpoint_id, name, psm, classic.as_ref().map(|c| c.address))?;
+    let inquiry_mode = std::env::var("AIRDROP_S24_LAB_CLASSIC_INQUIRY").as_deref() == Ok("1");
+    ensure!(
+        !inquiry_mode || (classic.is_some() && !discover_receivers),
+        "Classic inquiry requires inbound Classic lab mode"
+    );
+    let mut inquiry: Option<super::classic_inquiry::Lease> = None;
+    let mut inquiry_finished = false;
+    if inquiry_mode {
+        state["classicDiscoverable"] = json!(false);
+    }
     let app = application(
         &adapter,
         full.clone(),
@@ -1290,6 +1378,13 @@ async fn run(
         tokio::select! {
             _=cancel.cancelled()=>{ensure!(!monitor.lost(),"adapter generation removed");break},
             _=visibility.changed()=>{
+                if inquiry_mode {
+                    if !*visibility.borrow() {
+                        if inquiry.take().is_some(){inquiry_finished=true;}
+                        state["classicDiscoverable"]=json!(false);state["mode"]=json!("off");state["stage"]=json!("classic-inquiry-ended");emit(events,&state);
+                    }
+                    continue
+                }
                 state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                 let cleaned=advertising::release_all(&mut advertisements,"visibility").await;
                 advertising_retry.reset();registration_trigger="visibility";
@@ -1313,6 +1408,20 @@ async fn run(
                 }
                 state["ready"]=json!(targets.values().filter(|t|t.gatt||t.advert.psm.is_some()).count());
                 attempts.retain(|_,at|now.duration_since(*at)<Duration::from_secs(10));headers.retain(|_,(_,key)|targets.contains_key(key));
+                if inquiry_mode {
+                    advertising_retry.hidden(now);
+                    if *visibility.borrow() && inquiry.is_none() && !inquiry_finished {
+                        inc("classic_inquiry_requested");
+                        match super::classic_inquiry::Lease::start(adapter.name(),&full).await {
+                            Ok(lease)=>{inquiry=Some(lease);state["classicDiscoverable"]=json!(true);state["mode"]=json!("classic-inquiry");state["stage"]=json!("classic-inquiry-ready");inc("classic_inquiry_ready");}
+                            Err(_)=>{inquiry_finished=true;state["classicDiscoverable"]=json!(false);state["stage"]=json!("classic-inquiry-failed");inc("classic_inquiry_failed");}
+                        }
+                        emit(events,&state);
+                    }
+                    if inquiry.as_ref().is_some_and(|lease|!lease.active()) {
+                        inquiry.take();inquiry_finished=true;state["classicDiscoverable"]=json!(false);state["mode"]=json!("off");state["stage"]=json!("classic-inquiry-ended");inc("classic_inquiry_expired");emit(events,&state);
+                    }
+                }
                 if advertisements.iter().any(|handle|!handle.is_active()) {
                     state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                     if permits.available_permits()==4 {
@@ -1322,10 +1431,10 @@ async fn run(
                     }
                     emit(events,&state);
                 }
-                if advertising_retry.due(now) && permits.available_permits()<4 && !registration_deferred {
+                if !inquiry_mode && advertising_retry.due(now) && permits.available_permits()<4 && !registration_deferred {
                     inc("advertisement_session_deferred");registration_deferred=true;
                 }
-                if advertising_retry.due(now) && permits.available_permits()==4 {
+                if !inquiry_mode && advertising_retry.due(now) && permits.available_permits()==4 {
                     registration_deferred=false;
                     state["bleAdvertising"]=json!(false);state["mode"]=json!("off");
                         // Drop only this helper's discovery lease. Other clients may
@@ -1334,7 +1443,6 @@ async fn run(
                         discovery.stop().await?;
                         state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
                     if !advertisements.is_empty(){state["stage"]=json!("advertisement-cleanup-pending");emit(events,&state);}
-                    if registration_trigger=="renewal"{inc("advertisement_renewal_requested");}
                     if advertising::release_all(&mut advertisements,registration_trigger).await.is_err(){
                         let delay=advertising_retry.failed(Instant::now());diag::current().advertisement_retry(delay.as_secs());registration_trigger="retry";state["stage"]=json!("advertisement-cleanup-failed");emit(events,&state);continue
                     }
@@ -1345,7 +1453,7 @@ async fn run(
                         if cancel.is_cancelled(){continue}
                         match advertise_receiver(&full,psm,extended_enabled,|a,mode|advertising::register(adapter.name(),a,mode,context),|h:advertising::Handle|h.release("partial-fallback")).await {
                             Ok((handles,mode))=>{
-                                advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);state["stage"]=json!("advertisement-registered");advertising_retry.succeeded(Instant::now());registration_trigger="renewal";
+                                advertisements=handles;state["bleAdvertising"]=json!(true);state["mode"]=json!(mode);state["stage"]=json!("advertisement-registered");advertising_retry.succeeded(Instant::now());registration_trigger="inactive";
                                 if mode=="compact-gatt"{if extended_enabled{inc("advertisement_compact_fallback")}extended_enabled=false;}
                             }
                             Err(_)=>{extended_enabled=false;registration_trigger="retry";state["stage"]=json!("advertisement-registration-failed");let delay=advertising_retry.failed(Instant::now());inc("advertisement_retry_scheduled");diag::current().advertisement_retry(delay.as_secs());}
@@ -1360,7 +1468,7 @@ async fn run(
                     inc("recovery_scan_suppressed");recovery_scan_blocked=true;
                 }
                 if !receiver_pending { recovery_scan_blocked=false; }
-                if now>=next_scan && !receiver_pending {
+                if discover_receivers && now>=next_scan && !receiver_pending {
                     if scan.take().is_some(){
                         inc("scan_pause_regular");discovery.stop().await?;
                         state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
@@ -1490,6 +1598,20 @@ async fn run(
                     if result.is_err(){phase(&events,"connection-failed");if request_cancel.is_cancelled(){cancelled(&sender,&id,TransferKind::Outbound);}else{failed(&sender,&id,TransferKind::Outbound);}}
                 });
             }
+            accepted=async{match &classic{Some(c)=>c.listener.accept().await,None=>std::future::pending().await}}=>{
+                let (socket,_)=accepted?;
+                if !*visibility.borrow(){continue}
+                let Ok(permit)=permits.clone().try_acquire_owned()else{inc("rfcomm_session_capacity_rejected");continue};
+                inc("rfcomm_incoming");
+                discovery.stop().await?;scan=None;state["bleScanning"]=json!(false);
+                next_scan=Instant::now()+Duration::from_secs(7);
+                let sender=sender.clone();let events=events.clone();let c=cancel.child_token();
+                tasks.spawn(async move{
+                    let _permit=permit;
+                    let id=format!("{:032x}",rand::random::<u128>());
+                    if serve_classic(socket,sender,events.clone(),id,c).await.is_err(){inc("rfcomm_session_failed");phase(&events,"rfcomm-session-failed");}
+                });
+            }
             accepted=async{match &l2cap{Some((listener,_))=>listener.accept().await,None=>std::future::pending().await}}=>{
                 let (socket,_)=accepted?;inc("l2cap_incoming");
                 if !*visibility.borrow(){
@@ -1509,13 +1631,12 @@ async fn run(
                 tasks.spawn(async move {
                     let _permit=permit;
                     let id=format!("{:032x}",rand::random::<u128>());
-                    let result=tokio::select!{
-                    _=c.cancelled()=>Err(anyhow::anyhow!("stopped")),r=timeout(SESSION_LIMIT,serve_l2cap(socket,&full,sender.clone(),events.clone(),id.clone(),discovery))=>r.unwrap_or_else(|_|Err(anyhow::anyhow!("lifetime")))}
-                    ;
-                    if result.is_err(){
-                        phase(&events,"l2cap-session-failed");
-                        failed(&sender,&id,TransferKind::Inbound);
-                    }
+                    if std::env::var("AIRDROP_S24_LAB_COMPLETION_TX").as_deref()==Ok("1") {
+                        match super::l2cap_completion::Completion::new(socket) {
+                            Ok(socket)=>{let _=receive_l2cap(socket,&full,sender,events,id,discovery,c).await;},
+                            Err(_)=>{inc("l2cap_lab_completion_unavailable");phase(&events,"l2cap-session-failed");}
+                        }
+                    } else {let _=receive_l2cap(socket,&full,sender,events,id,discovery,c).await;}
                 }
                 );
             }
@@ -1614,30 +1735,42 @@ async fn packet_write<S: AsyncWrite + Unpin>(s: &mut S, b: &[u8]) -> Result<()> 
 }
 /// Public Nearby command grammar, with an additional Android u32 envelope.
 /// The mode is fixed by the first byte and never guessed again mid-connection.
-async fn l2cap_accept<S: AsyncRead + AsyncWrite + Unpin>(s: &mut S, full: &[u8]) -> Result<bool> {
+#[derive(Debug, PartialEq, Eq)]
+enum L2capBootstrap {
+    AdvertisementOnly,
+    Data { framed: bool },
+}
+async fn l2cap_accept<S: AsyncRead + AsyncWrite + Unpin>(
+    s: &mut S,
+    full: &[u8],
+) -> Result<L2capBootstrap> {
     let first = s.read_u8().await?;
     let framed = first == 0;
     let mut first = Some(first);
+    let mut advertisement_finished = false;
     for _ in 0..8 {
+        let leading = match first.take() {
+            Some(byte) => byte,
+            None => match s.read_u8().await {
+                Ok(byte) => byte,
+                Err(e)
+                    if advertisement_finished && e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                {
+                    return Ok(L2capBootstrap::AdvertisementOnly);
+                }
+                Err(e) => return Err(e.into()),
+            },
+        };
         let packet = if framed {
-            if first.take().is_some() {
-                let mut suffix = [0; 3];
-                s.read_exact(&mut suffix).await?;
-                let n = u32::from_be_bytes([0, suffix[0], suffix[1], suffix[2]]) as usize;
-                ensure!(n > 0 && n <= MAX_ADVERT + 3, "bootstrap packet length");
-                let mut p = vec![0; n];
-                s.read_exact(&mut p).await?;
-                p
-            } else {
-                let p = packet_read(s).await?;
-                ensure!(p.len() <= MAX_ADVERT + 3, "bootstrap packet length");
-                p
-            }
+            let mut suffix = [0; 3];
+            s.read_exact(&mut suffix).await?;
+            let n = u32::from_be_bytes([leading, suffix[0], suffix[1], suffix[2]]) as usize;
+            ensure!(n > 0 && n <= MAX_ADVERT + 3, "bootstrap packet length");
+            let mut p = vec![0; n];
+            s.read_exact(&mut p).await?;
+            p
         } else {
-            let cmd = match first.take() {
-                Some(cmd) => cmd,
-                None => s.read_u8().await?,
-            };
+            let cmd = leading;
             let mut p = vec![cmd];
             if cmd == 1 {
                 let n = s.read_u16().await?;
@@ -1651,6 +1784,7 @@ async fn l2cap_accept<S: AsyncRead + AsyncWrite + Unpin>(s: &mut S, full: &[u8])
         };
         let response = match packet.as_slice() {
             [1, 0, 3, a, b, c] => {
+                advertisement_finished = false;
                 if [*a, *b, *c] == HASH {
                     let mut p = vec![21];
                     p.extend((full.len() as u16).to_be_bytes());
@@ -1660,14 +1794,20 @@ async fn l2cap_accept<S: AsyncRead + AsyncWrite + Unpin>(s: &mut S, full: &[u8])
                     vec![22]
                 }
             }
-            [2] => continue,
+            [2] => {
+                // Google kRequestAdvertisementFinish ends metadata discovery,
+                // not a file transfer. A clean EOF here is normal; a later
+                // data request on the same socket remains supported.
+                advertisement_finished = true;
+                continue;
+            }
             [3] => {
                 if framed {
                     packet_write(s, &[23]).await?
                 } else {
                     s.write_all(&[23]).await?
                 }
-                return Ok(framed);
+                return Ok(L2capBootstrap::Data { framed });
             }
             _ => bail!("invalid bootstrap state"),
         };
@@ -1679,6 +1819,67 @@ async fn l2cap_accept<S: AsyncRead + AsyncWrite + Unpin>(s: &mut S, full: &[u8])
     }
     bail!("bootstrap command limit")
 }
+async fn receive_l2cap<S: AsyncRead + AsyncWrite + Unpin>(
+    socket: S,
+    full: &[u8],
+    sender: broadcast::Sender<ChannelMessage>,
+    events: mpsc::Sender<Event>,
+    id: String,
+    discovery: Arc<Discovery>,
+    cancel: CancellationToken,
+) -> Result<()> {
+    let data_started = AtomicBool::new(false);
+    let small_sdu = std::env::var("AIRDROP_S24_LAB_SMALL_SDU").as_deref() == Ok("1");
+    if small_sdu {
+        inc("l2cap_lab_small_sdu_enabled");
+    }
+    let socket = super::l2cap_sdu::SduWrites::new(socket, small_sdu);
+    let result = tokio::select! {
+        _ = cancel.cancelled() => Err(anyhow::anyhow!("stopped")),
+        result = timeout(SESSION_LIMIT, serve_l2cap(socket, full, sender.clone(), events.clone(), id.clone(), discovery, &data_started)) =>
+            result.unwrap_or_else(|_| Err(anyhow::anyhow!("lifetime"))),
+    };
+    if result.is_err() {
+        // Discovery/bootstrap errors remain visible as connection diagnostics.
+        // There is no file session to mark interrupted until the peer actually
+        // requests a data channel. Keep real data-session failures unchanged.
+        phase(&events, "l2cap-session-failed");
+        if data_started.load(Ordering::Relaxed) {
+            failed(&sender, &id, TransferKind::Inbound);
+        }
+    }
+    result
+}
+async fn serve_classic<S: AsyncRead + AsyncWrite + Unpin>(
+    socket: S,
+    sender: broadcast::Sender<ChannelMessage>,
+    events: mpsc::Sender<Event>,
+    id: String,
+    cancel: CancellationToken,
+) -> Result<()> {
+    let mut socket = rqs_lib::lab_trace::Observed::new(socket);
+    rqs_lib::lab_trace::event("rfcomm-arrived", 0, 0);
+    let transfer = async {
+        // A service probe that sends no application bytes is not a failed file.
+        let mut prefix = [0; 4];
+        let n = timeout(Duration::from_secs(10), socket.read(&mut prefix)).await??;
+        if n == 0 {
+            return Ok(());
+        }
+        phase(&events, "rfcomm-established");
+        let (core, mut bridge) = tokio::io::duplex(65536);
+        bridge.write_all(&prefix[..n]).await?;
+        session(inbound(core, sender, id, "bt-rfcomm"), async {
+            tokio::io::copy_bidirectional(&mut socket, &mut bridge).await?;
+            Ok(())
+        })
+        .await
+    };
+    tokio::select! {
+        _=cancel.cancelled()=>{rqs_lib::lab_trace::event("session-cancel",0,0);Err(anyhow::anyhow!("stopped"))},
+        result=timeout(SESSION_LIMIT,transfer)=>{rqs_lib::lab_trace::event("session-end",0,match &result {Ok(Ok(()))=>0,Ok(Err(_))=>-1,Err(_)=>-2});result?},
+    }
+}
 pub(super) async fn serve_l2cap<S: AsyncRead + AsyncWrite + Unpin>(
     mut socket: S,
     full: &[u8],
@@ -1686,14 +1887,20 @@ pub(super) async fn serve_l2cap<S: AsyncRead + AsyncWrite + Unpin>(
     events: mpsc::Sender<Event>,
     id: String,
     discovery: Arc<Discovery>,
+    data_started: &AtomicBool,
 ) -> Result<()> {
     discovery.stop().await?;
-    let framed = timeout(Duration::from_secs(10), l2cap_accept(&mut socket, full))
+    let bootstrap = timeout(Duration::from_secs(10), l2cap_accept(&mut socket, full))
         .await
         .inspect_err(|_| {
             inc("l2cap_bootstrap_rejected");
         })?
         .inspect_err(|_| inc("l2cap_bootstrap_rejected"))?;
+    let L2capBootstrap::Data { framed } = bootstrap else {
+        inc("l2cap_advertisement_session_closed");
+        return Ok(());
+    };
+    data_started.store(true, Ordering::Relaxed);
     phase(&events, "l2cap-established");
     let observer = Observer::new(sender.clone(), id.clone(), TransferKind::Inbound);
     let (core, bridge) = tokio::io::duplex(65536);
@@ -1822,12 +2029,78 @@ async fn dial_l2cap(
 }
 // Kept local so the session/lifecycle tests exercise the production bridge.
 use super::l2cap_transport::{Observer, pump as socket_pump};
+
+#[cfg(test)]
+mod classic_probe_tests {
+    use super::*;
+    #[tokio::test]
+    async fn quiet_classic_probe_and_cancel_do_not_create_a_file_transfer() {
+        for cancel_early in [false, true] {
+            let (socket, peer) = tokio::io::duplex(16);
+            let (sender, mut messages) = broadcast::channel(16);
+            let cancel = CancellationToken::new();
+            if cancel_early {
+                cancel.cancel();
+            } else {
+                drop(peer);
+            }
+            let result = serve_classic(
+                socket,
+                sender.clone(),
+                mpsc::channel(16).0,
+                "probe".into(),
+                cancel,
+            )
+            .await;
+            assert_eq!(result.is_err(), cancel_early);
+            assert!(messages.try_recv().is_err());
+        }
+    }
+}
 #[cfg(test)]
 #[path = "runtime_test.rs"]
 mod runtime_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn classic_readiness_initializes_metadata_trace_before_phone_arrival() {
+        const CHILD: &str = "AIRDROP_CLASSIC_READY_TRACE_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            let (tx, mut rx) = mpsc::channel(1);
+            emit(&tx, &json!({"stage":"classic-inquiry-ready"}));
+            assert!(rx.try_recv().is_ok());
+            return;
+        }
+        use std::os::unix::net::UnixDatagram;
+        let dir = std::env::temp_dir().join(format!(
+            "s24-ready-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        let socket = dir.join("app.sock");
+        let rx = UnixDatagram::bind(&socket).unwrap();
+        rx.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "ble::radio::tests::classic_readiness_initializes_metadata_trace_before_phone_arrival"])
+            .env(CHILD, "1")
+            .env("AIRDROP_S24_LAB_TRACE_SOCKET", &socket)
+            .output().unwrap();
+        assert!(result.status.success());
+        let mut bytes = [0; 1024];
+        let mut records = Vec::new();
+        for _ in 0..2 {
+            let n = rx.recv(&mut bytes).unwrap();
+            records.push(serde_json::from_slice::<Value>(&bytes[..n]).unwrap());
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(records[0]["stage"], "trace-start");
+        assert_eq!(records[1]["stage"], "radio-stage");
+        assert_eq!(records[1]["a"], 7);
+        assert_eq!(records[1]["b"], 0);
+    }
+
     fn observer() -> Observer {
         Observer::new(
             broadcast::channel(256).0,
@@ -1946,8 +2219,165 @@ mod tests {
                 peer.write_all(&[2, 3]).await.unwrap();
                 assert_eq!(peer.read_u8().await.unwrap(), 23);
             }
-            assert_eq!(task.await.unwrap(), framed);
+            assert_eq!(task.await.unwrap(), L2capBootstrap::Data { framed });
         }
+    }
+    #[tokio::test]
+    async fn advertisement_only_peer_closes_without_creating_a_failed_file_transfer() {
+        for framed in [false, true] {
+            let (server, mut peer) = tokio::io::duplex(1024);
+            let full = receiver(*b"AB12", "Linux", None).unwrap();
+            let expected = full.clone();
+            let (sender, mut messages) = broadcast::channel(32);
+            let server_sender = sender.clone();
+            let task = tokio::spawn(async move {
+                receive_l2cap(
+                    server,
+                    &full,
+                    server_sender,
+                    mpsc::channel(8).0,
+                    "metadata-only".into(),
+                    Arc::new(Discovery::default()),
+                    CancellationToken::new(),
+                )
+                .await
+            });
+            if framed {
+                peer.write_all(&[0, 0, 0, 6, 1, 0, 3, 0xfc, 0x9f, 0x5e])
+                    .await
+                    .unwrap();
+                let reply = packet_read(&mut peer).await.unwrap();
+                assert_eq!(reply[0], 21);
+                assert_eq!(&reply[3..], &expected);
+                peer.write_all(&[0, 0, 0, 1, 2]).await.unwrap();
+            } else {
+                peer.write_all(&[1, 0, 3, 0xfc, 0x9f, 0x5e]).await.unwrap();
+                assert_eq!(peer.read_u8().await.unwrap(), 21);
+                let n = peer.read_u16().await.unwrap();
+                let mut reply = vec![0; n as usize];
+                peer.read_exact(&mut reply).await.unwrap();
+                assert_eq!(reply, expected);
+                peer.write_all(&[2]).await.unwrap();
+            }
+            peer.shutdown().await.unwrap();
+            assert!(
+                timeout(Duration::from_secs(1), task)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .is_ok()
+            );
+            assert!(matches!(
+                messages.try_recv(),
+                Err(broadcast::error::TryRecvError::Empty)
+            ));
+        }
+    }
+    #[tokio::test]
+    async fn metadata_finish_never_hides_a_truncated_next_packet() {
+        // A clean EOF after command 2 is normal. Any subsequent partial packet
+        // must still fail; metadata completion is not a blanket error bypass.
+        for bytes in [
+            vec![2, 1, 0],
+            vec![0, 0, 0, 1, 2, 0, 0],
+            vec![0, 0, 0, 1, 2, 0, 0, 0, 6, 1],
+        ] {
+            let (mut server, mut peer) = tokio::io::duplex(64);
+            peer.write_all(&bytes).await.unwrap();
+            peer.shutdown().await.unwrap();
+            assert!(l2cap_accept(&mut server, &[]).await.is_err());
+        }
+        for bytes in [vec![2], vec![0, 0, 0, 1, 2]] {
+            let (mut server, mut peer) = tokio::io::duplex(64);
+            peer.write_all(&bytes).await.unwrap();
+            peer.shutdown().await.unwrap();
+            assert_eq!(
+                l2cap_accept(&mut server, &[]).await.unwrap(),
+                L2capBootstrap::AdvertisementOnly
+            );
+        }
+    }
+    #[tokio::test]
+    async fn rejected_bootstrap_reports_connection_error_without_a_file_transfer() {
+        for bytes in [vec![255], vec![0, 0, 0, 1, 255], vec![1, 0]] {
+            let (server, mut peer) = tokio::io::duplex(64);
+            let (sender, mut messages) = broadcast::channel(32);
+            let (events, mut phases) = mpsc::channel(16);
+            peer.write_all(&bytes).await.unwrap();
+            peer.shutdown().await.unwrap();
+            assert!(
+                receive_l2cap(
+                    server,
+                    &[],
+                    sender,
+                    events,
+                    "bootstrap-error".into(),
+                    Arc::new(Discovery::default()),
+                    CancellationToken::new(),
+                )
+                .await
+                .is_err()
+            );
+            assert!(
+                messages.try_recv().is_err(),
+                "no file/data request was made"
+            );
+            assert!(matches!(phases.try_recv(), Ok(Event::Bluetooth(state))
+                if state["stage"] == "l2cap-session-failed"));
+        }
+    }
+    #[tokio::test(start_paused = true)]
+    async fn bootstrap_timeout_and_cancellation_do_not_invent_file_transfers() {
+        for cancelled in [false, true] {
+            let (server, _peer) = tokio::io::duplex(64);
+            let (sender, mut messages) = broadcast::channel(32);
+            let cancel = CancellationToken::new();
+            if cancelled {
+                cancel.cancel();
+            }
+            assert!(
+                receive_l2cap(
+                    server,
+                    &[],
+                    sender,
+                    mpsc::channel(16).0,
+                    "bootstrap-stop".into(),
+                    Arc::new(Discovery::default()),
+                    cancel,
+                )
+                .await
+                .is_err()
+            );
+            assert!(messages.try_recv().is_err());
+        }
+    }
+    #[tokio::test]
+    async fn data_session_failure_is_still_reported_as_disconnected() {
+        let (server, mut peer) = tokio::io::duplex(64);
+        let (sender, mut messages) = broadcast::channel(32);
+        // Raw data-channel request, followed by an invalid oversized frame.
+        peer.write_all(&[3, 255, 255, 255, 255]).await.unwrap();
+        assert!(
+            receive_l2cap(
+                server,
+                &[],
+                sender,
+                mpsc::channel(16).0,
+                "data-error".into(),
+                Arc::new(Discovery::default()),
+                CancellationToken::new(),
+            )
+            .await
+            .is_err()
+        );
+        let mut disconnected = false;
+        while let Ok(message) = messages.try_recv() {
+            if let Message::Client(client) = message.msg {
+                assert!(!matches!(client.state, Some(TransferState::Finished)));
+                disconnected |= matches!(client.state, Some(TransferState::Disconnected));
+            }
+        }
+        assert!(disconnected, "real data-session errors must remain visible");
     }
     #[tokio::test]
     async fn malformed_l2cap_bootstrap_fails_closed() {

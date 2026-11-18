@@ -13,7 +13,7 @@ async fn independent_l2cap_peer_consent_payload_bwu_rejection_and_integrity() {
     if std::env::var_os(CHILD).is_none() {
         let result = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "ble::radio::peer_tests::independent_l2cap_peer_consent_payload_bwu_rejection_and_integrity", "--nocapture"])
-            .env(CHILD,"1").kill_on_drop(true).output();
+            .env(CHILD,"1").env_remove("AIRDROP_S24_LAB_SMALL_SDU").kill_on_drop(true).output();
         let output = timeout(Duration::from_secs(90), result)
             .await
             .unwrap()
@@ -38,6 +38,9 @@ async fn independent_l2cap_peer_consent_payload_bwu_rejection_and_integrity() {
     .await;
 }
 pub(crate) async fn exercise(cases: &[&str]) {
+    exercise_transport(cases, false).await;
+}
+async fn exercise_transport(cases: &[&str], classic: bool) {
     struct Root(std::path::PathBuf);
     impl Drop for Root {
         fn drop(&mut self) {
@@ -58,13 +61,24 @@ pub(crate) async fn exercise(cases: &[&str]) {
         let full = receiver(*b"TEST", "Fixture", None).unwrap();
         let server = tokio::spawn(async move {
             let (socket, _) = listener.accept().await?;
-            serve_l2cap(
+            if classic {
+                return serve_classic(
+                    socket,
+                    server_sender,
+                    mpsc::channel(16).0,
+                    "independent-ble".into(),
+                    CancellationToken::new(),
+                )
+                .await;
+            }
+            receive_l2cap(
                 socket,
                 &full,
                 server_sender,
                 mpsc::channel(16).0,
                 "independent-ble".into(),
                 Arc::new(Discovery::default()),
+                CancellationToken::new(),
             )
             .await
         });
@@ -74,6 +88,10 @@ pub(crate) async fn exercise(cases: &[&str]) {
             .arg(script)
             .arg(case)
             .env("AIRDROP_TEST_L2CAP_DRIVER", "1")
+            .env(
+                "AIRDROP_TEST_CLASSIC_DRIVER",
+                if classic { "1" } else { "0" },
+            )
             .env("TMPDIR", &root.0)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -159,4 +177,61 @@ pub(crate) async fn exercise(cases: &[&str]) {
             }
         );
     }
+}
+
+#[tokio::test]
+async fn independent_encrypted_peer_with_single_hci_sdu_writes() {
+    let output = timeout(Duration::from_secs(90),
+        Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "ble::radio::peer_tests::independent_l2cap_peer_consent_payload_bwu_rejection_and_integrity", "--nocapture"])
+        .env("AIRDROP_L2CAP_TEST_CHILD", "1").env("AIRDROP_S24_LAB_SMALL_SDU", "1")
+        .kill_on_drop(true).output()).await.unwrap().unwrap();
+    assert!(
+        output.status.success(),
+        "Small SDU independent fixture failed: {} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[tokio::test]
+async fn independent_classic_peer_consent_and_file_integrity() {
+    const CHILD: &str = "AIRDROP_CLASSIC_TEST_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        let output = timeout(
+            Duration::from_secs(90),
+            Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "ble::radio::peer_tests::independent_classic_peer_consent_and_file_integrity",
+                    "--nocapture",
+                ])
+                .env(CHILD, "1")
+                .kill_on_drop(true)
+                .output(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(
+            output.status.success(),
+            "Classic independent fixture failed: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    exercise_transport(
+        &[
+            "small",
+            "binary",
+            "empty",
+            "decline",
+            "bad-commitment",
+            "bad-mac",
+            "replay",
+        ],
+        true,
+    )
+    .await;
 }

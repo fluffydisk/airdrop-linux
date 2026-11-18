@@ -20,15 +20,16 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-util", "io
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-bluer = { version = "0.17", features = ["bluetoothd", "l2cap"], optional = true }
+bluer = { version = "0.17", features = ["bluetoothd", "l2cap", "rfcomm"], optional = true }
 dbus = { version = "0.9", features = ["vendored"], optional = true }
 dbus-tokio = { version = "0.7", optional = true }
 dbus-crossroads = { version = "0.5", optional = true }
+libc = { version = "0.2", optional = true }
 
 [features]
 default = []
 ble-fastinit = ["dep:bluer", "dep:dbus"]
-ble-native = ["dep:bluer", "dep:dbus", "dep:dbus-tokio", "dep:dbus-crossroads"]
+ble-native = ["dep:bluer", "dep:dbus", "dep:dbus-tokio", "dep:dbus-crossroads", "dep:libc"]
 
 [workspace]
 members = ["vendor/rqs_lib"]

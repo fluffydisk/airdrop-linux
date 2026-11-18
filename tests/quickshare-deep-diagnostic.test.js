@@ -1437,3 +1437,23 @@ test('physical b3bb186 post-consent 0/49 capture has no invented socket cause, r
   assert.equal(Date.parse(f.events.find(v=>v[1]==='Disconnected')[0])-Date.parse(f.events.find(v=>v[1]==='consent-accepted')[0]),1675);
   noSecrets(report);
 });
+
+test('physical receive-only S24 trace preserves socket timeout and never promotes matching codes or phone status into receipt', () => {
+  const f = require('./fixtures/quickshare-s24-link-timeout.json');
+  const { report } = deep.create({ direction: 'samsung-to-linux', desktop: { events: f.events }, owner: { recipientVisible: true, nativeCompleted: true } });
+  assert.equal(report.owner.nativeCompleted, 'confirmed');
+  assert.equal(f.ownerCodesMatched, true);
+  assert.equal(f.receivedRegularFiles, 0);
+  assert.equal(f.kernel.hciDisconnectStatus, 0);
+  assert.equal(f.kernel.hciDisconnectReason, 8);
+  assert.equal(f.kernel.channelClosures.length, 3);
+  for (const c of f.kernel.channelClosures) {
+    assert.equal(c.errno, 110); assert.ok(c.tx_credits > 0); assert.ok(c.rx_credits > 0); assert.equal(c.queued, 0);
+  }
+  assert.ok(report.transfer.sessionDiagnostics.some(e => e.stage === 'l2cap-socket-read-failed' && e.cause === 'timed-out'));
+  assert.equal(report.transfer.localPayloadCompletionObserved, false);
+  assert.equal(report.transfer.receiverFinalizationObserved, false);
+  assert.equal(report.productionAcceptanceEstablished, false);
+  assert.notEqual(report.transfer.outcome, 'completed');
+  noSecrets(report);
+});

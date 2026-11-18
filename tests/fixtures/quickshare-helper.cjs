@@ -1,13 +1,15 @@
 'use strict';
 // IPC fixture only; does not implement or claim Android protocol compatibility.
 const readline = require('node:readline');
-let decision, sent;
+let decision, sent, started;
 function output(value) { process.stdout.write(JSON.stringify(value) + '\n'); }
 readline.createInterface({ input: process.stdin }).on('line', line => {
   const request = JSON.parse(line); let result = {};
   if (request.method === 'hello') result = { protocol: 1, capabilities: { lan: true, ble: process.env.QUICKSHARE_IPC_FIXTURE_BLE === '1', gattBootstrap: process.env.QUICKSHARE_IPC_FIXTURE_BLE === '1', direct: false, resume: false } };
   if (request.method === 'send') { sent = request.params; result = { transferId: sent.transferId }; }
   if (request.method === 'sent') result = sent || {};
+  if (request.method === 'start') { started = request.params; if (!process.env.QUICKSHARE_IPC_FIXTURE_OLD) result = { bleReceiveOnly: started.bleReceiveOnly === true }; }
+  if (request.method === 'started') result = started || {};
   if (request.method === 'respond') { decision = request.params; result = { accepted: true }; }
   if (request.method === 'decision') result = decision || {};
   output({ v: 1, id: request.id, result });

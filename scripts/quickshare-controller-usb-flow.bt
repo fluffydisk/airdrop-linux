@@ -1,0 +1,112 @@
+/* Linux 7.2.8-9-omarchy BTF/signatures, bounded 180-second scalar trace.
+ * Counts host-to-driver packets and Number Of Completed Packets callbacks.
+ * A controller completion is a buffer-accounting event, NOT file completion.
+ * No payload, identity, address, handle, key, code, filename or socket data.
+ * hci_event.c calls hci_conn_tx_dequeue once per completed packet; gate on that
+ * callback so cleanup/flush dequeue calls cannot manufacture completions.
+ */
+BEGIN { @start=nsecs; @events=0; @usb_tx=0; @usb_event=0; @usb_acl_rx=0; @usb_error=0; @rx_max_us=0; @completion_max_us=0; @direct_submit=0; @submit_or_defer=0; @submit_errors=0; @send_errors=0; @urb_pending=0; @urb_max_us=0; @tx_max_us=0; @caps=0; @acl_queue=0; @le_queue=0; @acl_complete=0; @le_complete=0; printf("event=capture_started seconds=180 limit=512 usb_metadata=1 counters=host_driver_and_controller_completion\n"); }
+kprobe:bluetooth:hci_num_comp_pkts_evt { @completion[tid]=1; @complete_enter[tid]=nsecs; }
+kretprobe:bluetooth:hci_num_comp_pkts_evt { if (@complete_enter[tid]) { $us=(nsecs-@complete_enter[tid])/1000; if ($us>@completion_max_us) { @completion_max_us=$us; } delete(@complete_enter[tid]); } delete(@completion[tid]); }
+kprobe:bluetooth:hci_conn_tx_queue {
+ $c=(struct hci_conn *)arg0; @tx_link[tid]=$c->type;
+ if (!@caps) { @caps=1; $h=$c->hdev;
+  printf("event=controller_buffers acl_mtu=%u acl_packets=%u le_mtu=%u le_packets=%u le_max_tx_len=%u le_max_tx_time=%u\n",$h->acl_mtu,$h->acl_pkts,$h->le_mtu,$h->le_pkts,$h->le_max_tx_len,$h->le_max_tx_time);
+ }
+ if ($c->type==1) { @acl_queue=@acl_queue+1; }
+ if ($c->type==128 && $c->role==1) {
+  @le_queue=@le_queue+1;
+  /* Read only the fixed four-byte HCI ACL header, never ACL payload. Mask
+   * the private connection handle in memory; export PB flags/length only. */
+  $s=(struct sk_buff *)arg1; $hdr=(struct hci_acl_hdr *)$s->data;
+  $pb=($hdr->handle >> 12) & 3;
+  if ($pb==1) { @le_cont=@le_cont+1; } else { @le_start=@le_start+1; }
+  if ($hdr->dlen>@le_max_hci_bytes) { @le_max_hci_bytes=$hdr->dlen; }
+  @le_credit_available=$c->hdev->le_cnt; @acl_credit_available=$c->hdev->acl_cnt;
+  @le_tx_phy=$c->le_tx_phy; @le_rx_phy=$c->le_rx_phy;
+ }
+}
+kprobe:bluetooth:hci_conn_tx_dequeue /@completion[tid]/ {
+ $c=(struct hci_conn *)arg0;
+ if ($c->type==1) { @acl_complete=@acl_complete+1; }
+ if ($c->type==128 && $c->role==1) { @le_complete=@le_complete+1; }
+}
+kprobe:bluetooth:hci_le_conn_update_complete_evt {
+ if (@events>=512) { exit(); } @events=@events+1;
+ $e=(struct hci_ev_le_conn_update_complete *)arg1;
+ printf("ms=%llu event=le_parameters_updated status=%u interval=%u latency=%u timeout=%u\n",(uint64)((nsecs-@start)/1000000),$e->status,$e->interval,$e->latency,$e->supervision_timeout);
+}
+kprobe:bluetooth:l2cap_disconn_cfm {
+ $c=(struct hci_conn *)arg0;
+ if ($c->type==128) {
+  if (@events>=512) { exit(); } @events=@events+1;
+  printf("ms=%llu event=le_disconnect reason=%u role=%u sent=%u le_credits_available=%u acl_credits_available=%u\n",(uint64)((nsecs-@start)/1000000),(uint8)arg1,$c->role,$c->sent,$c->hdev->le_cnt,$c->hdev->acl_cnt);
+ }
+}
+
+/* USB callback scalars only; no transfer buffers are accessed. */
+kprobe:btusb:btusb_tx_complete {
+ $u=(struct urb *)arg0; @usb_tx=@usb_tx+1;
+ $key=(uint64)arg0;
+ if (@urb_started[$key]) { $us=(nsecs-@urb_started[$key])/1000;
+  if ($us>@urb_max_us) { @urb_max_us=$us; }
+  if (@urb_link[$key]==128 && $us>@le_urb_max_us) { @le_urb_max_us=$us; }
+  if (@urb_link[$key]==1 && $us>@acl_urb_max_us) { @acl_urb_max_us=$us; }
+  delete(@urb_started[$key]); delete(@urb_link[$key]); @urb_pending=@urb_pending-1;
+ }
+ if ($u->status!=0) { @usb_error=@usb_error+1; }
+}
+kprobe:btusb:btusb_intr_complete {
+ $u=(struct urb *)arg0; @usb_event=@usb_event+1;
+ if ($u->status!=0) { @usb_error=@usb_error+1; }
+}
+kprobe:btusb:btusb_bulk_complete {
+ $u=(struct urb *)arg0; @usb_acl_rx=@usb_acl_rx+1;
+ if ($u->status!=0) { @usb_error=@usb_error+1; }
+}
+kprobe:bluetooth:hci_rx_work { @rx_enter[tid]=nsecs; }
+kretprobe:bluetooth:hci_rx_work /@rx_enter[tid]/ {
+ $us=(nsecs-@rx_enter[tid])/1000;
+ if ($us>@rx_max_us) { @rx_max_us=$us; }
+ delete(@rx_enter[tid]);
+}
+
+
+/* Distinguish a deferred driver request from an actual USB submission.
+ * URB pointers are in-memory correlation keys only; never printed. */
+/* Queue-to-send is synchronous in hci_send_conn_frame (inlined here).
+ * Clear the link context at driver return and worker exit. */
+kprobe:btusb:submit_or_queue_tx_urb { @submit_or_defer=@submit_or_defer+1; }
+kprobe:btusb:submit_tx_urb {
+ @direct_submit=@direct_submit+1;
+ if (@urb_pending>=1024) { printf("event=urb_tracking_limit\n"); exit(); }
+ @submit_urb[tid]=(uint64)arg1;
+ @urb_started[(uint64)arg1]=nsecs; @urb_link[(uint64)arg1]=@tx_link[tid]; @urb_pending=@urb_pending+1;
+}
+kretprobe:btusb:submit_tx_urb {
+ $key=@submit_urb[tid];
+ if ((int32)retval<0) {
+  @submit_errors=@submit_errors+1;
+  if (@urb_started[$key]) { delete(@urb_started[$key]); delete(@urb_link[$key]); @urb_pending=@urb_pending-1; }
+ }
+ delete(@submit_urb[tid]);
+}
+kretprobe:btusb:btusb_send_frame { delete(@tx_link[tid]); if ((int32)retval<0) { @send_errors=@send_errors+1; } }
+kprobe:bluetooth:hci_tx_work { @tx_enter[tid]=nsecs; }
+kretprobe:bluetooth:hci_tx_work /@tx_enter[tid]/ {
+ $us=(nsecs-@tx_enter[tid])/1000;
+ if ($us>@tx_max_us) { @tx_max_us=$us; }
+ delete(@tx_enter[tid]); delete(@tx_link[tid]);
+}
+
+interval:s:1 {
+ if (@events>=512) { exit(); } @events=@events+1;
+ printf("ms=%llu event=packet_totals acl_queued=%llu acl_completed=%llu le_peripheral_queued=%llu le_peripheral_completed=%llu\n",(uint64)((nsecs-@start)/1000000),@acl_queue,@acl_complete,@le_queue,@le_complete);
+ printf("ms=%llu event=usb_and_worker_totals usb_tx=%llu usb_event=%llu usb_acl_rx=%llu usb_errors=%llu rx_max_us=%llu completion_max_us=%llu\n",(uint64)((nsecs-@start)/1000000),@usb_tx,@usb_event,@usb_acl_rx,@usb_error,@rx_max_us,@completion_max_us);
+
+ printf("ms=%llu event=usb_submission_totals submit_or_defer=%llu direct_submit=%llu submit_errors=%llu send_errors=%llu tracked_pending=%lld urb_max_us=%llu tx_max_us=%llu\n",(uint64)((nsecs-@start)/1000000),@submit_or_defer,@direct_submit,@submit_errors,@send_errors,@urb_pending,@urb_max_us,@tx_max_us);
+ printf("ms=%llu event=le_fragment_totals starts=%llu continuations=%llu max_hci_bytes=%u last_le_credits_available=%u last_acl_credits_available=%u tx_phy=%u rx_phy=%u le_urb_max_us=%llu acl_urb_max_us=%llu\n",(uint64)((nsecs-@start)/1000000),@le_start,@le_cont,@le_max_hci_bytes,@le_credit_available,@acl_credit_available,@le_tx_phy,@le_rx_phy,@le_urb_max_us,@acl_urb_max_us);
+ @le_urb_max_us=0; @acl_urb_max_us=0; @urb_max_us=0; @tx_max_us=0; @rx_max_us=0; @completion_max_us=0;
+}
+interval:s:180 { exit(); }
+END { clear(@le_start); clear(@le_cont); clear(@le_max_hci_bytes); clear(@le_credit_available); clear(@acl_credit_available); clear(@le_tx_phy); clear(@le_rx_phy); clear(@le_urb_max_us); clear(@acl_urb_max_us); clear(@tx_link); clear(@urb_link); clear(@start); clear(@events); clear(@acl_queue); clear(@le_queue); clear(@acl_complete); clear(@le_complete); clear(@completion); clear(@complete_enter); clear(@rx_enter); clear(@usb_tx); clear(@usb_event); clear(@usb_acl_rx); clear(@usb_error); clear(@rx_max_us); clear(@completion_max_us); clear(@direct_submit); clear(@submit_or_defer); clear(@submit_errors); clear(@send_errors); clear(@urb_pending); clear(@urb_max_us); clear(@tx_max_us); clear(@caps); clear(@urb_started); clear(@submit_urb); clear(@tx_enter); printf("event=capture_ended\n"); }
