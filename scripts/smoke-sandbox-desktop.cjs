@@ -121,10 +121,12 @@ const {_electron:electron}=require('playwright-core');
      async function stateUntil(statuses){let state;for(let i=0;i<180;i++){state=await page.evaluate(()=>window.airdrop.devices('state'));if(statuses.includes(state.status))return state;await new Promise(r=>setTimeout(r,1000));}throw Error('Connection did not reach '+statuses.join('/')+': '+state.status);}
      async function pairPeer(address){
       const url=new URL(address),origin=url.origin;let status;
+      const deadline = Date.now() + 60000;
+      let lastNetworkError;
       // Both entry and pairing can briefly return Cloudflare 530 while the
       // registered route propagates. Pairing is idempotent and never sufficient
       // for readiness: authenticated workspace health remains mandatory.
-      for(let attempt=0;attempt<12;attempt++){
+      while (Date.now() < deadline) {
        try{
         const entry=await fetch(origin+'/pair/',{signal:AbortSignal.timeout(10000)});status=entry.status;
         if(status===200){
@@ -132,10 +134,14 @@ const {_electron:electron}=require('playwright-core');
          if(status===204)return {origin,headers:{Cookie:response.headers.get('set-cookie').split(';')[0]}};
         }
         if(![502,503,504,530].includes(status))throw Error('Pairing HTTP '+status);
-       }catch(error){if(attempt===11||!/ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT/.test([error.code,error.cause?.code].join(' ')))throw error;}
+       } catch (error) {
+        const networkCodes = [error.code, error.cause?.code, ...(error.cause?.errors || []).map(cause => cause.code)];
+        if (!networkCodes.some(code => ['ENOTFOUND', 'EAI_AGAIN', 'ENETUNREACH', 'ECONNRESET', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT'].includes(code))) throw error;
+        lastNetworkError = error;
+       }
        await new Promise(r=>setTimeout(r,2000));
       }
-      throw Error('Public pairing did not recover; final HTTP '+status);
+      throw Error('Public pairing did not recover within 60 seconds (last HTTP status: '+status+')', { cause: lastNetworkError });
      }
      async function startInternet(){
       for(let attempt=0;attempt<3;attempt++){
