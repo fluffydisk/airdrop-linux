@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           export CHROMIUM_PATH=$(command -v google-chrome || command -v chromium)
-          AIRDROP_TEST_LIVE_INTERNET=1 bash scripts/ci-command.sh Quick-Tunnel-recovery node --test tests/internet-live.cjs
+          NODE_OPTIONS=--dns-result-order=ipv4first AIRDROP_TEST_LIVE_INTERNET=1 bash scripts/ci-command.sh Quick-Tunnel-recovery node --test tests/internet-live.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: packages-${{ matrix.arch }}

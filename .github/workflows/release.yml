@@ -128,7 +128,7 @@ jobs:
           npm run test:mobile
           node --test tests/guest-browser.cjs
           node scripts/test-tsnet-bootstrap.cjs desktop/core/bin/airdrop-tsnet
-          AIRDROP_TEST_LIVE_INTERNET=1 node --test tests/internet-live.cjs
+          NODE_OPTIONS=--dns-result-order=ipv4first AIRDROP_TEST_LIVE_INTERNET=1 node --test tests/internet-live.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}
