@@ -230,3 +230,12 @@ dialog::backdrop{background:#0b1429a8}
 /* Development laboratory only; neutral status is not workspace health. */
 #quickshareLab { color: var(--text); border-color: #b8821b; overflow-wrap: anywhere; }
 #health[data-status="lab"]::before { background: #5684cc; }
+
+.native-mode-picker{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.native-mode-picker p{flex-basis:100%;margin:0}
+.native-mode-picker button[aria-pressed="false"]{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+#nativeRecipients .button{width:100%;text-align:left;margin-top:8px}
+#nativeRecipients,#nativeTransfers{overflow-wrap:anywhere}
+#nativeFiles{margin:12px 0}
+
+.nav-item[data-view="native-sharing"]{white-space:normal;line-height:1.25}

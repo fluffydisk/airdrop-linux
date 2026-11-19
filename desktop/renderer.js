@@ -41,9 +41,9 @@ window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', (
 function navigate(view) {
   if (view === 'connect') { view = 'settings'; document.getElementById('connectionSettings').open = true; }
   activeView = view;
-  for (const name of ['transfer', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
+  for (const name of ['transfer', 'native-sharing', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
-  document.getElementById('viewLabel').textContent = view[0].toUpperCase() + view.slice(1);
+  document.getElementById('viewLabel').textContent = view === 'native-sharing' ? 'AirDrop / Quick Share' : view[0].toUpperCase() + view.slice(1);
   if (view === 'activity') loadActivity();
   if (view === 'files') fileExplorer.refresh();
   const heading = document.querySelector('#view-' + view + ' h1');
@@ -76,7 +76,7 @@ function renderQueue() {
   document.querySelector('.drop-caption').textContent = document.getElementById('sendDestination').value ? 'Choose files, then select Send to device.' : 'Choose files, choose a recipient, then Send.';
   document.getElementById('queueSummary').textContent = files.length ? `${files.length} ${files.length === 1 ? 'file' : 'files'} · ${formatSize(total)} total` : 'Your next transfer starts here.';
   zipInput.disabled = busy || !!document.getElementById('sendDestination').value;
-  document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'One neat package. Up to 100 MiB.';
+  document.getElementById('zipHint').textContent = total > MAX_ZIP ? 'Over 100 MiB. Send separately.' : 'Off: send individual files. On: one ZIP up to 100 MiB.';
   sendButton.disabled = busy || !files.length || (document.body.dataset.quickshareLab === 'true' && !document.getElementById('sendDestination').value.startsWith('quick-share:')); sendButton.hidden = !files.length;
   sendButton.replaceChildren(document.createTextNode(busy ? 'Sending…' : document.body.dataset.quickshareLab === 'true' && !document.getElementById('sendDestination').value ? 'Select a Quick Share recipient' : document.getElementById('sendDestination').value === 'guest' ? 'Create sharing link' : document.getElementById('sendDestination').value ? 'Send to device' : 'Send to workspace'), icon('send'));
   document.getElementById('choose').disabled = busy || files.length > 0;
@@ -86,7 +86,7 @@ function renderQueue() {
 document.getElementById('sendDestination').addEventListener('change', renderQueue);
 document.getElementById('sendDestination').addEventListener('airdrop-destinations-updated', renderQueue);
 const latestPeerUpdates = new Map();
-let transferTarget = '', transferZip = false, nativeRetry = null;
+let transferTarget = '', nativeRetry = null;
 function peerProgress(value) {
   latestPeerUpdates.set(value.id, value);
   if (latestPeerUpdates.size > 100) latestPeerUpdates.delete(latestPeerUpdates.keys().next().value);
@@ -106,7 +106,7 @@ async function select(paths) {
   if (activeView === 'files') {
     busy = true;
     try {
-      const results = await window.airdrop.send(paths, zipInput.checked, fileExplorer.directory);
+      const results = await window.airdrop.send(paths, false, fileExplorer.directory);
       const failed = results.filter(file => !file.ok);
       if (failed.length) throw Error(failed.map(file => `${file.name}: ${file.error}`).join('; '));
       fileExplorer.say('Files added to the shared workspace.'); await fileExplorer.refresh();
@@ -116,7 +116,7 @@ async function select(paths) {
   }
   if (files.length) return;
   const version = ++selectionVersion;
-  nativeRetry = null; transferTarget = fileExplorer.directory; transferZip = zipInput.checked;
+  nativeRetry = null; transferTarget = fileExplorer.directory;
   try {
     const next = await window.airdrop.describe(paths);
     if (version !== selectionVersion || busy) return;
@@ -256,7 +256,7 @@ sendButton.onclick = async () => {
   if (busy || !files.length) return;
   selectionVersion++; busy = true; renderQueue(); message('Preparing your transfer…', 'pending');
   try {
-    const bundled = transferZip;
+    const bundled = !document.getElementById('sendDestination').value && zipInput.checked;
     if (!document.getElementById('sendDestination').value && bundled && files.reduce((sum, file) => sum + file.size, 0) > MAX_ZIP) throw new Error('ZIP source files exceed 100 MiB. Turn off ZIP and select the files again.');
     if (document.getElementById('sendDestination').value === 'guest') {
       window.dispatchEvent(new CustomEvent('airdrop-invitation', { detail: { sources: files.map(file => file.path) } }));
