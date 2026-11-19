@@ -83,12 +83,14 @@
       const snapshot = window.airdrop.sharing ? await window.airdrop.sharing('state') : null;
       const state = snapshot ? { ...snapshot.nearby, devices: [...snapshot.nearby.devices] } : await window.airdrop.nearby('state');
       if (snapshot?.quickShare?.enabled) {
-        state.quickShareError = snapshot.quickShare.status === 'error' ? snapshot.quickShare.error || 'The native helper stopped.' : '';
-        state.devices.push(...snapshot.quickShare.recipients.map(d => ({ ...d, transport: 'quick-share', online: d.availability === 'available', trusted: false })));
+        state.quickShareError = document.body.dataset.quickshareLab === 'true' && snapshot.quickShare.status === 'error' ? snapshot.quickShare.error || 'The native helper stopped.' : '';
+        if (document.body.dataset.quickshareLab === 'true') state.devices.push(...snapshot.quickShare.recipients.map(d => ({ ...d, transport: 'quick-share', online: d.availability === 'available', trusted: false })));
         const records = snapshot.quickShare.transfers.map(s => ({ ...s, peer: s.id, created: s.created || 0, status: ({ 'awaiting-acceptance': 'waiting', transferring: s.direction === 'incoming' ? 'receiving' : 'sending' })[s.phase] || s.phase,
           files: (s.files || []).map(file => typeof file === 'string' ? { name: file } : file) }));
-        state.outgoing = [...state.outgoing, ...records.filter(s => s.direction === 'outgoing')];
-        state.incoming = [...state.incoming, ...records.filter(s => s.direction === 'incoming')];
+        if (document.body.dataset.quickshareLab === 'true') {
+          state.outgoing = [...state.outgoing, ...records.filter(s => s.direction === 'outgoing')];
+          state.incoming = [...state.incoming, ...records.filter(s => s.direction === 'incoming')];
+        }
       }
       if (document.body.dataset.quickshareLab === 'true') state.devices = state.devices.filter(d => d.transport === 'quick-share');
       if (document.activeElement !== get('nearbyName')) get('nearbyName').value = state.name;
