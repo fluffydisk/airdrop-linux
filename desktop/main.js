@@ -167,6 +167,7 @@ async function openPwa() {
   }
   await shell.openExternal(url);
 }
+let nativeLifecycle = Promise.resolve();
 function registerIpc() {
   ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
     ownWindow(event); await devicesReady;
@@ -174,6 +175,17 @@ function registerIpc() {
     if (action === 'diagnostic-rendered' && quickshareLab) {const d=require('./core/lib/sharing/quickshare-diagnostics');d.increment(quickshare.pipeline,'renderer_publications');for(const k of ['ready','unready'])quickshare.pipeline['renderer_'+k]=d.integer(payload?.[k],100);return;}
     if (action === 'lab-info') return quickshareLab?.info() || { enabled: false };
     if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
+    if (action === 'native-start' || action === 'native-stop') {
+      const operation = nativeLifecycle.then(async () => {
+        await quickshareReady;
+        if (action === 'native-start') return quickshare.start();
+        if (quickshare.busy) throw Error('Finish or cancel the active Quick Share transfer first.');
+        await quickshare.stop();
+        return quickshare.snapshot();
+      });
+      nativeLifecycle = operation.catch(() => {});
+      return operation;
+    }
     if (action === 'cancel') return payload.transport === 'quick-share' ? quickshare.cancel(payload.id) : nearby.cancel(payload.id);
     if (action === 'invitation-stop') return sharing.stopInvitation();
     if (action === 'invitation-copy') { clipboard.writeText(sharing.invitationLink()); return; }
@@ -182,7 +194,12 @@ function registerIpc() {
       if ((!payload.retryId || payload.recipientId?.startsWith('quick-share:')) && (!Array.isArray(payload.sources) || payload.sources.length > 1000 || !payload.sources.every(p => allowedPaths.has(p)))) throw Error('Choose files first');
       if (quickshareLab) quickshareLab.authorizeSources(payload.sources);
       if (action === 'invitation-start') return sharing.startInvitation(payload);
-      if (payload.recipientId?.startsWith('quick-share:')) await quickshareReady; else await nearbyReady;
+      if (payload.recipientId?.startsWith('quick-share:')) {
+        const operation = nativeLifecycle.then(async () => { await quickshareReady; return sharing.send(payload); });
+        nativeLifecycle = operation.catch(() => {});
+        return operation;
+      }
+      await nearbyReady;
       return sharing.send(payload);
     }
     throw Error('Unknown sharing action');
