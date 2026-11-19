@@ -225,7 +225,7 @@ async function restoreShare() {
     pendingShareId = id;
     const options = await AirdropShares.options(id);
     if (options) { retryTarget = options.directory; retryZip = options.zip; await startUpload(files, true); }
-    else await startUpload(files);
+    else { retryTarget = explorer.directory; retryZip = false; await startUpload(files, true); }
   } else if (params.has('shared_error')) {
     setStatus('Could not prepare the shared files. Check available device storage and share again.', 'err');
     window.history.replaceState({}, '', '/ui/');
