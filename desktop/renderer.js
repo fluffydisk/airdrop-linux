@@ -40,10 +40,12 @@ try { theme(['light','dark','system'].includes(localStorage.getItem('airdrop-the
 window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => { try { if (localStorage.getItem('airdrop-theme') === 'system') theme('system'); } catch {} });
 function navigate(view) {
   if (view === 'connect') { view = 'settings'; document.getElementById('connectionSettings').open = true; }
+  const previousView = activeView;
   activeView = view;
   for (const name of ['transfer', 'native-sharing', 'files', 'clipboard', 'activity', 'settings']) document.getElementById('view-' + name).hidden = name !== view;
   document.querySelectorAll('[data-view]').forEach(button => { button.classList.toggle('selected', button.dataset.view === view); if (button.dataset.view === view) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current'); });
-  document.getElementById('viewLabel').textContent = view === 'native-sharing' ? 'AirDrop / Quick Share' : view[0].toUpperCase() + view.slice(1);
+  document.getElementById('viewLabel').textContent = view === 'native-sharing' ? 'Nearby Share' : view[0].toUpperCase() + view.slice(1);
+  if (previousView === 'native-sharing' && view !== previousView) window.dispatchEvent(new Event('nearby-share-leave'));
   if (view === 'activity') loadActivity();
   if (view === 'files') fileExplorer.refresh();
   const heading = document.querySelector('#view-' + view + ' h1');
@@ -99,7 +101,11 @@ function peerProgress(value) {
   }
 }
 window.airdrop.onPeerProgress?.(peerProgress);
-window.airdrop.onSharingVerification?.(value => message(`Compare code ${value.code} with ${value.name || 'the receiving device'}, then accept on that device.`));
+window.airdrop.onSharingVerification?.(value => {
+  if (document.body.dataset.quickshareLab === 'true' && activeView === 'transfer') {
+    message(`Compare code ${value.code} with ${value.name || 'the receiving device'}, then accept on that device.`);
+  }
+});
 
 async function select(paths) {
   if (!paths.length || busy) return;

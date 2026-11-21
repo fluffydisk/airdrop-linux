@@ -9,6 +9,8 @@ A file and clipboard sharing system with direct Wi-Fi and optional free internet
 
 ![Airdrop Linux overview](assets/airdrop-linux-overview.png)
 
+Development version **1.10.0** adds a dedicated Nearby Share tab for experimental Quick Share. See [setup and validation status](docs/releases/v1.10.0.md).
+
 ## Architecture
 
 - **[dufs](https://github.com/sigoden/dufs)** — lightweight HTTP file server for serving the shared files

@@ -13,11 +13,11 @@ function transferConsent(request, { lab = false } = {}) {
   };
 }
 async function approveTransfer(window, request, { dialog, lab = false } = {}) {
-  if (!window || window.isDestroyed()) return false;
+  if (!window || window.isDestroyed() || request.signal?.aborted) return false;
   window.show(); window.focus();
   const approval = new AbortController(), expiry = setTimeout(() => approval.abort(), 55000); expiry.unref();
   try {
-    const response = await dialog.showMessageBox(window, { ...transferConsent(request, { lab }), signal: approval.signal });
+    const response = await dialog.showMessageBox(window, { ...transferConsent(request, { lab }), signal: AbortSignal.any([approval.signal, ...(request.signal ? [request.signal] : [])]) });
     return response.response === 0;
   } finally { clearTimeout(expiry); }
 }

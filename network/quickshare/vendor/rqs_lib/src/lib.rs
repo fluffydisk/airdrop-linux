@@ -136,6 +136,13 @@ impl RQS {
     pub async fn run(
         &mut self,
     ) -> Result<(mpsc::Sender<SendInfo>, broadcast::Receiver<()>), anyhow::Error> {
+        self.run_mode(true).await
+    }
+
+    pub async fn run_mode(
+        &mut self,
+        receive_enabled: bool,
+    ) -> Result<(mpsc::Sender<SendInfo>, broadcast::Receiver<()>), anyhow::Error> {
         let tracker = TaskTracker::new();
         let ctoken = CancellationToken::new();
         self.tracker = Some(tracker.clone());
@@ -166,6 +173,9 @@ impl RQS {
             self.message_sender.clone(),
             send_channel.1,
         )?;
+        if !receive_enabled {
+            server.disable_receive();
+        }
         let ctk = ctoken.clone();
         tracker.spawn(async move { server.run(ctk).await });
 

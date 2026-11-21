@@ -65,6 +65,8 @@ jobs:
             sudo apparmor_parser --replace "$profile"
             trap 'sudo apparmor_parser --remove "$profile"' EXIT
           fi
+          npm run prepare-desktop
+          xvfb-run -a dbus-run-session -- node --test tests/quickshare-nearby-desktop.cjs
           xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-native.cjs
           xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-desktop.cjs
           AIRDROP_TEST_QUICKSHARE_BLE_NATIVE=1 xvfb-run -a dbus-run-session -- node --test tests/quickshare-lab-native.cjs

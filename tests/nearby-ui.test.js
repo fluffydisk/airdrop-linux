@@ -41,6 +41,7 @@ test('empty discovery keeps an explicit QR/link choice and does not automaticall
 test('experimental Quick Share recipients have Send but no persistent trust or resume controls', async t => {
   const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' }); t.after(() => dom.window.close());
   const w = dom.window;
+  w.document.body.dataset.quickshareLab = 'true';
   w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { name: 'Linux', enabled: true, devices: [], incoming: [], outgoing: [] }, quickShare: {
     enabled: true, recipients: [{ id: 'quick-share:10.0.0.2:123', name: 'Galaxy', availability: 'available' }], transfers: [{ id: 'session', name: 'Galaxy', direction: 'outgoing', phase: 'interrupted', files: ['photo.jpg'], transport: 'quick-share' }]
   } }) };
@@ -56,6 +57,7 @@ test('experimental Quick Share recipients have Send but no persistent trust or r
 test('Quick Share helper errors remain visible when Linux Nearby is off', async t => {
   const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' });
   t.after(() => dom.window.close()); const w = dom.window;
+  w.document.body.dataset.quickshareLab = 'true';
   w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { enabled: false, devices: [], incoming: [], outgoing: [] }, quickShare: {
     enabled: true, status: 'error', error: 'The helper stopped.', recipients: [], transfers: []
   } }) };
@@ -66,6 +68,7 @@ test('Quick Share helper errors remain visible when Linux Nearby is off', async 
 test('sent bytes without receiver confirmation never render as successful completion', async t => {
   const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' });
   t.after(() => dom.window.close()); const w = dom.window;
+  w.document.body.dataset.quickshareLab = 'true';
   w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { enabled: true, devices: [], incoming: [], outgoing: [] }, quickShare: {
     enabled: true, recipients: [], transfers: [{ id: 'sent', name: 'Phone', direction: 'outgoing', phase: 'outcome-unknown', files: ['photo.jpg'] }]
   } }) };
@@ -77,6 +80,7 @@ test('sent bytes without receiver confirmation never render as successful comple
 test('decoded BLE peers stay visible with disabled send controls until a transport is available', async t => {
   const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only' }); t.after(() => dom.window.close());
   const w = dom.window;
+  w.document.body.dataset.quickshareLab = 'true';
   w.airdrop = { nearby: async () => {}, sharing: async () => ({ nearby: { enabled: false, devices: [], incoming: [], outgoing: [] }, quickShare: { enabled: true, recipients: [{ id: 'quick-share:ble-' + 'a'.repeat(32), name: 'Galaxy', availability: 'checking', connectable: false }], transfers: [] } }) };
   w.eval(await fs.readFile('desktop/nearby-ui.js', 'utf8')); await new Promise(r => setImmediate(r));
   assert.match(w.document.querySelector('.nearby-device').textContent, /Checking connection/);

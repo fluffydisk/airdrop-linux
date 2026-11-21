@@ -1,0 +1,30 @@
+{
+  "experiment": "T36-classic-inquiry-final-retry",
+  "goalComplete": false,
+  "physicalAcceptance": "pending",
+  "phoneDiscoveryConfirmed": false,
+  "matchingCodesConfirmed": false,
+  "state": {
+    "status": "stopped",
+    "startedAt": "2026-11-17T19:30:04.578Z",
+    "readyAt": "2026-11-17T19:30:23.886Z",
+    "endedAt": "2026-11-17T19:31:39.260Z",
+    "completed": 0,
+    "conditionSamples": 74,
+    "windowClass": "airdrop-s24-lab",
+    "workspace": 5,
+    "windowSamples": 74,
+    "classicRegistered": 1,
+    "classicIncoming": 0,
+    "stopReason": "inquiry-time-bound",
+    "classicRadioCleanup": {
+      "status": "restored",
+      "fullyRestored": true
+    }
+  },
+  "limitations": [
+    "No owner confirmation of a phone action for this run.",
+    "No incoming RFCOMM or completed file; do not infer discovery or success.",
+    "No acoustic output was recorded."
+  ]
+}

@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const { JSDOM } = require('jsdom');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 async function fixture(t) {
-  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { runScripts: 'outside-only', url: 'https://local.test' });
+  const dom = new JSDOM(await fs.readFile('desktop/index.html', 'utf8'), { pretendToBeVisual: true, runScripts: 'outside-only', url: 'https://local.test' });
   t.after(() => dom.window.close());
   const w = dom.window;
   return { w, get: id => w.document.getElementById(id) };
@@ -41,18 +41,19 @@ test('workspace sends distinct files by default and applies ZIP choice at send t
 test('native mode starts the helper, lists only available Quick Share recipients and sends selected files on device click', async t => {
   const { w, get } = await fixture(t);
   const calls = [];
-  const quickShare = { enabled: true, status: 'ready', bluetooth: { bleAdvertising: true },
+  get('view-native-sharing').hidden = false;
+  const quickShare = { enabled: true, status: 'stopped', name: 'Development laptop', bluetooth: { bleAdvertising: true },
     recipients: [{ id: 'quick-share:phone', name: 'Galaxy', availability: 'available' }, { id: 'quick-share:offline', name: 'Offline', availability: 'checking' }], transfers: [] };
   let progress, verification;
   w.airdrop = {
     sharing: async (action, payload) => {
       calls.push({ action, payload });
       if (action === 'state') return { quickShare };
-      if (action === 'native-start') return quickShare;
+      if (action === 'native-start') { quickShare.mode = payload.mode; quickShare.status = 'ready'; return quickShare; }
       if (action === 'send') return { transferId: 'transfer-id' };
       if (action === 'native-stop') { quickShare.status = 'stopped'; return quickShare; }
     },
-    choose: async () => ['/tmp/a.txt', '/tmp/b.txt'],
+    choose: async () => { calls.push({ action: 'choose' }); return ['/tmp/a.txt', '/tmp/b.txt']; },
     describe: async paths => paths.map(path => ({ path, name: path.split('/').pop(), size: 10 })),
     onPeerProgress: fn => { progress = fn; },
     onSharingVerification: fn => { verification = fn; }
@@ -63,13 +64,17 @@ test('native mode starts the helper, lists only available Quick Share recipients
   assert.equal(get('nativeReceivePanel').hidden, false);
   assert.equal(get('nativeSendPanel').hidden, true);
   assert.match(get('nativeReceiveStatus').textContent, /Bluetooth advertising is registered/);
+  assert.match(get('nativeDeviceName').textContent, /Development laptop/);
+  assert.equal(get('nativeRecipients').querySelectorAll('button').length, 0);
   get('nativeSend').click(); await flush();
   assert.equal(get('nativeReceivePanel').hidden, true);
   assert.equal(get('nativeSendPanel').hidden, false);
   const recipients = get('nativeRecipients').querySelectorAll('button');
   assert.equal(recipients.length, 2); assert.equal(recipients[1].disabled, true);
-  get('nativeChoose').click(); await flush();
   assert.equal(get('nativeFiles').children.length, 2);
+  const sendDiscovery = calls.findIndex(call => call.action === 'native-start' && call.payload.mode === 'send');
+  assert.ok(calls.findIndex(call => call.action === 'choose') < sendDiscovery);
+  assert.deepEqual(Array.from(calls[sendDiscovery].payload.sources), ['/tmp/a.txt', '/tmp/b.txt']);
   get('nativeRecipients').querySelector('button').click(); await flush();
   const send = calls.find(call => call.action === 'send');
   assert.equal(send.payload.recipientId, 'quick-share:phone');
@@ -81,7 +86,38 @@ test('native mode starts the helper, lists only available Quick Share recipients
   await flush();
   assert.equal(get('nativeFiles').children.length, 0);
   assert.match(get('nativeResult').textContent, /complete/i);
-  get('nativeReceive').click(); await flush(); get('nativeStop').click(); await flush();
+  get('nativeReceive').click(); await flush();
+  w.dispatchEvent(new w.Event('nearby-share-leave')); await flush();
+  assert.equal(get('nativeReceivePanel').hidden, true);
+  assert.doesNotMatch(get('nativeResult').textContent, /1234/);
   assert.equal(calls.filter(call => call.action === 'native-start').length, 3);
   assert.equal(calls.filter(call => call.action === 'native-stop').length, 1);
+});
+
+test('cancelling the picker or leaving while it is open never starts discovery', async t => {
+  const { w, get } = await fixture(t);
+  get('view-native-sharing').hidden = false;
+  const calls = [];
+  let finish;
+  w.airdrop = {
+    sharing: async action => { calls.push(action); return { quickShare: { enabled: true, status: 'stopped' } }; },
+    choose: () => new Promise(resolve => { finish = resolve; }),
+    describe: () => assert.fail('A stale selection must not reach the adapter')
+  };
+  w.eval(await fs.readFile('desktop/native-sharing-ui.js', 'utf8')); await flush();
+  get('nativeSend').click(); finish([]); await flush();
+  assert.equal(calls.includes('native-start'), false);
+  get('nativeSend').click();
+  w.dispatchEvent(new w.Event('nearby-share-leave'));
+  finish(['/tmp/file.txt']); await flush();
+  assert.equal(calls.includes('native-start'), false);
+});
+
+test('unsupported Quick Share offers no discovery controls', async t => {
+  const { w, get } = await fixture(t);
+  w.airdrop = { sharing: async () => ({ quickShare: { enabled: false, status: 'disabled' } }) };
+  w.eval(await fs.readFile('desktop/native-sharing-ui.js', 'utf8')); await flush();
+  assert.equal(get('nativeReceive').disabled, true);
+  assert.equal(get('nativeSend').disabled, true);
+  assert.match(get('view-native-sharing').textContent, /Apple AirDrop is unavailable/);
 });

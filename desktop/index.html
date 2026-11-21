@@ -31,7 +31,7 @@
 
   <nav aria-label="Main navigation">
     <button class="nav-item selected" data-view="transfer" aria-current="page"><svg aria-hidden="true"><use href="#i-grid"/></svg>Transfer<span class="nav-count" id="navCount" hidden>0</span></button>
-    <button class="nav-item" data-view="native-sharing"><svg aria-hidden="true"><use href="#i-send"/></svg>AirDrop / Quick Share</button>
+    <button class="nav-item" data-view="native-sharing"><svg aria-hidden="true"><use href="#i-send"/></svg>Nearby Share</button>
     <button class="nav-item" data-view="files"><svg aria-hidden="true"><use href="#i-folder"/></svg>Files</button>
     <button class="nav-item" data-view="clipboard"><svg aria-hidden="true"><use href="#i-file"/></svg>Clipboard</button>
     <button class="nav-item" data-view="settings"><svg aria-hidden="true"><use href="#i-settings"/></svg>Settings</button>
@@ -91,15 +91,16 @@
       <div class="result" id="result" role="status" aria-live="polite" hidden></div>
     </section>
     <section id="view-native-sharing" class="view" hidden>
-      <div class="page-heading"><h1>AirDrop / Quick Share</h1><p>Share files directly with compatible nearby devices.</p></div>
+      <div class="page-heading"><h1>Nearby Share</h1></div>
       <section class="settings-card native-mode-picker" aria-label="Sharing mode">
         <button class="button button-primary" id="nativeReceive" aria-pressed="false">Receive</button>
         <button class="button button-primary" id="nativeSend" aria-pressed="false">Send</button>
-        <p id="nativeAvailability" role="status" aria-live="polite">Checking native sharing support…</p>
+        <p id="nativeAvailability" role="status" aria-live="polite">Checking Quick Share support…</p>
+        <p>Apple AirDrop is unavailable on this build.</p>
       </section>
       <section id="nativeReceivePanel" class="settings-card" hidden>
-        <h2>Receive files</h2><p id="nativeReceiveStatus" role="status" aria-live="polite"></p>
-        <p>Keep this screen open and accept only transfers you expect. Compare the confirmation code before accepting.</p>
+        <h2>Receive files</h2><p id="nativeDeviceName"></p><p id="nativeReceiveStatus" role="status" aria-live="polite"></p>
+        <p>Leaving this tab or stopping Quick Share ends the receive session and its active transfers. Compare the confirmation code before accepting.</p>
         <button class="button" id="nativeStop">Stop Quick Share</button>
         <button class="button" id="nativeInbox">Open received files</button>
       </section>
@@ -113,7 +114,6 @@
       </section>
       <div id="nativeResult" class="result" role="status" aria-live="polite" hidden></div>
       <section class="settings-card"><h2>Native transfer history</h2><div id="nativeTransfers" aria-live="polite"></div></section>
-      <p class="field-help">Apple AirDrop is not supported by the current Linux native adapter. Quick Share remains experimental and depends on the available helper and hardware.</p>
     </section>
     <section id="view-files" class="view" hidden><div class="page-heading"><h1>Files</h1><p>Sort your shared files, paste with Ctrl+V, or drag a file into another application to copy it.</p></div><div id="fileExplorer"></div></section>
     <section id="view-clipboard" class="view" hidden>

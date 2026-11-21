@@ -55,6 +55,9 @@ test('Electron: explicit Transfer send, workspace uploads, ZIP, clipboard, downl
   await app.evaluate(({BrowserWindow})=>{globalThis.draggedFiles=[];BrowserWindow.getAllWindows()[0].webContents.startDrag=item=>{globalThis.draggedFiles=item.files;};});
   await sharedFile.dispatchEvent('dragstart', {altKey:true});
   await page.waitForFunction(()=>document.querySelector('.explorer-status').textContent.includes('Drag to another'));
+  await app.evaluate(async () => {
+    for (let i = 0; i < 50 && globalThis.draggedFiles.length === 0; i++) await new Promise(resolve => setTimeout(resolve, 20));
+  });
   assert.deepEqual(await app.evaluate(()=>globalThis.draggedFiles),[path.join(share,'ü,a.txt')]);
   await app.evaluate(({},share)=>{globalThis.testShare=share;},share);
   await app.evaluate(({shell})=>{shell.openPath=async file=>{globalThis.folderOpened=file;if(file!==globalThis.testShare)globalThis.openedFiles.push(file);return '';};});
@@ -98,12 +101,13 @@ test('Electron: explicit Transfer send, workspace uploads, ZIP, clipboard, downl
   await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, source);
   await manager.getByRole('button', { name: 'Upload', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('#fileExplorer .explorer-item').length === 1);
-  const nestedZip = (await fs.readdir(path.join(share, 'Belgeler'))).find(name => name.endsWith('.zip')); assert.ok(nestedZip);
-  assert.equal(await (await JSZip.loadAsync(await fs.readFile(path.join(share, 'Belgeler', nestedZip)))).file('ü,a.txt').async('string'), 'desktop payload');
+  assert.deepEqual(await fs.readdir(path.join(share, 'Belgeler')), ['ü,a.txt'],
+    'Files uploads directly, independently of the optional ZIP control in Transfer');
+  assert.equal(await fs.readFile(path.join(share, 'Belgeler', 'ü,a.txt'), 'utf8'), 'desktop payload');
   await app.evaluate(({ clipboard }) => clipboard.writeText('İstanbul 👋\nİkinci satır'));
   await manager.focus(); await page.keyboard.press('Control+v');
   await page.waitForFunction(() => document.querySelectorAll('#fileExplorer .explorer-item').length === 2);
-  const textName = (await fs.readdir(path.join(share, 'Belgeler'))).find(name => name.endsWith('.txt'));
+  const textName = (await fs.readdir(path.join(share, 'Belgeler'))).find(name => name.startsWith('clipboard-') && name.endsWith('.txt'));
   assert.equal(await fs.readFile(path.join(share, 'Belgeler', textName), 'utf8'), 'İstanbul 👋\nİkinci satır');
   await app.evaluate(async ({ clipboard, ClipboardItem, nativeImage }, icon) => { const image = nativeImage.createFromPath(icon); await clipboard.write([new ClipboardItem({ 'image/png': new Blob([image.toPNG()], { type: 'image/png' }), 'text/plain': 'image caption' })]); }, path.resolve('ui/icon-192.png'));
   await manager.focus(); await page.keyboard.press('Control+v');

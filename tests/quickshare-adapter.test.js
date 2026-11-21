@@ -10,7 +10,7 @@ async function fixture(t, extra = {}) {
     sha256: crypto.createHash('sha256').update(await fs.readFile(helper)).digest('hex'),
     spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe', 'pipe', 'pipe'] }), ...extra });
   t.after(async () => { await adapter.stop(); await fs.rm(directory, { recursive: true, force: true }); });
-  await adapter.start(); return adapter;
+  await adapter.start(extra.mode); return adapter;
 }
 async function until(check) { for (let i = 0; i < 100; i++) { if (await check()) return; await new Promise(r => setTimeout(r, 10)); } assert.fail('Timed out waiting for helper'); }
 test('disabled Quick Share never starts a helper and a mismatched binary is rejected', async () => {
@@ -87,14 +87,15 @@ test('only consented, complete, privately staged regular files are published; du
   assert.equal(history.includes('1234'), false); assert.equal(history.includes(adapter.staging), false);
 });
 test('cancellation cleans only the recorded private staging directory and a late accept cannot revive it', async t => {
-  let decide;
-  const adapter = await fixture(t, { approve: () => new Promise(resolve => { decide = resolve; }) });
+  let decide, consentSignal;
+  const adapter = await fixture(t, { approve: ({ signal }) => new Promise(resolve => { consentSignal = signal; decide = resolve; }) });
   const directory = path.join(adapter.staging, 'b'.repeat(32)), source = path.join(directory, 'partial.txt');
   const data = { id: 'cancelled1', phase: 'awaiting-acceptance', direction: 'incoming', files: ['partial.txt'], total: 20, pinCode: '1234', stagedPaths: [source] };
   await adapter.request('fixture', data); await until(() => decide);
   await fs.mkdir(directory); await fs.writeFile(source, 'partial');
   await adapter.request('fixture', { ...data, phase: 'cancelled' });
   await until(() => adapter.transfers.get(data.id)?.phase === 'cancelled'); await adapter.events;
+  assert.equal(consentSignal.aborted, true);
   decide(true); await new Promise(resolve => setImmediate(resolve));
   await assert.rejects(fs.stat(directory), { code: 'ENOENT' });
   assert.deepEqual(await fs.readdir(adapter.inbox), []);
@@ -210,4 +211,40 @@ test('receiver-only mode fails closed for missing native opt-in or an older help
   await assert.rejects(disabled.start(), /requires native BLE/);
   const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
   await assert.rejects(fixture(t, { bleNative: true, bleReceiveOnly: true, spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe','pipe','pipe'], env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1', QUICKSHARE_IPC_FIXTURE_OLD: '1' } }) }), /Rebuild the helper/);
+});
+
+test('send mode refuses inbound consent and releases discovered routes on stop', async t => {
+  const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
+  const adapter = await fixture(t, {
+    mode: 'send', bleNative: true, approve: () => assert.fail('Unexpected receive prompt'),
+    spawnProcess: () => spawn(process.execPath, [helper], {
+      stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1' }
+    })
+  });
+  assert.equal((await adapter.request('started')).mode, 'send');
+  const key = 'ble-' + 'b'.repeat(32);
+  const first = 'ble-' + 'c'.repeat(32), second = 'ble-' + 'd'.repeat(32);
+  const endpoint = { id: first, name: 'Phone', present: true, transport: 'ble-gatt',
+    connectable: true, discovery_key: key };
+  await adapter.request('fixture-recipient', endpoint);
+  await adapter.request('fixture-recipient', { ...endpoint, id: second });
+  await until(() => adapter.routes.size === 2);
+  assert.deepEqual(adapter.snapshot().recipients.map(device => device.id), ['quick-share:' + key]);
+  await adapter.request('fixture-recipient', { id: first, present: false });
+  await until(() => adapter.routes.size === 1);
+  assert.equal(adapter.snapshot().recipients[0].endpointId, second);
+  const source = path.join(adapter.staging, 'f'.repeat(32), 'photo.txt');
+  await adapter.request('fixture', { id: 'unexpected', direction: 'incoming', phase: 'awaiting-acceptance',
+    name: 'Phone', files: ['photo.txt'], bytes: 0, total: 5, pinCode: '1234', stagedPaths: [source] });
+  await until(async () => (await adapter.request('decision')).accept === false);
+  await adapter.stop();
+  assert.equal(adapter.snapshot().mode, null);
+  assert.deepEqual(adapter.snapshot().recipients, []);
+  assert.equal(adapter.approvals.size, 0);
+});
+
+test('receive mode cannot initiate an outgoing transfer', async t => {
+  const adapter = await fixture(t, { mode: 'receive' });
+  assert.equal((await adapter.request('started')).mode, 'receive');
+  await assert.rejects(adapter.send({ recipientId: 'quick-share:peer', sources: ['/tmp/file'] }), /Choose Send/);
 });

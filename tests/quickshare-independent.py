@@ -238,7 +238,7 @@ def main(mode):
         helper = Helper(executable)
         try:
             assert helper.request('hello')['protocol'] == 1
-            port = helper.request('start', dict(port=0, name='Independent fixture', staging=root, protocolDiagnostics=mode=='binary'))['port']
+            port = helper.request('start', dict(port=0, mode='receive', name='Independent fixture', staging=root, protocolDiagnostics=mode=='binary'))['port']
             with socket.create_connection(('127.0.0.1', port), timeout=5) as raw:
                 sock = BleStream(raw) if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' and os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') != '1' else raw
                 endpoint = b'\x02' + bytes(16) + b'\x06Python'
@@ -389,6 +389,7 @@ def main(mode):
                     assert result['total'] == len(data) and len(result['stagedPaths']) == 1
                     received = Path(result['stagedPaths'][0])
                     assert received.parent.parent == Path(root) and received.name == filename
+                    assert received.stat().st_size == len(data), 'Independent file size mismatch'
                     assert hashlib.sha256(received.read_bytes()).digest() == hashlib.sha256(data).digest(), 'Independent file hash mismatch'
                 elif mode == 'decline':
                     helper.request('respond', dict(transferId=transfer_id, accept=False))
