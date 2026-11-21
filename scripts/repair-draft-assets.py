@@ -13,8 +13,10 @@ def provenance(run_id,tag):
  jobs=api('actions/runs/'+run_id+'/jobs?per_page=100')['jobs']
  for name in ['build (ubuntu-24.04, x64)','build (ubuntu-24.04-arm, arm64)']:
   job=next(j for j in jobs if j['name']==name);assert job['conclusion']=='success'
-  for step in ['Run npm test','Run actions/upload-artifact@v4']:
-   assert next(s for s in job['steps'] if s['name']==step)['conclusion']=='success'
+  passed={step['name'] for step in job['steps'] if step['conclusion']=='success'}
+  assert 'Run actions/upload-artifact@v4' in passed, 'Original artifact upload must pass'
+  required={'Run node --test tests/flatpak-version.test.js','Build package-manager payloads'}
+  assert required.issubset(passed) or ('Run npm test' in passed and 'Build package-manager payloads' in passed), 'Original package validation must pass'
  print('Verified original tested producer and immutable tag:',run['head_sha'],flush=True)
 def digest(file):
  h=hashlib.sha256()

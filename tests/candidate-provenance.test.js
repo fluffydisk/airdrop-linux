@@ -10,7 +10,8 @@ r.update(p.get('run',{}));j.update(p.get('job',{}))
 if 'step' in p:s[0].update(p['step'])
 if p.get('missing_gate'):s.pop(0)
 if p.get('missing_completion'):s.pop()
-print(json.dumps(verified_build(r,[j])))`,JSON.stringify(patch)],{encoding:'utf8'}));}
+jobs=[j]+([p['publication']] if 'publication' in p else [])
+print(json.dumps(verified_build(r,jobs,allow_publication_failure=p.get('recover',False))))`,JSON.stringify(patch)],{encoding:'utf8'}));}
 test('completed tested build is accepted while publication bookkeeping or aggregate status lags',()=>{assert.equal(verify({}),true);assert.equal(verify({run:{status:'completed',conclusion:'success'},job:{status:'completed',conclusion:'success'}}),true);});
 test('failed, cancelled, unfinished or missing validation steps never authorize candidate download',()=>{
  for(const conclusion of ['failure','cancelled','timed_out','skipped'])assert.equal(verify({step:{conclusion}}),false);
@@ -19,4 +20,14 @@ test('failed, cancelled, unfinished or missing validation steps never authorize 
 test('wrong repository, workflow, branch, run identity and failed aggregate conclusions fail closed',()=>{
  for(const run of [{head_branch:'feature'},{path:'.github/workflows/other.yml'},{head_repository:{full_name:'other/repo'}},{conclusion:'failure'},{conclusion:'cancelled'}])assert.equal(verify({run}),false);
  assert.equal(verify({job:{run_id:456}}),false);assert.equal(verify({job:{conclusion:'failure'}}),false);
+});
+
+test('recovery accepts only signed candidates with a successful build and a separate failed publication job',()=>{
+ const publication={name:'request-publication',run_id:123,status:'completed',conclusion:'failure'};
+ const candidate={run:{status:'completed',conclusion:'failure'},job:{status:'completed',conclusion:'success'},publication,recover:true};
+ assert.equal(verify(candidate),true);
+ assert.equal(verify({...candidate,recover:false}),false);
+ assert.equal(verify({...candidate,missing_gate:true}),false);
+ assert.equal(verify({...candidate,job:{conclusion:'failure'}}),false);
+ assert.equal(verify({...candidate,publication:{...publication,run_id:456}}),false);
 });

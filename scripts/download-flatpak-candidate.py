@@ -10,11 +10,11 @@ def api(path):return json.loads(subprocess.check_output(['gh','api',f'repos/{rep
 for attempt in range(13):
  run=api('actions/runs/'+a.run_id)
  jobs=api('actions/runs/'+a.run_id+'/jobs?per_page=100')['jobs']
- if verified_build(run,jobs):break
+ if verified_build(run,jobs,allow_publication_failure=True):break
  if run.get('conclusion') not in (None,'success'):raise RuntimeError('Candidate producer did not succeed')
  if attempt==12:raise RuntimeError('Candidate build did not complete all required validation steps')
  time.sleep(5)
-assert verified_build(run,jobs)
+assert verified_build(run,jobs,allow_publication_failure=True)
 print('Verified producer build, including all validation gates and final runner completion; publication bookkeeping is independent')
 a.output.mkdir();archive_dir=a.output/'download'
 subprocess.run(['gh','run','download',a.run_id,'--repo',repo,'--name','signed-flatpak-candidate','--dir',str(archive_dir)],check=True)

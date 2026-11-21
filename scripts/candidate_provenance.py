@@ -9,17 +9,31 @@ REQUIRED = {
     'Archive the tested unsigned candidate for protected signing',
 }
 
-def verified_build(run, jobs):
+def publication_only_failure(run, jobs):
+    if run.get('conclusion') != 'failure':
+        return False
+    publication = [job for job in jobs if job.get('name') == 'request-publication']
+    return (len(jobs) == 2 and len(publication) == 1
+            and publication[0].get('run_id') == run.get('id')
+            and publication[0].get('status') == 'completed'
+            and publication[0].get('conclusion') == 'failure')
+
+
+def verified_build(run, jobs, *, allow_publication_failure=False):
     if (run.get('head_branch') != 'main' or
         run.get('head_repository', {}).get('full_name') != REPOSITORY or
-        run.get('path') != WORKFLOW or
-        run.get('conclusion') not in (None, 'success')):
+        run.get('path') != WORKFLOW):
+        return False
+    if (run.get('conclusion') not in (None, 'success')
+            and not (allow_publication_failure and publication_only_failure(run, jobs))):
         return False
     builds = [job for job in jobs if job.get('name') == 'build']
     if len(builds) != 1:
         return False
     build = builds[0]
     if build.get('run_id') != run.get('id') or build.get('conclusion') not in (None, 'success'):
+        return False
+    if run.get('conclusion') == 'failure' and build.get('conclusion') != 'success':
         return False
     steps = build.get('steps') or []
     # Require every named validation gate, artifact upload, runner cleanup and

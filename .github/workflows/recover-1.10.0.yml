@@ -1,0 +1,58 @@
+name: Recover verified Airdrop 1.10.0 release
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/recover-1.10.0.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: recover-v1.10.0
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'fluffydisk/airdrop-linux' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCER_RUN: '44954381227'
+      FLATPAK_RUN: '44954381228'
+      RELEASE_TAG: v1.10.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Check original release provenance
+        run: |
+          test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
+          python3 scripts/repair-draft-assets.py "$PRODUCER_RUN" "$RELEASE_TAG"
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.PRODUCER_RUN }}
+          pattern: linux-*
+          merge-multiple: true
+          path: release
+      - run: npm ci --ignore-scripts
+      - run: node scripts/merge-release.js
+      - name: Finish and publish the existing release
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > "$RUNNER_TEMP/release-draft"; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Airdrop ${RELEASE_TAG#v}" --notes-file "docs/releases/$RELEASE_TAG.md"
+            echo true > "$RUNNER_TEMP/release-draft"
+          fi
+          if test "$(cat "$RUNNER_TEMP/release-draft")" = true; then
+            python3 scripts/repair-draft-assets.py "$PRODUCER_RUN" "$RELEASE_TAG" release
+            node scripts/test-release-update.js --draft
+            gh release edit "$RELEASE_TAG" --draft=false --latest
+          fi
+          node scripts/test-release-update.js --public
+      - name: Request protected APT, RPM and Flatpak publication
+        run: |
+          gh workflow run package-publishing.yml --ref main -f tag="$RELEASE_TAG" -f flatpak_run="$FLATPAK_RUN" -F publish=true
