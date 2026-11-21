@@ -1,0 +1,57 @@
+name: Rehearse signed v1.10.0 deployment
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/rehearse-signed-1.10.0.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rehearse-signed-v1.10.0
+  cancel-in-progress: true
+jobs:
+  rehearse:
+    if: github.repository == 'fluffydisk/airdrop-linux' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FLATPAK_RUN: '44954381228'
+      RELEASE_TAG: v1.10.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Fetch exact release and candidate
+        run: |
+          set -euo pipefail
+          test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
+          bash scripts/ci-command.sh Native-inputs node scripts/download-repository-assets.js "$RELEASE_TAG" incoming downloads --latest-only
+          bash scripts/ci-command.sh Flatpak-inputs python3 scripts/download-flatpak-candidate.py "$FLATPAK_RUN" flatpak-incoming
+          curl -fsSL --retry 3 https://github.com/fluffydisk/airdrop-linux/releases/download/v1.5.0/airdrop-linux-1.5.0-x86_64-reference-r2.flatpak -o flatpak-incoming/r2.flatpak
+          echo '9dcc5d18450eb1404ce1615ebf4cf55dac03eeb09958dc4c767353dfd0cfb9df  flatpak-incoming/r2.flatpak' | sha256sum -c -
+      - name: Install publication tools
+        run: |
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y apt-utils rpm createrepo-c gnupg gpgv flatpak ostree
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.flatpak.Builder
+      - name: Build and verify repositories with disposable signatures
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$RUNNER_TEMP/disposable-signing"
+          mkdir -m 700 "$GNUPGHOME"
+          trap 'gpgconf --kill gpg-agent; rm -rf "$GNUPGHOME"' EXIT
+          gpg --batch --pinentry-mode loopback --passphrase '' --quick-generate-key 'Airdrop publication rehearsal <test@example.invalid>' ed25519 sign 1d
+          export SIGNING_KEY_FINGERPRINT=$(gpg --with-colons --list-secret-keys | awk -F: '$1=="fpr" {print $10;exit}')
+          bash scripts/ci-command.sh Native-repository scripts/build-repository.sh incoming public
+          bash scripts/ci-command.sh Flatpak-promotion python3 scripts/flatpak_channel.py --candidate flatpak-incoming --public public --fingerprint "$SIGNING_KEY_FINGERPRINT" --r2 flatpak-incoming/r2.flatpak
+          bash scripts/ci-command.sh Pages-size python3 scripts/check-pages-tree.py public
+          export XDG_RUNTIME_DIR=$(mktemp -d "$RUNNER_TEMP/signed-lint-runtime.XXXXXX")
+          bash scripts/ci-command.sh Signed-repository-lint dbus-run-session -- flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder repo --ref=app/io.github.fluffydisk.airdrop-linux/x86_64/stable "$PWD/public/flatpak"
