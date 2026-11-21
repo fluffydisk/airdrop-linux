@@ -16,7 +16,13 @@ const { openFolder, dragFiles, withPortalFiles, retrieveClipboardFiles } = requi
 const paths = getPaths();
 const distribution = require('./core/lib/installation').distribution();
 const quickshareLab = require('./core/lib/sharing/lab-evidence').openLab({ directory: process.env.AIRDROP_QUICKSHARE_LAB_DIR, repository: path.resolve(__dirname, '..'), packaged: app.isPackaged, enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1' });
-if (process.platform === 'linux' && distribution.managed) {
+if (process.platform === 'linux' && quickshareLab) {
+  // Give all lab windows, including native consent dialogs, a distinct identity
+  // for narrowly scoped workspace isolation. Installed app windows keep theirs.
+  app.setName('airdrop-s24-lab');
+  app.setDesktopName('airdrop-s24-lab.desktop');
+  app.commandLine.appendSwitch('class', 'airdrop-s24-lab');
+} else if (process.platform === 'linux' && distribution.managed) {
   // Match the installed desktop file for portal identity and window grouping.
   app.setDesktopName('io.github.fluffydisk.airdrop-linux.desktop');
   app.commandLine.appendSwitch('class', 'io.github.fluffydisk.airdrop-linux');
@@ -79,26 +85,17 @@ function signInToProvider(){
 }
 let devicesReady, nearbyReady, quickshareReady;
 const nearby = new (require('./core/lib/nearby').Nearby)({
-  ...(quickshareLab ? { name: 'Airdrop S24 Lab', port: 0 } : {}),
+  ...(quickshareLab ? { name: quickshareLab.receiverName, port: 0 } : {}),
   maintenanceRoot: paths.root, directory: path.join(desktopData, 'nearby'), inbox: path.join(process.env.AIRDROP_SHARE_DIR || paths.files, 'Received'),
   approve: async request => {
     if (!window || window.isDestroyed() || quitting) return false;
-    window.show(); window.focus();
-    const pairing = request.type === 'pair';
-    const approval = new AbortController(), expiry = setTimeout(() => approval.abort(), 55000); expiry.unref();
-    try {
-    const response = await dialog.showMessageBox(window, {
-      signal: approval.signal, type: 'question', buttons: [pairing ? 'Pair device' : 'Accept files', 'Decline'], defaultId: 1, cancelId: 1,
-      message: pairing ? `Pair with “${request.name}”?` : `Receive files from “${request.name}”?`,
-      detail: pairing ? `Compare this code on both devices: ${request.code}\nOnly pair if the codes match. Pairing permits file transfer requests, with acceptance required. It grants no workspace or clipboard access.` :
-        `${request.code ? 'Compare this code on both devices: ' + request.code + '\n' : ''}${request.files.length} files · ${(request.total ?? request.files.reduce((n, f) => n + (f.size || 0), 0)).toLocaleString()} bytes\n${request.files.slice(0, 8).map(f => f.name).join('\n')}\n${quickshareLab ? 'Saved to the private lab inbox shown in the development panel.' : 'Saved to Airdrop/Received.'} Requests expire after 60 seconds.`
-    });
-    return response.response === 0;
-    } finally { clearTimeout(expiry); }
+    return require('./transfer-consent').approveTransfer(window, request, { dialog, lab: !!quickshareLab });
   }
 });
 nearby.on('progress', value => { if (window && !window.isDestroyed()) window.webContents.send('airdrop:peer-progress', value); });
-const quickshareDirectory = path.resolve(__dirname, '../.cache/quickshare', process.arch);
+const quickshareDirectory = app.isPackaged
+  ? path.join(process.resourcesPath, 'quickshare', process.arch)
+  : path.resolve(__dirname, '../.cache/quickshare', process.arch);
 let quickshareMetadata = {};
 try { quickshareMetadata = JSON.parse(fs.readFileSync(path.join(quickshareDirectory, 'helper.json'), 'utf8')); } catch {}
 const quickshare = new (require('./core/lib/sharing/quickshare').QuickShare)({
@@ -106,8 +103,9 @@ const quickshare = new (require('./core/lib/sharing/quickshare').QuickShare)({
   helper: path.join(quickshareDirectory, 'airdrop-quickshare'), sha256: quickshareMetadata.sha256,
   bleFastInit: process.env.AIRDROP_QUICKSHARE_BLE_FASTINIT === '1',
   bleNative: process.env.AIRDROP_QUICKSHARE_BLE_NATIVE === '1',
+  bleReceiveOnly: !!quickshareLab && process.env.AIRDROP_QUICKSHARE_BLE_RECEIVE_ONLY === '1',
   directory: path.join(desktopData, 'quickshare'), inbox: nearby.store.inbox,
-  ...(quickshareLab ? { name: 'Airdrop S24 Lab', port: 0, protocolDiagnostics: true } : {}),
+  ...(quickshareLab ? { name: quickshareLab.receiverName, port: 0, protocolDiagnostics: true } : {}),
   approve: request => quickshareLab ? quickshareLab.approve(() => nearby.approve(request)) : nearby.approve(request)
 });
 quickshareLab?.attach(quickshare);
@@ -151,7 +149,7 @@ async function readSettings() {
     const saved = JSON.parse(await fs.promises.readFile(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));
     pwaUrl = workspaceUrl(saved.pwaUrl);
   } catch {}
-  return { pwaUrl, deviceName: quickshareLab ? 'Airdrop S24 Lab' : os.hostname() };
+  return { pwaUrl, deviceName: quickshareLab ? quickshareLab.receiverName : os.hostname() };
 }
 async function openPwa() {
   if(devices.state.mode !== 'local')return shell.openExternal(`http://127.0.0.1:${process.env.AIRDROP_API_PORT || 6001}/ui/`);
@@ -462,19 +460,19 @@ else {
     nearbyReady.catch(() => {});
     quickshareReady = quickshare.start().catch(error => { quickshare.failure(error.message, false); }).finally(() => quickshareLab?.ready());
     Menu.setApplicationMenu(null);
-    window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: 'Airdrop',
+    const windowTitle = quickshareLab ? 'Airdrop S24 Lab — DEVELOPMENT ' + quickshareLab.marker.commit.slice(0, 12) : 'Airdrop';
+    window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: windowTitle,
       icon: path.join(__dirname, 'core/ui/icon-192.png'),
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
-    window.once('ready-to-show', () => window.show());
+    window.once('ready-to-show', () => quickshareLab ? window.showInactive() : window.show());
+    if (quickshareLab) window.on('page-title-updated', event => { event.preventDefault(); window.setTitle(windowTitle); });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());
     window.webContents.session.setPermissionRequestHandler((contents, permission, callback) => callback(false));
     registerIpc();
     await window.loadFile(path.join(__dirname, 'index.html'));
     if (quickshareLab) {
-      const title = 'Airdrop S24 Lab — DEVELOPMENT ' + quickshareLab.marker.commit.slice(0, 12);
-      window.setTitle(title);
-      window.on('page-title-updated', event => { event.preventDefault(); window.setTitle(title); });
+      window.setTitle(windowTitle);
     }
     // Without a StatusNotifier host, stay a normal window application.
     if (!process.env.AIRDROP_DISABLE_TRAY) {

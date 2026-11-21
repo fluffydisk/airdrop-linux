@@ -440,7 +440,8 @@ cp -a "$REPO_DIR/push-server.js" "$REPO_DIR/package.json" "$PUSH_DIR/"
 mkdir -p "$PUSH_DIR/lib" "$PUSH_DIR/bin" "$PUSH_DIR/ui" "$PUSH_DIR/scripts"
 cp -a "$REPO_DIR/scripts/migrate-layout.js" "$REPO_DIR/scripts/register-install.js" "$PUSH_DIR/scripts/"
 cp -a "$REPO_DIR/lib/." "$PUSH_DIR/lib/"
-cp -a "$REPO_DIR/network" "$PUSH_DIR/"
+# Keep build caches out of installations and repeat-install test workspaces.
+tar -C "$REPO_DIR" --exclude='network/quickshare/target' -cf - network | tar -C "$PUSH_DIR" -xf -
 cp -a "$REPO_DIR/bin/." "$PUSH_DIR/bin/"
 cp -a "$REPO_DIR/ui/zip.js" "$PUSH_DIR/ui/"
 [[ -f "$REPO_DIR/package-lock.json" ]] && cp -a "$REPO_DIR/package-lock.json" "$PUSH_DIR/"

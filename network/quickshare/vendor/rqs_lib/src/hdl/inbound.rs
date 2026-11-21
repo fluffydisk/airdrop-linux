@@ -1,4 +1,4 @@
-// Modified by Airdrop Linux, 2026-11-10; see network/quickshare/MODIFICATIONS.md.
+// Modified by Airdrop Linux, 2026-11-15; see network/quickshare/MODIFICATIONS.md.
 use crate::receive_safety::{MAX_BYTES, MAX_FILES, safe_name};
 use std::fs::{File, OpenOptions};
 use std::os::unix::fs::FileExt;
@@ -188,6 +188,7 @@ pub struct InboundRequest<S = TcpStream> {
     prefix: crate::utils::LengthPrefix,
     pub state: InnerState,
     receive_directory: Option<PathBuf>,
+    diagnostics_seen: std::collections::HashSet<&'static str>,
     sender: Sender<ChannelMessage>,
     receiver: Receiver<ChannelMessage>,
     /// Set (BLE sessions) to enable offering a Wi-Fi bandwidth upgrade once the
@@ -217,6 +218,20 @@ pub struct InboundRequest<S = TcpStream> {
 }
 
 impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
+    fn diagnostic(&mut self, stage: &'static str) {
+        if !self.diagnostics_seen.insert(stage) {
+            return;
+        }
+        crate::lab_trace::event(stage, 0, 0);
+        let _ = self.sender.send(ChannelMessage {
+            id: self.state.id.clone(),
+            msg: channel::Message::Diagnostic {
+                kind: TransferKind::Inbound,
+                stage,
+                cause: "none",
+            },
+        });
+    }
     pub fn new(socket: S, id: String, sender: Sender<ChannelMessage>) -> Self {
         let receiver = sender.subscribe();
 
@@ -224,6 +239,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             prefix: Default::default(),
             socket,
             receive_directory: None,
+            diagnostics_seen: Default::default(),
             state: InnerState {
                 id,
                 server_seq: 0,
@@ -496,9 +512,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             return Err(anyhow!("value"));
         }
 
+        crate::lab_trace::event("frame-header", msg_length as u64, 0);
         // Allocate buffer for the actual message and read it
         let mut frame_data = vec![0u8; msg_length];
         stream_read_exact(&mut self.socket, &mut frame_data).await?;
+        crate::lab_trace::event("frame-body-read", msg_length as u64, 0);
 
         let current_state = &self.state;
         // Now determine what will be the request type based on current state
@@ -857,6 +875,11 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         }
 
         let offline = location_nearby_connections::OfflineFrame::decode(d2d_msg.message())?;
+        crate::lab_trace::event(
+            "offline-decoded",
+            offline.v1.as_ref().map(|v| v.r#type() as u64).unwrap_or(0),
+            0,
+        );
         self.process_offline_frame(offline).await
     }
 
@@ -885,6 +908,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                     .payload_header
                     .as_ref()
                     .ok_or_else(|| anyhow!("Missing required fields"))?;
+                crate::lab_trace::event("payload-header", header.r#type() as u64, 0);
                 let chunk = payload_transfer
                     .payload_chunk
                     .as_ref()
@@ -1053,6 +1077,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                         if self.state.state != TransferState::ReceivingFiles {
                             return Err(anyhow!("File data before consent"));
                         }
+                        self.diagnostic("encrypted-file-frame-received");
                         info!("Processing PayloadType::File");
                         let payload_id = header.id();
 
@@ -1089,6 +1114,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                                 .unwrap()
                                 .write_all_at(chunk.body(), current_offset as u64)?;
                             file_internal.bytes_transferred += chunk_size as i64;
+                            crate::lab_trace::event("file-body-written", chunk_size as u64, 0);
 
                             self.update_state(
                                 |e| {
@@ -1139,18 +1165,37 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                 self.send_keepalive(true).await?;
             }
             location_nearby_connections::v1_frame::FrameType::BandwidthUpgradeNegotiation => {
-                // A BWU frame outside do_bwu: the phone finishing (or retrying)
-                // the channel switch late. Answer LAST_WRITE so it can close
-                // its prior channel instead of timing the session out.
                 use location_nearby_connections::bandwidth_upgrade_negotiation_frame::EventType;
-                let event = v1_frame
+                let bwu = v1_frame
                     .bandwidth_upgrade_negotiation
                     .as_ref()
-                    .map(|b| b.event_type());
-                debug!("Late BWU frame: {event:?}");
-                if event == Some(EventType::LastWriteToPriorChannel) {
-                    let frame = Self::bwu_frame(EventType::SafeToClosePriorChannel, None, None);
-                    let _ = self.encrypt_and_send(&frame).await;
+                    .ok_or_else(|| anyhow!("Missing bandwidth upgrade body"))?;
+                match bwu.event_type() {
+                    EventType::UpgradePathAvailable => {
+                        self.diagnostic("bwu-offer-received");
+                        // No replacement channel has been authenticated/installed
+                        // in this path. Decline over the existing encrypted channel
+                        // (Google BwuManager::RunUpgradeFailedProtocol). Preserve
+                        // the path info on the wire, never in diagnostics.
+                        let path = bwu
+                            .upgrade_path_info
+                            .clone()
+                            .ok_or_else(|| anyhow!("Missing upgrade path"))?;
+                        self.encrypt_and_send(&Self::bwu_frame(
+                            EventType::UpgradeFailure,
+                            Some(path),
+                            None,
+                        ))
+                        .await?;
+                        self.diagnostic("bwu-offer-rejected");
+                    }
+                    EventType::LastWriteToPriorChannel | EventType::SafeToClosePriorChannel => {
+                        // A SAFE_TO_CLOSE reply requires a real installed handoff.
+                        // Do not invite the peer to close our only transport.
+                        self.diagnostic("bwu-unexpected-handoff");
+                    }
+                    EventType::UpgradeFailure => self.diagnostic("bwu-peer-failure"),
+                    _ => self.diagnostic("bwu-unsupported-event"),
                 }
             }
             location_nearby_connections::v1_frame::FrameType::AutoResume => {
@@ -1615,8 +1660,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             }),
         };
 
+        crate::lab_trace::event("consent-received", 1, 0);
+        crate::lab_trace::event("consent-response-enter", 0, 0);
         self.send_encrypted_frame(&frame).await?;
 
+        // Queued to this session's stream; not proof of remote receipt.
+        self.diagnostic("consent-response-written");
         self.update_state(
             |e| {
                 e.state = TransferState::ReceivingFiles;
@@ -1868,8 +1917,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         prefixed_length.extend_from_slice(&length_bytes);
         prefixed_length.extend_from_slice(&data);
 
+        crate::lab_trace::event("frame-write-enter", prefixed_length.len() as u64, 0);
         self.socket.write_all(&prefixed_length).await?;
         self.socket.flush().await?;
+        crate::lab_trace::event("frame-write-return", prefixed_length.len() as u64, 0);
 
         Ok(())
     }
@@ -1904,6 +1955,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
     {
         let previous = self.state.state.clone();
         f(&mut self.state);
+        if previous != self.state.state {
+            crate::lab_trace::event("state", self.state.state.clone() as u64, 0);
+        }
 
         if !inform && previous == self.state.state {
             return;

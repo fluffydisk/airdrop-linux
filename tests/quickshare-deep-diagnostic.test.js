@@ -1387,3 +1387,73 @@ test("cleanup evidence is bounded and private, survives teardown, and does not e
   });
   assert.equal(pending.diagnostics.advertisingCleanup.ownerScopeClosed, false);
 });
+
+test('post-consent BLE failure preserves the first failed boundary and exports only closed session categories', () => {
+  const evidence=new Evidence('a'.repeat(32));
+  evidence.connection({id:'private-session',direction:'incoming',connectionMethod:'ble-l2cap'});
+  for(const stage of ['ReceivedConnectionRequest','SentUkeyServerInit','ReceivedUkeyClientFinish','SentConnectionResponse','SentPairedKeyResult','ReceivedPairedKeyResult','WaitingForUserConsent','ReceivingFiles']) evidence.protocol({id:'private-session',direction:'incoming',protocolStage:stage});
+  evidence.consent(true);
+  evidence.transfer({id:'private-session',direction:'incoming',phase:'transferring',bytes:0,total:49});
+  evidence.session({id:'private-session',direction:'incoming',stage:'consent-response-written',cause:'none',pinCode:'0123'});
+  evidence.session({id:'private-session',direction:'incoming',stage:'l2cap-socket-read-failed',cause:'connection-reset',raw:secrets.join('\n')});
+  evidence.session({id:'private-session',direction:'incoming',stage:'l2cap-socket-read-failed',cause:secrets[0]});
+  evidence.session({id:'private-session',direction:'incoming',stage:secrets[0],cause:'none'});
+  evidence.protocol({id:'private-session',direction:'incoming',protocolStage:'Disconnected'});
+  evidence.transfer({id:'private-session',direction:'incoming',phase:'interrupted',bytes:0,total:49});
+  evidence.event('shutdown-requested');
+  const {report}=deep.create({desktop:evidence.value,owner:{recipientVisible:true,nativeCompleted:false}});
+  noSecrets(report);
+  assert.ok(report.findings.some(f=>f.kind==='inbound-post-consent-no-payload'));
+  assert.equal(report.findings.some(f=>f.kind==='inbound-handshake-incomplete'),false);
+  assert.equal(report.transfer.sessionDiagnostics.length,2);
+  assert.equal(report.transfer.sessionDiagnostics[1].cause,'connection-reset');
+  assert.equal(report.transfer.localPayloadCompletionObserved,false);
+  assert.equal(report.transfer.receiverFinalizationObserved,false);
+  assert.equal(report.owner.nativeCompleted,'unknown');
+  assert.equal(JSON.stringify(report).includes('0123'),false);
+});
+
+test('physical b3bb186 post-consent 0/49 capture has no invented socket cause, reset or transfer success',()=>{
+  const f=require('./fixtures/quickshare-s24-post-consent.json');
+  const first=Date.parse(f.events[0][0]);
+  const events=f.events.map(([at,stage])=>{
+    const base={at,elapsedMs:Date.parse(at)-first,attempt:'attempt-2',direction:'incoming'};
+    if(stage==='incoming')return {...base,type:'connection',connectionMethod:'ble-l2cap'};
+    if(stage==='consent-accepted')return {...base,type:'consent',accepted:true};
+    if(['awaiting-acceptance','transferring','interrupted'].includes(stage))return {...base,type:'transfer',phase:stage,bytes:0,total:49};
+    return {...base,type:'protocol',stage};
+  });
+  const {report}=deep.create({direction:'samsung-to-linux',owner:f.subsequentOwnerObservation,desktop:{events,peakBluetooth:{diagnostics:{counters:f.counters}}}});
+  assert.equal(f.commit,'b3bb1869d5be0e9e95b5dff910110df48d314344');
+  assert.equal(report.transfer.selectedTransport,'ble-l2cap');
+  assert.equal(report.transfer.sessionDiagnostics.length,0,'old IO counter has no errno/direction');
+  assert.equal(report.transfer.receiverFinalizationObserved,false);
+  assert.equal(report.transfer.outcome,'unconfirmed');
+  assert.equal(report.productionAcceptanceEstablished,false);
+  assert.ok(report.findings.some(v=>v.kind==='inbound-post-consent-no-payload'));
+  assert.equal(report.findings.some(v=>v.kind==='adapter-runtime-interrupted'),false);
+  assert.equal(report.bluetooth.receiverAdvertising.succeeded,1);
+  assert.equal(report.bluetooth.receiverAdvertising.failed,10);
+  assert.equal(Date.parse(f.events.find(v=>v[1]==='Disconnected')[0])-Date.parse(f.events.find(v=>v[1]==='consent-accepted')[0]),1675);
+  noSecrets(report);
+});
+
+test('physical receive-only S24 trace preserves socket timeout and never promotes matching codes or phone status into receipt', () => {
+  const f = require('./fixtures/quickshare-s24-link-timeout.json');
+  const { report } = deep.create({ direction: 'samsung-to-linux', desktop: { events: f.events }, owner: { recipientVisible: true, nativeCompleted: true } });
+  assert.equal(report.owner.nativeCompleted, 'confirmed');
+  assert.equal(f.ownerCodesMatched, true);
+  assert.equal(f.receivedRegularFiles, 0);
+  assert.equal(f.kernel.hciDisconnectStatus, 0);
+  assert.equal(f.kernel.hciDisconnectReason, 8);
+  assert.equal(f.kernel.channelClosures.length, 3);
+  for (const c of f.kernel.channelClosures) {
+    assert.equal(c.errno, 110); assert.ok(c.tx_credits > 0); assert.ok(c.rx_credits > 0); assert.equal(c.queued, 0);
+  }
+  assert.ok(report.transfer.sessionDiagnostics.some(e => e.stage === 'l2cap-socket-read-failed' && e.cause === 'timed-out'));
+  assert.equal(report.transfer.localPayloadCompletionObserved, false);
+  assert.equal(report.transfer.receiverFinalizationObserved, false);
+  assert.equal(report.productionAcceptanceEstablished, false);
+  assert.notEqual(report.transfer.outcome, 'completed');
+  noSecrets(report);
+});

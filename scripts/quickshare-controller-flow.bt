@@ -1,0 +1,38 @@
+/* Linux 7.2.8-9-omarchy BTF/signatures, bounded 180-second scalar trace.
+ * Counts host-to-driver packets and Number Of Completed Packets callbacks.
+ * A controller completion is a buffer-accounting event, NOT file completion.
+ * No payload, identity, address, handle, key, code, filename or socket data.
+ * hci_event.c calls hci_conn_tx_dequeue once per completed packet; gate on that
+ * callback so cleanup/flush dequeue calls cannot manufacture completions.
+ */
+BEGIN { @start=nsecs; @events=0; @acl_queue=0; @le_queue=0; @acl_complete=0; @le_complete=0; printf("event=capture_started seconds=180 limit=512 counters=host_driver_and_controller_completion\n"); }
+kprobe:bluetooth:hci_num_comp_pkts_evt { @completion[tid]=1; }
+kretprobe:bluetooth:hci_num_comp_pkts_evt { delete(@completion[tid]); }
+kprobe:bluetooth:hci_conn_tx_queue {
+ $c=(struct hci_conn *)arg0;
+ if ($c->type==1) { @acl_queue=@acl_queue+1; }
+ if ($c->type==128 && $c->role==1) { @le_queue=@le_queue+1; }
+}
+kprobe:bluetooth:hci_conn_tx_dequeue /@completion[tid]/ {
+ $c=(struct hci_conn *)arg0;
+ if ($c->type==1) { @acl_complete=@acl_complete+1; }
+ if ($c->type==128 && $c->role==1) { @le_complete=@le_complete+1; }
+}
+kprobe:bluetooth:hci_le_conn_update_complete_evt {
+ if (@events>=512) { exit(); } @events=@events+1;
+ $e=(struct hci_ev_le_conn_update_complete *)arg1;
+ printf("ms=%llu event=le_parameters_updated status=%u interval=%u latency=%u timeout=%u\n",(uint64)((nsecs-@start)/1000000),$e->status,$e->interval,$e->latency,$e->supervision_timeout);
+}
+kprobe:bluetooth:l2cap_disconn_cfm {
+ $c=(struct hci_conn *)arg0;
+ if ($c->type==128) {
+  if (@events>=512) { exit(); } @events=@events+1;
+  printf("ms=%llu event=le_disconnect reason=%u role=%u sent=%u le_credits_available=%u acl_credits_available=%u\n",(uint64)((nsecs-@start)/1000000),(uint8)arg1,$c->role,$c->sent,$c->hdev->le_cnt,$c->hdev->acl_cnt);
+ }
+}
+interval:s:1 {
+ if (@events>=512) { exit(); } @events=@events+1;
+ printf("ms=%llu event=packet_totals acl_queued=%llu acl_completed=%llu le_peripheral_queued=%llu le_peripheral_completed=%llu\n",(uint64)((nsecs-@start)/1000000),@acl_queue,@acl_complete,@le_queue,@le_complete);
+}
+interval:s:180 { exit(); }
+END { clear(@start); clear(@events); clear(@acl_queue); clear(@le_queue); clear(@acl_complete); clear(@le_complete); clear(@completion); printf("event=capture_ended\n"); }

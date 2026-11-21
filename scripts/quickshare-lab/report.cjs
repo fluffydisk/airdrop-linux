@@ -12,6 +12,7 @@ function timeline(input) {
   return input.slice(-2000).flatMap(v => {
     if (!v || !Number.isSafeInteger(v.elapsedMs) || v.elapsedMs < 0) return [];
     const base = { elapsedMs: v.elapsedMs };
+    if(v.type==='session'&&/^attempt-[1-9][0-9]{0,2}$/.test(v.attempt||'')&&['incoming','outgoing'].includes(v.direction)&&diagnostic.SESSION_STAGES.has(v.stage)&&diagnostic.SESSION_CAUSES.has(v.cause))return [{...base,type:'session',attempt:v.attempt,direction:v.direction,stage:v.stage,cause:v.cause}];
     if(v.type==='connection'&&/^attempt-[1-9][0-9]{0,2}$/.test(v.attempt||'')&&diagnostic.CONNECTION_METHODS.has(v.connectionMethod)&&['incoming','outgoing'].includes(v.direction))return [{...base,type:'connection',attempt:v.attempt,direction:v.direction,connectionMethod:v.connectionMethod}];
     if(v.type==='finalization'&&/^attempt-[1-9][0-9]{0,2}$/.test(v.attempt||'')&&diagnostic.FINALIZATION_STAGES.has(v.stage)&&['incoming','outgoing'].includes(v.direction))return [{...base,type:'finalization',attempt:v.attempt,direction:v.direction,stage:v.stage}];
     if (v.type === 'protocol' && /^attempt-[1-9][0-9]{0,2}$/.test(v.attempt || '') && PROTOCOL_STAGES.has(v.stage) && ['incoming', 'outgoing'].includes(v.direction)) return [{ ...base, type: 'protocol', attempt: v.attempt, stage: v.stage, direction: v.direction }];

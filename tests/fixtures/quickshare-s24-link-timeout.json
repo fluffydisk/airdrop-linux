@@ -1,0 +1,601 @@
+{
+  "provenance": "2026-11-15 real S24 native Quick Share, receive-only lab, metadata-only installed-kernel probe; no completed file",
+  "ownerCodesMatched": true,
+  "ownerObservation": "recipient visible; errors after a few seconds, including while waiting at matching verification codes",
+  "fixtureBytes": 49,
+  "receivedRegularFiles": 0,
+  "events": [
+    {
+      "at": "2026-11-15T17:05:07.800Z",
+      "elapsedMs": 52880,
+      "type": "protocol",
+      "attempt": "attempt-1",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:07.820Z",
+      "elapsedMs": 52900,
+      "type": "transfer",
+      "attempt": "attempt-1",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 0
+    },
+    {
+      "at": "2026-11-15T17:05:09.390Z",
+      "elapsedMs": 54470,
+      "type": "connection",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "connectionMethod": "ble-l2cap"
+    },
+    {
+      "at": "2026-11-15T17:05:09.480Z",
+      "elapsedMs": 54559,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "l2cap-control-received",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:09.629Z",
+      "elapsedMs": 54709,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "l2cap-data-received",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:09.630Z",
+      "elapsedMs": 54709,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "l2cap-ack-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:09.630Z",
+      "elapsedMs": 54710,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "ReceivedConnectionRequest"
+    },
+    {
+      "at": "2026-11-15T17:05:09.727Z",
+      "elapsedMs": 54807,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "SentUkeyServerInit"
+    },
+    {
+      "at": "2026-11-15T17:05:09.727Z",
+      "elapsedMs": 54807,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "l2cap-data-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:09.836Z",
+      "elapsedMs": 54915,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "ReceivedUkeyClientFinish"
+    },
+    {
+      "at": "2026-11-15T17:05:09.838Z",
+      "elapsedMs": 54917,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "SentConnectionResponse"
+    },
+    {
+      "at": "2026-11-15T17:05:09.976Z",
+      "elapsedMs": 55056,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "SentPairedKeyResult"
+    },
+    {
+      "at": "2026-11-15T17:05:09.993Z",
+      "elapsedMs": 55073,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "ReceivedPairedKeyResult"
+    },
+    {
+      "at": "2026-11-15T17:05:10.119Z",
+      "elapsedMs": 55199,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "WaitingForUserConsent"
+    },
+    {
+      "at": "2026-11-15T17:05:10.122Z",
+      "elapsedMs": 55201,
+      "type": "verification-available"
+    },
+    {
+      "at": "2026-11-15T17:05:10.182Z",
+      "elapsedMs": 55261,
+      "type": "transfer",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "phase": "awaiting-acceptance",
+      "bytes": 0,
+      "total": 49
+    },
+    {
+      "at": "2026-11-15T17:05:14.816Z",
+      "elapsedMs": 59895,
+      "type": "consent",
+      "accepted": true
+    },
+    {
+      "at": "2026-11-15T17:05:14.819Z",
+      "elapsedMs": 59899,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "consent-response-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:14.820Z",
+      "elapsedMs": 59899,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "ReceivingFiles"
+    },
+    {
+      "at": "2026-11-15T17:05:14.822Z",
+      "elapsedMs": 59902,
+      "type": "transfer",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "phase": "transferring",
+      "bytes": 0,
+      "total": 49
+    },
+    {
+      "at": "2026-11-15T17:05:15.597Z",
+      "elapsedMs": 60676,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "l2cap-socket-read-failed",
+      "cause": "timed-out"
+    },
+    {
+      "at": "2026-11-15T17:05:15.597Z",
+      "elapsedMs": 60676,
+      "type": "session",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "l2cap-bridge-closed",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:15.597Z",
+      "elapsedMs": 60676,
+      "type": "protocol",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:15.602Z",
+      "elapsedMs": 60682,
+      "type": "transfer",
+      "attempt": "attempt-2",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 49
+    },
+    {
+      "at": "2026-11-15T17:05:20.970Z",
+      "elapsedMs": 66049,
+      "type": "protocol",
+      "attempt": "attempt-3",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:20.973Z",
+      "elapsedMs": 66052,
+      "type": "transfer",
+      "attempt": "attempt-3",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 0
+    },
+    {
+      "at": "2026-11-15T17:05:27.389Z",
+      "elapsedMs": 72469,
+      "type": "connection",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "connectionMethod": "ble-l2cap"
+    },
+    {
+      "at": "2026-11-15T17:05:27.479Z",
+      "elapsedMs": 72559,
+      "type": "session",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "l2cap-control-received",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:27.638Z",
+      "elapsedMs": 72718,
+      "type": "session",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "l2cap-data-received",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:27.639Z",
+      "elapsedMs": 72719,
+      "type": "protocol",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "ReceivedConnectionRequest"
+    },
+    {
+      "at": "2026-11-15T17:05:27.639Z",
+      "elapsedMs": 72719,
+      "type": "session",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "l2cap-ack-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:27.650Z",
+      "elapsedMs": 72730,
+      "type": "protocol",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "SentUkeyServerInit"
+    },
+    {
+      "at": "2026-11-15T17:05:27.650Z",
+      "elapsedMs": 72730,
+      "type": "session",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "l2cap-data-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:27.798Z",
+      "elapsedMs": 72878,
+      "type": "protocol",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "ReceivedUkeyClientFinish"
+    },
+    {
+      "at": "2026-11-15T17:05:27.800Z",
+      "elapsedMs": 72879,
+      "type": "protocol",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "SentConnectionResponse"
+    },
+    {
+      "at": "2026-11-15T17:05:32.819Z",
+      "elapsedMs": 77899,
+      "type": "session",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "l2cap-socket-read-failed",
+      "cause": "timed-out"
+    },
+    {
+      "at": "2026-11-15T17:05:32.819Z",
+      "elapsedMs": 77899,
+      "type": "session",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "l2cap-bridge-closed",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:32.819Z",
+      "elapsedMs": 77899,
+      "type": "protocol",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:32.823Z",
+      "elapsedMs": 77903,
+      "type": "transfer",
+      "attempt": "attempt-4",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 0
+    },
+    {
+      "at": "2026-11-15T17:05:38.100Z",
+      "elapsedMs": 83179,
+      "type": "protocol",
+      "attempt": "attempt-5",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:38.103Z",
+      "elapsedMs": 83182,
+      "type": "transfer",
+      "attempt": "attempt-5",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 0
+    },
+    {
+      "at": "2026-11-15T17:05:48.420Z",
+      "elapsedMs": 93500,
+      "type": "connection",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "connectionMethod": "ble-l2cap"
+    },
+    {
+      "at": "2026-11-15T17:05:48.508Z",
+      "elapsedMs": 93588,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "l2cap-control-received",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:48.689Z",
+      "elapsedMs": 93768,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "l2cap-data-received",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:48.689Z",
+      "elapsedMs": 93769,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "l2cap-ack-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:48.689Z",
+      "elapsedMs": 93769,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "ReceivedConnectionRequest"
+    },
+    {
+      "at": "2026-11-15T17:05:48.698Z",
+      "elapsedMs": 93778,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "SentUkeyServerInit"
+    },
+    {
+      "at": "2026-11-15T17:05:48.699Z",
+      "elapsedMs": 93779,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "l2cap-data-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:48.859Z",
+      "elapsedMs": 93938,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "ReceivedUkeyClientFinish"
+    },
+    {
+      "at": "2026-11-15T17:05:48.861Z",
+      "elapsedMs": 93940,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "SentConnectionResponse"
+    },
+    {
+      "at": "2026-11-15T17:05:48.992Z",
+      "elapsedMs": 94072,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "SentPairedKeyResult"
+    },
+    {
+      "at": "2026-11-15T17:05:49.007Z",
+      "elapsedMs": 94086,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "ReceivedPairedKeyResult"
+    },
+    {
+      "at": "2026-11-15T17:05:49.099Z",
+      "elapsedMs": 94179,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "WaitingForUserConsent"
+    },
+    {
+      "at": "2026-11-15T17:05:49.101Z",
+      "elapsedMs": 94180,
+      "type": "verification-available"
+    },
+    {
+      "at": "2026-11-15T17:05:49.131Z",
+      "elapsedMs": 94211,
+      "type": "transfer",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "phase": "awaiting-acceptance",
+      "bytes": 0,
+      "total": 49
+    },
+    {
+      "at": "2026-11-15T17:05:54.332Z",
+      "elapsedMs": 99411,
+      "type": "consent",
+      "accepted": true
+    },
+    {
+      "at": "2026-11-15T17:05:54.337Z",
+      "elapsedMs": 99417,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "consent-response-written",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:54.337Z",
+      "elapsedMs": 99417,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "ReceivingFiles"
+    },
+    {
+      "at": "2026-11-15T17:05:54.340Z",
+      "elapsedMs": 99420,
+      "type": "transfer",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "phase": "transferring",
+      "bytes": 0,
+      "total": 49
+    },
+    {
+      "at": "2026-11-15T17:05:54.842Z",
+      "elapsedMs": 99922,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "l2cap-socket-read-failed",
+      "cause": "timed-out"
+    },
+    {
+      "at": "2026-11-15T17:05:54.842Z",
+      "elapsedMs": 99922,
+      "type": "session",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "l2cap-bridge-closed",
+      "cause": "none"
+    },
+    {
+      "at": "2026-11-15T17:05:54.842Z",
+      "elapsedMs": 99922,
+      "type": "protocol",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:54.853Z",
+      "elapsedMs": 99933,
+      "type": "transfer",
+      "attempt": "attempt-6",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 49
+    },
+    {
+      "at": "2026-11-15T17:05:58.482Z",
+      "elapsedMs": 103561,
+      "type": "protocol",
+      "attempt": "attempt-7",
+      "direction": "incoming",
+      "stage": "Disconnected"
+    },
+    {
+      "at": "2026-11-15T17:05:58.485Z",
+      "elapsedMs": 103564,
+      "type": "transfer",
+      "attempt": "attempt-7",
+      "direction": "incoming",
+      "phase": "interrupted",
+      "bytes": 0,
+      "total": 0
+    }
+  ],
+  "kernel": {
+    "hciDisconnectStatus": 0,
+    "hciDisconnectReason": 8,
+    "leRole": 1,
+    "channelClosures": [
+      {
+        "ms": 59436,
+        "errno": 110,
+        "state": 1,
+        "tx_credits": 65499,
+        "rx_credits": 216,
+        "queued": 0,
+        "imtu": 4096,
+        "omtu": 65535,
+        "mps": 19
+      },
+      {
+        "ms": 76658,
+        "errno": 110,
+        "state": 1,
+        "tx_credits": 65519,
+        "rx_credits": 216,
+        "queued": 0,
+        "imtu": 4096,
+        "omtu": 65535,
+        "mps": 19
+      },
+      {
+        "ms": 98676,
+        "errno": 110,
+        "state": 1,
+        "tx_credits": 65499,
+        "rx_credits": 216,
+        "queued": 0,
+        "imtu": 4096,
+        "omtu": 65535,
+        "mps": 19
+      }
+    ]
+  }
+}

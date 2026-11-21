@@ -16,14 +16,14 @@ function source() {
   if (!/^[a-f0-9]{40}$/.test(commit)) throw Error('Run the lab from a Git checkout');
   return { commit, branch: probe('git', ['branch', '--show-current']).output || '(detached)', dirty: !!probe('git', ['status', '--porcelain']).output };
 }
-function fingerprint() {
-  const tracked = probe('git', ['ls-files', '-z', 'lib', 'desktop', 'scripts', 'network/quickshare', 'package-lock.json', 'package.json', 'packaging/runtime-sources.json']);
-  if (!tracked.ok) throw Error('Could not fingerprint tracked development sources');
-  const files = tracked.output.split('\0').filter(Boolean).sort();
+function fingerprint(root = ROOT) {
+  const tracked = probe('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z', 'lib', 'desktop', 'scripts', 'network/quickshare', 'package-lock.json', 'package.json', 'packaging/runtime-sources.json'], root);
+  if (!tracked.ok) throw Error('Could not fingerprint development sources');
+  const files = [...new Set(tracked.output.split('\0').filter(Boolean))].sort();
   const crypto = require('node:crypto'), hash = crypto.createHash('sha256');
   for (const name of files) {
-    const file = path.join(ROOT, name); const info = fs.lstatSync(file);
-    if (!info.isFile() || info.isSymbolicLink()) throw Error('Tracked build sources must be regular files');
+    const file = path.join(root, name); const info = fs.lstatSync(file);
+    if (!info.isFile() || info.isSymbolicLink()) throw Error('Build sources must be regular files');
     const bytes = fs.readFileSync(file); hash.update(name + '\0' + bytes.length + '\0'); hash.update(bytes);
   }
   return hash.digest('hex');

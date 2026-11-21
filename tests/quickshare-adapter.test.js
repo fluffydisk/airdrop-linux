@@ -195,3 +195,19 @@ test('coherent BLE and LAN discovery show one recipient and retain BLE fallback 
   assert.equal(adapter.recipients.size, 1); assert.equal(adapter.recipients.get(key).connectionMethod, 'ble-gatt');
   adapter.message({ v: 1, event: 'recipient', data: { ...bluetooth, present: false } }, 1); assert.equal(adapter.recipients.size, 0);
 });
+
+test('BLE receiver-only discovery is an explicit process-boundary opt-in', async t => {
+  const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
+  for (const receiveOnly of [false, true]) {
+    const adapter = await fixture(t, { bleNative: true, bleReceiveOnly: receiveOnly, spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe','pipe','pipe'], env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1' } }) });
+    const started = await adapter.request('started');
+    assert.equal(started.bleNative, true); assert.equal(started.bleReceiveOnly, receiveOnly);
+    await adapter.stop();
+  }
+});
+test('receiver-only mode fails closed for missing native opt-in or an older helper', async t => {
+  const disabled = new QuickShare({ enabled: true, bleReceiveOnly: true });
+  await assert.rejects(disabled.start(), /requires native BLE/);
+  const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
+  await assert.rejects(fixture(t, { bleNative: true, bleReceiveOnly: true, spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe','pipe','pipe'], env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1', QUICKSHARE_IPC_FIXTURE_OLD: '1' } }) }), /Rebuild the helper/);
+});

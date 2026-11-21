@@ -27,6 +27,7 @@ mod bytes_payload;
 pub mod channel;
 pub mod errors;
 pub mod hdl;
+pub mod lab_trace;
 pub mod manager;
 pub mod receive_safety;
 mod secure_payload;

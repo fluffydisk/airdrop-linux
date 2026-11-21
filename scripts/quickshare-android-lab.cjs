@@ -10,7 +10,7 @@ const readline = require('node:readline/promises');
 const { ROOT, preflight, instructions, helperFiles, hello, source, fingerprint } = require('./quickshare-lab/environment.cjs');
 const { prepareFixtures, hashDirectory, fixtureNames } = require('./quickshare-lab/fixtures.cjs');
 const { createReport, observations, LABELS, OUTCOMES } = require('./quickshare-lab/report.cjs');
-const { ownedDirectory, readJson, atomicJson } = require('../lib/sharing/lab-evidence');
+const { ownedDirectory, readJson, atomicJson, receiverName } = require('../lib/sharing/lab-evidence');
 const HELP = `Samsung Galaxy S24+ native Quick Share development lab
   --preflight                  Read-only environment/build/capability checks
   --prepare                    npm ci, build real Rust helper, prepare Electron/fixtures
@@ -21,6 +21,13 @@ const HELP = `Samsung Galaxy S24+ native Quick Share development lab
 Options:
   --workspace PATH             Private lab directory (default .cache/quickshare-lab)
   --ble-native                 Prepare native FEF3/GATT/LE CoC experiment
+  --receive-only               Disable outgoing BLE discovery for an inbound lab
+  --classic                    Lab-only native Bluetooth Classic receiver via BLE metadata
+  --classic-inquiry            Lab-only Classic discovery; temporarily changes adapter
+                               name/connectability/visibility, 90s visibility timeout + rollback
+  --completion-tx              Lab-only wait for real HCI completion between small sends
+  --small-sdu                  Lab-only 21-byte CoC sends; no timing or radio changes
+  --receiver-name NAME         Prepare a distinct test label, e.g. "Airdrop S24 T21"
   --ble-fastinit               Prepare with optional 120-second FE2C sender nudge
   --skip-install               Prepare using already installed locked Node dependencies
   --direction samsung-to-linux|linux-to-samsung
@@ -37,7 +44,7 @@ Options:
   --archive                    Archive approved reports (collect: two; diagnose: three)
   --non-interactive            Never ask questions; leave unobserved stages untested
 ADB is used only with --diagnose --adb and explicit owner consent.
-No sudo, persistent radio/firewall changes or automatic uploads are performed.
+No sudo, firewall changes or automatic uploads. Normal modes do not change adapter settings; --classic-inquiry uses a bounded temporary global adapter lease.
 See docs/quickshare-s24-test.md. BLE requires --ble-native at prepare; see the scoped physical LAN fixture evidence in docs/quickshare-s24-physical-evidence.md.`;
 function parse(argv) {
   const result = {}; const operations = ['preflight', 'prepare', 'start', 'status', 'collect', 'stop', 'supervise', 'diagnose', 'help'];
@@ -45,8 +52,8 @@ function parse(argv) {
     const key = argv[i].replace(/^--/, '');
     if (!argv[i].startsWith('--')) throw Error('Expected a --flag');
     if (operations.includes(key)) { if (result.operation) throw Error('Choose one operation'); result.operation = key; }
-    else if (['workspace', 'direction', 'case', 'record', 'readback', 'scenario', 'duration', 'network', 'apple-sharing'].includes(key)) { if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw Error('Missing option value'); result[key] = argv[++i]; }
-    else if (['skip-install', 'archive', 'non-interactive', 'ble-fastinit', 'ble-native', 'adb', 'authorize-adb'].includes(key)) result[key] = true;
+    else if (['workspace', 'direction', 'case', 'record', 'readback', 'scenario', 'duration', 'network', 'apple-sharing', 'receiver-name'].includes(key)) { if (!argv[i + 1] || argv[i + 1].startsWith('--')) throw Error('Missing option value'); result[key] = argv[++i]; }
+    else if (['skip-install', 'archive', 'non-interactive', 'ble-fastinit', 'ble-native', 'receive-only', 'small-sdu', 'completion-tx', 'classic', 'classic-inquiry', 'adb', 'authorize-adb'].includes(key)) result[key] = true;
     else throw Error('Unknown lab option: ' + argv[i]);
   }
   if (result.direction && !['samsung-to-linux', 'linux-to-samsung'].includes(result.direction)) throw Error('Invalid direction');
@@ -55,6 +62,12 @@ function parse(argv) {
   if (result.duration && (!/^\d{1,3}$/.test(result.duration)||Number(result.duration)<10||Number(result.duration)>600)) throw Error('Duration must be 10–600 seconds');
   if(result.network && !['ordinary','hotspot','school','other'].includes(result.network))throw Error('Invalid network scenario');
   if(result['apple-sharing'] && !['on','off','not-available'].includes(result['apple-sharing']))throw Error('Invalid Apple sharing comparison');
+  if (result['receive-only'] && result.operation === 'prepare' && !result['ble-native']) throw Error('--receive-only requires --ble-native');
+  if (result['classic'] && (result.operation !== 'prepare' || !result['ble-native'] || !result['receive-only'] || result['small-sdu'] || result['completion-tx'])) throw Error('--classic requires --prepare --ble-native --receive-only without CoC write experiments');
+  if (result['classic-inquiry'] && (result.operation !== 'prepare' || !result['classic'] || !result['ble-native'] || !result['receive-only'] || result['ble-fastinit'] || result['small-sdu'] || result['completion-tx'])) throw Error('--classic-inquiry requires inbound Classic without LE experiments');
+  if (result['completion-tx'] && !result['small-sdu']) throw Error('--completion-tx requires --small-sdu');
+  if (result['small-sdu'] && (result.operation !== 'prepare' || !result['ble-native'] || !result['receive-only'])) throw Error('--small-sdu requires --prepare --ble-native --receive-only');
+  if (result['receiver-name'] !== undefined) { if (result.operation !== 'prepare') throw Error('--receiver-name is a preparation option'); receiverName({ receiverName: result['receiver-name'] }); }
   return result;
 }
 function rootFor(options) { return path.resolve(options.workspace || path.join(ROOT, '.cache/quickshare-lab')); }
@@ -64,6 +77,11 @@ async function directory(root) {
 function markerFor(root) {
   ownedDirectory(root); const marker = readJson(path.join(root, 'lab.json'));
   if (marker.schema !== 1 || marker.repository !== sync.realpathSync(ROOT) || !/^[a-f0-9]{32}$/.test(marker.run || '')) throw Error('This is not a lab workspace for this checkout');
+  receiverName(marker);
+  if (marker.classicRequested && (!marker.bleNativeRequested || !marker.bleReceiveOnlyRequested || marker.smallSduRequested || marker.completionTxRequested)) throw Error('Invalid classic lab mode');
+  if (marker.classicInquiryRequested && (!marker.classicRequested || !marker.bleNativeRequested || !marker.bleReceiveOnlyRequested || marker.fastInitRequested || marker.smallSduRequested || marker.completionTxRequested)) throw Error('Invalid Classic inquiry lab mode');
+  if (marker.completionTxRequested && !marker.smallSduRequested) throw Error('Invalid completion TX lab mode');
+  if (marker.smallSduRequested && (!marker.bleNativeRequested || !marker.bleReceiveOnlyRequested)) throw Error('Invalid small SDU lab mode');
   return marker;
 }
 function control(root, command) {
@@ -115,7 +133,7 @@ async function prepare(options) {
   await run(process.execPath, [path.join(ROOT, 'scripts/prepare-desktop.js')]);
   const helper = await hello(); if (!helper.hashMatches || !helper.hello || helper.sourceCommit !== source().commit) throw Error('The built helper does not match the checkout/manifest');
   await prepareFixtures(path.join(root, 'fixtures'));
-  atomicJson(root, 'lab.json', { schema: 1, prepared: true, repository: sync.realpathSync(ROOT), ...source(), run: crypto.randomBytes(16).toString('hex'), preparedAt: new Date().toISOString(), fingerprint: fingerprint(), helperSha256: helper.sha256, helperVersion: helper.version, build: { compilerVersion: helper.compilerVersion, lockSha256: helper.lockSha256, sourceTreeSha256: helper.sourceTreeSha256, profile: helper.profile, ipc: helper.ipc, features: helper.features }, fastInitRequested: options['ble-fastinit'] === true, bleNativeRequested: options['ble-native'] === true });
+  atomicJson(root, 'lab.json', { schema: 1, prepared: true, repository: sync.realpathSync(ROOT), ...source(), run: crypto.randomBytes(16).toString('hex'), preparedAt: new Date().toISOString(), fingerprint: fingerprint(), helperSha256: helper.sha256, helperVersion: helper.version, build: { compilerVersion: helper.compilerVersion, lockSha256: helper.lockSha256, sourceTreeSha256: helper.sourceTreeSha256, profile: helper.profile, ipc: helper.ipc, features: helper.features }, fastInitRequested: options['ble-fastinit'] === true, bleNativeRequested: options['ble-native'] === true, classicRequested: options['classic'] === true, classicInquiryRequested: options['classic-inquiry'] === true, completionTxRequested: options['completion-tx'] === true, smallSduRequested: options['small-sdu'] === true, bleReceiveOnlyRequested: options['receive-only'] === true, receiverName: receiverName({ receiverName: options['receiver-name'] }) });
   console.log('\nPrepared isolated S24+ lab. No radio, firewall or system services were changed.');
   console.log('Fixtures: ' + path.join(root, 'fixtures') + '\nNext: bash scripts/quickshare-android-lab.sh --start' + (options.workspace ? ' --workspace ' + JSON.stringify(root) : ''));
 }
@@ -149,9 +167,9 @@ async function start(options) {
   console.log('DEVELOPMENT BUILD ' + marker.commit + (marker.dirty ? ' (modified sources)' : ''));
   console.log('Helper ' + helper.version + ' SHA-256 ' + helper.sha256);
   console.log('Compiled discovery capabilities: ' + JSON.stringify(helper.capabilities));
-  console.log('Native receiver name: Airdrop S24 Lab\nReceived files: ' + path.join(session, 'share/Received') + '\nUSB readback folder: ' + path.join(session, 'readback'));
+  console.log('Native receiver name: ' + receiverName(marker) + '\nReceived files: ' + path.join(session, 'share/Received') + '\nUSB readback folder: ' + path.join(session, 'readback'));
   console.log(JSON.stringify(runtime, null, 2));
-  console.log(marker.bleNativeRequested ? 'Experimental BLE/GATT requested. Registration is not proof of radio emission, Samsung discovery or authenticated transfer.' : 'LAN-only helper. Prepare with --ble-native for experimental BLE/GATT; startup does not prove Samsung compatibility.');
+  console.log(marker.classicInquiryRequested ? 'Classic inquiry experiment: temporary adapter name/connectability/visibility with 90s visibility timeout and independent rollback; no BLE advertisement. Visibility is not Samsung discovery or transfer proof.' : marker.bleNativeRequested ? 'Experimental BLE/GATT requested. Registration is not proof of radio emission, Samsung discovery or authenticated transfer.' : 'LAN-only helper. Prepare with --ble-native for experimental BLE/GATT; startup does not prove Samsung compatibility.');
   console.log('Use --status while testing, --collect for evidence, and --stop to close only this lab.');
 }
 function listener(port) {
@@ -164,7 +182,7 @@ function listener(port) {
 }
 async function supervise(options) {
   const root = rootFor(options), marker = markerFor(root), session = path.join(root, 'sessions', marker.run);
-  let server, child, bonjour, browser, timer, stopping = false, pollBusy = false;
+  let server, child, bonjour, browser, timer, classicWatcher, classicLeasePath, stopping = false, pollBusy = false;
   const runtime = { schema: 1, run: marker.run, status: 'starting', helperStatus: 'starting', listenerReachable: false, advertisements: { ownObserved: false, maxVisible: 0 }, startedAt: new Date().toISOString() };
   const save = () => atomicJson(root, 'runtime.json', runtime);
   const shutdown = async failed => {
@@ -178,6 +196,14 @@ async function supervise(options) {
       // In-memory ChildProcess only: never kill stored/reused PIDs or services.
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
       await stopped;
+    }
+    if (classicLeasePath) {
+      try { await fs.writeFile(classicLeasePath.replace(/\.json$/,'.stop'),'stop\n',{flag:'wx',mode:0o600}); } catch {}
+      let restored;
+      for(let n=0;n<80;n++){try{restored=readJson(classicLeasePath.replace(/\.json$/,'.result'));break;}catch{}await new Promise(r=>setTimeout(r,100));}
+      runtime.classicRadioCleanup={status:['restored','already-restored','no-mutation-acknowledged','incomplete','ownership-conflict','external-property-change','read-failed','rollback-unavailable'].includes(restored?.status)?restored.status:'pending',fullyRestored:restored?.fullyRestored===true};
+      if(!runtime.classicRadioCleanup.fullyRestored){runtime.failureCategory='CLASSIC_RADIO_CLEANUP_INCOMPLETE';runtime.status='failed';const n=spawn('notify-send',['-a','Airdrop Linux Lab','-u','critical','Airdrop Linux — Bluetooth geri alma kontrolü','Geçici Bluetooth ayarlarının geri alınması doğrulanamadı. Yeni test başlatma; Codex özel kontrol kaydını inceleyecek.'],{stdio:'ignore'});n.on('error',()=>{});}
+      try{save();}catch{}
     }
     browser?.stop(); bonjour?.destroy();
     server?.close();
@@ -203,12 +229,21 @@ async function supervise(options) {
     const { Bonjour } = require('bonjour-service'); bonjour = new Bonjour();
     browser = bonjour.find({ type: 'FC9F5ED42C8A', protocol: 'tcp' });
     const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('AIRDROP_') && !['ELECTRON_RUN_AS_NODE', 'ELECTRON_PATH', 'ELECTRON_OVERRIDE_DIST_PATH', 'APPIMAGE', 'FLATPAK_ID', 'SNAP', 'NODE_OPTIONS', 'NODE_PATH'].includes(key)));
-    Object.assign(env, { AIRDROP_HOME: path.join(session, 'home'), AIRDROP_SHARE_DIR: path.join(session, 'share'), AIRDROP_CODE_DIR: ROOT, AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_API_PORT: '0', AIRDROP_FILE_PORT: '0', AIRDROP_QUICKSHARE_BLE_FASTINIT: marker.fastInitRequested ? '1' : '0', AIRDROP_QUICKSHARE_BLE_NATIVE: marker.bleNativeRequested ? '1' : '0' });
+    Object.assign(env, { AIRDROP_S24_LAB_CLASSIC: marker.classicRequested === true ? '1' : '0', AIRDROP_S24_LAB_COMPLETION_TX: marker.completionTxRequested === true ? '1' : '0', AIRDROP_S24_LAB_SMALL_SDU: marker.smallSduRequested === true ? '1' : '0', AIRDROP_HOME: path.join(session, 'home'), AIRDROP_SHARE_DIR: path.join(session, 'share'), AIRDROP_CODE_DIR: ROOT, AIRDROP_QUICKSHARE_LAB_DIR: root, AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_DISABLE_TRAY: '1', AIRDROP_API_PORT: '0', AIRDROP_FILE_PORT: '0', AIRDROP_QUICKSHARE_BLE_FASTINIT: marker.fastInitRequested ? '1' : '0', AIRDROP_QUICKSHARE_BLE_NATIVE: marker.bleNativeRequested ? '1' : '0', AIRDROP_QUICKSHARE_BLE_RECEIVE_ONLY: marker.bleReceiveOnlyRequested ? '1' : '0' });
+    const trace = require('./quickshare-lab/trace-socket.cjs').traceSocket(process.env.AIRDROP_LAB_TRACE_SOCKET);
+    if (trace) env.AIRDROP_S24_LAB_TRACE_SOCKET = trace;
+    env.AIRDROP_S24_LAB_CLASSIC_INQUIRY=marker.classicInquiryRequested===true?'1':'0';
+    if(marker.classicInquiryRequested){
+      classicLeasePath=path.join(session,'classic-lease.json');env.AIRDROP_S24_LAB_CLASSIC_LEASE=classicLeasePath;
+      classicWatcher=spawn(process.execPath,[path.join(ROOT,'scripts/quickshare-lab/classic-radio-watch.cjs'),classicLeasePath],{cwd:ROOT,detached:true,stdio:'ignore'});
+      classicWatcher.on('error',()=>{runtime.failureCategory='CLASSIC_ROLLBACK_UNAVAILABLE';void shutdown(true);});
+      classicWatcher.on('exit',code=>{if(!stopping){const ready=runtime.bluetooth?.diagnostics?.counters?.classic_inquiry_ready>0;if(!ready)runtime.failureCategory='CLASSIC_INQUIRY_SETUP_FAILED';void shutdown(code!==0||!ready);}});classicWatcher.unref();
+    }
     const electronRoot = path.join(ROOT, 'desktop/node_modules/electron');
     if ((await fs.readFile(path.join(electronRoot, 'path.txt'), 'utf8')).trim() !== 'electron') throw Error('Unexpected development Electron executable');
     const executable = path.join(electronRoot, 'dist/electron');
     if ((await fs.lstat(executable)).isSymbolicLink() || (await fs.realpath(executable)) !== executable) throw Error('Electron must be the prepared source dependency');
-    const args = [path.join(ROOT, 'desktop')];
+    const args = [path.join(ROOT, 'desktop'), '--class=airdrop-s24-lab'];
     // A development test runner may choose a real X11/headless backend. No --no-sandbox.
     if (process.env.AIRDROP_LAB_OZONE) { if (!['x11', 'wayland', 'headless'].includes(process.env.AIRDROP_LAB_OZONE)) throw Error('Invalid Ozone backend'); args.push('--ozone-platform=' + process.env.AIRDROP_LAB_OZONE); }
     child = spawn(executable, args, { cwd: ROOT, env, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -236,7 +271,7 @@ async function supervise(options) {
         const localAddresses = new Set(Object.values(require('node:os').networkInterfaces()).flat().filter(Boolean).map(v => v.address));
         if (visible.some(service => {
           if (service.port !== state.helper.listenerPort || !(service.addresses || []).some(address => localAddresses.has(address))) return false;
-          try { const endpoint = Buffer.from(String(service.txt?.n || ''), 'base64url'); return endpoint.length >= 18 && endpoint.subarray(18, 18 + endpoint[17]).toString('utf8') === 'Airdrop S24 Lab'; } catch { return false; }
+          try { const endpoint = Buffer.from(String(service.txt?.n || ''), 'base64url'); return endpoint.length >= 18 && endpoint.subarray(18, 18 + endpoint[17]).toString('utf8') === receiverName(marker); } catch { return false; }
         })) runtime.advertisements.ownObserved = true;
         runtime.advertisements.maxVisible = Math.max(runtime.advertisements.maxVisible, visible.length);
         runtime.status = runtime.helperStatus === 'error' ? 'failed' : runtime.helperStatus === 'ready' ? 'running' : 'starting';

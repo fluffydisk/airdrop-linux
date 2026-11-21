@@ -66,8 +66,19 @@ jobs:
       - run: npm ci --prefix desktop
       - run: npm run prepare-desktop
       - run: npm run package --prefix desktop
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
+      - name: Build the experimental Quick Share helper for portable updates
+        run: |
+          sudo apt-get install -y protobuf-compiler pkg-config libdbus-1-dev
+          node scripts/build-quickshare.js --ble-native
       - run: node scripts/build-release.js
+        env:
+          AIRDROP_PACKAGE_EXPERIMENTAL_QUICK_SHARE: '1'
       - run: node scripts/build-appimage.js
+        env:
+          AIRDROP_PACKAGE_EXPERIMENTAL_QUICK_SHARE: '1'
       - name: Exercise the actual AppImage contents with Chromium sandboxing
         timeout-minutes: 10
         run: |
@@ -185,7 +196,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          test "$version" = 1.9.0
+          test "$version" = 1.9.1
           gh release edit "v$version" --draft=false --latest
           node scripts/test-release-update.js --public
           # The tested Flatpak producer requests the combined protected publish.

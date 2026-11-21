@@ -22,6 +22,7 @@ dependencies = [
  "dbus-crossroads",
  "dbus-tokio",
  "futures",
+ "libc",
  "prost",
  "rand",
  "rqs_lib",

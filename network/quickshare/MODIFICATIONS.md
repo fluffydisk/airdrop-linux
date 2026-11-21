@@ -108,3 +108,33 @@ fixed tags only; raw messages and identifiers remain excluded. Controller MGMT
 completion and initial RF visibility are explicitly unproven. No transport,
 cryptography, consent, staging or feature-default change is included. All new
 code is original GPL-3.0-only work using the existing dependencies.
+
+2026-11-15 post-consent follow-up (stacked on PR #22):
+
+- `channel.rs`: private session-boundary diagnostics contain closed stage/cause
+  constants only. No error strings, verification codes or payloads are exported.
+- `hdl/inbound.rs`: report successful local encrypted consent-response writing
+  separately from remote receipt; report authenticated file/BWU boundaries once.
+  Reject unsolicited unsupported `UPGRADE_PATH_AVAILABLE` on the current encrypted
+  channel with `UPGRADE_FAILURE` and original path information. Never send
+  `SAFE_TO_CLOSE_PRIOR_CHANNEL` without an installed replacement transport.
+  The helper still has LAN upgrade disabled; dormant experimental wireless stays
+  disabled. No cryptographic, consent, payload-limit or publication bypass.
+- Wire behavior checked against Google's `BwuManager::RunUpgradeFailedProtocol`
+  and `OnBandwidthUpgradeNegotiationFrame` in google/nearby at the source revision
+  documented in `docs/quickshare-s24-post-consent.md`. Independent Python/OpenSSL
+  fixtures authenticate/decrypt the consent response and BWU failure, and verify
+  payload integrity through the active BLE byte-stream bridge. Tests do not
+  constitute Android hardware interoperability evidence.
+
+## 2026-11-17: T30 opt-in cross-layer observation
+
+Added `rqs_lib::lab_trace`, a bounded nonblocking Unix datagram metadata sink,
+active only with an explicit lab trace socket. Inbound frame/state/consent/file
+write progress gets origin CLOCK_MONOTONIC timestamps; native Classic wraps the
+actual stream to observe read/write completion/EOF and shutdown. No payload,
+filename, address, verification code or cryptographic material is serialized.
+Transport policy, deadlines, authentication, framing and radio configuration are
+unchanged. Receiver progress is never inferred from telemetry or socket writes.
+Tests cover full-sink nonblocking loss, fixed-schema privacy, monotonic clock and
+unchanged byte/backpressure/EOF/shutdown behavior.

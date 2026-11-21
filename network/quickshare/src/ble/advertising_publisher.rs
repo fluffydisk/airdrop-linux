@@ -86,7 +86,7 @@ async fn cleanup(
         error_name: "none",
         category: "none",
         age_ms: registered_at.elapsed().as_millis().min(1_000_000_000) as u64,
-        lease_ms: LEASE.as_millis() as u64,
+        lease_ms: RECEIVER_TIMEOUT.as_millis() as u64,
         daemon_release_before_cleanup: released.load(Ordering::Relaxed),
         daemon_release_during_cleanup: false,
         io_stopped: false,
@@ -224,7 +224,8 @@ pub async fn publish(adapter_name: &str, a: Advertisement, status: &mut Status) 
                 .map(|(uuid, data)| (uuid.to_string(), dbus::arg::Variant(data.clone())))
                 .collect())
         });
-        b.property::<u16, _>("Timeout").get(|_, _| Ok(120));
+        b.property::<u16, _>("Timeout")
+            .get(|_, a| Ok(a.timeout.map(|v| v.as_secs() as u16).unwrap_or(0)));
         if extended {
             b.property::<String, _>("SecondaryChannel")
                 .get(|_, _| Ok("1M".into()));

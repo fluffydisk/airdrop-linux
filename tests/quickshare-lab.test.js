@@ -132,3 +132,71 @@ test('native BLE lab records registration and resolution separately and rejects 
   assert.equal(exported.find(v => v.type === 'bluetooth').bluetooth.stage, 'gatt-resolution-failed');
   for (const secret of ['PRIVATE','1234']) assert.equal(JSON.stringify(exported).includes(secret), false);
 });
+
+test('inbound-only lab option requires the native BLE build during preparation', () => {
+  const { parse } = require('../scripts/quickshare-android-lab.cjs');
+  assert.throws(() => parse(['--prepare', '--receive-only']), /requires --ble-native/);
+  assert.equal(parse(['--prepare', '--ble-native', '--receive-only'])['receive-only'], true);
+});
+
+test('lab fingerprint includes new source modules but excludes ignored build output', async t => {
+  const fs = require('node:fs/promises'), os = require('node:os'), path = require('node:path');
+  const { execFileSync } = require('node:child_process');
+  const { fingerprint } = require('../scripts/quickshare-lab/environment.cjs');
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 's24-fingerprint-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const git = args => execFileSync('git', args, { cwd: root, stdio: 'ignore' });
+  git(['init']);
+  await fs.mkdir(path.join(root, 'network/quickshare/src'), { recursive: true });
+  await fs.writeFile(path.join(root, '.gitignore'), 'network/quickshare/target/\n');
+  await fs.writeFile(path.join(root, 'network/quickshare/src/main.rs'), 'fn main() {}\n');
+  git(['add', '.gitignore', 'network/quickshare/src/main.rs']);
+  const original = fingerprint(root);
+  const added = path.join(root, 'network/quickshare/src/pacing.rs');
+  await fs.writeFile(added, 'const LIMIT: usize = 16;\n');
+  const withModule = fingerprint(root); assert.notEqual(withModule, original);
+  await fs.writeFile(added, 'const LIMIT: usize = 8;\n');
+  const edited = fingerprint(root); assert.notEqual(edited, withModule);
+  await fs.mkdir(path.join(root, 'network/quickshare/target'));
+  await fs.writeFile(path.join(root, 'network/quickshare/target/build-output'), 'ignored');
+  assert.equal(fingerprint(root), edited);
+});
+
+test('a prepared lab can identify its live receiver with a distinct bounded label', async t => {
+  const { receiverName } = require('../lib/sharing/lab-evidence');
+  const { parse } = require('../scripts/quickshare-android-lab.cjs');
+  assert.equal(receiverName(), 'Airdrop S24 Lab');
+  const name = 'Airdrop S24 T21';
+  assert.equal(parse(['--prepare','--receiver-name',name])['receiver-name'], name);
+  assert.throws(() => parse(['--start','--receiver-name',name]), /preparation/);
+  for (const value of ['personal device', 'Airdrop S24 ../x', 'Airdrop S24 T21\n']) assert.throws(() => receiverName({receiverName:value}), /receiver name/);
+  const root = await fixture(t), marker = JSON.parse(await fs.readFile(path.join(root,'lab.json'),'utf8'));
+  atomicJson(root,'lab.json',{...marker,receiverName:name});
+  assert.equal(openLab({directory:root,repository:process.cwd(),packaged:false,enabled:true}).receiverName,name);
+});
+
+
+test('small SDU experiment is explicit and limited to native inbound lab preparation', () => {
+  const { parse } = require('../scripts/quickshare-android-lab.cjs');
+  for (const args of [['--prepare'], ['--prepare','--ble-native'], ['--start','--ble-native','--receive-only']]) {
+    assert.throws(() => parse([...args,'--small-sdu']), /requires --prepare --ble-native --receive-only/);
+  }
+  assert.equal(parse(['--prepare','--ble-native','--receive-only','--small-sdu'])['small-sdu'],true);
+  assert.equal(parse(['--prepare','--ble-native','--receive-only'])['small-sdu'],undefined);
+});
+
+
+test('controller completion feedback cannot be enabled outside the small SDU lab comparison', () => {
+  const { parse } = require('../scripts/quickshare-android-lab.cjs');
+  assert.throws(() => parse(['--prepare','--ble-native','--receive-only','--completion-tx']), /requires --small-sdu/);
+  assert.equal(parse(['--prepare','--ble-native','--receive-only','--small-sdu','--completion-tx'])['completion-tx'],true);
+});
+
+
+test('classic native transport is restricted to its own inbound comparison', () => {
+  const {parse}=require('../scripts/quickshare-android-lab.cjs');
+  for(const args of [['--prepare'],['--start','--ble-native','--receive-only'],['--prepare','--ble-native','--receive-only','--small-sdu']]) {
+    assert.throws(()=>parse([...args,'--classic']),/requires --prepare --ble-native --receive-only without CoC write experiments/);
+  }
+  assert.equal(parse(['--prepare','--ble-native','--receive-only','--classic']).classic,true);
+});

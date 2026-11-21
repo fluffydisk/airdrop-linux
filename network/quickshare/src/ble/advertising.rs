@@ -6,9 +6,11 @@ use serde::Serialize;
 use std::time::Duration;
 use tokio::time::{Instant, timeout};
 
-pub const LEASE: Duration = Duration::from_secs(120);
+// A receiver remains available until visibility changes or its dedicated D-Bus
+// owner closes. BlueZ removes an owner's advertisements on disconnect. A timed
+// lease required destructive re-registration during LE connections on Realtek.
+pub const RECEIVER_TIMEOUT: Duration = Duration::ZERO;
 const CALL_LIMIT: Duration = Duration::from_secs(5);
-pub const RENEW: Duration = Duration::from_secs(90);
 
 pub const SETTLE: Duration = Duration::from_millis(250);
 #[derive(Clone, Debug, Serialize)]
@@ -153,7 +155,10 @@ pub fn validate(a: &Advertisement) -> Result<()> {
             && a.tx_power.is_none(),
         "unexpected advertising parameters"
     );
-    ensure!(a.timeout == Some(LEASE), "advertisement lifetime");
+    ensure!(
+        a.timeout == Some(RECEIVER_TIMEOUT),
+        "advertisement lifetime"
+    );
     let data = &a.service_data[&super::radio::SERVICE];
     if a.secondary_channel.is_none() {
         ensure!(
@@ -312,28 +317,33 @@ pub async fn register(
 #[derive(Default)]
 pub struct Retry {
     failures: u8,
+    settled: bool,
     next: Option<Instant>,
 }
 impl Retry {
     pub fn due(&self, now: Instant) -> bool {
-        self.next.is_none_or(|at| now >= at)
+        !self.settled && self.next.is_none_or(|at| now >= at)
     }
     pub fn reset(&mut self) {
         self.failures = 0;
+        self.settled = false;
         self.next = None;
     }
-    pub fn succeeded(&mut self, now: Instant) {
+    pub fn succeeded(&mut self, _now: Instant) {
         self.failures = 0;
-        self.next = Some(now + RENEW);
+        self.settled = true;
+        self.next = None;
     }
     pub fn failed(&mut self, now: Instant) -> Duration {
+        self.settled = false;
         let delay = Duration::from_secs((2u64 << self.failures.min(4)).min(30));
         self.failures = self.failures.saturating_add(1);
         self.next = Some(now + delay);
         delay
     }
-    pub fn hidden(&mut self, now: Instant) {
-        self.next = Some(now + RENEW);
+    pub fn hidden(&mut self, _now: Instant) {
+        self.settled = true;
+        self.next = None;
     }
 }
 
@@ -349,7 +359,7 @@ mod tests {
                 super::super::protocol::header(&full, false, psm),
             )]
             .into(),
-            timeout: Some(LEASE),
+            timeout: Some(RECEIVER_TIMEOUT),
             ..Default::default()
         }
     }
@@ -464,7 +474,7 @@ mod tests {
         assert_eq!(failure_detail(&private), "unknown");
     }
     #[tokio::test(start_paused = true)]
-    async fn retry_is_bounded_recovers_and_renews_before_expiry() {
+    async fn retry_is_bounded_and_owner_bound_success_never_schedules_a_destructive_renewal() {
         let mut r = Retry::default();
         let mut now = Instant::now();
         assert!(r.due(now));
@@ -475,9 +485,13 @@ mod tests {
             assert!(r.due(now));
         }
         r.succeeded(now);
-        assert!(!r.due(now + Duration::from_secs(89)));
-        assert!(r.due(now + RENEW));
-        assert!(RENEW < LEASE);
+        for seconds in [89, 90, 120, 130, 86400] {
+            assert!(!r.due(now + Duration::from_secs(seconds)));
+        }
+        assert_eq!(RECEIVER_TIMEOUT, Duration::ZERO);
+        // An actual daemon release still re-arms bounded recovery.
+        assert_eq!(r.failed(now).as_secs(), 2);
+        assert!(r.due(now + Duration::from_secs(2)));
         r.reset();
         assert!(r.due(now));
         assert_eq!(r.failed(now).as_secs(), 2);

@@ -1,0 +1,41 @@
+/* Bounded metadata-only trace; installed Linux 7.2.8-9-omarchy signatures.
+ * No payload, key, address, handle, CID, PSM value, code or file data is printed.
+ * LE CoC channels only, except HCI disconnect status/reason metadata.
+ */
+BEGIN { @n = 0; @start = nsecs; printf("event=capture_started seconds=120 limit=128\n"); }
+kprobe:bluetooth:hci_disconn_complete_evt {
+    if (@n >= 128) { exit(); } @n = @n + 1;
+    $ev = (struct hci_ev_disconn_complete *)arg1;
+    printf("ms=%llu event=hci_disconnect status=%u reason=%u\n", (uint64)(nsecs-@start)/1000000, $ev->status, $ev->reason);
+}
+kprobe:bluetooth:l2cap_disconn_cfm {
+    $h = (struct hci_conn *)arg0;
+    if ($h->type == 128) {
+        if (@n >= 128) { exit(); } @n = @n + 1;
+        printf("ms=%llu event=le_disconnect reason=%u role=%u\n", (uint64)(nsecs-@start)/1000000, (uint8)arg1, $h->role);
+    }
+}
+kprobe:bluetooth:l2cap_conn_del {
+    $h = (struct hci_conn *)arg0;
+    if ($h->type == 128) {
+        if (@n >= 128) { exit(); } @n = @n + 1;
+        printf("ms=%llu event=le_connection_deleted errno=%d role=%u\n", (uint64)(nsecs-@start)/1000000, (int32)arg1, $h->role);
+    }
+}
+kprobe:bluetooth:l2cap_chan_del,
+kprobe:bluetooth:l2cap_send_disconn_req {
+    $c = (struct l2cap_chan *)arg0;
+    if ($c->mode == 128 && $c->psm >= 128 && $c->psm <= 255) {
+        if (@n >= 128) { exit(); } @n = @n + 1;
+        printf("ms=%llu event=%s errno=%d state=%u tx_credits=%u rx_credits=%u queued=%u imtu=%u omtu=%u mps=%u\n", (uint64)(nsecs-@start)/1000000, probe, (int32)arg1, $c->state, $c->tx_credits, $c->rx_credits, $c->tx_q.qlen, $c->imtu, $c->omtu, $c->mps);
+    }
+}
+kprobe:bluetooth:l2cap_le_flowctl_send {
+    $c = (struct l2cap_chan *)arg0;
+    if ($c->mode == 128 && $c->psm >= 128 && $c->psm <= 255 && ($c->tx_credits == 0 || $c->tx_q.qlen > 0)) {
+        if (@n >= 128) { exit(); } @n = @n + 1;
+        printf("ms=%llu event=le_send_queue tx_credits=%u rx_credits=%u queued=%u\n", (uint64)(nsecs-@start)/1000000, $c->tx_credits, $c->rx_credits, $c->tx_q.qlen);
+    }
+}
+interval:s:120 { exit(); }
+END { clear(@n); clear(@start); printf("event=capture_ended\n"); }

@@ -272,7 +272,19 @@ impl Advert {
     }
 }
 pub fn receiver(endpoint: [u8; 4], name: &str, psm: Option<u16>) -> Result<Vec<u8>> {
+    receiver_with_classic(endpoint, name, psm, None)
+}
+pub fn receiver_with_classic(
+    endpoint: [u8; 4],
+    name: &str,
+    psm: Option<u16>,
+    classic: Option<[u8; 6]>,
+) -> Result<Vec<u8>> {
     ensure!(psm.is_none_or(valid_psm), "invalid PSM");
+    ensure!(
+        classic.is_none_or(|mac| mac != [0; 6] && mac != [255; 6] && mac[0] & 1 == 0),
+        "invalid classic address"
+    );
     let info = URL_SAFE_NO_PAD.decode(gen_mdns_endpoint_info(3, name))?;
     ensure!(info.len() <= 255, "endpoint too large");
     let mut data = vec![0x23];
@@ -280,7 +292,8 @@ pub fn receiver(endpoint: [u8; 4], name: &str, psm: Option<u16>) -> Result<Vec<u
     data.extend(endpoint);
     data.push(info.len() as u8);
     data.extend(info);
-    data.extend([0; 8]);
+    data.extend(classic.unwrap_or([0; 6]));
+    data.extend([0; 2]);
     let mut b = vec![0x48];
     b.extend(HASH);
     b.extend((data.len() as u32).to_be_bytes());
@@ -296,6 +309,79 @@ pub fn receiver(endpoint: [u8; 4], name: &str, psm: Option<u16>) -> Result<Vec<u
 }
 pub fn header(full: &[u8], extended: bool, psm: Option<u16>) -> Vec<u8> {
     build_advertisement_header(full, extended, psm)
+}
+
+/// Offline preparation for an opt-in Classic inquiry experiment, not radio I/O.
+/// google/nearby@6ce28aa, BluetoothDeviceName v1/P2P-point-to-point:
+/// version+PCP, endpoint4, serviceHash3, WebRTC flags1, reserved6, infoLength1,
+/// endpointInfo. WebSafe Base64 without padding; no UWB field when absent.
+/// Reuse the SAME discovery identity as the full local advertisement. Never
+/// include its transport address, PSM or device token. Does not enable inquiry,
+/// change the adapter alias, or prove Samsung supports this discovery medium.
+#[allow(dead_code)]
+pub fn classic_discovery_name(full: &[u8]) -> Result<String> {
+    let advert = Advert::decode(full)?;
+    let size = full[16] as usize; // validated full advertisement layout
+    ensure!(size <= 131, "Classic endpoint metadata too large");
+    let mut bytes = vec![0x23];
+    bytes.extend(advert.endpoint);
+    bytes.extend(HASH);
+    bytes.extend([0; 7]); // WebRTC unavailable; six reserved bytes
+    bytes.push(size as u8);
+    bytes.extend_from_slice(&full[17..17 + size]);
+    Ok(URL_SAFE_NO_PAD.encode(bytes))
+}
+
+#[cfg(test)]
+mod classic_discovery_tests {
+    use super::*;
+
+    fn fixture() -> Vec<u8> {
+        let mut info = vec![6]; // public test fixture: laptop, identity0..15
+        info.extend(0..16);
+        info.push(5);
+        info.extend(b"Linux");
+        let mut data = vec![0x23];
+        data.extend(HASH);
+        data.extend(b"AB12");
+        data.push(info.len() as u8);
+        data.extend(info);
+        data.extend([2, 33, 34, 35, 36, 37, 0, 0]);
+        let mut full = vec![0x48];
+        full.extend(HASH);
+        full.extend((data.len() as u32).to_be_bytes());
+        full.extend(data);
+        full.extend([1, 2, 0]);
+        full
+    }
+
+    #[test]
+    fn classic_name_matches_independent_websafe_vector_and_preserves_identity() {
+        // Independently generated Python struct/base64 vector for the pinned
+        // Google format. Empty-UWB serialization appends no length byte.
+        let mut full = fixture();
+        assert_eq!(
+            classic_discovery_name(&full).unwrap(),
+            "I0FCMTL8n14AAAAAAAAAFwYAAQIDBAUGBwgJCgsMDQ4PBUxpbnV4"
+        );
+        let before = classic_discovery_name(&full).unwrap();
+        full[40..46].copy_from_slice(&[2, 170, 187, 204, 221, 238]);
+        full[48..50].copy_from_slice(&[55, 66]);
+        assert_eq!(classic_discovery_name(&full).unwrap(), before);
+        let bytes = URL_SAFE_NO_PAD.decode(before).unwrap();
+        assert_eq!(&bytes[16..], &full[17..40]);
+    }
+
+    #[test]
+    fn classic_name_rejects_foreign_and_truncated_advertisements() {
+        let full = fixture();
+        for end in 0..48 {
+            assert!(classic_discovery_name(&full[..end]).is_err());
+        }
+        let mut foreign = full;
+        foreign[1] ^= 1;
+        assert!(classic_discovery_name(&foreign).is_err());
+    }
 }
 
 /// Packet counters include the connection request/confirm (counter zero).
@@ -396,6 +482,31 @@ pub struct Frames {
     bytes: Vec<u8>,
 }
 impl Frames {
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
+    /// Inspect a BLE data header before its body arrives. Google BleSocket
+    /// acknowledges ReadPayloadLength before reading the payload. This is only
+    /// transport flow control, never authentication or file acceptance.
+    pub fn socket_payload_length(&self) -> Result<Option<usize>> {
+        if self.bytes.len() < 7 {
+            return Ok(None);
+        }
+        if self.bytes[4..7] == [0, 0, 0] {
+            return Ok(None);
+        }
+        ensure!(self.bytes[4..7] == HASH, "foreign socket service");
+        if self.bytes.len() < 11 {
+            return Ok(None);
+        }
+        let outer = u32::from_be_bytes(self.bytes[..4].try_into()?) as usize;
+        let inner = u32::from_be_bytes(self.bytes[7..11].try_into()?) as usize;
+        ensure!(
+            inner > 0 && inner <= MAX_FRAME && outer <= MAX_FRAME && outer == inner + 7,
+            "socket frame length"
+        );
+        Ok(Some(inner))
+    }
     pub fn push(&mut self, b: &[u8]) -> Result<()> {
         ensure!(
             self.bytes.len() + b.len() <= MAX_FRAME + 4096,
@@ -420,6 +531,14 @@ impl Frames {
         Ok(Some(self.bytes.drain(..n + 4).collect()))
     }
 }
+#[derive(Debug)]
+pub struct PeerSocketDisconnection;
+impl std::fmt::Display for PeerSocketDisconnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("peer socket disconnection")
+    }
+}
+impl std::error::Error for PeerSocketDisconnection {}
 pub fn socket_data(message: &[u8]) -> Result<Option<&[u8]>> {
     use prost::Message;
     use rqs_lib::ble_proto::{SocketControlFrame, socket_control_frame::ControlFrameType};
@@ -456,7 +575,22 @@ pub fn socket_data(message: &[u8]) -> Result<Option<&[u8]>> {
                     "socket acknowledgement"
                 );
             }
-            _ => bail!("socket disconnected or unsupported control"),
+            ControlFrameType::Disconnection => {
+                ensure!(
+                    control.introduction.is_none() && control.packet_acknowledgement.is_none(),
+                    "mixed control"
+                );
+                ensure!(
+                    control
+                        .disconnection
+                        .and_then(|d| d.service_id_hash)
+                        .as_deref()
+                        == Some(&HASH[..]),
+                    "socket disconnection"
+                );
+                return Err(PeerSocketDisconnection.into());
+            }
+            _ => bail!("unsupported socket control"),
         }
         return Ok(None);
     }
@@ -803,5 +937,26 @@ mod tests {
         .serialize();
         assert_eq!(&connection[1..17], &advert.identity);
         assert!(rqs_lib::utils::mdns_discovery_key("bad.service.local.", &info).is_none());
+    }
+}
+
+#[cfg(test)]
+mod classic_advert_tests {
+    use super::*;
+    #[test]
+    fn classic_metadata_uses_the_real_listener_address_and_default_stays_zero() {
+        let mac = [2, 1, 2, 3, 4, 5];
+        let plain = receiver(*b"TEST", "Fixture", None).unwrap();
+        let classic = receiver_with_classic(*b"TEST", "Fixture", None, Some(mac)).unwrap();
+        let len = u32::from_be_bytes(classic[4..8].try_into().unwrap()) as usize;
+        assert_eq!(&classic[8 + len - 8..8 + len - 2], &mac);
+        assert_eq!(&plain[8 + len - 8..8 + len - 2], &[0; 6]);
+        assert!(
+            Advert::decode(&classic)
+                .unwrap()
+                .same_identity(&Advert::decode(&plain).unwrap())
+        );
+        assert!(receiver_with_classic(*b"TEST", "Fixture", None, Some([0; 6])).is_err());
+        assert!(receiver_with_classic(*b"TEST", "Fixture", None, Some([255; 6])).is_err());
     }
 }

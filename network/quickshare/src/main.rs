@@ -137,6 +137,10 @@ impl Engine {
                     bail!("ALREADY_STARTED");
                 }
                 let request_ble = req.params["bleNative"].as_bool().unwrap_or(false);
+                let receive_only = req.params["bleReceiveOnly"].as_bool().unwrap_or(false);
+                if receive_only && !request_ble {
+                    bail!("BLE_RECEIVE_ONLY_REQUIRES_NATIVE");
+                }
                 if request_ble && !cfg!(all(feature = "ble-native", target_os = "linux")) {
                     bail!("BLE_NOT_COMPILED");
                 }
@@ -206,13 +210,14 @@ impl Engine {
                 });
                 #[cfg(all(feature = "ble-native", target_os = "linux"))]
                 if request_ble {
-                    self.ble = Some(ble::Runtime::start(
+                    self.ble = Some(ble::Runtime::start_with_discovery(
                         service
                             .endpoint_id
                             .ok_or_else(|| anyhow::anyhow!("NO_ENDPOINT"))?,
                         name.to_owned(),
                         service.message_sender.clone(),
                         events.clone(),
+                        !receive_only,
                     ));
                 }
                 let port = service.port_number;
@@ -242,7 +247,9 @@ impl Engine {
                 } else {
                     "not-requested"
                 };
-                Ok(json!({"started":true,"port":port,"bleFastInitState":fastinit_state}))
+                Ok(
+                    json!({"started":true,"port":port,"bleFastInitState":fastinit_state,"bleReceiveOnly":receive_only}),
+                )
             }
             "snapshot" => Ok(
                 json!({"recipients": self.recipients.values().collect::<Vec<_>>(), "transfers": self.transfers.values().collect::<Vec<_>>(), "bluetooth":self.bluetooth,"runtimeCapabilities":{"lanListening":self.service.is_some(),"lanUpgrade":false,"directWireless":false,"bleScanning":self.bluetooth["bleScanning"]==true,"bleAdvertising":self.bluetooth["bleAdvertising"]==true,"gattBootstrap":self.bluetooth["gattBootstrap"]==true,"l2cap":self.bluetooth["l2cap"]==true}}),
@@ -352,6 +359,14 @@ impl Engine {
         }
     }
     fn protocol(&mut self, event: ChannelMessage) -> Option<Value> {
+        if let Message::Diagnostic { kind, stage, cause } = &event.msg {
+            #[cfg(all(feature = "ble-native", target_os = "linux"))]
+            if !stage.starts_with("l2cap-") {
+                ble::diagnostics::inc(&stage.replace('-', "_"));
+            }
+
+            return self.protocol_diagnostics.then(||json!({"v":1,"event":"session-diagnostic","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"stage":stage,"cause":cause}}));
+        }
         if let Message::Connection { kind, method } = &event.msg {
             return self.protocol_diagnostics.then(||json!({"v":1,"event":"connection","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"connectionMethod":method}}));
         }
