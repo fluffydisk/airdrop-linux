@@ -1,0 +1,28 @@
+name: Request signed v1.10.0 publication after rehearsal
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retry-signed-1.10.0.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+jobs:
+  request:
+    if: github.repository == 'fluffydisk/airdrop-linux' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify the exact release and successful rehearsal
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/44960111199" | jq -e '
+            .head_branch == "main" and
+            .path == ".github/workflows/rehearse-signed-1.10.0.yml" and
+            .head_repository.full_name == "fluffydisk/airdrop-linux" and
+            .conclusion == "success"'
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" | jq -e '
+            .tag_name == "v1.10.0" and (.draft or .prerelease | not)'
+      - name: Request the existing protected deployment
+        run: gh workflow run package-publishing.yml --repo "$GITHUB_REPOSITORY" --ref main -f tag=v1.10.0 -f flatpak_run=44954381228 -F publish=true
