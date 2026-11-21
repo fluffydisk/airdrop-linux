@@ -205,19 +205,20 @@ impl Runtime {
         sender: broadcast::Sender<ChannelMessage>,
         events: mpsc::Sender<Event>,
     ) -> Self {
-        Self::start_with_discovery(endpoint, name, sender, events, true)
+        Self::start_with_visibility(endpoint, name, sender, events, true, true)
     }
-    pub fn start_with_discovery(
+    pub fn start_with_visibility(
         endpoint: [u8; 4],
         name: String,
         sender: broadcast::Sender<ChannelMessage>,
         events: mpsc::Sender<Event>,
         discover_receivers: bool,
+        initially_visible: bool,
     ) -> Self {
         let cancel = CancellationToken::new();
         let c = cancel.clone();
         let (tx, mut rx) = mpsc::channel(4);
-        let (visible, mut vis) = watch::channel(true);
+        let (visible, mut vis) = watch::channel(initially_visible);
         let connections = Connections::default();
         let owned = connections.clone();
         let task = tokio::spawn(async move {

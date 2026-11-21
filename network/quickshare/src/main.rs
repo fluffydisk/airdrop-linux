@@ -102,7 +102,7 @@ impl Engine {
         match req.method.as_str() {
             "hello" => Ok(
                 json!({"protocol":1,"version":env!("CARGO_PKG_VERSION"),"experimental":true,"license":"GPL-3.0-only",
-                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
+                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
             ),
             "bluetooth-preflight" => {
                 #[cfg(all(feature = "ble-native", target_os = "linux"))]
@@ -136,6 +136,12 @@ impl Engine {
                 if self.service.is_some() {
                     bail!("ALREADY_STARTED");
                 }
+                let (visible, discover) = match req.params["mode"].as_str() {
+                    None | Some("both") => (true, true),
+                    Some("receive") => (true, false),
+                    Some("send") => (false, true),
+                    Some(_) => bail!("INVALID_MODE"),
+                };
                 let request_ble = req.params["bleNative"].as_bool().unwrap_or(false);
                 let receive_only = req.params["bleReceiveOnly"].as_bool().unwrap_or(false);
                 if receive_only && !request_ble {
@@ -144,7 +150,8 @@ impl Engine {
                 if request_ble && !cfg!(all(feature = "ble-native", target_os = "linux")) {
                     bail!("BLE_NOT_COMPILED");
                 }
-                let request_fastinit = req.params["bleFastInit"].as_bool().unwrap_or(false);
+                let request_fastinit =
+                    visible && req.params["bleFastInit"].as_bool().unwrap_or(false);
                 if request_fastinit && !cfg!(all(feature = "ble-fastinit", target_os = "linux")) {
                     bail!("FASTINIT_NOT_COMPILED");
                 }
@@ -174,12 +181,16 @@ impl Engine {
                     bail!("INVALID_PORT");
                 }
                 let mut service = RQS::new(
-                    Visibility::Visible,
+                    if visible {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Invisible
+                    },
                     Some(port as u32),
                     Some(directory.clone()),
                     Some(name.to_owned()),
                 );
-                let (sender, _) = service.run().await?;
+                let (sender, _) = service.run_mode(visible).await?;
                 let mut updates = service.message_sender.subscribe();
                 let queue = events.clone();
                 tokio::spawn(async move {
@@ -198,26 +209,29 @@ impl Engine {
                         }
                     }
                 });
-                let (discovery, mut observed) = broadcast::channel(100);
-                service.discovery(discovery)?;
-                let queue = events.clone();
-                tokio::spawn(async move {
-                    while let Ok(endpoint) = observed.recv().await {
-                        if queue.send(Event::Recipient(endpoint)).await.is_err() {
-                            break;
+                if discover {
+                    let (discovery, mut observed) = broadcast::channel(100);
+                    service.discovery(discovery)?;
+                    let queue = events.clone();
+                    tokio::spawn(async move {
+                        while let Ok(endpoint) = observed.recv().await {
+                            if queue.send(Event::Recipient(endpoint)).await.is_err() {
+                                break;
+                            }
                         }
-                    }
-                });
+                    });
+                }
                 #[cfg(all(feature = "ble-native", target_os = "linux"))]
                 if request_ble {
-                    self.ble = Some(ble::Runtime::start_with_discovery(
+                    self.ble = Some(ble::Runtime::start_with_visibility(
                         service
                             .endpoint_id
                             .ok_or_else(|| anyhow::anyhow!("NO_ENDPOINT"))?,
                         name.to_owned(),
                         service.message_sender.clone(),
                         events.clone(),
-                        !receive_only,
+                        discover && !receive_only,
+                        visible,
                     ));
                 }
                 let port = service.port_number;

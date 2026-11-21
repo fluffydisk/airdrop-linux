@@ -16,9 +16,10 @@ Files modified by Airdrop Linux, recorded 2026-11-10:
 | --- | --- |
 | Cargo.toml | Locked Git dependencies; disabled default wireless features; release profile moved to workspace root |
 | src/channel.rs | Separate typed protocol diagnostics containing no transfer metadata |
-| src/lib.rs | Local receive directory; headless modules and feature guard |
+| src/lib.rs | Local receive directory; scoped inbound listener; headless modules and feature guard |
 | src/manager.rs | Bounded incoming sessions/timeouts; correct outgoing UUID on failure |
 | src/utils.rs | Anonymous advertisements, validated P-256 coordinates, persistent frame prefix, version/name/TLV bounds |
+| src/hdl/mdns.rs | Register initial receiver visibility and keep private device names out of logs |
 | src/hdl/mdns_discovery.rs | On-link address filtering, bounded probes, closed-channel exit |
 | src/hdl/inbound.rs | Consent, safe names/private staging, file completion bounds, shared setup-payload limits, cancellation-safe prefix |
 | src/hdl/outbound.rs | Safe source reads, empty/truncated source handling, shared payload bounds, truthful LAN roles, finalization errors and unconfirmed sender outcome |

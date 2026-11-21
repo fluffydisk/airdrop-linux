@@ -168,6 +168,14 @@ async function openPwa() {
   await shell.openExternal(url);
 }
 let nativeLifecycle = Promise.resolve();
+function queueNative(work) {
+  const operation = nativeLifecycle.then(work);
+  nativeLifecycle = operation.catch(() => {});
+  return operation;
+}
+function stopNativeView() {
+  if (!quickshareLab) void queueNative(() => quickshare.stop()).catch(() => {});
+}
 function registerIpc() {
   ipcMain.handle('airdrop:sharing', async (event, action, payload = {}) => {
     ownWindow(event); await devicesReady;
@@ -176,15 +184,27 @@ function registerIpc() {
     if (action === 'lab-info') return quickshareLab?.info() || { enabled: false };
     if (action === 'state') { await nearbyReady.catch(() => {}); return sharing.snapshot(); }
     if (action === 'native-start' || action === 'native-stop') {
-      const operation = nativeLifecycle.then(async () => {
+      return queueNative(async () => {
         await quickshareReady;
-        if (action === 'native-start') return quickshare.start();
-        if (quickshare.busy) throw Error('Finish or cancel the active Quick Share transfer first.');
-        await quickshare.stop();
-        return quickshare.snapshot();
+        if (action === 'native-stop') {
+          if (quickshareLab) throw Error('Stop the laboratory receiver from its control interface.');
+          await quickshare.stop();
+          return quickshare.snapshot();
+        }
+        if (quickshareLab) return quickshare.snapshot();
+        const mode = payload.mode;
+        if (mode !== 'receive' && mode !== 'send') throw Error('Choose a Nearby Share mode.');
+        if (mode === 'send' && (!Array.isArray(payload.sources) || !payload.sources.length ||
+            payload.sources.length > 100 || !payload.sources.every(source => allowedPaths.has(source)))) throw Error('Choose files first.');
+        if (quickshare.busy && quickshare.mode !== mode) throw Error('Finish or cancel the active Quick Share transfer first.');
+        if (quickshare.child && quickshare.mode !== mode) await quickshare.stop();
+        if (!quickshare.child) {
+          await nearbyReady.catch(() => {});
+          const name = nearby.name;
+          quickshare.name = Buffer.byteLength(name, 'utf8') <= 80 ? name : 'Airdrop Linux';
+        }
+        return quickshare.start(mode);
       });
-      nativeLifecycle = operation.catch(() => {});
-      return operation;
     }
     if (action === 'cancel') return payload.transport === 'quick-share' ? quickshare.cancel(payload.id) : nearby.cancel(payload.id);
     if (action === 'invitation-stop') return sharing.stopInvitation();
@@ -195,9 +215,7 @@ function registerIpc() {
       if (quickshareLab) quickshareLab.authorizeSources(payload.sources);
       if (action === 'invitation-start') return sharing.startInvitation(payload);
       if (payload.recipientId?.startsWith('quick-share:')) {
-        const operation = nativeLifecycle.then(async () => { await quickshareReady; return sharing.send(payload); });
-        nativeLifecycle = operation.catch(() => {});
-        return operation;
+        return queueNative(async () => { await quickshareReady; return sharing.send(payload); });
       }
       await nearbyReady;
       return sharing.send(payload);
@@ -461,7 +479,7 @@ else {
     if (distribution.source === 'snap' && !quitting) {
       event.preventDefault(); quitting = true;
       require('./core/lib/backend-control').request(paths.root,'stop')
-        .then(() => Promise.all([sharing.stop(), devices.stop(), nearby.stop()])).then(() => app.quit())
+        .then(() => Promise.all([queueNative(() => sharing.stop()), devices.stop(), nearby.stop()])).then(() => app.quit())
         .catch(error => {
           quitting = false;
           console.error('Could not stop sharing:',error.message);
@@ -469,13 +487,13 @@ else {
         });
       return;
     }
-    if(!quitting){event.preventDefault();quitting=true;quickshareLab?.evidence.event('shutdown-requested');Promise.all([sharing.stop(), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
+    if(!quitting){event.preventDefault();quitting=true;quickshareLab?.evidence.event('shutdown-requested');Promise.all([queueNative(() => sharing.stop()), devices.stop(), nearby.stop()]).finally(()=>app.quit());return;}
     quitting = true; clearInterval(timer); clearInterval(updateTimer); });
   app.whenReady().then(async () => {
     devicesReady = devices.initialize();
     nearbyReady = nearby.initialize().catch(error => { console.error('Nearby unavailable:', error.message); throw error; });
     nearbyReady.catch(() => {});
-    quickshareReady = quickshare.start().catch(error => { quickshare.failure(error.message, false); }).finally(() => quickshareLab?.ready());
+    quickshareReady = (quickshareLab ? quickshare.start() : Promise.resolve()).catch(error => { quickshare.failure(error.message, false); }).finally(() => quickshareLab?.ready());
     Menu.setApplicationMenu(null);
     const windowTitle = quickshareLab ? 'Airdrop S24 Lab — DEVELOPMENT ' + quickshareLab.marker.commit.slice(0, 12) : 'Airdrop';
     window = new BrowserWindow({ width: 1080, height: 840, minWidth: 620, minHeight: 650, show: false, backgroundColor: '#f2f2f7', title: windowTitle,
@@ -502,7 +520,9 @@ else {
         }
       } catch (error) { console.warn('Tray unavailable:', error.message); }
     }
-    window.on('closed', () => { window = null; });
+    window.on('hide', stopNativeView);
+    window.webContents.on('render-process-gone', stopNativeView);
+    window.on('closed', () => { stopNativeView(); window = null; });
     window.on('close', event => { if (!quitting && backgroundPolicy.active) { event.preventDefault(); window.hide(); } });
     await devicesReady;
     const backgroundRequest=backgroundPolicy.set(devices.preferences.background),backgroundGeneration=backgroundPolicy.generation;

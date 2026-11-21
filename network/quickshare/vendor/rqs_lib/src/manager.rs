@@ -35,6 +35,7 @@ pub struct TcpServer {
     tcp_listener: TcpListener,
     sender: Sender<ChannelMessage>,
     connect_receiver: Receiver<SendInfo>,
+    receive_enabled: bool,
 }
 
 impl TcpServer {
@@ -49,7 +50,12 @@ impl TcpServer {
             tcp_listener,
             sender,
             connect_receiver,
+            receive_enabled: true,
         })
+    }
+
+    pub(crate) fn disable_receive(&mut self) {
+        self.receive_enabled = false;
     }
 
     pub async fn run(&mut self, ctk: CancellationToken) -> Result<(), anyhow::Error> {
@@ -65,7 +71,7 @@ impl TcpServer {
                     break;
                 }
                 Some(i) = self.connect_receiver.recv() => {
-                    info!("{INNER_NAME}: connect_receiver: got {:?}", i);
+                    debug!("{INNER_NAME}: outgoing connection requested");
                     let report_id = i.id.clone();
                     if let Err(e) = self.connect(cctk, i).await {
                         error!("{INNER_NAME}: error sending: {}", e.to_string());
@@ -83,11 +89,11 @@ impl TcpServer {
                 }
                 r = self.tcp_listener.accept() => {
                     match r {
-                        Ok((socket, remote_addr)) => {
+                        Ok((socket, _remote_addr)) => {
+                            if !self.receive_enabled { continue; }
                             let Ok(permit) = permits.clone().try_acquire_owned() else { continue; };
                             let request_id = format!("{:032x}", rand::random::<u128>());
 
-                            trace!("{INNER_NAME}: new client: {remote_addr}");
                             let esender = self.sender.clone();
                             let csender = self.sender.clone();
 
@@ -99,8 +105,8 @@ impl TcpServer {
                                 {
                                     let mut pbuf = [0u8; 512];
                                     if let Ok(n) = socket.peek(&mut pbuf).await {
-                                        if let Some(eid) = crate::hdl::peek_client_introduction(&pbuf[..n]) {
-                                            info!("{INNER_NAME}: BWU CLIENT_INTRODUCTION from {remote_addr} (endpoint_id={eid}) — routing TODO");
+                                        if crate::hdl::peek_client_introduction(&pbuf[..n]).is_some() {
+                                            info!("{INNER_NAME}: unsupported bandwidth upgrade introduction");
                                             return;
                                         }
                                     }

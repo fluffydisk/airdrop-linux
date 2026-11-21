@@ -63,7 +63,10 @@ impl MDnsServer {
         info!("{INNER_NAME}: service starting");
         let monitor = self.daemon.monitor()?;
         let ble_receiver = &mut self.ble_receiver;
-        let mut visibility = *self.visibility_receiver.borrow();
+        let mut visibility = *self.visibility_receiver.borrow_and_update();
+        if visibility != Visibility::Invisible {
+            self.daemon.register(self.service_info.clone())?;
+        }
         let mut interval = interval_at(Instant::now() + TICK_INTERVAL, TICK_INTERVAL);
 
         loop {
@@ -137,7 +140,6 @@ impl MDnsServer {
         // If that is not desired, derive host_name, etc. via some other means
         let name = gen_mdns_name(endpoint_id);
         let device_name = DEVICE_NAME.read().unwrap().clone();
-        info!("Broadcasting with: device_name={device_name}, host_name={name}");
         let endpoint_info = gen_mdns_endpoint_info(device_type as u8, &device_name);
 
         let properties = [("n", endpoint_info)];
