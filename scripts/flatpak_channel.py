@@ -17,7 +17,9 @@ def run(*args,capture=False):
 def pull_repository(repo,*args,attempts=6,delay=5):
  # Resume verified objects in the same staging repo after a transient HTTP
  # response. Never fall back to unverified pulls or retry integrity failures.
- command=['ostree',f'--repo={repo}','pull',*map(str,args)]
+ # Pages may rate-limit the thousands of object requests in a mirror.
+ # Limit concurrency and let the outer retry handle cooldowns.
+ command=['ostree',f'--repo={repo}','pull','--max-outstanding-fetcher-requests=1','--network-retries=0',*map(str,args)]
  for attempt in range(attempts):
   result=subprocess.run(command,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,env={**os.environ,'LC_ALL':'C'})
   print(result.stdout,end='',flush=True)
@@ -25,8 +27,9 @@ def pull_repository(repo,*args,attempts=6,delay=5):
   transient=re.search(r'(?m)^error: (?:While fetching [^\r\n]+: )?Server returned HTTP (429|500|502|503|504)\b',result.stdout)
   integrity=re.search(r'signature|checksum|certificate|corrupt',result.stdout,re.I)
   if not transient or integrity or attempt+1==attempts:result.check_returncode()
-  print(f'Transient HTTP {transient[1]}; retrying verified repository pull ({attempt+2}/{attempts})',flush=True)
-  time.sleep(delay*(attempt+1))
+  wait=min(120,delay*6*2**attempt) if transient[1]=='429' else delay*(attempt+1)
+  print(f'Transient HTTP {transient[1]}; retrying verified repository pull in {wait}s ({attempt+2}/{attempts})',flush=True)
+  time.sleep(wait)
 def version(value):
  if not re.fullmatch(r'\d+\.\d+\.\d+',value):raise ValueError('Invalid stable version')
  return tuple(map(int,value.split('.')))
@@ -114,7 +117,9 @@ def promote(candidate,public,fingerprint,base=PRODUCTION,previous=PRODUCTION,r2=
    selected=canonical_channel_refs(repo,'previous')
    # The modern channel advertises only the tested architecture. Native ARM
    # repositories and historical release bundles are independent and untouched.
-   pull_repository(repo,'--mirror','--depth=0','previous',*selected)
+   # The fsck-verified candidate can supply identical content-addressed
+   # objects locally. The previous remote's signatures/bindings still apply.
+   pull_repository(repo,'--mirror','--depth=0',f'--localcache-repo={source}','previous',*selected)
    run('ostree',f'--repo={repo}','remote','delete','previous')
   if not prior:
    if not r2:raise ValueError('The first signed channel requires the verified actual r2 bundle')

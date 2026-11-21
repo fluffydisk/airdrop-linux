@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
   run('ostree',f'--repo={source}','summary','--update',f'--gpg-homedir={keyring}',f'--gpg-sign={key}')
   (source/'retry-metadata.json').write_text('{"fixture":"real HTTP metadata"}\n')
   class Handler(http.server.SimpleHTTPRequestHandler):
-   failures=1;commit_requests=0;summary_requests=0;metadata_requests=0;denied_requests=0
+   failures=1;object_status=503;commit_requests=0;summary_requests=0;metadata_requests=0;denied_requests=0
    def log_message(self,*args):pass
    def do_GET(self):
     if self.path=='/retry-metadata.json':
@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
     if self.path.endswith('.commit'):
      Handler.commit_requests+=1
      if Handler.failures:
-      Handler.failures-=1;self.send_response(503,'Controlled transient');self.send_header('Content-Length','0');self.end_headers();return
+      Handler.failures-=1;self.send_response(Handler.object_status,'Controlled transient');self.send_header('Content-Length','0');self.end_headers();return
     super().do_GET()
   server=http.server.ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Handler,directory=str(source)))
   thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
@@ -65,6 +65,10 @@ with tempfile.TemporaryDirectory(prefix='airdrop-http-retry-') as directory:
    assert Handler.commit_requests-before==6,'Retry budget was not enforced'
    Handler.failures=0
    print('VERIFIED: persistent HTTP 503 fails after exactly six attempts')
+   Handler.object_status=429;Handler.failures=1;before=Handler.commit_requests
+   pull_repository(remote('rate-limited'),'fixture',REF,delay=0)
+   assert Handler.commit_requests-before==2
+   print('VERIFIED: bounded pull recovered after a real HTTP 429 without changing signature validation')
    (source/'summary.sig').write_bytes(b'Invalid signature fixture')
    before=Handler.summary_requests
    try:pull_repository(remote('bad-signature'),'--network-retries=0','fixture',REF,delay=0)

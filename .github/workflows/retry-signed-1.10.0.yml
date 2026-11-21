@@ -1,4 +1,4 @@
-name: Request signed v1.10.0 publication after rehearsal
+name: Retry signed v1.10.0 publication with throttled Pages pulls
 on:
   push:
     branches: [main]
