@@ -20,7 +20,18 @@ async function gh(args) {
     throw new Error(`gh ${args[0]} ${args[1]} failed: ${detail}`);
   }
 }
-async function downloadRepositoryAssets(tag, incoming, downloads, {command = gh, log = console.log, includeHistory = true} = {}) {
+async function downloadPublicAsset(tag, name, directory) {
+  const expected = [...requiredPackages(tag), 'SHA256SUMS'];
+  if (!expected.includes(name)) throw new Error('Unexpected repository asset: ' + name);
+  const url = `https://github.com/fluffydisk/airdrop-linux/releases/download/${tag}/${name}`;
+  await run('curl', ['--fail', '--silent', '--show-error', '--location',
+    '--proto', '=https', '--proto-redir', '=https',
+    '--connect-timeout', '15', '--max-time', '180', '--retry', '4', '--retry-max-time', '180',
+    '--output', path.join(directory, name), url]);
+}
+async function downloadRepositoryAssets(tag, incoming, downloads, {
+  command = gh, download = downloadPublicAsset, log = console.log, includeHistory = true
+} = {}) {
   requiredPackages(tag);
   incoming = path.resolve(incoming); downloads = path.resolve(downloads);
   // Fresh staging prevents stale files from concealing a failed download.
@@ -44,7 +55,7 @@ async function downloadRepositoryAssets(tag, incoming, downloads, {command = gh,
     for (const name of expected) if (!names.includes(name)) throw new Error(`${current}: missing required release asset ${name}`);
     const directory = path.join(downloads, current); await fs.mkdir(directory);
     for (const name of expected) {
-      await command(['release','download',current,'--pattern',name,'--dir',directory]);
+      await download(current, name, directory);
       const stat = await fs.lstat(path.join(directory,name));
       if (!stat.isFile() || !stat.size) throw new Error(`${current}: download missing or empty: ${name}`);
     }
@@ -65,4 +76,4 @@ async function downloadRepositoryAssets(tag, incoming, downloads, {command = gh,
   return inventory;
 }
 if(require.main===module)downloadRepositoryAssets(process.argv[2],process.argv[3]||'incoming',process.argv[4]||'downloads',{includeHistory:!process.argv.includes('--latest-only')}).catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={downloadRepositoryAssets,requiredPackages};
+module.exports={downloadRepositoryAssets,downloadPublicAsset,requiredPackages};

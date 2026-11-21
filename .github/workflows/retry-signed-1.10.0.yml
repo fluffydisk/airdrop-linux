@@ -1,4 +1,4 @@
-name: Retry signed v1.10.0 publication with throttled Pages pulls
+name: Retry signed v1.10.0 publication with verified HTTPS downloads
 on:
   push:
     branches: [main]

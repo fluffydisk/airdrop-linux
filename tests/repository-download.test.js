@@ -23,14 +23,14 @@ async function fixture(t,{omit=[],corrupt=false,failView=false}={}) {
    if(failView)throw new Error('GitHub API unavailable');
    return JSON.stringify({tagName:args[2],isDraft:false,isPrerelease:false,assets:args[2]===tag?[...content.keys()].filter(name=>!omit.includes(name)).map(name=>({name})):[]});
   }
-  if(args[1]==='download'){
-   const name=args[args.indexOf('--pattern')+1],out=args[args.indexOf('--dir')+1];
-   await fs.writeFile(path.join(out,name),corrupt&&name===names[0]?'corrupted bytes':content.get(name));
-   return '';
-  }
   throw new Error('Unexpected gh invocation');
  }
- return {directory,tag,names,calls,command,incoming:path.join(directory,'incoming'),downloads:path.join(directory,'downloads')};
+ async function download(requestedTag,name,out) {
+  assert.equal(requestedTag,tag);
+  calls.push(['https','download',name]);
+  await fs.writeFile(path.join(out,name),corrupt&&name===names[0]?'corrupted bytes':content.get(name));
+ }
+ return {directory,tag,names,calls,command,download,incoming:path.join(directory,'incoming'),downloads:path.join(directory,'downloads')};
 }
 test('legacy inverted ripgrep check hides missing executable as a successful skip',async t=>{
  const {directory}=await fixture(t);const assets=path.join(directory,'asset-names');
@@ -39,7 +39,7 @@ test('legacy inverted ripgrep check hides missing executable as a successful ski
  assert.equal(result.stdout.trim(),'skipped');assert.match(result.stderr,/rg: command not found/);
 });
 test('downloads requested release even when history omits it and stages both formats and architectures',async t=>{
- const f=await fixture(t);const inventory=await downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,log:()=>{}});
+ const f=await fixture(t);const inventory=await downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,download:f.download,log:()=>{}});
  assert.deepEqual(inventory.map(item=>item.tag),[f.tag]);
  assert.deepEqual((await fs.readdir(f.incoming)).sort(),[...f.names,'SHA256SUMS'].sort());
  await verifyReleaseAssets(f.incoming);
@@ -48,19 +48,19 @@ test('downloads requested release even when history omits it and stages both for
 for(const missing of ['airdrop-linux-1.5.0-1.x86_64.rpm','airdrop-linux_1.5.0-1_arm64.deb','SHA256SUMS']) {
  test('rejects incomplete release before download: '+missing,async t=>{
   const f=await fixture(t,{omit:[missing]});
-  await assert.rejects(downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,log:()=>{}}),error=>error.message.includes(missing));
+  await assert.rejects(downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,download:f.download,log:()=>{}}),error=>error.message.includes(missing));
   assert.equal(f.calls.some(args=>args[1]==='download'),false);
   assert.deepEqual(await fs.readdir(f.incoming),[]);
  });
 }
 test('does not turn a release API error into a skipped release',async t=>{
  const f=await fixture(t,{failView:true});
- await assert.rejects(downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command}),/GitHub API unavailable/);
+ await assert.rejects(downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,download:f.download}),/GitHub API unavailable/);
  assert.deepEqual(await fs.readdir(f.incoming),[]);
 });
 test('does not stage packages with a mismatched checksum',async t=>{
  const f=await fixture(t,{corrupt:true});
- await assert.rejects(downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command}),/Checksum mismatch/);
+ await assert.rejects(downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,download:f.download}),/Checksum mismatch/);
  assert.deepEqual(await fs.readdir(f.incoming),[]);
 });
 test('empty package directory fails before creating repository output or invoking signing tools',async t=>{
@@ -69,7 +69,7 @@ test('empty package directory fails before creating repository output or invokin
  await assert.rejects(fs.access(output),{code:'ENOENT'});
 });
 test('bounded Pages staging verifies the requested release without copying all historical native packages',async t=>{
- const f=await fixture(t);const inventory=await downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,log:()=>{},includeHistory:false});
+ const f=await fixture(t);const inventory=await downloadRepositoryAssets(f.tag,f.incoming,f.downloads,{command:f.command,download:f.download,log:()=>{},includeHistory:false});
  assert.deepEqual(inventory.map(item=>item.tag),[f.tag]);assert.equal(f.calls.some(args=>args[1]==='list'),false);
  assert.equal(f.calls.filter(args=>args[1]==='download').length,5);await verifyReleaseAssets(f.incoming);
 });
