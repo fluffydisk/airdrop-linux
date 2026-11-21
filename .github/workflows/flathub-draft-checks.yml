@@ -1,22 +1,5 @@
 name: Validate standalone Flathub draft
 on:
-  pull_request:
-    paths:
-      - packaging/flathub-draft/**
-      - scripts/smoke-sandbox*
-      - scripts/test-flatpak-wayland.sh
-      - scripts/validate-flatpak-reference.py
-      - scripts/flatpak_reference_inputs.py
-      - scripts/stage-flatpak-reference.py
-      - scripts/audit-flatpak-reference.py
-      - scripts/test-flatpak-persistence.cjs
-      - scripts/check-flatpak-images.py
-      - scripts/test-background-portal.cjs
-      - tests/fixtures/background-portal.py
-      - desktop/**
-      - tests/desktop-connection.test.js
-      - tests/flatpak-reference.test.js
-      - .github/workflows/flathub-draft-checks.yml
   workflow_dispatch:
 permissions:
   contents: read

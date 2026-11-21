@@ -1,7 +1,5 @@
 name: Build and distribute Flatpak
 on:
-  pull_request:
-    paths: ['packaging/**', 'scripts/*flatpak*', 'scripts/prepare-offline-npm.sh', 'scripts/prepare-desktop.js', 'scripts/managed-runtime.js', 'scripts/smoke-sandbox*', 'package*.json', 'desktop/**', 'lib/**', 'ui/**', '.github/workflows/flatpak-distribution.yml']
   workflow_dispatch:
     inputs:
       tag:
