@@ -242,7 +242,9 @@ def main(mode):
             with socket.create_connection(('127.0.0.1', port), timeout=5) as raw:
                 sock = BleStream(raw) if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' and os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') != '1' else raw
                 endpoint = b'\x02' + bytes(16) + b'\x06Python'
-                send(sock, frame(1, 2, blob(1, b'TEST') + blob(2, b'Python') + blob(6, endpoint)))
+                upgrade = os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') == '1' and mode in ('binary', 'small')
+                mediums = integer(5, 5) if upgrade else b''
+                send(sock, frame(1, 2, blob(1, b'TEST') + blob(2, b'Python') + mediums + blob(6, endpoint)))
                 private = ec.generate_private_key(ec.SECP256R1())
                 public = private.public_key().public_numbers()
                 def coordinate(n):
@@ -366,6 +368,29 @@ def main(mode):
                             assert one(response, 1) == 1, 'Consent did not encode ACCEPT'
                         if index == 3:
                             assert one(chunk, 1) == 1 and one(chunk, 3) == b'', 'Missing acceptance final chunk'
+                    if upgrade:
+                        offer = one(one(secure_receive(), 2), 5)
+                        assert one(offer, 1) == 1
+                        path = one(offer, 2)
+                        assert one(path, 1) == 5
+                        if mode == 'small':
+                            secure_send(frame(4, 5, integer(1, 5) + blob(2, path)))
+                        else:
+                            address = one(path, 3)
+                            dest = (socket.inet_ntoa(one(address, 1)), one(address, 2))
+                            with socket.create_connection(dest, timeout=3) as stale:
+                                send(stale, frame(4, 5, integer(1, 4) + blob(3, blob(1, b'OLD!'))))
+                                assert not stale.recv(1)
+                            lan = socket.create_connection(dest, timeout=3)
+                            send(lan, frame(4, 5, integer(1, 4) + blob(3, blob(1, b'TEST'))))
+                            assert one(one(one(receive(lan), 2), 5), 1) == 6
+                            assert one(one(one(secure_receive(), 2), 5), 1) == 2
+                            secure_send(frame(4, 5, integer(1, 2)))
+                            assert one(one(one(secure_receive(), 2), 5), 1) == 3
+                            secure_send(frame(4, 5, integer(1, 3)))
+                            sock = lan
+                            assert one(one(secure_receive(), 2), 1) == 5
+                            raw.close()
                     if isinstance(sock, BleStream):
                         # Offer an unavailable upgrade after consent. The peer
                         # must reject it, keep the encrypted BLE channel and not
@@ -377,7 +402,7 @@ def main(mode):
                         secure_send(frame(4, 5, integer(1, 2)))
                         # An ordered keepalive is a synchronization barrier: a
                         # false SAFE_TO_CLOSE response would arrive before it.
-                        secure_send(frame(5, 6, integer(1, 1)))
+                        secure_send(frame(5, 6, integer(1, 0)))
                         assert one(one(secure_receive(), 2), 1) == 5, 'Unnegotiated handoff acknowledged'
                     header = integer(1, 42) + integer(2, 2) + integer(3, len(data))
                     for offset in range(0, len(data), 16384):
@@ -389,6 +414,8 @@ def main(mode):
                     assert result['total'] == len(data) and len(result['stagedPaths']) == 1
                     received = Path(result['stagedPaths'][0])
                     assert received.parent.parent == Path(root) and received.name == filename
+                    if upgrade and mode == 'binary':
+                        sock.close()
                     assert received.stat().st_size == len(data), 'Independent file size mismatch'
                     assert hashlib.sha256(received.read_bytes()).digest() == hashlib.sha256(data).digest(), 'Independent file hash mismatch'
                 elif mode == 'decline':

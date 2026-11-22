@@ -25,6 +25,7 @@
   <screenshots><screenshot type="default"><caption>Desktop file transfer</caption><image>https://raw.githubusercontent.com/fluffydisk/airdrop-linux/ca481425aad9d8748c2cf57c24412e67c2815464/docs/evidence/desktop-1.7.0/after-transfer-light.png</image></screenshot></screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.10.3" date="2026-11-22"><description><p>Improve Quick Share phone discovery and allow compatible Bluetooth Classic transfers to continue over the local network.</p></description></release>
     <release version="1.10.2" date="2026-11-22"><description><p>Enable Quick Share in the signed upstream Flatpak.</p></description></release>
     <release version="1.10.1" date="2026-11-22"><description><p>Enable Nearby Share with Quick Share in supported native builds.</p></description></release>
     <release version="1.10.0" date="2026-11-21"><description><p>Add the Nearby Share tab with separate send and receive sessions for experimental Quick Share.</p></description></release>

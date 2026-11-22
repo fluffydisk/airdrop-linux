@@ -14,7 +14,7 @@ pub struct FastInit {
     _advertisement: AdvertisementHandle,
 }
 
-fn advertisement() -> Advertisement {
+pub(crate) fn advertisement() -> Advertisement {
     Advertisement {
         advertisement_type: Type::Broadcast,
         service_data: [(bluer::Uuid::from_u16(0xFE2C), DATA.to_vec())].into(),

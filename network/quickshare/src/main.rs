@@ -11,7 +11,10 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{broadcast, mpsc};
 
-#[cfg(all(feature = "ble-fastinit", target_os = "linux"))]
+#[cfg(all(
+    any(feature = "ble-fastinit", feature = "ble-native"),
+    target_os = "linux"
+))]
 mod fast_init;
 
 #[cfg(any(feature = "ble-native", test))]
@@ -102,7 +105,7 @@ impl Engine {
         match req.method.as_str() {
             "hello" => Ok(
                 json!({"protocol":1,"version":env!("CARGO_PKG_VERSION"),"experimental":true,"license":"GPL-3.0-only",
-                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"classicReceive":cfg!(all(feature="ble-native",target_os="linux")),"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
+                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"classicLanUpgrade":cfg!(all(feature="ble-native",target_os="linux")),"classicReceive":cfg!(all(feature="ble-native",target_os="linux")),"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
             ),
             "bluetooth-preflight" => {
                 #[cfg(all(feature = "ble-native", target_os = "linux"))]

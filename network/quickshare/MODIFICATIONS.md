@@ -21,7 +21,7 @@ Files modified by Airdrop Linux, recorded 2026-11-10:
 | src/utils.rs | Anonymous advertisements, validated P-256 coordinates, persistent frame prefix, version/name/TLV bounds |
 | src/hdl/mdns.rs | Register initial receiver visibility and keep private device names out of logs |
 | src/hdl/mdns_discovery.rs | On-link address filtering, bounded probes, closed-channel exit |
-| src/hdl/inbound.rs | Consent, safe names/private staging, file completion bounds, shared setup-payload limits, cancellation-safe prefix |
+| src/hdl/inbound.rs | Consent, safe names/private staging, file completion bounds, shared setup-payload limits, cancellation-safe prefix and consent-gated RFCOMM to Wi-Fi LAN upgrades |
 | src/hdl/outbound.rs | Safe source reads, empty/truncated source handling, shared payload bounds, truthful LAN roles, finalization errors and unconfirmed sender outcome |
 | src/hdl/mod.rs | Local payload assembler and explicit sent-but-unconfirmed state |
 | src/receive_safety.rs | Added filename, count and size limits |

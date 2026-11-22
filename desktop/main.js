@@ -201,8 +201,9 @@ function registerIpc() {
         if (mode !== 'receive' && mode !== 'send') throw Error('Choose a Nearby Share mode.');
         if (mode === 'send' && (!Array.isArray(payload.sources) || !payload.sources.length ||
             payload.sources.length > 100 || !payload.sources.every(source => allowedPaths.has(source)))) throw Error('Choose files first.');
-        if (quickshare.busy && quickshare.mode !== mode) throw Error('Finish or cancel the active Quick Share transfer first.');
-        if (quickshare.child && quickshare.mode !== mode) await quickshare.stop();
+        const rescan = mode === 'send' && payload.rescan === true;
+        if (quickshare.busy && (quickshare.mode !== mode || rescan)) throw Error('Finish or cancel the active Quick Share transfer first.');
+        if (quickshare.child && (quickshare.mode !== mode || rescan)) await quickshare.stop();
         if (!quickshare.child) {
           await nearbyReady.catch(() => {});
           const name = nearby.name;

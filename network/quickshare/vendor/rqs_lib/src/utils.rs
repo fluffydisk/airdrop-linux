@@ -344,9 +344,11 @@ pub fn local_ipv4() -> Option<[u8; 4]> {
 /// interfaces — i.e. whether a peer at that address is reachable over the
 /// local network (used to pick the bandwidth-upgrade path).
 pub fn same_subnet(remote: [u8; 4]) -> bool {
-    let Ok(addrs) = get_if_addrs() else {
-        return false;
-    };
+    lan_address_for(remote).is_some()
+}
+
+pub fn lan_address_for(remote: [u8; 4]) -> Option<[u8; 4]> {
+    let addrs = get_if_addrs().ok()?;
     let r = u32::from(Ipv4Addr::from(remote));
     for ia in addrs {
         if let IfAddr::V4(v4) = &ia.addr {
@@ -356,11 +358,11 @@ pub fn same_subnet(remote: [u8; 4]) -> bool {
             let ip = u32::from(v4.ip);
             let mask = u32::from(v4.netmask);
             if mask != 0 && (ip & mask) == (r & mask) {
-                return true;
+                return Some(v4.ip.octets());
             }
         }
     }
-    false
+    None
 }
 
 pub fn is_not_self_ip(ip_address: &Ipv4Addr) -> bool {

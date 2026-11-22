@@ -64,7 +64,12 @@
         error.textContent = record.error; row.append(error);
       }
       const names = document.createElement('p'); names.textContent = (record.files || []).map(file => typeof file === 'string' ? file : file.name).join(', '); row.append(names);
-      if (record.total) { const progress = document.createElement('progress'); progress.max = record.total; progress.value = record.bytes || 0; progress.setAttribute('aria-label', 'Transferred bytes'); row.append(progress); }
+      if (record.total) {
+        const amount = document.createElement('p');
+        const unit = record.total < 1024 * 1024 ? 1024 : 1024 * 1024;
+        amount.textContent = ((record.bytes || 0) / unit).toFixed(1) + ' / ' + (record.total / unit).toFixed(1) + (unit === 1024 ? ' KiB' : ' MiB');
+        row.append(amount);
+        const progress = document.createElement('progress'); progress.max = record.total; progress.value = record.bytes || 0; progress.setAttribute('aria-label', 'Transferred bytes'); row.append(progress); }
       if (!terminal.has(record.phase)) {
         const cancel = document.createElement('button'); cancel.className = 'button'; cancel.textContent = 'Cancel transfer';
         cancel.onclick = async () => { cancel.disabled = true; try { await window.airdrop.sharing('cancel', { transport: 'quick-share', id: record.id }); await refresh(); } catch (error) { report(error); cancel.disabled = false; } };
@@ -170,7 +175,16 @@
   }
   get('nativeReceive').onclick = () => selectMode('receive');
   get('nativeSend').onclick = () => selectMode('send');
-  get('nativeRefresh').onclick = refresh;
+  get('nativeRefresh').onclick = async () => {
+    if (working || stopping || !files.length || mode !== 'send') return;
+    const current = generation;
+    working = true; render();
+    try {
+      const state = await window.airdrop.sharing('native-start', { mode: 'send', rescan: true, sources: files.map(file => file.path) });
+      if (current === generation) snapshot = state;
+    } catch (error) { if (current === generation) report(error); }
+    finally { working = false; render(); await refresh(); }
+  };
   get('nativeClear').onclick = () => stop();
   get('nativeChoose').onclick = () => selectMode('send');
   get('nativeInbox').onclick = () => window.airdrop.nearby('inbox').catch(report);

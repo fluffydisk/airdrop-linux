@@ -668,7 +668,7 @@ where
     }
 }
 async fn inbound(
-    core: DuplexStream,
+    core: impl AsyncRead + AsyncWrite + Unpin,
     sender: broadcast::Sender<ChannelMessage>,
     id: String,
     method: &'static str,
@@ -687,6 +687,9 @@ async fn inbound(
         cancelled: None,
     };
     let mut r = InboundRequest::new(core, id, sender);
+    if method == "bt-rfcomm" {
+        r.enable_classic_lan_upgrade();
+    }
     loop {
         match timeout(PEER_TIMEOUT, r.handle())
             .await
@@ -960,7 +963,7 @@ async fn resolve(
         "existing ACL not owned by us"
     );
     connections.claim(&device)?;
-    let result = timeout(DBUS, async {
+    let result = timeout(DBUS * 4, async {
         connect_gatt(&device).await?;
         let (a, c) = characteristics(&device, slots).await?;
         Ok::<_, anyhow::Error>((a, c.is_some()))
@@ -1134,6 +1137,7 @@ async fn select_adapter(
 /// FEF3 ServiceData updates refresh known devices; at most 128 watchers live
 /// during each short scan lease.
 async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
+    let events = bounded(adapter.events()).await?;
     let addresses = bounded(adapter.device_addresses()).await?;
     if addresses.len() > 1024 {
         inc("scan_cache_limit")
@@ -1142,7 +1146,6 @@ async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
     let known: HashSet<_> = addresses.into_iter().collect();
     // Event observation has no discovery ownership. The dedicated Discovery
     // lease below is the only caller of StartDiscovery/StopDiscovery.
-    let events = bounded(adapter.events()).await?;
     let discovery = futures::stream::iter(
         known
             .iter()
@@ -1163,8 +1166,7 @@ async fn scan_events(adapter: &Adapter) -> Result<ScanStream> {
                     if state.3.len()>=128{inc("scan_watcher_limit")}
                     if !state.3.contains(&addr) && state.3.len()<128
                         && let Ok(device)=state.0.device(addr) {
-                            let relevant=!cached || bounded(device.service_data()).await.ok().flatten().is_some_and(|d|d.contains_key(&SERVICE));
-                            if relevant && let Ok(events)=bounded(device.events()).await {
+                            if let Ok(events)=bounded(device.events()).await {
                                 state.3.insert(addr);
                                 state.2.push(events.filter_map(move |event|futures::future::ready(receiver_data_update(&event).then_some(addr))).boxed());
                             }
@@ -1288,6 +1290,15 @@ async fn run(
     state["stage"] = json!("adapter-prepared");
     let caps = bounded(probe_adapter(&adapter)).await?;
     state["controller"] = caps.clone();
+    // Sender interest can wake a receiver that is waiting in Everyone mode.
+    // Scanning and LAN discovery still work if the controller lacks an ad slot.
+    let _sender_interest = if discover_receivers && !*visibility.borrow() {
+        bounded(adapter.advertise(crate::fast_init::advertisement()))
+            .await
+            .ok()
+    } else {
+        None
+    };
     let discovery = Arc::new(Discovery::default());
     let mut tasks = JoinSet::new();
     let lab_classic = std::env::var("AIRDROP_S24_LAB_CLASSIC").as_deref() == Ok("1");
@@ -1367,6 +1378,11 @@ async fn run(
     let mut scan: Option<
         std::pin::Pin<Box<dyn futures::Stream<Item = AdapterEvent> + std::marker::Send>>,
     > = None;
+    let scan_pause = Duration::from_secs(if discover_receivers && !*visibility.borrow() {
+        1
+    } else {
+        7
+    });
     let mut next_scan = Instant::now();
     let mut advertising_retry = AdvertisingRetry::default();
     let mut registration_trigger = "initial";
@@ -1449,7 +1465,7 @@ async fn run(
                         // still scan; the sampled adapter state is not a guarantee of RF idle.
                         if scan.take().is_some(){inc("scan_pause_advertisement");}
                         discovery.stop().await?;
-                        state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                        state["bleScanning"]=json!(false);next_scan=Instant::now()+scan_pause;
                     if !advertisements.is_empty(){state["stage"]=json!("advertisement-cleanup-pending");emit(events,&state);}
                     if advertising::release_all(&mut advertisements,registration_trigger).await.is_err(){
                         let delay=advertising_retry.failed(Instant::now());diag::current().advertisement_retry(delay.as_secs());registration_trigger="retry";state["stage"]=json!("advertisement-cleanup-failed");emit(events,&state);continue
@@ -1479,21 +1495,21 @@ async fn run(
                 if discover_receivers && now>=next_scan && !receiver_pending {
                     if scan.take().is_some(){
                         inc("scan_pause_regular");discovery.stop().await?;
-                        state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                        state["bleScanning"]=json!(false);next_scan=Instant::now()+scan_pause;
                     }
                     else if permits.available_permits()==4 {
                         let stream=scan_events(&adapter).await?;
                         if cancel.is_cancelled(){continue}
                         discovery.start(adapter.name()).await?;
                         scan=Some(stream);state["bleScanning"]=json!(true);
-                        next_scan=Instant::now()+Duration::from_secs(3);
+                        next_scan=Instant::now()+Duration::from_secs(if *visibility.borrow() {3} else {30});
                     }
                     emit(events,&state);
                 }
                 if permits.available_permits()<4 && scan.take().is_some(){
                     inc("scan_pause_session");discovery.stop().await?;
                     state["bleScanning"]=json!(false);
-                    next_scan=Instant::now()+Duration::from_secs(7);
+                    next_scan=Instant::now()+scan_pause;
                     emit(events,&state);
                 }
             }
@@ -1533,7 +1549,7 @@ async fn run(
                     if permits.available_permits()<4 {inc("gatt_resolution_session_deferred");continue}
                     if attempts.contains_key(&addr) || attempts.len()>=100 {inc("gatt_resolution_throttled");emit(events,&state);continue}attempts.insert(addr,now);
                     // Drop our discovery lease during GATT resolution.
-                    inc("scan_pause_session");scan=None;discovery.stop().await?;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                    inc("scan_pause_session");scan=None;discovery.stop().await?;state["bleScanning"]=json!(false);next_scan=Instant::now()+scan_pause;
                     inc("gatt_resolution_requested");phase(events,"gatt-resolution-pending");
                     match resolve(&adapter,addr,h.as_ref().map(|h|h.slots).unwrap_or(1),&connections).await {
                         Ok((slot,available))=>{
@@ -1578,7 +1594,7 @@ async fn run(
                 continue}
                 ;
                 let Ok(permit)=permits.clone().try_acquire_owned() else{failed(sender,&request.id,TransferKind::Outbound);continue};
-                inc("scan_pause_session");scan=None;discovery.stop().await?;state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                inc("scan_pause_session");scan=None;discovery.stop().await?;state["bleScanning"]=json!(false);next_scan=Instant::now()+scan_pause;
                 let adapter=adapter.clone();
                 let sender=sender.clone();
                 let events=events.clone();
@@ -1612,7 +1628,7 @@ async fn run(
                 let Ok(permit)=permits.clone().try_acquire_owned()else{inc("rfcomm_session_capacity_rejected");continue};
                 inc("rfcomm_incoming");
                 discovery.stop().await?;scan=None;state["bleScanning"]=json!(false);
-                next_scan=Instant::now()+Duration::from_secs(7);
+                next_scan=Instant::now()+scan_pause;
                 let sender=sender.clone();let events=events.clone();let c=cancel.child_token();
                 tasks.spawn(async move{
                     let _permit=permit;
@@ -1629,7 +1645,7 @@ async fn run(
                 ;
                 if scan.take().is_some(){inc("scan_pause_session");}
                 discovery.stop().await?;
-                state["bleScanning"]=json!(false);next_scan=Instant::now()+Duration::from_secs(7);
+                state["bleScanning"]=json!(false);next_scan=Instant::now()+scan_pause;
                 emit(events,&state);
                 let full=full.clone();
                 let sender=sender.clone();
@@ -1869,19 +1885,16 @@ async fn serve_classic<S: AsyncRead + AsyncWrite + Unpin>(
     rqs_lib::lab_trace::event("rfcomm-arrived", 0, 0);
     let transfer = async {
         // A service probe that sends no application bytes is not a failed file.
-        let mut prefix = [0; 4];
-        let n = timeout(Duration::from_secs(10), socket.read(&mut prefix)).await??;
-        if n == 0 {
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        let mut reader = BufReader::new(&mut socket);
+        if timeout(Duration::from_secs(10), reader.fill_buf())
+            .await??
+            .is_empty()
+        {
             return Ok(());
         }
         phase(&events, "rfcomm-established");
-        let (core, mut bridge) = tokio::io::duplex(65536);
-        bridge.write_all(&prefix[..n]).await?;
-        session(inbound(core, sender, id, "bt-rfcomm"), async {
-            tokio::io::copy_bidirectional(&mut socket, &mut bridge).await?;
-            Ok(())
-        })
-        .await
+        inbound(reader, sender, id, "bt-rfcomm").await
     };
     tokio::select! {
         _=cancel.cancelled()=>{rqs_lib::lab_trace::event("session-cancel",0,0);Err(anyhow::anyhow!("stopped"))},
