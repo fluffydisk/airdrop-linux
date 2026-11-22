@@ -1,0 +1,35 @@
+name: Inspect failed Flatpak candidate
+on:
+  push:
+    branches: [diagnose/flatpak-103]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: signed-flatpak-validation-evidence
+          run-id: 44980928259
+          github-token: ${{ github.token }}
+          path: evidence
+      - name: Identify failed validation
+        shell: python
+        run: |
+          import json,pathlib,re
+          results=list(pathlib.Path('evidence').rglob('results.json'))
+          if not results:
+            print('::warning::No validation results. Failed before validation started.')
+          for path in results:
+            report=json.loads(path.read_text())
+            print('::warning::'+str(report.get('failure','No failure in report')))
+            for row in report.get('checks',[]):
+              if row.get('exit_code',0):
+                log=path.parent/row['log']
+                lines=log.read_text(errors='replace').splitlines()
+                matches=[l for l in lines if re.search(r'error|failed|not ok|✖|exception|timed out|assert|Traceback',l,re.I)]
+                for line in (matches or lines[-5:])[-14:]:
+                  line=re.sub(r'https?://\S+','[url]',line)
+                  print('::warning::'+line[:350].replace('%','%25'))
