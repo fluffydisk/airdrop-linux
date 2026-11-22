@@ -2,7 +2,7 @@ name: Prepare application release
 on:
   push:
     branches: [main]
-    paths: ['package.json', '.github/workflows/release.yml']
+    paths: ['package.json', '.github/workflows/release.yml', '.github/workflows/flatpak-update-repository.yml']
   workflow_dispatch:
     inputs:
       publish:
