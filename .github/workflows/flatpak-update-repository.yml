@@ -52,12 +52,15 @@ jobs:
           [[ "$REVISION" =~ ^[1-9][0-9]*$ ]]
           git merge-base --is-ancestor "$SOURCE" HEAD
           printf "source=%s\nrevision=%s\n" "$SOURCE" "$REVISION" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
       - name: Install validation tools and signed runtimes
         run: |
           set -euo pipefail
           sudo bash scripts/ci-ubuntu-mirror.sh
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg gpgv apt-utils rpm createrepo-c libglib2.0-dev
+          sudo apt-get install -y --no-install-recommends flatpak dbus-x11 xvfb weston appstream desktop-file-utils xdg-desktop-portal-gtk python3-yaml python3-gi flatpak-builder elfutils debugedit appstream-compose gnupg gpgv apt-utils rpm createrepo-c libglib2.0-dev protobuf-compiler
           npm ci --ignore-scripts
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user --noninteractive flathub org.flatpak.Builder \

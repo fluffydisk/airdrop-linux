@@ -212,7 +212,7 @@ def main():
         run('Backend transfers and isolation', ['dbus-run-session', '--', 'node', 'scripts/smoke-sandbox.js', 'flatpak'], source=PERMS)
         run('X11 clipboard sandbox and connection UI', ['xvfb-run', '-a', 'dbus-run-session', '--', 'node', 'scripts/smoke-sandbox-desktop.cjs', 'flatpak'],
             source=PERMS, extra={'AIRDROP_TEST_CONNECTION': '1', **({'AIRDROP_TEST_INAPP_SETUP':'1','AIRDROP_TEST_LIVE_INTERNET':'1'} if args.live_internet else {}), 'AIRDROP_TEST_SCREENSHOT': str(out/'desktop.png'),
-            'AIRDROP_TEST_DEVICES': '1'})
+            'AIRDROP_TEST_DEVICES': '1', 'AIRDROP_TEST_QUICKSHARE': '1' if '--allow=bluetooth' in data['finish-args'] else '0'})
         run('Icon screenshot integrity and actual metadata URL', [sys.executable, 'scripts/check-flatpak-images.py',
             '--metainfo', files/f'share/metainfo/{APP}.metainfo.xml', '--capture', out/'desktop.png',
             '--icon', files/f'share/icons/hicolor/512x512/apps/{APP}.png'], source=META)

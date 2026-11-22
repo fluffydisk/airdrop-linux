@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from flatpak_reference_inputs import inspect_manifest
+from flatpak_quickshare import GRANTS, audit_quickshare
 
 APP = 'io.github.fluffydisk.airdrop-linux'
 ALLOWED = {'--share=ipc','--share=network','--socket=wayland','--socket=fallback-x11',
@@ -23,9 +24,10 @@ def main():
     args = parser.parse_args()
     data, inputs = inspect_manifest(args.manifest)
     assert data['app-id'] == APP
-    assert set(data['finish-args']) <= ALLOWED, 'Unreviewed sandbox permission'
+    assert set(data['finish-args']) <= ALLOWED.union(GRANTS), 'Unreviewed sandbox permission'
     assert data['runtime-version'] == data['base-version'], 'Runtime/BaseApp mismatch'
     files = args.build_dir/'files'
+    audit_quickshare(files, data['finish-args'], APP)
     meta = ET.parse(files/f'share/metainfo/{APP}.metainfo.xml').getroot()
     assert meta.findtext('id') == APP and meta.findtext('launchable') == APP+'.desktop'
     assert meta.findtext('metadata_license') == 'CC0-1.0' and meta.findtext('project_license') == 'MIT'

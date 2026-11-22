@@ -17,6 +17,11 @@ const {_electron:electron}=require('playwright-core');
   }
   const wayland=process.env.AIRDROP_TEST_WAYLAND==='1';
   const launchEnv={...process.env,AIRDROP_DISABLE_TRAY:'1'};
+  const quickshare = channel === 'flatpak' && process.env.AIRDROP_TEST_QUICKSHARE === '1';
+  if (quickshare) {
+   delete launchEnv.AIRDROP_EXPERIMENTAL_QUICK_SHARE;
+   delete launchEnv.AIRDROP_QUICKSHARE_BLE_NATIVE;
+  }
   if(wayland)delete launchEnv.DISPLAY;
   const args=wayland?['--ozone-platform=wayland','--disable-gpu','--enable-logging=stderr']:['--ozone-platform=x11'];
   app=await electron.launch({executablePath:executable,chromiumSandbox:true,args,env:launchEnv,timeout:60000});
@@ -30,6 +35,22 @@ const {_electron:electron}=require('playwright-core');
    if(await page.locator('#connectionWizard').isVisible()) {
     await page.evaluate(()=>document.getElementById('wizardContinue').click()); // Explicit test-only dismissal for independent local checks; not authenticated onboarding.
    }
+  }
+  if (quickshare) {
+   const state = () => page.evaluate(async () => (await window.airdrop.sharing('state')).quickShare);
+   assert.equal((await state()).enabled, true, 'Flatpak must ship Quick Share without opt-in flags');
+   await page.locator('[data-view="native-sharing"]').click();
+   await page.locator('#nativeReceive').click();
+   await page.waitForFunction(() => /is active|LAN is active/.test(
+    document.getElementById('nativeAvailability').textContent), {}, {timeout:20000});
+   const receiver = await state();
+   assert.equal(receiver.mode, 'receive');
+   assert.equal(receiver.capabilities.classicReceive, true);
+   assert.ok(receiver.listenerPort > 0);
+   await page.locator('#nativeStop').click();
+   await page.waitForFunction(() => document.getElementById('nativeResult').textContent === 'Quick Share stopped.');
+   assert.equal((await state()).status, 'stopped');
+   console.log('flatpak: packaged Quick Share received a real helper handshake and released its listener; no physical radio required');
   }
   if(process.env.AIRDROP_TEST_DEVICES==='1' && !wayland){
    await page.locator('[data-view="settings"]').click();
