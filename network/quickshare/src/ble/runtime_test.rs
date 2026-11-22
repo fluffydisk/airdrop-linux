@@ -254,8 +254,15 @@ async fn private_dbus_receiver_only_registers_gatt_and_advertises_without_discov
     }
     let (sender, _) = broadcast::channel(32);
     let (events, mut rx) = mpsc::channel(64);
-    let mut runtime =
-        Runtime::start_with_visibility(*b"TEST", "Fixture".into(), sender, events, false, true);
+    let mut runtime = Runtime::start_with_visibility(
+        *b"TEST",
+        "Fixture".into(),
+        sender,
+        events,
+        false,
+        true,
+        false,
+    );
     timeout(Duration::from_secs(5), async {
         while let Some(Event::Bluetooth(state)) = rx.recv().await {
             if state["bleAdvertising"] == true {

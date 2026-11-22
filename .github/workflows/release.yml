@@ -48,7 +48,7 @@ jobs:
           node-version: '26'
           cache: npm
       - name: Install native packaging tools
-        run: sudo bash scripts/ci-ubuntu-mirror.sh && sudo apt-get update && sudo apt-get install -y rpm lintian appstream unzip
+        run: sudo bash scripts/ci-ubuntu-mirror.sh && sudo apt-get update && sudo apt-get install -y rpm lintian appstream unzip xvfb dbus-x11
       - run: npm ci
       - name: Verify application and lockfile versions match
         run: node -e "const v=require('./package.json').version;for(const p of ['./desktop/package.json','./package-lock.json','./desktop/package-lock.json']){const x=require(p);if(x.version!==v||(x.packages&&x.packages[''].version!==v))throw Error('Version mismatch in '+p);}"
@@ -59,23 +59,36 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: '1.99.1'
-      - name: Build the experimental Quick Share helper for portable updates
+      - name: Build the native Quick Share helper
         run: |
           sudo apt-get install -y protobuf-compiler pkg-config libdbus-1-dev
           node scripts/build-quickshare.js --ble-native
       - run: node scripts/build-release.js
         env:
-          AIRDROP_PACKAGE_EXPERIMENTAL_QUICK_SHARE: '1'
+          AIRDROP_PACKAGE_QUICK_SHARE: '1'
       - run: node scripts/build-appimage.js
         env:
-          AIRDROP_PACKAGE_EXPERIMENTAL_QUICK_SHARE: '1'
+          AIRDROP_PACKAGE_QUICK_SHARE: '1'
       - name: Build package-manager payloads
+        env:
+          AIRDROP_PACKAGE_QUICK_SHARE: '1'
         run: |
           for channel in apt rpm aur flatpak snap; do node scripts/build-packages.js "$channel"; done
           lintian --fail-on error release/*.deb
           appstreamcli validate --no-net packaging/io.github.fluffydisk.airdrop-linux.metainfo.xml
           sudo apt-get install -y ./release/*.deb
           AIRDROP_CODE_DIR=/usr/lib/airdrop-linux node scripts/smoke-managed.js
+      - name: Verify packaged Quick Share without opt-in flags
+        run: |
+          set -euo pipefail
+          executable=/usr/lib/airdrop-linux/desktop/Airdrop
+          profile="$RUNNER_TEMP/release-quickshare.apparmor"
+          if command -v apparmor_parser >/dev/null && test -d /sys/kernel/security/apparmor; then
+            node scripts/desktop-apparmor.js "$executable" > "$profile"
+            sudo apparmor_parser --replace "$profile"
+            trap 'sudo apparmor_parser --remove "$profile"' EXIT
+          fi
+          AIRDROP_TEST_PACKAGED_DESKTOP="$executable" xvfb-run -a dbus-run-session -- node --test tests/quickshare-nearby-desktop.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.arch }}

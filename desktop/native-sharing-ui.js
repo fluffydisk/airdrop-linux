@@ -17,10 +17,10 @@
     const bluetoothUnavailable = bluetooth.stage === 'adapter-unavailable' ||
       bluetooth.stage === 'advertisement-registration-failed';
     get('nativeAvailability').textContent = !snapshot ? 'Checking Quick Share support…' :
-      !enabled ? 'Quick Share requires an experimental helper-enabled build.' :
+      !enabled ? 'Quick Share is unavailable in this installation.' :
       quick.status === 'error' ? 'Quick Share is unavailable. Try starting it again.' :
       ready && bluetoothUnavailable ? 'Quick Share LAN is active. Check Bluetooth power and BlueZ permissions.' :
-      ready ? 'Experimental Quick Share is active.' : working ? 'Starting or stopping Quick Share…' : 'Experimental Quick Share is off.';
+      ready ? 'Quick Share is active.' : working ? 'Starting or stopping Quick Share…' : 'Quick Share is off.';
     get('nativeDeviceName').textContent = quick.name ? 'Device name: ' + quick.name : '';
     const receiveReady = ready && ['receive', 'both'].includes(quick.mode);
     const sendReady = ready && ['send', 'both'].includes(quick.mode);

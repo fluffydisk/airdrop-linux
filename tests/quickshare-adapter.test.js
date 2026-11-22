@@ -248,3 +248,14 @@ test('receive mode cannot initiate an outgoing transfer', async t => {
   assert.equal((await adapter.request('started')).mode, 'receive');
   await assert.rejects(adapter.send({ recipientId: 'quick-share:peer', sources: ['/tmp/file'] }), /Choose Send/);
 });
+
+test('Classic receive uses the scoped native helper only in Receive mode', async t => {
+  const helper = path.resolve('tests/fixtures/quickshare-helper.cjs');
+  const adapter = await fixture(t, { mode: 'receive', bleNative: true, classicReceive: true,
+    spawnProcess: () => spawn(process.execPath, [helper], { stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, QUICKSHARE_IPC_FIXTURE_BLE: '1' } }) });
+  assert.equal((await adapter.request('started')).classicReceive, true);
+  await adapter.stop();
+  await adapter.start('send');
+  assert.equal((await adapter.request('started')).classicReceive, undefined);
+});

@@ -1,5 +1,5 @@
 'use strict';
-// Development artifact only. Production packaging deliberately does not call this.
+// Build the native helper with a checksum and a receipt for lab or release staging.
 const fs = require('node:fs/promises'), path = require('node:path'), crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 async function build({ bleFastInit = false, bleNative = false } = {}) {
@@ -16,7 +16,7 @@ async function build({ bleFastInit = false, bleNative = false } = {}) {
     // running executable (ETXTBSY) or expose a partially copied helper.
     await fs.rename(next, target);
   } finally { await fs.unlink(next).catch(error => { if (error.code !== 'ENOENT') throw error; }); }
-  const metadata = { schema: 1, arch: process.arch, experimental: true, sha256: crypto.createHash('sha256').update(await fs.readFile(target)).digest('hex'), source: 'fb9c8f9502e5313e3d788aa3498659773ef12d28', capabilities: { lan: true, ble: bleNative, bleScanning: bleNative, bleAdvertising: bleNative, gattBootstrap: bleNative, l2cap: bleNative, lanListening: true, lanUpgrade: false, directWireless: false, direct: false } };
+  const metadata = { schema: 1, arch: process.arch, experimental: true, sha256: crypto.createHash('sha256').update(await fs.readFile(target)).digest('hex'), source: 'fb9c8f9502e5313e3d788aa3498659773ef12d28', capabilities: { lan: true, ble: bleNative, bleScanning: bleNative, bleAdvertising: bleNative, gattBootstrap: bleNative, classicReceive: bleNative, l2cap: bleNative, lanListening: true, lanUpgrade: false, directWireless: false, direct: false } };
   metadata.applicationCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   metadata.dirty = !!execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: root, encoding: 'utf8' }).trim();
   metadata.lockSha256 = crypto.createHash('sha256').update(await fs.readFile(path.join(cwd, 'Cargo.lock'))).digest('hex');
@@ -41,7 +41,7 @@ async function build({ bleFastInit = false, bleNative = false } = {}) {
   const nextMetadata = path.join(output, '.helper-' + crypto.randomBytes(8).toString('hex') + '.json');
   try { await fs.writeFile(nextMetadata, JSON.stringify(metadata, null, 2) + '\n', { flag: 'wx', mode: 0o600 }); await fs.rename(nextMetadata, path.join(output, 'helper.json')); }
   finally { await fs.unlink(nextMetadata).catch(error => { if (error.code !== 'ENOENT') throw error; }); }
-  console.log('Verified development helper prepared. Stable builds remain disabled.');
+  console.log('Verified Quick Share helper prepared.');
 }
 if (require.main === module) {
   if (process.argv.slice(2).some(flag => !['--ble-fastinit', '--ble-native'].includes(flag))) throw Error('Unknown Quick Share build option');

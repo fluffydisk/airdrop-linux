@@ -98,11 +98,16 @@ const quickshareDirectory = app.isPackaged
   : path.resolve(__dirname, '../.cache/quickshare', process.arch);
 let quickshareMetadata = {};
 try { quickshareMetadata = JSON.parse(fs.readFileSync(path.join(quickshareDirectory, 'helper.json'), 'utf8')); } catch {}
+const packagedQuickShare = app.isPackaged && quickshareMetadata.desktopDefault === true;
+const nativeBluetooth = process.env.AIRDROP_QUICKSHARE_BLE_NATIVE !== '0' &&
+  (packagedQuickShare || process.env.AIRDROP_QUICKSHARE_BLE_NATIVE === '1');
 const quickshare = new (require('./core/lib/sharing/quickshare').QuickShare)({
-  enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1',
+  enabled: process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE !== '0' &&
+    (packagedQuickShare || process.env.AIRDROP_EXPERIMENTAL_QUICK_SHARE === '1'),
   helper: path.join(quickshareDirectory, 'airdrop-quickshare'), sha256: quickshareMetadata.sha256,
   bleFastInit: process.env.AIRDROP_QUICKSHARE_BLE_FASTINIT === '1',
-  bleNative: process.env.AIRDROP_QUICKSHARE_BLE_NATIVE === '1',
+  bleNative: nativeBluetooth,
+  classicReceive: packagedQuickShare && nativeBluetooth,
   bleReceiveOnly: !!quickshareLab && process.env.AIRDROP_QUICKSHARE_BLE_RECEIVE_ONLY === '1',
   directory: path.join(desktopData, 'quickshare'), inbox: nearby.store.inbox,
   ...(quickshareLab ? { name: quickshareLab.receiverName, port: 0, protocolDiagnostics: true } : {}),

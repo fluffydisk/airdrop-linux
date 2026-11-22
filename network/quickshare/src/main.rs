@@ -102,7 +102,7 @@ impl Engine {
         match req.method.as_str() {
             "hello" => Ok(
                 json!({"protocol":1,"version":env!("CARGO_PKG_VERSION"),"experimental":true,"license":"GPL-3.0-only",
-                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
+                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"classicReceive":cfg!(all(feature="ble-native",target_os="linux")),"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
             ),
             "bluetooth-preflight" => {
                 #[cfg(all(feature = "ble-native", target_os = "linux"))]
@@ -143,6 +143,10 @@ impl Engine {
                     Some(_) => bail!("INVALID_MODE"),
                 };
                 let request_ble = req.params["bleNative"].as_bool().unwrap_or(false);
+                let classic_receive = req.params["classicReceive"].as_bool().unwrap_or(false);
+                if classic_receive && (!request_ble || discover || !visible) {
+                    bail!("CLASSIC_REQUIRES_NATIVE_RECEIVE_SCOPE");
+                }
                 let receive_only = req.params["bleReceiveOnly"].as_bool().unwrap_or(false);
                 if receive_only && !request_ble {
                     bail!("BLE_RECEIVE_ONLY_REQUIRES_NATIVE");
@@ -232,6 +236,7 @@ impl Engine {
                         events.clone(),
                         discover && !receive_only,
                         visible,
+                        classic_receive,
                     ));
                 }
                 let port = service.port_number;

@@ -17,12 +17,21 @@ test('sandboxed Nearby Share starts scoped native sessions and stops its helper 
     try { await app?.close(); }
     finally { await fs.rm(root, { recursive: true, force: true }); }
   });
+  const packaged = process.env.AIRDROP_TEST_PACKAGED_DESKTOP;
+  const env = { ...process.env, AIRDROP_HOME: path.join(root, 'airdrop'), AIRDROP_DISABLE_TRAY: '1',
+    AIRDROP_DISABLE_UPDATE_CHECK: '1' };
+  if (packaged) {
+    delete env.AIRDROP_EXPERIMENTAL_QUICK_SHARE;
+    delete env.AIRDROP_QUICKSHARE_BLE_NATIVE;
+  } else {
+    env.AIRDROP_EXPERIMENTAL_QUICK_SHARE = '1';
+    env.AIRDROP_QUICKSHARE_BLE_NATIVE = '0';
+  }
   app = await electron.launch({
-    executablePath: require('../desktop/node_modules/electron'),
+    executablePath: packaged || require('../desktop/node_modules/electron'),
     chromiumSandbox: true,
-    args: [path.resolve('desktop'), '--ozone-platform=x11'],
-    env: { ...process.env, AIRDROP_HOME: path.join(root, 'airdrop'), AIRDROP_DISABLE_TRAY: '1',
-      AIRDROP_DISABLE_UPDATE_CHECK: '1', AIRDROP_EXPERIMENTAL_QUICK_SHARE: '1', AIRDROP_QUICKSHARE_BLE_NATIVE: '0' },
+    args: [...(packaged ? [] : [path.resolve('desktop')]), '--ozone-platform=x11'],
+    env,
     timeout: 20000
   });
   const page = await app.firstWindow();
@@ -39,7 +48,10 @@ test('sandboxed Nearby Share starts scoped native sessions and stops its helper 
   await waitForMode(null);
   await page.locator('[data-view="native-sharing"]').click();
   await page.locator('#nativeReceive').click();
-  const { listenerPort } = await waitForMode('receive');
+  const { listenerPort, capabilities } = await waitForMode('receive');
+  if (packaged) {
+    assert.equal(capabilities.classicReceive, true, 'Packaged builds must expose the native Classic receive capability');
+  }
   assert.ok(listenerPort > 0);
 
   await app.evaluate(({ dialog }, fixture) => {

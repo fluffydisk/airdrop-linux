@@ -205,7 +205,7 @@ impl Runtime {
         sender: broadcast::Sender<ChannelMessage>,
         events: mpsc::Sender<Event>,
     ) -> Self {
-        Self::start_with_visibility(endpoint, name, sender, events, true, true)
+        Self::start_with_visibility(endpoint, name, sender, events, true, true, false)
     }
     pub fn start_with_visibility(
         endpoint: [u8; 4],
@@ -214,6 +214,7 @@ impl Runtime {
         events: mpsc::Sender<Event>,
         discover_receivers: bool,
         initially_visible: bool,
+        classic_receive: bool,
     ) -> Self {
         let cancel = CancellationToken::new();
         let c = cancel.clone();
@@ -244,6 +245,7 @@ impl Runtime {
                         previous_adapter: &mut previous_adapter,
                         recovering,
                         discover_receivers,
+                        classic_receive,
                     },
                 )
                 .await;
@@ -1183,6 +1185,7 @@ struct Generation<'a> {
     previous_adapter: &'a mut Option<AdapterIdentity>,
     recovering: bool,
     discover_receivers: bool,
+    classic_receive: bool,
 }
 struct AdapterMonitor {
     lost: Arc<AtomicBool>,
@@ -1250,6 +1253,7 @@ async fn run(
         previous_adapter,
         recovering,
         discover_receivers,
+        classic_receive,
     } = generation;
     let (endpoint_id, name) = local;
     let _cancel_on_return = cancel.clone().drop_guard();
@@ -1286,11 +1290,9 @@ async fn run(
     state["controller"] = caps.clone();
     let discovery = Arc::new(Discovery::default());
     let mut tasks = JoinSet::new();
-    let classic = if std::env::var("AIRDROP_S24_LAB_CLASSIC").as_deref() == Ok("1") {
-        ensure!(
-            !discover_receivers,
-            "classic laboratory receiver must be inbound-only"
-        );
+    let lab_classic = std::env::var("AIRDROP_S24_LAB_CLASSIC").as_deref() == Ok("1");
+    let classic = if classic_receive || lab_classic {
+        ensure!(!discover_receivers, "classic receiver must be inbound-only");
         match super::classic::Classic::bind(&session, &adapter).await {
             Ok(classic) => {
                 inc("rfcomm_registration_success");
@@ -1299,7 +1301,12 @@ async fn run(
             Err(error) => {
                 inc("rfcomm_registration_failure");
                 phase(events, "rfcomm-registration-failed");
-                return Err(error);
+                if lab_classic {
+                    return Err(error);
+                }
+                // A missing, blocked or ambiguous Classic adapter must not
+                // take the existing BLE and LAN receive paths offline.
+                None
             }
         }
     } else {

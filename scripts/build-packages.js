@@ -6,7 +6,7 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { execFileSync: run } = require('node:child_process');
 const { desktopProfile } = require('./desktop-apparmor');
-const { copyReleaseInput } = require('./release-inputs');
+const { copyReleaseInput, stageQuickShare } = require('./release-inputs');
 const root = path.resolve(__dirname,'..');
 const pkg = require('../package.json');
 const pins = require('../packaging/runtime-sources.json');
@@ -49,6 +49,9 @@ async function stage(target, {source='apt', arch=process.arch, desktop=path.join
   await download(pins.dufsLicense.url,pins.dufsLicense.sha256,license);
   await fs.copyFile(license,path.join(target,'runtime/DUFS-LICENSE'));
   await normalizePayload(target,arch);
+  if (arch === process.arch && ['apt', 'rpm', 'aur'].includes(source)) {
+    await stageQuickShare(root, path.join(target, 'desktop'));
+  }
   await deduplicatePayload(target);
 }
 async function normalizePayload(directory, arch) {
@@ -159,7 +162,7 @@ async function main() {
     if(source==='apt'){
       await fs.mkdir(path.join(target,'DEBIAN'));
       const installedSize=run('du',['-sk',target],{encoding:'utf8'}).split(/\s/)[0];
-      await fs.writeFile(path.join(target,'DEBIAN/control'),`Package: airdrop-linux\nVersion: ${pkg.version}-1\nArchitecture: ${arch}\nMaintainer: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>\nSection: net\nPriority: optional\nInstalled-Size: ${installedSize}\nDepends: libc6 (>= 2.39), libatomic1, libstdc++6, libgcc-s1, libatspi2.0-0 | libatspi2.0-0t64, libgtk-3-0 | libgtk-3-0t64, libnss3, libnspr4, libasound2 | libasound2t64, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libcups2 | libcups2t64, libdrm2, libgbm1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxrandr2, libxkbcommon0, dbus, systemd\nRecommends: xdg-desktop-portal, xdg-utils, apparmor\nHomepage: https://github.com/fluffydisk/airdrop-linux\nDescription: Private file and clipboard sharing through an Airdrop relay\n Electron desktop, local Node gateway, CLI and file server.\n Internet sharing uses your own HTTPS Airdrop relay.\n`);
+      await fs.writeFile(path.join(target,'DEBIAN/control'),`Package: airdrop-linux\nVersion: ${pkg.version}-1\nArchitecture: ${arch}\nMaintainer: Airdrop Linux maintainers <fluffydisk@users.noreply.github.com>\nSection: net\nPriority: optional\nInstalled-Size: ${installedSize}\nDepends: libc6 (>= 2.39), libatomic1, libstdc++6, libgcc-s1, libatspi2.0-0 | libatspi2.0-0t64, libgtk-3-0 | libgtk-3-0t64, libnss3, libnspr4, libasound2 | libasound2t64, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libcups2 | libcups2t64, libdrm2, libgbm1, libx11-6, libxcb1, libxcomposite1, libxdamage1, libxext6, libxfixes3, libxrandr2, libxkbcommon0, libdbus-1-3, dbus, systemd\nRecommends: xdg-desktop-portal, xdg-utils, apparmor\nHomepage: https://github.com/fluffydisk/airdrop-linux\nDescription: Private file and clipboard sharing through an Airdrop relay\n Electron desktop, local Node gateway, CLI and file server.\n Internet sharing uses your own HTTPS Airdrop relay.\n`);
       await fs.writeFile(path.join(target,'DEBIAN/conffiles'),'/etc/apparmor.d/airdrop-linux\n');
       for(const hook of ['postinst','prerm','postrm'])await fs.copyFile(path.join(root,'packaging/native',hook),path.join(target,'DEBIAN',hook));
       run('chmod',['0755',path.join(target,'DEBIAN/postinst'),path.join(target,'DEBIAN/prerm'),path.join(target,'DEBIAN/postrm')]);
