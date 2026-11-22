@@ -58,6 +58,9 @@
       const row = document.createElement('div'); row.className = 'nearby-transfer';
       const label = document.createElement('p');
       label.textContent = (record.direction === 'incoming' ? 'From ' : 'To ') + (record.name || 'Nearby device') + ' · ' + record.phase;
+      const routes = { 'bt-rfcomm': 'Bluetooth Classic', 'ble-gatt': 'Bluetooth LE (GATT)', 'ble-l2cap': 'Bluetooth LE (L2CAP)', 'lan-tcp': 'Local network (TCP)' };
+      if (routes[record.connectionMethod]) label.textContent += ' · ' +
+        (routes[record.initialConnectionMethod] && record.initialConnectionMethod !== record.connectionMethod ? routes[record.initialConnectionMethod] + ' → ' : '') + routes[record.connectionMethod];
       row.append(label);
       if (record.error) {
         const error = document.createElement('p');

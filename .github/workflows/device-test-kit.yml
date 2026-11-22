@@ -1,0 +1,37 @@
+name: Build Linux device test kit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['scripts/test-s24-receive.cjs', 'scripts/test-ipad-airdrop.py']
+permissions:
+  contents: read
+jobs:
+  kit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build the receiver
+        run: |
+          sudo bash scripts/ci-ubuntu-mirror.sh
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler pkg-config libdbus-1-dev
+          node scripts/build-quickshare.js --ble-native
+      - name: Package test tools and corresponding sources
+        run: |
+          mkdir -p "$RUNNER_TEMP/kit/.cache/quickshare/x64"
+          git archive HEAD scripts/test-ipad-airdrop.py scripts/test-s24-receive.cjs scripts/build-quickshare.js docs/nearby-device-test-tr.md lib/peer-store.js lib/files.js lib/sharing/quickshare.js lib/sharing/addresses.js lib/sharing/quickshare-diagnostics.js lib/sharing/quickshare-diagnostic-schema.json network/quickshare LICENSE | tar -x -C "$RUNNER_TEMP/kit"
+          cp .cache/quickshare/x64/{airdrop-quickshare,helper.json} "$RUNNER_TEMP/kit/.cache/quickshare/x64/"
+          tar -czf "$RUNNER_TEMP/linux-device-tests-x64.tar.gz" -C "$RUNNER_TEMP/kit" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-device-tests-x64
+          path: ${{ runner.temp }}/linux-device-tests-x64.tar.gz
+          retention-days: 30

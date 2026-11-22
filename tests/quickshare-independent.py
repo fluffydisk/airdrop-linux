@@ -242,8 +242,8 @@ def main(mode):
             with socket.create_connection(('127.0.0.1', port), timeout=5) as raw:
                 sock = BleStream(raw) if os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' and os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') != '1' else raw
                 endpoint = b'\x02' + bytes(16) + b'\x06Python'
-                upgrade = os.environ.get('AIRDROP_TEST_CLASSIC_DRIVER') == '1' and mode in ('binary', 'small')
-                mediums = integer(5, 5) if upgrade else b''
+                upgrade = os.environ.get('AIRDROP_TEST_L2CAP_DRIVER') == '1' and mode in ('binary', 'small')
+                mediums = integer(5, 5 if upgrade else 4)
                 send(sock, frame(1, 2, blob(1, b'TEST') + blob(2, b'Python') + mediums + blob(6, endpoint)))
                 private = ec.generate_private_key(ec.SECP256R1())
                 public = private.public_key().public_numbers()

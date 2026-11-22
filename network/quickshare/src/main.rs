@@ -44,6 +44,7 @@ struct Engine {
     recipients: HashMap<String, EndpointInfo>,
     recipient_seen: HashMap<String, Instant>,
     transfers: HashMap<String, Value>,
+    initial_routes: HashMap<String, &'static str>,
     consent: HashMap<String, Instant>,
     staging: Option<PathBuf>,
     protocol_diagnostics: bool,
@@ -63,6 +64,7 @@ impl Engine {
             recipients: HashMap::new(),
             recipient_seen: HashMap::new(),
             transfers: HashMap::new(),
+            initial_routes: HashMap::new(),
             consent: HashMap::new(),
             staging: None,
             protocol_diagnostics: false,
@@ -105,7 +107,7 @@ impl Engine {
         match req.method.as_str() {
             "hello" => Ok(
                 json!({"protocol":1,"version":env!("CARGO_PKG_VERSION"),"experimental":true,"license":"GPL-3.0-only",
-                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"classicLanUpgrade":cfg!(all(feature="ble-native",target_os="linux")),"classicReceive":cfg!(all(feature="ble-native",target_os="linux")),"lanUpgrade":false,"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
+                "capabilities":{"lan":true,"ble":cfg!(all(feature="ble-native",target_os="linux")),"bleScanning":cfg!(all(feature="ble-native",target_os="linux")),"bleAdvertising":cfg!(all(feature="ble-native",target_os="linux")),"gattBootstrap":cfg!(all(feature="ble-native",target_os="linux")),"l2cap":cfg!(all(feature="ble-native",target_os="linux")),"lanListening":true,"scopedModes":true,"radioLanUpgrade":cfg!(all(feature="ble-native",target_os="linux")),"classicLanUpgrade":cfg!(all(feature="ble-native",target_os="linux")),"classicReceive":cfg!(all(feature="ble-native",target_os="linux")),"lanUpgrade":cfg!(all(feature="ble-native",target_os="linux")),"directWireless":false,"protocolDiagnostics":true,"bleFastInit":cfg!(all(feature="ble-fastinit",target_os="linux")),"direct":false,"resume":false,"persistentTrust":false}}),
             ),
             "bluetooth-preflight" => {
                 #[cfg(all(feature = "ble-native", target_os = "linux"))]
@@ -274,7 +276,7 @@ impl Engine {
                 )
             }
             "snapshot" => Ok(
-                json!({"recipients": self.recipients.values().collect::<Vec<_>>(), "transfers": self.transfers.values().collect::<Vec<_>>(), "bluetooth":self.bluetooth,"runtimeCapabilities":{"lanListening":self.service.is_some(),"lanUpgrade":false,"directWireless":false,"bleScanning":self.bluetooth["bleScanning"]==true,"bleAdvertising":self.bluetooth["bleAdvertising"]==true,"gattBootstrap":self.bluetooth["gattBootstrap"]==true,"l2cap":self.bluetooth["l2cap"]==true}}),
+                json!({"recipients": self.recipients.values().collect::<Vec<_>>(), "transfers": self.transfers.values().collect::<Vec<_>>(), "bluetooth":self.bluetooth,"runtimeCapabilities":{"lanListening":self.service.is_some(),"lanUpgrade":self.bluetooth["lanUpgrade"]==true,"directWireless":false,"bleScanning":self.bluetooth["bleScanning"]==true,"bleAdvertising":self.bluetooth["bleAdvertising"]==true,"gattBootstrap":self.bluetooth["gattBootstrap"]==true,"l2cap":self.bluetooth["l2cap"]==true}}),
             ),
             "send" => {
                 let target = req.params["recipientId"]
@@ -390,6 +392,13 @@ impl Engine {
             return self.protocol_diagnostics.then(||json!({"v":1,"event":"session-diagnostic","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"stage":stage,"cause":cause}}));
         }
         if let Message::Connection { kind, method } = &event.msg {
+            if kind == &TransferKind::Inbound {
+                if let Some(record) = self.transfers.get_mut(&event.id) {
+                    record["connectionMethod"] = json!(method);
+                } else if self.initial_routes.len() < 100 {
+                    self.initial_routes.insert(event.id.clone(), method);
+                }
+            }
             return self.protocol_diagnostics.then(||json!({"v":1,"event":"connection","data":{"id":event.id,"direction":if *kind==TransferKind::Inbound{"incoming"}else{"outgoing"},"connectionMethod":method}}));
         }
         if let Message::Finalization { kind, stage } = &event.msg {
@@ -428,6 +437,10 @@ impl Engine {
             .cloned()
             .unwrap_or_else(|| json!({"id":event.id,"created":now_ms()}));
         let mut value = previous;
+        if let Some(method) = self.initial_routes.remove(&event.id) {
+            value["connectionMethod"] = json!(method);
+            value["initialConnectionMethod"] = json!(method);
+        }
         value["direction"] = json!(if message.kind == TransferKind::Inbound {
             "incoming"
         } else {

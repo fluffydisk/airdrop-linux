@@ -444,6 +444,7 @@ async fn application(
     let shutdown = cancel.clone();
     let gate: Gate = Arc::new(Mutex::new(None));
     let writes = gate.clone();
+    let local_endpoint = Advert::decode(&full)?.endpoint;
     let read_visibility = visibility.clone();
     let write_visibility = visibility;
     let app = Application {
@@ -579,7 +580,7 @@ async fn application(
                                 let result = tokio::select! {
                                 _=cancel.cancelled()=>Err(anyhow::anyhow!("cancelled")),r=timeout(SESSION_LIMIT,async {
                                     discovery.stop().await?;
-                                    gatt_server(notifier,rx,sender.clone(),events.clone(),id.clone()).await
+                                    gatt_server(notifier,rx,sender.clone(),events.clone(),id.clone(),local_endpoint).await
                                 })=>r.unwrap_or_else(|_|Err(anyhow::anyhow!("lifetime")))};
                                 if result.is_err() {
                                     phase(&events, "gatt-session-failed");
@@ -611,6 +612,7 @@ async fn gatt_server(
     sender: broadcast::Sender<ChannelMessage>,
     events: mpsc::Sender<Event>,
     id: String,
+    local_endpoint: [u8; 4],
 ) -> Result<()> {
     phase(&events, "gatt-connection-pending");
     let (peer, packet) = timeout(Duration::from_secs(10), rx.recv())
@@ -647,10 +649,13 @@ async fn gatt_server(
             }
         }
     };
-    session(inbound(core, sender, id, "ble-gatt"), async {
-        tokio::try_join!(weave_bridge(weave, input, output, bridge), notifications)?;
-        Ok(())
-    })
+    receive_session(
+        inbound(core, sender, id, "ble-gatt", local_endpoint),
+        async {
+            tokio::try_join!(weave_bridge(weave, input, output, bridge), notifications)?;
+            Ok(())
+        },
+    )
     .await
 }
 /// Core completion can precede physical packet output. Drain the bounded
@@ -667,12 +672,31 @@ where
         result=&mut transport=>result,
     }
 }
+// The prior radio socket can close while the protocol is still receiving over TCP.
+async fn receive_session<C, T>(core: C, transport: T) -> Result<()>
+where
+    C: std::future::Future<Output = Result<bool>>,
+    T: std::future::Future<Output = Result<()>>,
+{
+    tokio::pin!(core);
+    let mut transport = Box::pin(transport);
+    tokio::select! {
+        result = &mut core => {
+            if result? { Ok(()) } else { timeout(PEER_TIMEOUT, transport).await? }
+        }
+        result = &mut transport => {
+            drop(transport);
+            if core.await? { Ok(()) } else { result }
+        }
+    }
+}
 async fn inbound(
     core: impl AsyncRead + AsyncWrite + Unpin,
     sender: broadcast::Sender<ChannelMessage>,
     id: String,
     method: &'static str,
-) -> Result<()> {
+    local_endpoint: [u8; 4],
+) -> Result<bool> {
     let _ = sender.send(ChannelMessage {
         id: id.clone(),
         msg: Message::Connection {
@@ -687,9 +711,7 @@ async fn inbound(
         cancelled: None,
     };
     let mut r = InboundRequest::new(core, id, sender);
-    if method == "bt-rfcomm" {
-        r.enable_classic_lan_upgrade();
-    }
+    r.enable_radio_lan_upgrade(local_endpoint);
     loop {
         match timeout(PEER_TIMEOUT, r.handle())
             .await
@@ -703,12 +725,12 @@ async fn inbound(
                         | TransferState::Cancelled
                         | TransferState::Rejected
                 ) {
-                    return Ok(());
+                    return Ok(r.using_lan());
                 }
             }
             Err(e) => {
                 if e.downcast_ref::<rqs_lib::errors::AppError>().is_some() {
-                    return Ok(());
+                    return Ok(r.using_lan());
                 }
                 inc("nearby_session_error");
                 return Err(e);
@@ -1369,6 +1391,8 @@ async fn run(
     inc("adapter_ready");
     inc("adapter_generation_started");
     state["gattBootstrap"] = json!(app.is_some());
+    state["lanUpgrade"] =
+        json!(*visibility.borrow() && (app.is_some() || l2cap.is_some() || classic.is_some()));
     if app.is_none() {
         state["stage"] = json!("gatt-registration-failed");
     }
@@ -1633,7 +1657,7 @@ async fn run(
                 tasks.spawn(async move{
                     let _permit=permit;
                     let id=format!("{:032x}",rand::random::<u128>());
-                    if serve_classic(socket,sender,events.clone(),id,c).await.is_err(){inc("rfcomm_session_failed");phase(&events,"rfcomm-session-failed");}
+                    if serve_classic(socket,sender,events.clone(),id,c,endpoint_id).await.is_err(){inc("rfcomm_session_failed");phase(&events,"rfcomm-session-failed");}
                 });
             }
             accepted=async{match &l2cap{Some((listener,_))=>listener.accept().await,None=>std::future::pending().await}}=>{
@@ -1880,6 +1904,7 @@ async fn serve_classic<S: AsyncRead + AsyncWrite + Unpin>(
     events: mpsc::Sender<Event>,
     id: String,
     cancel: CancellationToken,
+    local_endpoint: [u8; 4],
 ) -> Result<()> {
     let mut socket = rqs_lib::lab_trace::Observed::new(socket);
     rqs_lib::lab_trace::event("rfcomm-arrived", 0, 0);
@@ -1894,7 +1919,9 @@ async fn serve_classic<S: AsyncRead + AsyncWrite + Unpin>(
             return Ok(());
         }
         phase(&events, "rfcomm-established");
-        inbound(reader, sender, id, "bt-rfcomm").await
+        inbound(reader, sender, id, "bt-rfcomm", local_endpoint)
+            .await
+            .map(|_| ())
     };
     tokio::select! {
         _=cancel.cancelled()=>{rqs_lib::lab_trace::event("session-cancel",0,0);Err(anyhow::anyhow!("stopped"))},
@@ -1925,8 +1952,14 @@ pub(super) async fn serve_l2cap<S: AsyncRead + AsyncWrite + Unpin>(
     phase(&events, "l2cap-established");
     let observer = Observer::new(sender.clone(), id.clone(), TransferKind::Inbound);
     let (core, bridge) = tokio::io::duplex(65536);
-    session(
-        inbound(core, sender, id, "ble-l2cap"),
+    receive_session(
+        inbound(
+            core,
+            sender,
+            id,
+            "ble-l2cap",
+            Advert::decode(full)?.endpoint,
+        ),
         socket_pump(socket, bridge, framed, observer),
     )
     .await
@@ -2071,6 +2104,7 @@ mod classic_probe_tests {
                 mpsc::channel(16).0,
                 "probe".into(),
                 cancel,
+                *b"TEST",
             )
             .await;
             assert_eq!(result.is_err(), cancel_early);

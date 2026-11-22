@@ -191,8 +191,12 @@ struct LanHandoff {
 #[derive(Debug)]
 pub struct InboundRequest<S = TcpStream> {
     socket: S,
-    classic_lan: bool,
+    radio_endpoint: Option<[u8; 4]>,
     peer_endpoint: Option<String>,
+    lan_offers: u8,
+    peer_dial_attempts: u8,
+    peer_supports_lan: bool,
+    lan_retry: Option<tokio::time::Instant>,
     lan_candidate: Option<tokio::task::JoinHandle<Option<TcpStream>>>,
     handoff: Option<LanHandoff>,
     lan: Option<TcpStream>,
@@ -237,11 +241,18 @@ impl<S> Drop for InboundRequest<S> {
 }
 
 impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
-    pub fn enable_classic_lan_upgrade(&mut self) {
-        self.classic_lan = true;
+    pub fn using_lan(&self) -> bool {
+        self.lan.is_some()
     }
 
-    async fn offer_classic_lan(&mut self) -> Result<(), anyhow::Error> {
+    pub fn enable_radio_lan_upgrade(&mut self, endpoint: [u8; 4]) {
+        self.radio_endpoint = Some(endpoint);
+    }
+
+    async fn offer_radio_lan(&mut self) -> Result<(), anyhow::Error> {
+        if !self.peer_supports_lan {
+            return Ok(());
+        }
         let Some(endpoint) = self.peer_endpoint.clone() else {
             return Ok(());
         };
@@ -256,8 +267,10 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         else {
             return Ok(());
         };
+        self.lan_offers += 1;
         self.send_upgrade_path_available(ip, listener.local_addr()?.port())
             .await?;
+        self.diagnostic("bwu-lan-offered");
         self.lan_candidate = Some(tokio::spawn(async move {
             use tokio::io::AsyncReadExt;
             tokio::time::timeout(Duration::from_secs(20), async {
@@ -291,6 +304,113 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         Ok(())
     }
 
+    // Only dial the on-link phone IP it supplied in this session, after consent.
+    async fn join_phone_lan(
+        &mut self,
+        path: &location_nearby_connections::bandwidth_upgrade_negotiation_frame::UpgradePathInfo,
+    ) -> Result<bool, anyhow::Error> {
+        use location_nearby_connections::bandwidth_upgrade_negotiation_frame::{
+            ClientIntroduction, EventType, upgrade_path_info::Medium,
+        };
+        use tokio::io::AsyncReadExt;
+        let Some(endpoint) = self.radio_endpoint else {
+            return Ok(false);
+        };
+        if self.state.state != TransferState::ReceivingFiles
+            || self.handoff.is_some()
+            || self.using_lan()
+            || self.peer_dial_attempts >= 2
+            || path.medium() != Medium::WifiLan
+        {
+            return Ok(false);
+        }
+        let Some(socket) = &path.wifi_lan_socket else {
+            return Ok(false);
+        };
+        let Ok(ip) = <[u8; 4]>::try_from(socket.ip_address()) else {
+            return Ok(false);
+        };
+        let Ok(port) = u16::try_from(socket.wifi_port()) else {
+            return Ok(false);
+        };
+        let address = std::net::Ipv4Addr::from(ip);
+        if port < 1024
+            || Some(ip) != self.remote_ip
+            || address.is_multicast()
+            || address.is_broadcast()
+            || address.is_loopback()
+            || address.is_unspecified()
+            || !crate::utils::is_not_self_ip(&address)
+            || !crate::utils::same_subnet(ip)
+        {
+            return Ok(false);
+        }
+        self.peer_dial_attempts += 1;
+        let connect = async {
+            let mut tcp = TcpStream::connect((address, port)).await?;
+            let intro = Self::bwu_frame(
+                EventType::ClientIntroduction,
+                None,
+                Some(ClientIntroduction {
+                    endpoint_id: Some(String::from_utf8(endpoint.to_vec())?),
+                    supports_disabling_encryption: Some(false),
+                }),
+            );
+            send_frame_on(&mut tcp, &intro.encode_to_vec()).await?;
+            if path.supports_client_introduction_ack() {
+                let size = tcp.read_u32().await? as usize;
+                anyhow::ensure!((1..=512).contains(&size), "invalid introduction ack size");
+                let mut bytes = vec![0; size];
+                tcp.read_exact(&mut bytes).await?;
+                let ack = OfflineFrame::decode(bytes.as_slice())?
+                    .v1
+                    .ok_or_else(|| anyhow!("missing ack frame"))?;
+                let is_upgrade = ack.r#type() == location_nearby_connections::v1_frame::FrameType::BandwidthUpgradeNegotiation;
+                let is_ack = ack.bandwidth_upgrade_negotiation.is_some_and(|frame| {
+                    frame.event_type() == EventType::ClientIntroductionAck
+                        && frame.client_introduction_ack.is_some()
+                });
+                anyhow::ensure!(is_upgrade && is_ack, "invalid introduction ack");
+            }
+            Ok::<_, anyhow::Error>(tcp)
+        };
+        let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(3), connect).await else {
+            return Ok(false);
+        };
+        if let Some(task) = self.lan_candidate.take() {
+            task.abort();
+        }
+        self.begin_lan_handoff(tcp).await?;
+        Ok(true)
+    }
+
+    fn retry_lan(&mut self) {
+        if self.lan_offers == 1
+            && self.state.state == TransferState::ReceivingFiles
+            && self.handoff.is_none()
+            && !self.using_lan()
+        {
+            self.lan_retry = Some(tokio::time::Instant::now() + Duration::from_secs(4));
+        }
+    }
+
+    async fn begin_lan_handoff(&mut self, tcp: TcpStream) -> Result<(), anyhow::Error> {
+        use location_nearby_connections::bandwidth_upgrade_negotiation_frame::EventType;
+        self.encrypt_and_send(&Self::bwu_frame(
+            EventType::LastWriteToPriorChannel,
+            None,
+            None,
+        ))
+        .await?;
+        self.lan_retry = None;
+        self.handoff = Some(LanHandoff {
+            socket: tcp,
+            deadline: tokio::time::Instant::now() + Duration::from_secs(15),
+            peer_last_write: false,
+        });
+        Ok(())
+    }
+
     fn diagnostic(&mut self, stage: &'static str) {
         if !self.diagnostics_seen.insert(stage) {
             return;
@@ -311,8 +431,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
         Self {
             prefix: Default::default(),
             socket,
-            classic_lan: false,
+            radio_endpoint: None,
             peer_endpoint: None,
+            lan_offers: 0,
+            peer_dial_attempts: 0,
+            peer_supports_lan: false,
+            lan_retry: None,
             lan_candidate: None,
             handoff: None,
             lan: None,
@@ -543,7 +667,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                             match action {
                                 TransferAction::ConsentAccept => {
                                     self.accept_transfer().await?;
-                                    if self.classic_lan { self.offer_classic_lan().await?; }
+                                    if self.radio_endpoint.is_some() { self.offer_radio_lan().await?; }
                                 },
                                 TransferAction::ConsentDecline => {
                                     self.update_state(
@@ -581,14 +705,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                 self.lan_candidate = None;
                 if let Ok(Some(mut tcp)) = result {
                     send_frame_on(&mut tcp, &Self::bwu_ack_frame().encode_to_vec()).await?;
-                    use location_nearby_connections::bandwidth_upgrade_negotiation_frame::EventType;
-                    self.encrypt_and_send(&Self::bwu_frame(EventType::LastWriteToPriorChannel,None,None)).await?;
-                    self.handoff = Some(LanHandoff {
-                        socket: tcp,
-                        deadline: tokio::time::Instant::now() + Duration::from_secs(15),
-                        peer_last_write: false,
-                    });
-                }
+                    self.begin_lan_handoff(tcp).await?;
+                } else { self.retry_lan(); }
+            }
+            _ = async {tokio::time::sleep_until(self.lan_retry.unwrap()).await}, if self.lan_retry.is_some() => {
+                self.lan_retry = None;
+                self.offer_radio_lan().await?;
             }
             _ = async { tokio::time::sleep_until(self.handoff.as_ref().unwrap().deadline).await }, if self.handoff.is_some() => {
                 return Err(anyhow!("LAN handoff timed out"));
@@ -718,11 +840,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
             .as_ref()
             .ok_or_else(|| anyhow!("Missing required fields"))?;
 
-        if self.classic_lan
-            && connection_request.mediums.contains(
-                &(location_nearby_connections::connection_request_frame::Medium::WifiLan as i32),
-            )
-        {
+        if self.radio_endpoint.is_some() {
+            self.peer_supports_lan = connection_request.mediums.is_empty()
+                || connection_request.mediums.contains(
+                    &(location_nearby_connections::connection_request_frame::Medium::WifiLan
+                        as i32),
+                );
             self.peer_endpoint = connection_request
                 .endpoint_id
                 .clone()
@@ -1192,6 +1315,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                             return Err(anyhow!("File data before consent"));
                         }
                         self.diagnostic("encrypted-file-frame-received");
+                        if self.using_lan() && !chunk.body().is_empty() {
+                            self.diagnostic("bwu-lan-file-data");
+                        }
                         info!("Processing PayloadType::File");
                         let payload_id = header.id();
 
@@ -1294,14 +1420,16 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                 match bwu.event_type() {
                     EventType::UpgradePathAvailable => {
                         self.diagnostic("bwu-offer-received");
-                        // No replacement channel has been authenticated/installed
-                        // in this path. Decline over the existing encrypted channel
-                        // (Google BwuManager::RunUpgradeFailedProtocol). Preserve
-                        // the path info on the wire, never in diagnostics.
                         let path = bwu
                             .upgrade_path_info
                             .clone()
                             .ok_or_else(|| anyhow!("Missing upgrade path"))?;
+                        if path.medium() == location_nearby_connections::bandwidth_upgrade_negotiation_frame::upgrade_path_info::Medium::WifiLan {
+                            self.peer_supports_lan = true;
+                        }
+                        if self.join_phone_lan(&path).await? {
+                            return Ok(());
+                        }
                         self.encrypt_and_send(&Self::bwu_frame(
                             EventType::UpgradeFailure,
                             Some(path),
@@ -1323,6 +1451,14 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                         if self.handoff.as_ref().is_some_and(|h| h.peer_last_write) =>
                     {
                         self.lan = self.handoff.take().map(|h| h.socket);
+                        let _ = self.sender.send(ChannelMessage {
+                            id: self.state.id.clone(),
+                            msg: channel::Message::Connection {
+                                kind: TransferKind::Inbound,
+                                method: "lan-tcp",
+                            },
+                        });
+                        self.diagnostic("bwu-lan-active");
                         self.send_keepalive(false).await?;
                     }
                     EventType::LastWriteToPriorChannel | EventType::SafeToClosePriorChannel => {
@@ -1334,6 +1470,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin> InboundRequest<S> {
                         if let Some(task) = self.lan_candidate.take() {
                             task.abort();
                         }
+                        self.retry_lan();
                         self.diagnostic("bwu-peer-failure");
                     }
                     _ => self.diagnostic("bwu-unsupported-event"),

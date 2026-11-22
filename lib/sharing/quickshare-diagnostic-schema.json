@@ -485,6 +485,9 @@
   "sessionStages": [
     "consent-response-written",
     "encrypted-file-frame-received",
+    "bwu-lan-offered",
+    "bwu-lan-active",
+    "bwu-lan-file-data",
     "bwu-offer-received",
     "bwu-offer-rejected",
     "bwu-unexpected-handoff",

@@ -68,6 +68,7 @@ async fn exercise_transport(cases: &[&str], classic: bool) {
                     mpsc::channel(16).0,
                     "independent-ble".into(),
                     CancellationToken::new(),
+                    *b"TEST",
                 )
                 .await;
             }
@@ -166,6 +167,13 @@ async fn exercise_transport(cases: &[&str], classic: bool) {
             .unwrap();
         assert_eq!(consent, matches!(case, "small" | "binary" | "empty"));
         let end = engine.transfers.get("independent-ble").unwrap();
+        if case == "binary" {
+            assert_eq!(
+                end["initialConnectionMethod"],
+                if classic { "bt-rfcomm" } else { "ble-l2cap" }
+            );
+            assert_eq!(end["connectionMethod"], "lan-tcp");
+        }
         assert_eq!(
             end["phase"],
             if matches!(case, "small" | "binary" | "empty") {
