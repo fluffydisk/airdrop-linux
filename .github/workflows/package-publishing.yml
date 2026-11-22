@@ -170,6 +170,7 @@ jobs:
     permissions:
       contents: read
       pages: write
+      actions: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -246,8 +247,13 @@ jobs:
           XDG_RUNTIME_DIR="$runtime" bash scripts/ci-command.sh Signed-repository-lint dbus-run-session -- flatpak run --user --command=flatpak-builder-lint org.flatpak.Builder repo \
             --ref=app/io.github.fluffydisk.airdrop-linux/x86_64/stable "$PWD/public/flatpak"
       - uses: actions/upload-pages-artifact@v3
+        id: pages
         with:
           path: public
+      - name: Wait for Pages artifact registration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/wait-pages-artifact.sh "${{ steps.pages.outputs.artifact_id }}"
       - uses: actions/deploy-pages@v4
       - name: Remove signing material
         if: always()

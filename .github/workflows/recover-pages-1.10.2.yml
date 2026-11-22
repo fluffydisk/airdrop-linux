@@ -1,0 +1,73 @@
+name: Deploy the verified 1.10.2 Pages artifact
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/recover-pages-1.10.2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: package-repositories
+  cancel-in-progress: false
+jobs:
+  pages:
+    if: github.repository == 'fluffydisk/airdrop-linux' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: package-publishing
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCER_RUN: '44974832835'
+      PRODUCER_COMMIT: c6dcd1bb34306d31d4e2c2927fe9ca3b5e3fd00a
+      ARTIFACT_ID: '14735766190'
+      ARTIFACT_SHA: 96b61a9299d41a106650b4fb20b4384066140cab3b6c6ee9998328ac6a107842
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify latest version, source and original signed artifact
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" | jq -e '.tag_name == "v1.10.2" and (.draft or .prerelease | not)'
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PRODUCER_RUN" |
+            jq -e --arg sha "$PRODUCER_COMMIT" '
+              .head_sha == $sha and .head_branch == "main" and
+              .path == ".github/workflows/package-publishing.yml"'
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" |
+            jq -e --argjson run "$PRODUCER_RUN" --arg digest "sha256:$ARTIFACT_SHA" '
+              .name == "github-pages" and .workflow_run.id == $run and
+              .expired == false and .digest == $digest'
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" > "$RUNNER_TEMP/pages.zip"
+          printf '%s  %s\n' "$ARTIFACT_SHA" "$RUNNER_TEMP/pages.zip" | sha256sum -c -
+          test "$(unzip -Z1 "$RUNNER_TEMP/pages.zip")" = artifact.tar
+          unzip -p "$RUNNER_TEMP/pages.zip" artifact.tar > "$RUNNER_TEMP/artifact.tar"
+          rm "$RUNNER_TEMP/pages.zip"
+          cd "$RUNNER_TEMP"
+          for file in airdrop-linux.gpg flatpak-channel.json flatpak-channel.json.asc; do
+            tar -xOf artifact.tar "./$file" > "$file"
+          done
+          export GNUPGHOME=$(mktemp -d)
+          chmod 700 "$GNUPGHOME"
+          fingerprint=$(gpg --batch --with-colons --show-keys airdrop-linux.gpg | awk -F: '$1=="fpr" {print $10; exit}')
+          test "$fingerprint" = 6513D70958397F60D3787A0CB93F4FC1E97CF3AE
+          gpgv --keyring "$RUNNER_TEMP/airdrop-linux.gpg" flatpak-channel.json.asc flatpak-channel.json
+          jq -e --arg sha "$PRODUCER_COMMIT" '.version == "1.10.2" and .source_commit == $sha' flatpak-channel.json
+      - uses: actions/upload-artifact@v4
+        id: pages
+        with:
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          if-no-files-found: error
+          retention-days: 1
+      - name: Wait for Pages artifact registration
+        run: bash scripts/wait-pages-artifact.sh "${{ steps.pages.outputs.artifact-id }}"
+      - uses: actions/deploy-pages@v4
+  verify:
+    needs: pages
+    uses: ./.github/workflows/flatpak-channel-public-check.yml
